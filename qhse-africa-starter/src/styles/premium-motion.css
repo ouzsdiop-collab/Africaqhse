@@ -1,0 +1,301 @@
+/**
+ * Animations légères — fluidité premium, accessibilité (prefers-reduced-motion).
+ * Charge après design-system-components.css pour compléter sans renommer les classes existantes.
+ */
+
+/* —— Tokens locaux —— */
+:root {
+  --qhse-motion-fast: 0.14s;
+  --qhse-motion-med: 0.2s;
+  --qhse-motion-slow: 0.26s;
+  --qhse-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --qhse-motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@keyframes qhse-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Entrée page shell : léger slide sans fondu (évite opacité 0 si animation non jouée). */
+@keyframes qhse-page-stack-enter {
+  from {
+    transform: translateY(3px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes qhse-chart-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes qhse-badge-pop {
+  from {
+    opacity: 0.35;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes qhse-notif-row {
+  from {
+    opacity: 0;
+    transform: translateX(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes qhse-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* —— Page : entrée unique (évite de cumuler avec des animations par bloc) —— */
+.page-stack {
+  animation: qhse-page-stack-enter var(--qhse-motion-slow) var(--qhse-motion-ease) both;
+}
+
+/* —— Cartes : transitions fluides + léger relief au survol —— */
+.content-card,
+.content-card.card-soft,
+.card-soft {
+  transition:
+    border-color var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    box-shadow var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out);
+}
+
+.content-card:not(.notif-panel):hover,
+.content-card.card-soft:not(.notif-panel):hover,
+.card-soft:not(.notif-panel):hover {
+  transform: translateY(-1px);
+}
+
+.notif-panel.card-soft:hover,
+.notif-panel.content-card:hover {
+  transform: none;
+}
+
+.metric-card {
+  transition:
+    border-color var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    box-shadow var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out);
+}
+
+.metric-card:hover {
+  transform: translateY(-1px);
+}
+
+/* —— Boutons : feedback tactile discret —— */
+.btn {
+  transition:
+    background var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    border-color var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    box-shadow var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out),
+    color var(--qhse-motion-fast) ease;
+}
+
+.btn:active {
+  transform: scale(0.985);
+}
+
+.text-button {
+  transition: color var(--qhse-motion-med) ease, opacity var(--qhse-motion-fast) ease;
+}
+
+.text-button:active {
+  opacity: 0.82;
+}
+
+.icon-button {
+  transition:
+    background var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    border-color var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out);
+}
+
+.icon-button:active {
+  transform: scale(0.96);
+}
+
+/* —— Blocs IA : pas d’animation d’entrée dédiée (déjà portée par .page-stack) —— */
+
+.iso-page .iso-ai-suggestion-btn {
+  transition:
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out),
+    border-color var(--qhse-motion-med) ease,
+    background var(--qhse-motion-med) ease,
+    box-shadow var(--qhse-motion-med) ease;
+}
+
+.iso-page .iso-ai-suggestion-btn:active {
+  transform: scale(0.98);
+}
+
+.audit-cockpit-ia__btn {
+  transition:
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out),
+    border-color var(--qhse-motion-med) ease,
+    background var(--qhse-motion-med) ease;
+}
+
+.audit-cockpit-ia__btn:active {
+  transform: scale(0.98);
+}
+
+/* —— Validation humaine audit : transition de couleur —— */
+.audit-human-status {
+  transition: color var(--qhse-motion-med) var(--qhse-motion-ease-out), filter var(--qhse-motion-med) ease;
+}
+
+.audit-human-actions .btn:active {
+  transform: scale(0.98);
+}
+
+/* —— Graphiques (dashboard & cartes partagées) —— */
+/* Graphiques : court pour ne pas fatiguer à chaque rafraîchissement de données */
+.dashboard-line-chart-wrap,
+.dashboard-mix-chart-wrap,
+.dashboard-breakdown-wrap {
+  animation: qhse-chart-reveal 0.22s var(--qhse-motion-ease-out) both;
+}
+
+/* —— Toasts : état initial + classe .app-toast--in (ajoutée en JS) —— */
+.app-toast {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+  transition:
+    opacity var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    transform 0.22s var(--qhse-motion-ease-out);
+}
+
+.app-toast.app-toast--in {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* —— Badge notifications topbar —— */
+.topbar-v2__notif-badge.topbar-v2__notif-badge--visible {
+  animation: qhse-badge-pop 0.14s var(--qhse-motion-ease-out) both;
+}
+
+/* —— Shell : menu rapide & modales (très discret vs. contenu .page-stack) —— */
+.topbar-v2__quick-menu:not([hidden]) {
+  animation: qhse-dropdown-in 0.12s var(--qhse-motion-ease-out) both;
+}
+
+.ds-modal-overlay:not([hidden]) .ds-modal {
+  animation: qhse-modal-soft 0.14s var(--qhse-motion-ease-out) both;
+}
+
+dialog.incidents-detail-dialog[open] {
+  animation: qhse-modal-soft 0.14s var(--qhse-motion-ease-out) both;
+}
+
+/* Liste notifications : décalage court plafonné (évite une « vague » longue à l’ouverture) */
+.notif-panel .notif-item {
+  animation: qhse-notif-row 0.2s var(--qhse-motion-ease-out) both;
+}
+
+.notif-panel .notif-item:nth-child(1) {
+  animation-delay: 0s;
+}
+.notif-panel .notif-item:nth-child(2) {
+  animation-delay: 0.02s;
+}
+.notif-panel .notif-item:nth-child(3) {
+  animation-delay: 0.04s;
+}
+.notif-panel .notif-item:nth-child(4) {
+  animation-delay: 0.06s;
+}
+.notif-panel .notif-item:nth-child(n + 5) {
+  animation-delay: 0.08s;
+}
+
+/* —— Ghost chip IA barre du haut —— */
+.ghost-chip.topbar-ai-btn {
+  transition:
+    border-color var(--qhse-motion-med) ease,
+    background var(--qhse-motion-med) ease,
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out);
+}
+
+.ghost-chip.topbar-ai-btn:active {
+  transform: scale(0.97);
+}
+
+/* —— Accessibilité : désactiver mouvements superflus —— */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --qhse-motion-fast: 0.01ms;
+    --qhse-motion-med: 0.01ms;
+    --qhse-motion-slow: 0.01ms;
+  }
+
+  .page-stack {
+    animation: none !important;
+  }
+
+  .dashboard-line-chart-wrap,
+  .dashboard-mix-chart-wrap,
+  .dashboard-breakdown-wrap,
+  .topbar-v2__notif-badge.topbar-v2__notif-badge--visible,
+  .notif-panel .notif-item,
+  .topbar-v2__quick-menu:not([hidden]),
+  .ds-modal-overlay:not([hidden]) .ds-modal,
+  dialog.incidents-detail-dialog[open] {
+    animation: none !important;
+    animation-delay: 0s !important;
+  }
+
+  .content-card:not(.notif-panel):hover,
+  .content-card.card-soft:not(.notif-panel):hover,
+  .card-soft:not(.notif-panel):hover,
+  .metric-card:hover {
+    transform: none;
+  }
+
+  .btn:active,
+  .icon-button:active,
+  .iso-page .iso-ai-suggestion-btn:active,
+  .audit-cockpit-ia__btn:active,
+  .ghost-chip.topbar-ai-btn:active {
+    transform: none;
+  }
+
+  .app-toast {
+    opacity: 1;
+    transform: translateX(-50%);
+    transition: none;
+  }
+}

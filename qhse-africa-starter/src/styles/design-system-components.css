@@ -1,0 +1,370 @@
+/**
+ * Design system QHSE — composants additionnels et raffinements.
+ * Charge après styles.css pour préserver les sélecteurs existants.
+ */
+
+/* —— Fond app (plat — détails dans flat-app.css) —— */
+body {
+  background: var(--color-background-tertiary, var(--bg-deep));
+}
+
+/* —— Focus visible (accessibilité) —— */
+.btn:focus-visible,
+.nav-item:focus-visible,
+.ghost-chip:focus-visible,
+.icon-button:focus-visible,
+.text-button:focus-visible,
+.control-input:focus-visible,
+.control-select:focus-visible,
+.control-textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-background-info, rgba(21, 101, 192, 0.2));
+}
+
+/* —— Boutons : secondaire & danger —— */
+.btn-secondary {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-surface-1);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background: var(--ds-surface-2);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.btn-danger {
+  border-color: var(--color-border-danger);
+  background: linear-gradient(135deg, var(--ds-danger-muted), color-mix(in srgb, var(--color-danger-text) 12%, transparent));
+  color: var(--color-text-danger);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-danger-text) 18%, transparent);
+}
+
+.btn-danger:hover {
+  border-color: color-mix(in srgb, var(--color-danger-text) 45%, var(--color-border-danger));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ds-danger-muted) 85%, var(--color-danger-text)),
+    var(--ds-danger-muted)
+  );
+}
+
+/* —— Champs —— */
+.control-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ds-border-default);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font-size: var(--ds-text-md);
+  font-family: inherit;
+  line-height: var(--ds-leading-body);
+}
+
+.control-textarea::placeholder {
+  color: var(--text3);
+  opacity: 0.75;
+}
+
+.control-textarea:focus {
+  outline: none;
+  border-color: rgba(82, 148, 247, 0.55);
+  box-shadow: var(--ds-shadow-focus);
+}
+
+/* —— Alertes inline —— */
+.ds-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4) var(--ds-space-5);
+  border-radius: var(--radius-md);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-body);
+  border: 1px solid var(--ds-border-default);
+  background: var(--ds-surface-1);
+  color: var(--text2);
+}
+
+.ds-alert__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.ds-alert--success {
+  border-color: var(--color-border-success);
+  background: var(--ds-success-muted);
+  color: var(--color-text-success);
+}
+
+.ds-alert--error {
+  border-color: var(--color-border-danger);
+  background: var(--ds-danger-muted);
+  color: var(--color-text-danger);
+}
+
+.ds-alert--info {
+  border-color: var(--color-border-info);
+  background: var(--ds-info-muted);
+  color: var(--color-text-info);
+}
+
+.ds-alert--warning {
+  border-color: var(--color-border-warning);
+  background: var(--ds-warning-muted);
+  color: var(--color-text-warning);
+}
+
+/* —— Modal —— */
+.ds-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  padding: var(--ds-space-6);
+  background: rgba(4, 8, 14, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.ds-modal-overlay[hidden] {
+  display: none !important;
+}
+
+.ds-modal {
+  width: min(100%, 440px);
+  max-height: min(88vh, 640px);
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  background: var(--ds-surface-1);
+  box-shadow: var(--ds-shadow-lg, 0 16px 48px rgba(0, 0, 0, 0.35));
+  padding: var(--ds-space-6);
+}
+
+.ds-modal__title {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-extrabold);
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.ds-modal__body {
+  margin: 0 0 var(--ds-space-5);
+  font-size: var(--ds-text-sm);
+  color: var(--text2);
+  line-height: var(--ds-leading-body);
+}
+
+.ds-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-3);
+  justify-content: flex-end;
+}
+
+/* —— Loader —— */
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ds-loader {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--ds-border-subtle);
+  border-top-color: var(--accent-blue);
+  animation: ds-spin 0.65s linear infinite;
+}
+
+.ds-loader--lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+.ds-loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-8);
+  color: var(--text3);
+  font-size: var(--ds-text-sm);
+}
+
+/* —— Patron de page (optionnel sur les écrans) —— */
+.ds-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-4) var(--ds-space-6);
+  margin-bottom: var(--ds-space-5);
+}
+
+.ds-page-header__text {
+  min-width: min(100%, 320px);
+}
+
+.ds-page-header__eyebrow {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-extrabold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-blue);
+  margin: 0 0 var(--ds-space-2);
+}
+
+.ds-page-header__title {
+  margin: 0;
+  font-size: clamp(var(--ds-text-xl), 2.5vw, 28px);
+  font-weight: var(--ds-weight-extrabold);
+  letter-spacing: -0.03em;
+  line-height: var(--ds-leading-tight);
+  color: var(--text);
+}
+
+.ds-page-header__subtitle {
+  margin: var(--ds-space-2) 0 0;
+  font-size: var(--ds-text-sm);
+  color: var(--text2);
+  max-width: 62ch;
+  line-height: var(--ds-leading-body);
+}
+
+.ds-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-3);
+  align-items: center;
+}
+
+.ds-page-grid {
+  display: grid;
+  gap: var(--ds-space-5);
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .ds-page-grid--split {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+}
+
+/* —— État vide —— */
+.ds-empty-state {
+  text-align: center;
+  padding: var(--ds-space-8) var(--ds-space-6);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--ds-border-default);
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--text3);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-body);
+  max-width: 48ch;
+  margin-inline: auto;
+}
+
+.ds-empty-state__title {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-bold);
+  color: var(--text2);
+}
+
+/* —— Tableau : variante dense optionnelle —— */
+.table-shell--comfortable td,
+.table-shell--comfortable th {
+  padding: 14px 16px;
+}
+
+.table-shell tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* —— Graphiques : cohérence couleurs —— */
+.line-chart {
+  border-color: var(--ds-chart-grid);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+/* —— Toasts —— */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom, 24px));
+  transform: translateX(-50%);
+  z-index: 10000;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-bold);
+  line-height: var(--ds-leading-tight);
+  text-align: center;
+  border: 1px solid var(--ds-border-default);
+  box-shadow: var(--ds-shadow-lg);
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--text);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(18, 24, 34, 0.94);
+}
+
+.app-toast--success {
+  border-color: var(--color-border-success);
+}
+
+.app-toast--error {
+  border-color: var(--color-border-danger);
+}
+
+.app-toast--info {
+  border-color: var(--color-border-info);
+}
+
+.app-toast--warning {
+  border-color: var(--color-border-warning);
+}
+
+/* —— Cartes : survol cohérent (premium, sans transform agressif) —— */
+.content-card:hover,
+.content-card.card-soft:hover,
+.card-soft:hover {
+  border-color: var(--color-border-secondary, rgba(148, 163, 184, 0.18));
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(20, 184, 166, 0.06);
+}
+
+[data-theme='dark'] .content-card:hover,
+[data-theme='dark'] .content-card.card-soft:hover,
+[data-theme='dark'] .card-soft:hover {
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(20, 184, 166, 0.08);
+}
+
+/* Panneau notifications flottant : pas d’effet « lift » (liste interactive à l’intérieur) */
+.notif-panel.card-soft:hover {
+  border-color: var(--card-border);
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme='dark'] .notif-panel.card-soft:hover {
+  box-shadow: var(--shadow-card);
+}
+
+/* —— Centre IA : liseré aligné sur le bleu primaire —— */
+.ghost-chip.topbar-ai-btn:hover {
+  border-color: var(--ds-ai-border);
+  background: color-mix(in srgb, var(--color-primary-bg) 65%, transparent);
+}

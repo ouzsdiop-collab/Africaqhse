@@ -1,0 +1,2 @@
+/* Réexport : index.html charge de préférence /src/styles.css directement. */
+@import url('../styles.css');

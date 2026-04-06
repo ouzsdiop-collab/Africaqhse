@@ -1,0 +1,14 @@
+{
+  "name": "qhse-africa-starter-workspace",
+  "private": true,
+  "description": "Point d’entrée npm : le projet vit dans le sous-dossier qhse-africa-starter",
+  "scripts": {
+    "dev": "npm run dev --prefix qhse-africa-starter",
+    "dev:reset": "npm run dev:reset --prefix qhse-africa-starter",
+    "dev:api": "npm run dev:api --prefix qhse-africa-starter",
+    "dev:front": "npm run dev:front --prefix qhse-africa-starter",
+    "start:api": "npm run start:api --prefix qhse-africa-starter",
+    "db:push": "npm run db:push --prefix qhse-africa-starter",
+    "db:generate": "npm run db:generate --prefix qhse-africa-starter"
+  }
+}

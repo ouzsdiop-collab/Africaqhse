@@ -1,0 +1,20 @@
+# Optionnel — uniquement si vous avez installé Docker Desktop (https://docker.com/products/docker-desktop).
+# Sinon le projet utilise SQLite par défaut (fichier prisma/dev.db), sans Docker.
+# docker compose up -d
+# puis : npx prisma db push  (avec schema Prisma en provider postgresql)
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: qhse_africa_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: qhse_africa
+    ports:
+      - '5432:5432'
+    volumes:
+      - qhse_pgdata:/var/lib/postgresql/data
+
+volumes:
+  qhse_pgdata:

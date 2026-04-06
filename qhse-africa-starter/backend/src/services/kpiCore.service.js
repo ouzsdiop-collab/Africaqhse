@@ -1,0 +1,165 @@
+/**
+ * Noyau KPI / règles métier partagées — dashboard, rapports, analytics.
+ * Centralise les définitions pour éviter les écarts entre écrans.
+ */
+
+import { prisma } from '../db.js';
+
+/**
+ * @param {unknown} siteId
+ * @returns {string | null}
+ */
+export function normalizeSiteId(siteId) {
+  if (siteId == null || siteId === '') return null;
+  const s = String(siteId).trim();
+  return s === '' ? null : s;
+}
+
+/**
+ * Filtre Prisma `where` pour entités avec `siteId` optionnel.
+ * @param {string | null} siteId
+ * @returns {{ siteId: string } | undefined}
+ */
+export function prismaSiteWhere(siteId) {
+  const sid = normalizeSiteId(siteId);
+  return sid ? { siteId: sid } : undefined;
+}
+
+/**
+ * @param {unknown} haystack
+ * @param {unknown} needle
+ */
+export function includesInsensitive(haystack, needle) {
+  if (haystack == null || needle == null) return false;
+  return String(haystack).toLowerCase().includes(String(needle).toLowerCase());
+}
+
+/**
+ * @param {unknown} status
+ */
+export function isIncidentLikelyOpen(status) {
+  const s = String(status ?? '').toLowerCase();
+  if (!s) return true;
+  if (s.includes('clos')) return false;
+  if (s.includes('clôt')) return false;
+  if (s.includes('archive')) return false;
+  return true;
+}
+
+/**
+ * NC considérée comme ouverte (V1 — statut texte libre).
+ * @param {unknown} status
+ */
+export function isNcOpen(status) {
+  const s = String(status ?? '').toLowerCase();
+  if (!s || s === 'open' || s === 'ouverte') return true;
+  if (s.includes('clos')) return false;
+  if (s.includes('clôt')) return false;
+  if (s.includes('traité')) return false;
+  return true;
+}
+
+/**
+ * Compte les actions en retard (même règle SQL que l’historique dashboard / synthèse).
+ * @param {string | null} siteId
+ */
+export async function countActionsOverdue(siteId) {
+  const sid = normalizeSiteId(siteId);
+  const rows = sid
+    ? await prisma.$queryRaw`
+        SELECT COUNT(*) AS c FROM actions
+        WHERE LOWER(status) LIKE '%retard%' AND siteId = ${sid}
+      `
+    : await prisma.$queryRaw`
+        SELECT COUNT(*) AS c FROM actions WHERE LOWER(status) LIKE '%retard%'
+      `;
+  return Number(rows[0]?.c ?? 0);
+}
+
+/**
+ * NC « ouvertes » selon heuristique SQL (alignée sur reportingSummary).
+ * @param {string | null} siteId
+ */
+export async function countNonConformitiesOpenHeuristic(siteId) {
+  const sid = normalizeSiteId(siteId);
+  const rows = sid
+    ? await prisma.$queryRaw`
+        SELECT COUNT(*) AS c FROM non_conformities
+        WHERE LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
+          AND LOWER(COALESCE(status, '')) NOT LIKE '%clôt%'
+          AND LOWER(COALESCE(status, '')) NOT LIKE '%trait%'
+          AND siteId = ${sid}
+      `
+    : await prisma.$queryRaw`
+        SELECT COUNT(*) AS c FROM non_conformities
+        WHERE LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
+          AND LOWER(COALESCE(status, '')) NOT LIKE '%clôt%'
+          AND LOWER(COALESCE(status, '')) NOT LIKE '%trait%'
+      `;
+  return Number(rows[0]?.c ?? 0);
+}
+
+/**
+ * Alertes prioritaires — même logique que l’ancienne synthèse (pour cohérence exports / UI).
+ */
+export function buildPriorityAlerts({
+  incidentsCriticalOpen,
+  actionsOverdue,
+  nonConformitiesOpen,
+  auditScoreAvg,
+  auditsTotal,
+  incidentsLast30Days
+}) {
+  /** @type {{ level: 'critical'|'high'|'info', code: string, message: string }[]} */
+  const alerts = [];
+
+  if (incidentsCriticalOpen > 0) {
+    alerts.push({
+      level: 'critical',
+      code: 'INCIDENTS_CRITIQUES',
+      message: `${incidentsCriticalOpen} incident(s) critique(s) encore ouverts (périmètre récent analysé).`
+    });
+  }
+
+  if (actionsOverdue > 0) {
+    alerts.push({
+      level: 'high',
+      code: 'ACTIONS_RETARD',
+      message: `${actionsOverdue} action(s) en retard — relance plan d’actions.`
+    });
+  }
+
+  if (nonConformitiesOpen > 0) {
+    alerts.push({
+      level: nonConformitiesOpen >= 5 ? 'high' : 'info',
+      code: 'NC_OUVERTES',
+      message: `${nonConformitiesOpen} non-conformité(s) ouverte(s) à suivre.`
+    });
+  }
+
+  if (auditsTotal > 0 && auditScoreAvg != null && auditScoreAvg < 70) {
+    alerts.push({
+      level: 'high',
+      code: 'SCORE_AUDIT_FAIBLE',
+      message: `Score moyen des audits : ${auditScoreAvg} % — prioriser les plans d’amélioration.`
+    });
+  }
+
+  if (incidentsLast30Days >= 10) {
+    alerts.push({
+      level: 'info',
+      code: 'VOLUME_INCIDENTS',
+      message: `${incidentsLast30Days} incident(s) sur les 30 derniers jours — à contextualiser en comité.`
+    });
+  }
+
+  if (alerts.length === 0) {
+    alerts.push({
+      level: 'info',
+      code: 'SITUATION_STABLE',
+      message: 'Aucune alerte prioritaire automatique — vérifier les listes de détail pour le comité.'
+    });
+  }
+
+  return alerts;
+}
