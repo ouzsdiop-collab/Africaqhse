@@ -1,0 +1,362 @@
+import multer from 'multer';
+import * as controlledDocumentService from '../services/controlledDocument.service.js';
+import { verifyDocumentAccessToken, signDocumentAccessToken } from '../services/documentToken.service.js';
+import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
+import { prisma } from '../db.js';
+import { can } from '../lib/permissions.js';
+import {
+  assertDocumentSiteAllowed,
+  canUserAccessSiteId,
+  isEnforceDocumentSiteScopeEnabled
+} from '../lib/siteScope.service.js';
+import { emitBusinessEvent } from '../services/businessEvents.service.js';
+
+function mayAccessDocumentRow(user, row) {
+  if (!isEnforceDocumentSiteScopeEnabled()) return true;
+  return canUserAccessSiteId(user, row.siteId);
+}
+
+const MAX_BYTES = Number(process.env.CONTROLLED_DOCUMENT_MAX_BYTES) || 25 * 1024 * 1024;
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES }
+});
+
+export function uploadSingleControlledFile(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          error: `Fichier trop volumineux (max. ${Math.round(MAX_BYTES / 1024 / 1024)} Mo).`
+        });
+      }
+      return res.status(400).json({ error: err.message || 'Upload invalide' });
+    }
+    console.error('[controlled-documents] multer', err);
+    return res.status(400).json({ error: 'Envoi du fichier impossible.' });
+  });
+}
+
+/**
+ * GET /api/controlled-documents/stream?token=
+ * Accès fichier via jeton signé court — pas d’URL disque publique.
+ */
+export async function streamByToken(req, res, next) {
+  try {
+    const raw = req.query.token;
+    const token = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : '';
+    const v = verifyDocumentAccessToken(token);
+    if (!v) {
+      return res.status(401).json({ error: 'Jeton invalide ou expiré.' });
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: v.userId },
+      select: { id: true, role: true, name: true, email: true }
+    });
+    if (!user) {
+      return res.status(401).json({ error: 'Utilisateur invalide.' });
+    }
+    const qhseUser = {
+      id: user.id,
+      role: String(user.role ?? '').trim().toUpperCase()
+    };
+    const doc = await controlledDocumentService.getControlledDocumentById(v.documentId);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    if (!controlledDocumentService.canAccessControlledDocument(qhseUser, doc.classification, 'read')) {
+      return res.status(403).json({ error: 'Accès refusé pour cette classification.' });
+    }
+    const { buffer } = await controlledDocumentService.readDocumentBufferForId(doc.id);
+    await writeAuditLog({
+      userId: user.id,
+      resource: 'controlled_document',
+      resourceId: doc.id,
+      action: 'controlled_document_download',
+      metadata: {
+        via: 'signed_token',
+        mimeType: doc.mimeType,
+        name: doc.name,
+        siteId: doc.siteId ?? null,
+        requestId: req.requestId ?? null
+      }
+    });
+    const mime = doc.mimeType || 'application/octet-stream';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(buffer);
+  } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * GET /api/controlled-documents
+ */
+export async function list(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    if (!can(u.role, 'controlled_documents', 'read')) {
+      return res.status(403).json({ error: 'Permission refusée.' });
+    }
+    const filters = controlledDocumentService.parseListFilters(req.query || {});
+    const rows = await controlledDocumentService.listControlledDocuments(filters);
+    const visible = rows.filter((row) =>
+      controlledDocumentService.canAccessControlledDocument(u, row.classification, 'read')
+    );
+    await writeAuditLog({
+      userId: auditUserIdFromRequest(req),
+      resource: 'controlled_document',
+      resourceId: 'list',
+      action: 'controlled_document_list',
+      metadata: { filters }
+    });
+    return res.json(visible);
+  } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * POST /api/controlled-documents
+ */
+export async function create(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    if (!can(u.role, 'controlled_documents', 'write')) {
+      return res.status(403).json({ error: 'Permission refusée.' });
+    }
+    if (!req.file?.buffer) {
+      return res.status(400).json({ error: 'Aucun fichier (champ attendu : file).' });
+    }
+    const body = req.body || {};
+    const classification = controlledDocumentService.normalizeClassification(body.classification);
+    if (!controlledDocumentService.canAccessControlledDocument(u, classification, 'write')) {
+      return res.status(403).json({ error: 'Vous ne pouvez pas créer un document avec cette classification.' });
+    }
+    const rawSite =
+      body.siteId != null && String(body.siteId).trim() !== ''
+        ? String(body.siteId).trim()
+        : null;
+    assertDocumentSiteAllowed(u, rawSite);
+    const name =
+      (typeof body.name === 'string' && body.name.trim()) || req.file.originalname || 'document';
+    const type = (typeof body.type === 'string' && body.type.trim()) || 'other';
+    const row = await controlledDocumentService.createControlledDocument(req.file.buffer, {
+      name,
+      type,
+      classification,
+      siteId: rawSite,
+      createdByUserId: u.id,
+      mimeType: req.file.mimetype || null,
+      auditId: body.auditId || null,
+      fdsProductRef: body.fdsProductRef || null,
+      isoRequirementRef: body.isoRequirementRef || null,
+      riskRef: body.riskRef || null,
+      complianceTag: body.complianceTag || null
+    });
+    await writeAuditLog({
+      userId: u.id,
+      resource: 'controlled_document',
+      resourceId: row.id,
+      action: 'controlled_document_create',
+      metadata: {
+        type: row.type,
+        classification: row.classification,
+        siteId: row.siteId,
+        auditId: row.auditId
+      }
+    });
+    return res.status(201).json(controlledDocumentService.toPublicControlledDocument(row));
+  } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * GET /api/controlled-documents/:id
+ */
+export async function getById(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    if (!controlledDocumentService.canAccessControlledDocument(u, doc.classification, 'read')) {
+      return res.status(403).json({ error: 'Accès refusé.' });
+    }
+    assertDocumentSiteAllowed(u, doc.siteId);
+    await writeAuditLog({
+      userId: u.id,
+      resource: 'controlled_document',
+      resourceId: doc.id,
+      action: 'controlled_document_consult',
+      metadata: {
+        name: doc.name,
+        classification: doc.classification,
+        siteId: doc.siteId ?? null,
+        requestId: req.requestId ?? null
+      }
+    });
+    return res.json(controlledDocumentService.toPublicControlledDocument(doc));
+  } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * POST /api/controlled-documents/:id/access-token
+ */
+export async function issueAccessToken(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    if (!controlledDocumentService.canAccessControlledDocument(u, doc.classification, 'read')) {
+      return res.status(403).json({ error: 'Accès refusé.' });
+    }
+    const expiresIn =
+      typeof req.body?.expiresIn === 'string' && /^\d+[mhd]$/i.test(req.body.expiresIn)
+        ? req.body.expiresIn
+        : '10m';
+    const token = signDocumentAccessToken(
+      { documentId: doc.id, userId: u.id, purpose: 'download' },
+      expiresIn
+    );
+    const streamPath = `/api/controlled-documents/stream?token=${encodeURIComponent(token)}`;
+    await writeAuditLog({
+      userId: u.id,
+      resource: 'controlled_document',
+      resourceId: doc.id,
+      action: 'controlled_document_issue_token',
+      metadata: { expiresIn }
+    });
+    return res.json({
+      token,
+      streamPath,
+      expiresIn,
+      /** Indication client : préfixer avec l’origine HTTPS de l’API. */
+      hint: 'Utilisez streamPath sur la même origine que l’API (HTTPS en production).'
+    });
+  } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * GET /api/controlled-documents/:id/download
+ * Téléchargement direct authentifié (sans jeton).
+ */
+export async function downloadAuthenticated(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    if (!controlledDocumentService.canAccessControlledDocument(u, doc.classification, 'read')) {
+      return res.status(403).json({ error: 'Accès refusé.' });
+    }
+    assertDocumentSiteAllowed(u, doc.siteId);
+    const { buffer } = await controlledDocumentService.readDocumentBufferForId(doc.id);
+    await writeAuditLog({
+      userId: u.id,
+      resource: 'controlled_document',
+      resourceId: doc.id,
+      action: 'controlled_document_download',
+      metadata: {
+        via: 'bearer',
+        mimeType: doc.mimeType,
+        name: doc.name,
+        siteId: doc.siteId ?? null,
+        requestId: req.requestId ?? null
+      }
+    });
+    const mime = doc.mimeType || 'application/octet-stream';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(buffer);
+  } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * GET /api/controlled-documents/:id/export
+ * Export avec filigrane (PDF) ou en-tête de traçabilité (autres types).
+ */
+export async function exportWatermarked(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    if (!controlledDocumentService.canAccessControlledDocument(u, doc.classification, 'read')) {
+      return res.status(403).json({ error: 'Accès refusé.' });
+    }
+    assertDocumentSiteAllowed(u, doc.siteId);
+    const { buffer } = await controlledDocumentService.readDocumentBufferForId(doc.id);
+    const userLabel = `${u.name || u.id} (${u.email || ''})`.trim();
+    const built = await controlledDocumentService.buildWatermarkedExportBuffer(buffer, doc, {
+      userLabel
+    });
+    await writeAuditLog({
+      userId: u.id,
+      resource: 'controlled_document',
+      resourceId: doc.id,
+      action: 'controlled_document_export',
+      metadata: {
+        name: doc.name,
+        watermarked: true,
+        mimeType: built.mimeType,
+        userLabel,
+        siteId: doc.siteId ?? null,
+        requestId: req.requestId ?? null
+      }
+    });
+    void emitBusinessEvent('controlled_document.export', {
+      documentId: doc.id,
+      userId: u.id,
+      classification: doc.classification,
+      siteId: doc.siteId ?? null
+    });
+    res.setHeader('Content-Type', built.mimeType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(built.fileName)}`
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (built.watermarkHeader) {
+      res.setHeader('X-QHSE-Export-Watermark', built.watermarkHeader);
+    }
+    return res.send(built.buffer);
+  } catch (e) {
+    return next(e);
+  }
+}

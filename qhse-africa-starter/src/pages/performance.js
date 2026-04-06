@@ -1,0 +1,842 @@
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
+import { appState, setActiveSiteContext } from '../utils/state.js';
+import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
+import { showToast } from '../components/toast.js';
+import { ensureDashboardStyles } from '../components/dashboardStyles.js';
+import {
+  buildMonthlyAuditScoreAvgSeries,
+  createDashboardLineChart,
+  createPilotageLoadMixChart
+} from '../components/dashboardCharts.js';
+
+const SNAPSHOT_KEY = 'qhse-performance-kpi-snapshot-v1';
+
+/** Objectifs affichés (référence pilotage — pas de persistance serveur). */
+const GOALS = {
+  conformity: 85,
+  auditScore: 80,
+  actionsOverdue: 0,
+  incidents30: 5,
+  ncTreatmentRate: 75,
+  actionOnTrackPct: 92
+};
+
+function snapshotStorageKey(months) {
+  const sid = appState.activeSiteId || 'groupe';
+  return `${sid}|m${months}`;
+}
+
+function readSnapshot(months) {
+  try {
+    const raw = sessionStorage.getItem(SNAPSHOT_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return o[snapshotStorageKey(months)] || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSnapshot(months, payload) {
+  try {
+    const raw = sessionStorage.getItem(SNAPSHOT_KEY);
+    const o = raw ? JSON.parse(raw) : {};
+    o[snapshotStorageKey(months)] = payload;
+    sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(o));
+  } catch {
+    /* ignore */
+  }
+}
+
+function computeGlobalConformity(counts, kpis) {
+  const audit = Number(kpis?.auditScoreAvg);
+  const auditBase = Number.isFinite(audit) ? audit : 72;
+  const ncTot = Math.max(0, Number(counts?.nonConformitiesTotal) || 0);
+  const ncOpen = Math.max(0, Number(counts?.nonConformitiesOpen) || 0);
+  const ncPen =
+    ncTot > 0 ? (ncOpen / ncTot) * 28 : ncOpen > 0 ? 14 : 0;
+  const actTot = Math.max(0, Number(counts?.actionsTotal) || 0);
+  const actOd = Math.max(0, Number(counts?.actionsOverdue) || 0);
+  const actPen = actTot > 0 ? (actOd / actTot) * 22 : actOd > 0 ? 11 : 0;
+  const inc30 = Math.max(0, Number(counts?.incidentsLast30Days) || 0);
+  const incPen = Math.min(18, inc30 * 1.4);
+  const v = auditBase - ncPen - actPen - incPen;
+  return Math.round(Math.max(0, Math.min(100, v)));
+}
+
+function formatDelta(prev, cur) {
+  if (prev == null || Number.isNaN(Number(prev))) return '—';
+  const d = Math.round((Number(cur) - Number(prev)) * 10) / 10;
+  if (Math.abs(d) < 0.05) return '=';
+  return (d > 0 ? '+' : '') + String(d);
+}
+
+function toneVsGoal(value, goal, lowerIsBetter = false) {
+  if (lowerIsBetter) {
+    if (value > goal) return 'red';
+    if (value > goal * 0.5 && goal > 0) return 'amber';
+    return 'green';
+  }
+  if (value < goal - 8) return 'red';
+  if (value < goal - 3) return 'amber';
+  return 'green';
+}
+
+function formatEcartVsObjectif(value, goal, lowerIsBetter, unit = 'pt') {
+  if (value == null || goal == null || Number.isNaN(Number(value))) return '—';
+  const v = Number(value);
+  const g = Number(goal);
+  if (lowerIsBetter) {
+    if (g === 0) {
+      if (v <= 0) return 'À la cible';
+      return `${v} hors cible`;
+    }
+    const raw = g - v;
+    if (Math.abs(raw) < 0.05) return 'À la cible';
+    if (raw > 0) return `Marge +${Math.round(raw * 10) / 10}${unit === 'pt' ? '' : unit}`;
+    return `Dépassement ${Math.round(raw * 10) / 10}${unit === 'pt' ? '' : unit}`;
+  }
+  const raw = v - g;
+  if (Math.abs(raw) < 0.05) return 'À la cible';
+  if (raw >= 0) return `+${Math.round(raw * 10) / 10} ${unit}`;
+  return `${Math.round(raw * 10) / 10} ${unit}`;
+}
+
+function vigilanceLevel(conformity, counts, kpis) {
+  const crit = Number(counts?.incidentsCriticalOpen) || 0;
+  const od = Number(counts?.actionsOverdue) || 0;
+  const avg = kpis?.auditScoreAvg;
+  if (crit > 0 || od > 12 || (avg != null && avg < 65) || conformity < 55) {
+    return { label: 'Alerte', tone: 'red', hint: 'Décisions rapides attendues.' };
+  }
+  if (od > 5 || (avg != null && avg < GOALS.auditScore) || conformity < GOALS.conformity) {
+    return { label: 'Vigilance', tone: 'amber', hint: 'Serrer le suivi des écarts.' };
+  }
+  return { label: 'Maîtrise', tone: 'green', hint: 'Cap soutenable — consolider.' };
+}
+
+function trendArrowFromDelta(deltaStr) {
+  if (deltaStr === '—' || deltaStr === '=') return '→';
+  if (String(deltaStr).startsWith('+')) return '↑';
+  if (String(deltaStr).startsWith('-')) return '↓';
+  return '→';
+}
+
+function buildPilotagePriorities(counts, kpis) {
+  const out = [];
+  const od = Number(counts?.actionsOverdue) || 0;
+  const nc = Number(counts?.nonConformitiesOpen) || 0;
+  const crit = Number(counts?.incidentsCriticalOpen) || 0;
+  const avg = kpis?.auditScoreAvg;
+  if (crit > 0) {
+    out.push('Clôturer les incidents critiques.');
+  }
+  if (od > 0) {
+    out.push(`Débloquer ${od} action(s) en retard.`);
+  }
+  if (nc >= 4) {
+    out.push(`Réduire les NC ouvertes (${nc}).`);
+  }
+  if (avg != null && !Number.isNaN(avg) && avg < GOALS.auditScore) {
+    out.push(`Rehausser le score audit (cible ${GOALS.auditScore} %).`);
+  }
+  if (out.length === 0) {
+    out.push('Préparer revue direction et preuves.');
+  }
+  return out.slice(0, 3);
+}
+
+function navigateHash(id) {
+  const x = String(id || '').replace(/^#/, '');
+  if (x) window.location.hash = x;
+}
+
+function elKpiMain(opts) {
+  const {
+    title,
+    valueText,
+    deltaText,
+    goalText,
+    gapText,
+    tone,
+    hash,
+    statusTone
+  } = opts;
+  const art = document.createElement('article');
+  art.className = `kpi-perf-main-card metric-card card-soft kpi-perf-main-card--${statusTone || 'blue'}`;
+  art.tabIndex = 0;
+  art.setAttribute('role', 'link');
+  art.setAttribute('aria-label', `${title} — ouvrir le module associé`);
+  art.addEventListener('click', () => navigateHash(hash));
+  art.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigateHash(hash);
+    }
+  });
+  const gapBlock =
+    gapText && String(gapText).trim()
+      ? `<div class="kpi-perf-main-gap kpi-perf-main-gap--${tone || 'blue'}">${gapText}</div>`
+      : '';
+  art.innerHTML = `
+    <div class="metric-label">${title}</div>
+    <div class="metric-value ${tone} kpi-perf-main-value">${valueText}</div>
+    <div class="kpi-perf-main-meta">
+      <span class="kpi-perf-delta">Tendance ${deltaText}</span>
+      <span class="kpi-perf-goal">Obj. ${goalText}</span>
+    </div>
+    ${gapBlock}
+  `;
+  return art;
+}
+
+function elPerfCockpitHero(conformity, prev, counts, kpis) {
+  const v = vigilanceLevel(conformity, counts, kpis);
+  const dConf = prev ? formatDelta(prev.conformity, conformity) : '—';
+  const arrow = trendArrowFromDelta(dConf);
+  const section = document.createElement('section');
+  section.className = 'kpi-perf-cockpit-hero';
+  section.innerHTML = `
+    <div class="kpi-perf-hero-score">
+      <span class="kpi-perf-hero-k">Indice de maîtrise QHSE</span>
+      <div class="kpi-perf-hero-val-row">
+        <span class="kpi-perf-hero-val metric-value ${toneVsGoal(conformity, GOALS.conformity)}">${conformity}</span>
+        <span class="kpi-perf-hero-pct">%</span>
+        <span class="kpi-perf-hero-trend" aria-hidden="true">${arrow}</span>
+      </div>
+      <p class="kpi-perf-hero-sub">vs dernière visite : <strong>${dConf}</strong> pts</p>
+    </div>
+    <div class="kpi-perf-hero-vigil kpi-perf-hero-vigil--${v.tone}">
+      <span class="kpi-perf-hero-vigil-k">Niveau de vigilance</span>
+      <span class="kpi-perf-hero-vigil-l">${v.label}</span>
+      <p class="kpi-perf-hero-vigil-h">${v.hint}</p>
+    </div>
+  `;
+  return section;
+}
+
+function elGoalVsRealCard(rows) {
+  const card = document.createElement('article');
+  card.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--goalvs';
+  const head = document.createElement('div');
+  head.className = 'content-card-head';
+  head.innerHTML = `<div><div class="kpi-perf-dx-kicker">Écart</div><h2 class="kpi-perf-h2 kpi-perf-h2--small">Objectif vs réel</h2></div>`;
+  const body = document.createElement('div');
+  body.className = 'kpi-perf-goalvs-body';
+  rows.forEach((r) => {
+    const pct = Math.max(0, Math.min(100, Number(r.pctReal) || 0));
+    const pctG = Math.max(0, Math.min(100, Number(r.pctGoal) || 0));
+    const row = document.createElement('div');
+    row.className = 'kpi-perf-goalvs-row';
+    row.innerHTML = `
+      <div class="kpi-perf-goalvs-label">${r.label}</div>
+      <div class="kpi-perf-goalvs-track" role="presentation">
+        <div class="kpi-perf-goalvs-fill" style="width:${pct}%"></div>
+        <div class="kpi-perf-goalvs-marker" style="left:${pctG}%"></div>
+      </div>
+      <div class="kpi-perf-goalvs-vals">
+        <span class="kpi-perf-goalvs-real">${r.realText}</span>
+        <span class="kpi-perf-goalvs-goal">cible ${r.goalText}</span>
+      </div>
+    `;
+    body.append(row);
+  });
+  const foot = document.createElement('p');
+  foot.className = 'kpi-perf-goalvs-foot';
+  foot.textContent = 'Réel (barre) · objectif (trait). Échelle normalisée par ligne.';
+  card.append(head, body, foot);
+  return card;
+}
+
+function elGapsCard(groups, summaryLine) {
+  const card = document.createElement('section');
+  card.className = 'kpi-perf-gaps';
+  card.innerHTML = `<h2 class="kpi-perf-gaps-title">Écarts à l’objectif</h2>
+    <div class="kpi-perf-gaps-grid">
+      <div class="kpi-perf-gaps-col kpi-perf-gaps-col--below">
+        <span class="kpi-perf-gaps-col-k">Sous la cible</span>
+        <ul class="kpi-perf-gaps-list"></ul>
+      </div>
+      <div class="kpi-perf-gaps-col kpi-perf-gaps-col--watch">
+        <span class="kpi-perf-gaps-col-k">À surveiller</span>
+        <ul class="kpi-perf-gaps-list"></ul>
+      </div>
+      <div class="kpi-perf-gaps-col kpi-perf-gaps-col--ok">
+        <span class="kpi-perf-gaps-col-k">À la cible</span>
+        <ul class="kpi-perf-gaps-list"></ul>
+      </div>
+    </div>`;
+  if (summaryLine && String(summaryLine).trim()) {
+    const sub = document.createElement('p');
+    sub.className = 'kpi-perf-gaps-sub';
+    sub.textContent = summaryLine;
+    const titleEl = card.querySelector('.kpi-perf-gaps-title');
+    titleEl.after(sub);
+  }
+  const cols = card.querySelectorAll('.kpi-perf-gaps-col');
+  const lists = [cols[0].querySelector('ul'), cols[1].querySelector('ul'), cols[2].querySelector('ul')];
+  (groups.below || []).forEach((t) => {
+    const li = document.createElement('li');
+    li.textContent = t;
+    lists[0].append(li);
+  });
+  (groups.watch || []).forEach((t) => {
+    const li = document.createElement('li');
+    li.textContent = t;
+    lists[1].append(li);
+  });
+  (groups.ok || []).forEach((t) => {
+    const li = document.createElement('li');
+    li.textContent = t;
+    lists[2].append(li);
+  });
+  [0, 1, 2].forEach((i) => {
+    if (!lists[i].children.length) {
+      const li = document.createElement('li');
+      li.className = 'kpi-perf-gaps-empty';
+      li.textContent = '—';
+      lists[i].append(li);
+    }
+  });
+  return card;
+}
+
+function elPrioritiesCard(items) {
+  const card = document.createElement('section');
+  card.className = 'kpi-perf-priorities';
+  const h = document.createElement('h2');
+  h.className = 'kpi-perf-priorities-title';
+  h.textContent = 'Priorités de pilotage';
+  const ol = document.createElement('ol');
+  ol.className = 'kpi-perf-priorities-list';
+  items.forEach((text, i) => {
+    const li = document.createElement('li');
+    const idx = document.createElement('span');
+    idx.className = 'kpi-perf-priorities-idx';
+    idx.textContent = String(i + 1);
+    const txt = document.createElement('span');
+    txt.className = 'kpi-perf-priorities-txt';
+    txt.textContent = text;
+    li.append(idx, txt);
+    ol.append(li);
+  });
+  card.append(h, ol);
+  return card;
+}
+
+function classifyGapGroups(metrics) {
+  const below = [];
+  const watch = [];
+  const ok = [];
+  metrics.forEach((m) => {
+    if (m.zone === 'below') below.push(m.label);
+    else if (m.zone === 'watch') watch.push(m.label);
+    else ok.push(m.label);
+  });
+  return { below, watch, ok };
+}
+
+export function renderPerformance() {
+  ensureDashboardStyles();
+
+  const page = document.createElement('section');
+  page.className = 'page-stack kpi-performance-page';
+
+  const header = document.createElement('header');
+  header.className = 'kpi-perf-header kpi-perf-header--toolbar-only';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'kpi-perf-toolbar';
+
+  const periodWrap = document.createElement('label');
+  periodWrap.className = 'field kpi-perf-field';
+  periodWrap.innerHTML = `<span>Période</span>`;
+  const periodSel = document.createElement('select');
+  periodSel.className = 'control-select';
+  periodSel.setAttribute('aria-label', 'Nombre de mois sur le graphique');
+  [
+    { v: '3', t: '3 mois' },
+    { v: '6', t: '6 mois' },
+    { v: '12', t: '12 mois' }
+  ].forEach((o) => {
+    const opt = document.createElement('option');
+    opt.value = o.v;
+    opt.textContent = o.t;
+    periodSel.append(opt);
+  });
+  periodSel.value = '6';
+  periodWrap.append(periodSel);
+
+  const siteWrap = document.createElement('label');
+  siteWrap.className = 'field kpi-perf-field';
+  siteWrap.innerHTML = `<span>Site</span>`;
+  const siteSel = document.createElement('select');
+  siteSel.className = 'control-select';
+  siteSel.setAttribute('aria-label', 'Filtrer par site');
+  siteWrap.append(siteSel);
+
+  toolbar.append(periodWrap, siteWrap);
+  header.append(toolbar);
+  page.append(header);
+
+  const loading = document.createElement('p');
+  loading.className = 'kpi-perf-loading';
+  loading.textContent = 'Chargement des indicateurs…';
+
+  const content = document.createElement('div');
+  content.className = 'kpi-perf-content stack';
+  content.append(loading);
+
+  page.append(content);
+
+  (async function fillSites() {
+    siteSel.innerHTML = '<option value="">Vue groupe (tous sites)</option>';
+    try {
+      const sites = await fetchSitesCatalog();
+      sites.forEach((s) => {
+        if (!s?.id) return;
+        const o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.code ? `${s.name} (${s.code})` : s.name;
+        siteSel.append(o);
+      });
+    } catch {
+      /* ignore */
+    }
+    if (appState.activeSiteId) {
+      siteSel.value = appState.activeSiteId;
+    }
+  })();
+
+  let reload = () => {};
+
+  siteSel.addEventListener('change', () => {
+    const v = siteSel.value || '';
+    const opt = siteSel.selectedOptions[0];
+    const label = opt ? opt.textContent : 'Vue groupe (tous sites)';
+    setActiveSiteContext(v || null, label);
+    reload();
+  });
+
+  periodSel.addEventListener('change', () => reload());
+
+  reload = async function loadPerformanceData() {
+    const months = Math.max(3, Math.min(12, parseInt(periodSel.value, 10) || 6));
+    loading.style.display = 'block';
+    [...content.children].forEach((n) => {
+      if (!n.classList.contains('kpi-perf-loading')) n.remove();
+    });
+    try {
+      const [sumRes, incRes, audRes] = await Promise.all([
+        qhseFetch(withSiteQuery('/api/reports/summary')),
+        qhseFetch(withSiteQuery('/api/incidents?limit=500')),
+        qhseFetch(withSiteQuery('/api/audits?limit=500'))
+      ]);
+
+      if (sumRes.status === 403) {
+        loading.textContent =
+          'Permission « rapports » requise pour les KPI consolidés.';
+        showToast('Permission rapports requise pour Performance QHSE.', 'error');
+        return;
+      }
+      if (!sumRes.ok) throw new Error(`summary ${sumRes.status}`);
+      const summary = await sumRes.json();
+      const incidents = incRes.ok ? await incRes.json().catch(() => []) : [];
+      const audits = audRes.ok ? await audRes.json().catch(() => []) : [];
+
+      const counts = summary.counts || {};
+      const kpis = summary.kpis || {};
+      const conformity = computeGlobalConformity(counts, kpis);
+      const prev = readSnapshot(months);
+
+      const auditAvg =
+        kpis.auditScoreAvg != null && !Number.isNaN(kpis.auditScoreAvg)
+          ? kpis.auditScoreAvg
+          : null;
+      const inc30 = Number(counts.incidentsLast30Days) || 0;
+      const actOd = Number(counts.actionsOverdue) || 0;
+      const actTot = Math.max(0, Number(counts.actionsTotal) || 0);
+      const ncTot = Math.max(0, Number(counts.nonConformitiesTotal) || 0);
+      const ncOpen = Math.max(0, Number(counts.nonConformitiesOpen) || 0);
+      const critOpen = Number(counts.incidentsCriticalOpen) || 0;
+      const closeRate =
+        ncTot > 0
+          ? Math.round(((ncTot - ncOpen) / ncTot) * 1000) / 10
+          : null;
+      const actOnTrackPct =
+        actTot > 0
+          ? Math.round(((actTot - actOd) / actTot) * 1000) / 10
+          : null;
+
+      const seriesScore = buildMonthlyAuditScoreAvgSeries(audits, months);
+      const lineSeries = seriesScore.map((p) => ({
+        label: p.label,
+        value: Math.max(0, Math.min(100, Math.round(Number(p.value) || 0)))
+      }));
+
+      const progressionChart = createDashboardLineChart(lineSeries, {
+        ariaLabel: 'Score moyen des audits par mois.',
+        footText: 'Moyenne mensuelle (audits datés, 0–100).',
+        interpretText: '',
+        valueTitle: (p) => `${p.label} : ${p.value} %`
+      });
+
+      const goalVsRows = [
+        {
+          label: 'Conformité (indice)',
+          pctReal: conformity,
+          pctGoal: GOALS.conformity,
+          realText: `${conformity} %`,
+          goalText: `${GOALS.conformity} %`
+        },
+        {
+          label: 'Score audit moyen',
+          pctReal: auditAvg != null ? auditAvg : 0,
+          pctGoal: GOALS.auditScore,
+          realText: auditAvg != null ? `${auditAvg} %` : '—',
+          goalText: `${GOALS.auditScore} %`
+        },
+        {
+          label: 'NC traitées (%)',
+          pctReal: closeRate != null ? closeRate : 0,
+          pctGoal: GOALS.ncTreatmentRate,
+          realText: closeRate != null ? `${closeRate} %` : '—',
+          goalText: `${GOALS.ncTreatmentRate} %`
+        },
+        {
+          label: 'Actions hors retard',
+          pctReal: actOnTrackPct != null ? actOnTrackPct : 0,
+          pctGoal: GOALS.actionOnTrackPct,
+          realText: actOnTrackPct != null ? `${actOnTrackPct} %` : '—',
+          goalText: `${GOALS.actionOnTrackPct} %`
+        },
+        {
+          label: 'Pression retards (inv.)',
+          pctReal: actTot > 0 ? Math.min(100, (actOd / actTot) * 100) : actOd > 0 ? 100 : 0,
+          pctGoal: 0,
+          realText: `${actOd} / ${actTot || '—'}`,
+          goalText: '0 retard'
+        }
+      ];
+
+      const zoneFor = (tone) => {
+        if (tone === 'red') return 'below';
+        if (tone === 'amber') return 'watch';
+        return 'ok';
+      };
+
+      const gapMetrics = [
+        {
+          label: `Conformité globale (${conformity} %)`,
+          zone: zoneFor(toneVsGoal(conformity, GOALS.conformity))
+        },
+        {
+          label:
+            closeRate != null
+              ? `Taux traitement NC (${closeRate} %)`
+              : 'Taux traitement NC (données insuffisantes)',
+          zone:
+            closeRate == null
+              ? 'watch'
+              : zoneFor(toneVsGoal(closeRate, GOALS.ncTreatmentRate))
+        },
+        {
+          label: `Incidents critiques (${critOpen})`,
+          zone: zoneFor(toneVsGoal(critOpen, GOALS.actionsOverdue, true))
+        },
+        {
+          label:
+            auditAvg != null
+              ? `Score audit (${auditAvg} %)`
+              : 'Score audit (—)',
+          zone:
+            auditAvg == null
+              ? 'watch'
+              : zoneFor(toneVsGoal(auditAvg, GOALS.auditScore))
+        },
+        {
+          label:
+            actOnTrackPct != null
+              ? `Exécution actions (${actOnTrackPct} % hors retard)`
+              : 'Exécution actions (—)',
+          zone:
+            actOnTrackPct == null
+              ? 'watch'
+              : zoneFor(toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct))
+        },
+        {
+          label: `Actions en retard (${actOd})`,
+          zone: zoneFor(toneVsGoal(actOd, GOALS.actionsOverdue, true))
+        }
+      ];
+
+      const chargeBody = document.createElement('div');
+      chargeBody.className = 'kpi-perf-charge-body';
+      chargeBody.append(
+        createPilotageLoadMixChart(
+          {
+            criticalIncidents: critOpen,
+            overdueActions: actOd,
+            ncOpen
+          },
+          { compact: true }
+        )
+      );
+      const auditsNote = document.createElement('p');
+      auditsNote.className = 'kpi-perf-charge-audits';
+      auditsNote.textContent = `Audits en base : ${counts.auditsTotal ?? '—'}.`;
+
+      const chargeCard = document.createElement('article');
+      chargeCard.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--charge';
+      const chHead = document.createElement('div');
+      chHead.className = 'content-card-head';
+      chHead.innerHTML = `<div><div class="kpi-perf-dx-kicker">Pression</div><h2 class="kpi-perf-h2 kpi-perf-h2--small">Charge critique</h2></div>`;
+      chargeCard.append(chHead, chargeBody, auditsNote);
+
+      const progCard = document.createElement('article');
+      progCard.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--progress';
+      const ph = document.createElement('div');
+      ph.className = 'content-card-head';
+      ph.innerHTML = `<div><div class="kpi-perf-dx-kicker">Trajectoire</div><h2 class="kpi-perf-h2 kpi-perf-h2--small">Score audit par mois</h2></div>`;
+      progCard.append(ph, progressionChart);
+
+      const chartsBand = document.createElement('div');
+      chartsBand.className = 'kpi-perf-band kpi-perf-band--charts';
+      const chartsBank = document.createElement('div');
+      chartsBank.className = 'kpi-perf-charts-bank';
+      chartsBank.append(
+        elGoalVsRealCard(goalVsRows),
+        chargeCard,
+        progCard
+      );
+      chartsBand.append(chartsBank);
+
+      loading.style.display = 'none';
+
+      const tierStrat = document.createElement('section');
+      tierStrat.className =
+        'kpi-perf-main-grid kpi-grid dashboard-kpi-grid kpi-perf-main-grid--tier-strat';
+      const tierOps = document.createElement('section');
+      tierOps.className =
+        'kpi-perf-main-grid kpi-grid dashboard-kpi-grid kpi-perf-main-grid--tier-ops';
+
+      const dConf = prev ? formatDelta(prev.conformity, conformity) : '—';
+      tierStrat.append(
+        elKpiMain({
+          title: 'Conformité globale',
+          valueText: `${conformity} %`,
+          deltaText: dConf,
+          goalText: `${GOALS.conformity} %`,
+          gapText: formatEcartVsObjectif(conformity, GOALS.conformity, false, 'pts'),
+          tone: toneVsGoal(conformity, GOALS.conformity),
+          hash: 'iso',
+          statusTone: toneVsGoal(conformity, GOALS.conformity)
+        })
+      );
+
+      const scoreDisp = auditAvg != null ? `${auditAvg} %` : '—';
+      const dScore =
+        prev && auditAvg != null && prev.auditScore != null
+          ? formatDelta(prev.auditScore, auditAvg)
+          : '—';
+      tierStrat.append(
+        elKpiMain({
+          title: 'Score audit moyen',
+          valueText: scoreDisp,
+          deltaText: dScore,
+          goalText: `${GOALS.auditScore} %`,
+          gapText:
+            auditAvg != null
+              ? formatEcartVsObjectif(auditAvg, GOALS.auditScore, false, 'pts')
+              : '—',
+          tone:
+            auditAvg != null
+              ? toneVsGoal(auditAvg, GOALS.auditScore)
+              : 'blue',
+          hash: 'audits',
+          statusTone:
+            auditAvg != null
+              ? toneVsGoal(auditAvg, GOALS.auditScore)
+              : 'blue'
+        })
+      );
+
+      const dCrit = prev ? formatDelta(prev.critOpen, critOpen) : '—';
+      tierStrat.append(
+        elKpiMain({
+          title: 'Incidents critiques ouverts',
+          valueText: String(critOpen),
+          deltaText: dCrit,
+          goalText: '0',
+          gapText: formatEcartVsObjectif(critOpen, 0, true, ''),
+          tone: toneVsGoal(critOpen, 0, true),
+          hash: 'incidents',
+          statusTone: toneVsGoal(critOpen, 0, true)
+        })
+      );
+
+      const dNc =
+        prev && closeRate != null && prev.ncCloseRate != null
+          ? formatDelta(prev.ncCloseRate, closeRate)
+          : '—';
+      tierOps.append(
+        elKpiMain({
+          title: 'Taux de traitement NC',
+          valueText: closeRate != null ? `${closeRate} %` : '—',
+          deltaText: dNc,
+          goalText: `${GOALS.ncTreatmentRate} %`,
+          gapText:
+            closeRate != null
+              ? formatEcartVsObjectif(closeRate, GOALS.ncTreatmentRate, false, 'pts')
+              : '—',
+          tone:
+            closeRate != null
+              ? toneVsGoal(closeRate, GOALS.ncTreatmentRate)
+              : 'blue',
+          hash: 'iso',
+          statusTone:
+            closeRate != null
+              ? toneVsGoal(closeRate, GOALS.ncTreatmentRate)
+              : 'blue'
+        })
+      );
+
+      const dActPct =
+        prev && actOnTrackPct != null && prev.actOnTrackPct != null
+          ? formatDelta(prev.actOnTrackPct, actOnTrackPct)
+          : '—';
+      tierOps.append(
+        elKpiMain({
+          title: 'Respect des échéances',
+          valueText: actOnTrackPct != null ? `${actOnTrackPct} %` : '—',
+          deltaText: dActPct,
+          goalText: `${GOALS.actionOnTrackPct} %`,
+          gapText:
+            actOnTrackPct != null
+              ? formatEcartVsObjectif(actOnTrackPct, GOALS.actionOnTrackPct, false, 'pts')
+              : '—',
+          tone:
+            actOnTrackPct != null
+              ? toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct)
+              : 'blue',
+          hash: 'actions',
+          statusTone:
+            actOnTrackPct != null
+              ? toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct)
+              : 'blue'
+        })
+      );
+
+      const dOd = prev ? formatDelta(prev.actionsOverdue, actOd) : '—';
+      tierOps.append(
+        elKpiMain({
+          title: 'Actions en retard',
+          valueText: String(actOd),
+          deltaText: dOd,
+          goalText: String(GOALS.actionsOverdue),
+          gapText: formatEcartVsObjectif(actOd, GOALS.actionsOverdue, true, ''),
+          tone: toneVsGoal(actOd, GOALS.actionsOverdue, true),
+          hash: 'actions',
+          statusTone: toneVsGoal(actOd, GOALS.actionsOverdue, true)
+        })
+      );
+
+      const kpiBlock = document.createElement('div');
+      kpiBlock.className = 'kpi-perf-kpi-block';
+      const kpiSk = document.createElement('p');
+      kpiSk.className = 'kpi-perf-section-k';
+      kpiSk.textContent = 'Indicateurs clés';
+      kpiBlock.append(kpiSk, tierStrat, tierOps);
+
+      const hero = elPerfCockpitHero(conformity, prev, counts, kpis);
+      const gapGroups = classifyGapGroups(gapMetrics);
+      const nBelow = gapMetrics.filter((m) => m.zone === 'below').length;
+      const nWatch = gapMetrics.filter((m) => m.zone === 'watch').length;
+      const nOk = gapMetrics.filter((m) => m.zone === 'ok').length;
+      const gapsCard = elGapsCard(
+        gapGroups,
+        `${nBelow} sous cible · ${nWatch} à surveiller · ${nOk} à la cible`
+      );
+      const prioritiesCard = elPrioritiesCard(buildPilotagePriorities(counts, kpis, conformity));
+
+      const alerts = Array.isArray(summary.priorityAlerts)
+        ? summary.priorityAlerts.slice(0, 3)
+        : [];
+      const alertWrap = document.createElement('div');
+      alertWrap.className = 'kpi-perf-alerts-wrap';
+      const det = document.createElement('details');
+      det.className = 'kpi-perf-alerts-details';
+      det.open = alerts.some((a) => a.level === 'critical' || a.level === 'high');
+      const sum = document.createElement('summary');
+      sum.className = 'kpi-perf-alerts-summary';
+      sum.textContent =
+        alerts.length === 0
+          ? 'Alertes automatiques — aucune'
+          : `Alertes automatiques (${alerts.length})`;
+      det.append(sum);
+      const alStack = document.createElement('div');
+      alStack.className = 'stack kpi-perf-alerts-stack';
+      if (alerts.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'kpi-perf-muted';
+        p.textContent = 'Aucune alerte moteur.';
+        alStack.append(p);
+      } else {
+        alerts.forEach((a) => {
+          const row = document.createElement('div');
+          const level =
+            a.level === 'critical' ? 'critical' : a.level === 'high' ? 'high' : 'info';
+          row.className = `kpi-perf-alert kpi-perf-alert--${level}`;
+          row.textContent = a.message || a.code || '—';
+          alStack.append(row);
+        });
+      }
+      const ana = document.createElement('button');
+      ana.type = 'button';
+      ana.className = 'btn btn-secondary kpi-perf-link-analytics';
+      ana.textContent = 'Ouvrir Analytics / Synthèse';
+      ana.addEventListener('click', () => navigateHash('analytics'));
+      alStack.append(ana);
+      det.append(alStack);
+      alertWrap.append(det);
+
+      const pilotageRow = document.createElement('div');
+      pilotageRow.className = 'kpi-perf-pilotage-row';
+      pilotageRow.append(gapsCard, prioritiesCard);
+
+      const foot = document.createElement('p');
+      foot.className = 'kpi-perf-foot';
+      const nInc = Array.isArray(incidents) ? incidents.length : 0;
+      const nAud = Array.isArray(audits) ? audits.length : 0;
+      foot.textContent = `Cartes cliquables (module lié). Tendance = dernière visite. Série : ${nInc} incidents · ${nAud} audits. Objectifs = repères locaux.`;
+
+      content.append(
+        hero,
+        kpiBlock,
+        pilotageRow,
+        chartsBand,
+        alertWrap,
+        foot
+      );
+
+      writeSnapshot(months, {
+        conformity,
+        actionsOverdue: actOd,
+        incidents30: inc30,
+        auditScore: auditAvg != null ? auditAvg : null,
+        ncCloseRate: closeRate != null ? closeRate : null,
+        actOnTrackPct: actOnTrackPct != null ? actOnTrackPct : null,
+        critOpen
+      });
+    } catch (err) {
+      console.error('[performance]', err);
+      loading.textContent = 'Impossible de charger les KPI.';
+      showToast('Erreur chargement Performance QHSE', 'error');
+    }
+  };
+
+  reload();
+
+  return page;
+}
