@@ -3,8 +3,16 @@
  */
 
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 import { showToast } from './toast.js';
 import { ensureIsoComplianceAssistStyles } from './isoComplianceAssistStyles.js';
+
+function sanitizeClassToken(value, fallback = 'neutral') {
+  const token = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '');
+  return token || fallback;
+}
 
 /**
  * @param {{
@@ -148,7 +156,8 @@ export function openComplianceAssistModal(opts) {
 
       const pill = body.querySelector('[data-iso-ca-pill]');
       pill.textContent = j.statusLabel || j.suggestedStatus;
-      pill.className = `iso-ca-status-pill iso-ca-status-pill--${j.suggestedStatus}`;
+      const statusToken = sanitizeClassToken(j.suggestedStatus, 'partiel');
+      pill.className = `iso-ca-status-pill iso-ca-status-pill--${statusToken}`;
 
       body.querySelector('[data-iso-ca-explain]').textContent = j.explanation || '—';
 
@@ -223,10 +232,3 @@ export function openComplianceAssistModal(opts) {
   runAnalyze();
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

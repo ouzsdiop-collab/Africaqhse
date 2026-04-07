@@ -5,6 +5,7 @@
 import { appState } from '../utils/state.js';
 import { buildIncidentMonthlySeries } from './dashboardCharts.js';
 import { ensureDashboardCockpitPremiumStyles } from './dashboardCockpitPremiumStyles.js';
+import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
 
 function safeArr(v) {
   return Array.isArray(v) ? v : [];
@@ -61,14 +62,6 @@ function incidentsThisMonthCount(incidents) {
   }).length;
 }
 
-function isActionOverdue(row) {
-  if (!row?.dueDate) return false;
-  if (isClosedStatus(row?.status)) return false;
-  const due = new Date(row.dueDate);
-  if (Number.isNaN(due.getTime())) return false;
-  return due.getTime() < Date.now();
-}
-
 function overdueDays(row) {
   if (!row?.dueDate) return 0;
   const due = new Date(row.dueDate);
@@ -78,7 +71,7 @@ function overdueDays(row) {
 
 function countCriticalOverdue(actions) {
   return safeArr(actions).filter((a) => {
-    if (!isActionOverdue(a)) return false;
+    if (!isActionOverdueDashboardRow(a)) return false;
     const blob = `${a?.detail || ''} ${a?.title || ''} ${a?.status || ''}`.toLowerCase();
     return blob.includes('critique');
   }).length;
@@ -367,7 +360,7 @@ export function createDashboardCockpitPremium(opts = {}) {
     tR.textContent = 'Actions en retard';
     cardRight.append(tR);
 
-    const overdueActs = actions.filter(isActionOverdue).slice(0, 3);
+    const overdueActs = actions.filter(isActionOverdueDashboardRow).slice(0, 3);
     if (!overdueActs.length) {
       const p = document.createElement('p');
       p.className = 'dcp-sync';

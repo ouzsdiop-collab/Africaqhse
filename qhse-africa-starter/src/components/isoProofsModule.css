@@ -1,0 +1,238 @@
+/* Module preuves ISO — isolé, thème sombre cohérent */
+
+.iso-proof-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12040;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+  animation: iso-proof-fade-in 0.2s ease-out;
+}
+
+@keyframes iso-proof-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.iso-proof-modal {
+  width: min(520px, 100%);
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  animation: iso-proof-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes iso-proof-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.iso-proof-modal__head {
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.iso-proof-modal__head h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.iso-proof-modal__head p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.iso-proof-modal__body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.iso-proof-drop {
+  position: relative;
+  border: 1px dashed rgba(94, 234, 212, 0.35);
+  border-radius: 12px;
+  padding: 18px 14px;
+  text-align: center;
+  background: rgba(13, 148, 136, 0.06);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+.iso-proof-drop--busy {
+  animation: iso-proof-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes iso-proof-pulse {
+  0%,
+  100% {
+    border-color: rgba(94, 234, 212, 0.35);
+  }
+  50% {
+    border-color: rgba(94, 234, 212, 0.75);
+  }
+}
+
+.iso-proof-drop--drag {
+  border-color: rgba(45, 212, 191, 0.85);
+  background: rgba(13, 148, 136, 0.12);
+  transform: scale(1.01);
+}
+
+.iso-proof-drop__label {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  color: #cbd5e1;
+}
+
+.iso-proof-drop__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.iso-proof-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iso-proof-field span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #94a3b8;
+}
+
+.iso-proof-field input,
+.iso-proof-field select {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+}
+
+.iso-proof-field input:focus,
+.iso-proof-field select:focus {
+  outline: none;
+  border-color: rgba(45, 212, 191, 0.55);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25);
+}
+
+.iso-proof-preview {
+  font-size: 0.8rem;
+  color: #a5b4fc;
+  word-break: break-word;
+}
+
+.iso-proof-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.iso-proof-registry-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.iso-proof-registry-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.iso-proof-col-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.iso-proof-col-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.iso-proof-join-row {
+  font-size: 0.78rem !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+}
+
+.iso-proof-join-row:hover {
+  transform: translateY(-1px);
+}
+
+.iso-proof-inline-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 0.95rem;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.35));
+}
+
+.iso-proof-doc-bar-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.iso-proof-doc-bar-extra .btn {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.iso-proof-doc-bar-extra .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 640px) {
+  .iso-proof-modal {
+    max-height: 88vh;
+  }
+
+  .iso-proof-join-row {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -2,6 +2,8 @@
  * Matrice G × P + outil de pilotage : priorités, raccourcis vers les cases occupées, filtre registre.
  */
 
+import { escapeHtml } from '../utils/escapeHtml.js';
+
 const GP_RE = /G\s*([1-5])\s*[×xX*]\s*P\s*([1-5])/;
 
 export function parseRiskMatrixGp(meta) {
@@ -204,11 +206,15 @@ export function createRiskMatrixPanel(opts = {}) {
       const countSpan = document.createElement('span');
       countSpan.className = 'risk-matrix-cell-tooltip__count';
       countSpan.textContent = `${n} risque(s)`;
+      const previewKicker = document.createElement('span');
+      previewKicker.className = 'risk-matrix-cell-tooltip__preview-kicker';
+      previewKicker.textContent = 'Aperçu';
       const ul = document.createElement('ul');
       ul.className = 'risk-matrix-cell-tooltip__list';
-      names.slice(0, 6).forEach((name) => {
+      names.slice(0, 6).forEach((name, idx) => {
         const li = document.createElement('li');
         li.textContent = name;
+        if (idx === 0) li.classList.add('risk-matrix-cell-tooltip__preview');
         ul.append(li);
       });
       if (names.length > 6) {
@@ -220,7 +226,7 @@ export function createRiskMatrixPanel(opts = {}) {
       hint.className = 'risk-matrix-cell-tooltip__hint';
       hint.textContent =
         'Clic : filtrer le registre ci-dessous · Actions liées dans le tableau';
-      cellTooltip.append(countSpan, ul, hint);
+      cellTooltip.append(countSpan, previewKicker, ul, hint);
     } else {
       const empty = document.createElement('span');
       empty.className = 'risk-matrix-cell-tooltip__empty';
@@ -297,7 +303,7 @@ export function createRiskMatrixPanel(opts = {}) {
     for (let p = 1; p <= 5; p++) {
       const h = document.createElement('div');
       h.className = 'risk-matrix-grid__colhead risk-matrix-grid__colhead--premium';
-      h.innerHTML = `<span class="risk-matrix-grid__axis-main">P${p}</span><span class="risk-matrix-grid__axis-sub">${P_TITLE[p]}</span>`;
+      h.innerHTML = `<span class="risk-matrix-grid__axis-main">P${p}</span><span class="risk-matrix-grid__axis-sub">${escapeHtml(P_TITLE[p])}</span>`;
       h.title = `Probabilité ${p}/5 — ${P_TITLE[p]}`;
       grid.append(h);
     }
@@ -305,7 +311,7 @@ export function createRiskMatrixPanel(opts = {}) {
     for (let g = 5; g >= 1; g--) {
       const rh = document.createElement('div');
       rh.className = 'risk-matrix-grid__rowhead risk-matrix-grid__rowhead--premium';
-      rh.innerHTML = `<span class="risk-matrix-grid__axis-main">G${g}</span><span class="risk-matrix-grid__axis-sub">${G_TITLE[g]}</span>`;
+      rh.innerHTML = `<span class="risk-matrix-grid__axis-main">G${g}</span><span class="risk-matrix-grid__axis-sub">${escapeHtml(G_TITLE[g])}</span>`;
       rh.title = `Gravité ${g}/5 — ${G_TITLE[g]}`;
       grid.append(rh);
 
@@ -495,7 +501,7 @@ export function createRiskMatrixPanel(opts = {}) {
         if (activeFilter && activeFilter.g === g && activeFilter.p === p) {
           chip.classList.add('risk-matrix-hotspot-chip--active');
         }
-        chip.innerHTML = `<span class="risk-matrix-hotspot-chip__gp">G${g}×P${p}</span><span class="risk-matrix-hotspot-chip__mid"><strong>${n}</strong> fiche${n > 1 ? 's' : ''}</span><span class="risk-matrix-hotspot-chip__score">score ${product}</span>`;
+        chip.innerHTML = `<span class="risk-matrix-hotspot-chip__gp">G${g}×P${p}</span><span class="risk-matrix-hotspot-chip__mid"><strong>${escapeHtml(String(n))}</strong> fiche${n > 1 ? 's' : ''}</span><span class="risk-matrix-hotspot-chip__score">score ${escapeHtml(String(product))}</span>`;
         chip.title = `${riskLevelLabelFromTier(tier)} — ${titles.slice(0, 3).join(' · ')}${titles.length > 3 ? '…' : ''}`;
         chip.addEventListener('click', () => selectCellFilter(g, p));
         hotspots.append(chip);

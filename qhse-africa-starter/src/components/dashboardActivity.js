@@ -32,11 +32,13 @@ function parseTime(iso) {
  */
 function sortRecent(arr, getTime) {
   if (!Array.isArray(arr)) return [];
+  /** Dates invalides en fin de liste (évite un ordre aléatoire selon le navigateur). */
+  const T_MISSING = Number.MIN_SAFE_INTEGER;
   return [...arr].sort((a, b) => {
     const tb = getTime(b);
     const ta = getTime(a);
-    const vb = Number.isFinite(tb) ? tb : -Infinity;
-    const va = Number.isFinite(ta) ? ta : -Infinity;
+    const vb = Number.isFinite(tb) ? tb : T_MISSING;
+    const va = Number.isFinite(ta) ? ta : T_MISSING;
     return vb - va;
   });
 }

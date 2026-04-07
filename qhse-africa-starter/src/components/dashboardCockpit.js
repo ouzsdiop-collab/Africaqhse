@@ -2,6 +2,8 @@
  * Bloc central « Cockpit direction QHSE » — données issues du chargement dashboard existant (pas d’API dédiée).
  */
 
+import { escapeHtml } from '../utils/escapeHtml.js';
+
 function includesCritique(severity) {
   return String(severity || '')
     .toLowerCase()
@@ -346,7 +348,7 @@ export function createDashboardCockpit() {
     const row = document.createElement('div');
     row.className = 'dashboard-cockpit__bar-row';
     row.innerHTML = `
-      <span class="dashboard-cockpit__bar-label" title="${def.hint}">${def.label}</span>
+      <span class="dashboard-cockpit__bar-label" title="${escapeHtml(def.hint)}">${escapeHtml(def.label)}</span>
       <div class="dashboard-cockpit__bar-track">
         <div class="dashboard-cockpit__bar-fill" data-fill></div>
       </div>
@@ -369,7 +371,7 @@ export function createDashboardCockpit() {
   miniDefs.forEach((d) => {
     const el = document.createElement('div');
     el.className = 'dashboard-cockpit__mini';
-    el.innerHTML = `<span class="dashboard-cockpit__mini-label">${d.label}</span><span class="dashboard-cockpit__mini-val" data-mv>—</span>`;
+    el.innerHTML = `<span class="dashboard-cockpit__mini-label">${escapeHtml(d.label)}</span><span class="dashboard-cockpit__mini-val" data-mv>—</span>`;
     minisHost.append(el);
     miniEls[d.key] = {
       wrap: el,

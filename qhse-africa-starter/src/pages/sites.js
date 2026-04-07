@@ -4,6 +4,7 @@ import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { getApiBase } from '../config.js';
 import { invalidateSitesCatalog } from '../services/sitesCatalog.service.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 export function renderSites() {
   const page = document.createElement('section');
@@ -21,7 +22,7 @@ export function renderSites() {
           <h3>Sites (référentiel)</h3>
           <p class="content-card-lead" style="margin:0;max-width:56ch;font-size:13px">
             Création et consultation des sites utilisés pour le filtrage des modules et les liaisons API
-            (<code style="font-size:12px">${getApiBase()}</code>).
+            (<code style="font-size:12px">${escapeHtml(getApiBase())}</code>).
           </p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import {
   countActionsOverdue,
   includesInsensitive,
+  isActionOverdueDashboardRow,
   prismaSiteWhere
 } from './kpiCore.service.js';
 
@@ -55,7 +56,7 @@ export async function getDashboardStats(siteId = null) {
     .map(({ severity: _s, ...rest }) => rest);
 
   const overdueActionItems = actionRows
-    .filter((row) => includesInsensitive(row.status, 'retard'))
+    .filter((row) => isActionOverdueDashboardRow(row))
     .slice(0, LIST_MAX);
 
   return {

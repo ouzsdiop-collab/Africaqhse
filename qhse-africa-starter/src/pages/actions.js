@@ -2,15 +2,23 @@ import { createQhseKpiStrip } from '../components/qhseKpiStrip.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { createActionKanbanCard, getActionPriorityFilterKey } from '../components/actionKanbanCard.js';
 import { createActionDetailDialog } from '../components/actionDetailDialog.js';
+import { openActionCreateDialog } from '../components/actionCreateDialog.js';
+import { createActionManagerReadingCard } from '../components/actionManagerReading.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { showToast } from '../components/toast.js';
 import { activityLogStore } from '../data/activityLog.js';
 import { fetchUsers } from '../services/users.service.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
-import { appState } from '../utils/state.js';
 import { getSessionUserId, getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import {
+  appendActionHistory,
+  getActionOverlay,
+  getResolvedActionType,
+  normalizeRiskTitleKey
+} from '../utils/actionPilotageMock.js';
+import { getRiskTitlesForSelect } from '../utils/riskIncidentLinks.js';
 
 const COLUMN_META = {
   todo: { label: 'À lancer', hint: 'Non démarré — prioriser le cadrage' },
@@ -65,6 +73,15 @@ function formatDueForDetail(iso) {
 /**
  * Statut API → colonne Kanban. Les libellés « terminé » / « clos » / etc. alimentent la colonne Terminé.
  */
+/** Colonne Kanban → libellé statut API (PATCH drag & drop). */
+function columnKeyToStatus(columnKey) {
+  if (columnKey === 'todo') return 'À lancer';
+  if (columnKey === 'doing') return 'En cours';
+  if (columnKey === 'overdue') return 'En retard';
+  if (columnKey === 'done') return 'Terminé';
+  return 'À lancer';
+}
+
 function statusToColumnKey(status) {
   const s = String(status || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
   if (/\bnon[\s-]*termine\b/.test(s)) return 'todo';
@@ -121,6 +138,56 @@ function countOpenActions(rows) {
   return rows.filter((row) => statusToColumnKey(row.status) !== 'done').length;
 }
 
+function countSansResponsable(rows) {
+  if (!Array.isArray(rows)) return 0;
+  return rows.filter((r) => {
+    const o = String(r.owner || '').trim();
+    return !r.assigneeId && (!o || o === 'À assigner' || o === '—');
+  }).length;
+}
+
+function countPreventiveOpen(rows) {
+  if (!Array.isArray(rows)) return 0;
+  return rows.filter((r) => {
+    if (statusToColumnKey(r.status) === 'done') return false;
+    return getResolvedActionType(r, r.id) === 'preventive';
+  }).length;
+}
+
+function countCorrectiveOpen(rows) {
+  if (!Array.isArray(rows)) return 0;
+  return rows.filter((r) => {
+    if (statusToColumnKey(r.status) === 'done') return false;
+    return getResolvedActionType(r, r.id) === 'corrective';
+  }).length;
+}
+
+function preventionRatioHint(rows) {
+  if (!Array.isArray(rows)) return '—';
+  const p = countPreventiveOpen(rows);
+  const c = countCorrectiveOpen(rows);
+  if (p + c === 0) return 'Pas d’action ouverte prév./corr.';
+  return `Prév. ${p} / corr. ${c}`;
+}
+
+function countRisksWithoutOpenPreventiveAction(actionRows) {
+  const titles = getRiskTitlesForSelect().map(normalizeRiskTitleKey).filter(Boolean);
+  if (!titles.length) return 0;
+  const openActs = (actionRows || []).filter((r) => statusToColumnKey(r.status) !== 'done');
+  let n = 0;
+  for (const tk of titles) {
+    const has = openActs.some((r) => {
+      const id = String(r?.id || '').trim();
+      if (!id) return false;
+      if (getResolvedActionType(r, id) !== 'preventive') return false;
+      const lr = normalizeRiskTitleKey(getActionOverlay(id).linkedRisk);
+      return lr === tk;
+    });
+    if (!has) n += 1;
+  }
+  return n;
+}
+
 function buildActionsSummaryLine(filteredRows, critiques) {
   const n = Array.isArray(filteredRows) ? filteredRows.length : 0;
   if (n === 0) {
@@ -155,7 +222,8 @@ function mapApiRowToKanbanItem(row, users, onAssign, canAssign, hooks) {
     onOpenEdit: hooks.onOpenEdit,
     users,
     onAssign,
-    canAssign
+    canAssign,
+    canDrag: canAssign !== false
   };
 }
 
@@ -175,7 +243,12 @@ function partitionActions(rows, users, onAssign, canAssign, hooks) {
   return columns;
 }
 
-function buildKanbanBoard(actionColumns) {
+/**
+ * @param {Record<string, object[]>} actionColumns
+ * @param {{ onColumnDrop?: (actionId: string, targetColumnKey: string) => void }} [opts]
+ */
+function buildKanbanBoard(actionColumns, opts = {}) {
+  const { onColumnDrop } = opts;
   const board = document.createElement('div');
   board.className = 'kanban-board kanban-board--pilotage kanban-board--pilotage-premium';
 
@@ -184,6 +257,25 @@ function buildKanbanBoard(actionColumns) {
     const meta = COLUMN_META[key];
     const column = document.createElement('section');
     column.className = `kanban-column kanban-column--pilotage kanban-column--pilotage-premium kanban-column--${key}`;
+    column.dataset.kanbanColumn = key;
+    column.addEventListener('dragover', (e) => {
+      if (!onColumnDrop) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      column.classList.add('kanban-column--drag-over');
+    });
+    column.addEventListener('dragleave', (e) => {
+      if (!column.contains(e.relatedTarget)) column.classList.remove('kanban-column--drag-over');
+    });
+    column.addEventListener('drop', (e) => {
+      if (!onColumnDrop) return;
+      e.preventDefault();
+      column.classList.remove('kanban-column--drag-over');
+      const id =
+        e.dataTransfer.getData('application/x-qhse-action-id') ||
+        e.dataTransfer.getData('text/plain');
+      if (id) onColumnDrop(id, key);
+    });
 
     const head = document.createElement('div');
     head.className = 'kanban-column-head';
@@ -215,7 +307,7 @@ function buildKanbanBoard(actionColumns) {
 }
 
 function buildFilterToolbar(users, refs, opts = {}) {
-  const { terrainOnly = false } = opts;
+  const { terrainOnly = false, onTogglePrevention } = opts;
   const wrap = document.createElement('div');
   wrap.className = 'actions-filter-toolbar actions-filter-toolbar--premium';
 
@@ -299,7 +391,19 @@ function buildFilterToolbar(users, refs, opts = {}) {
   });
   g4.append(l4, selPriority);
 
-  wrap.append(g2, g3, g4);
+  const g5 = document.createElement('div');
+  g5.className = 'actions-filter-group actions-filter-group--prevention';
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'btn btn-secondary actions-filter-prevention-btn';
+  prevBtn.textContent = 'Voir prévention';
+  prevBtn.title = 'N’afficher que les actions de type préventif (pilotage QHSE).';
+  prevBtn.setAttribute('aria-pressed', 'false');
+  prevBtn.addEventListener('click', () => onTogglePrevention?.());
+  g5.append(prevBtn);
+  refs.preventionBtn = prevBtn;
+
+  wrap.append(g2, g3, g4, g5);
 
   refs.view = selView;
   refs.status = selStatus;
@@ -312,20 +416,11 @@ export function renderActions() {
   ensureQhsePilotageStyles();
   ensureDashboardStyles();
 
-  const actionDetailDialog = createActionDetailDialog();
-  const kanbanHooks = {
-    onOpenDetail: (row, col) => actionDetailDialog.show(row, col),
-    onOpenEdit: (row, col) => {
-      actionDetailDialog.show(row, col);
-      showToast(
-        'Édition complète : prévoir un PATCH /api/actions/:id côté API (hors périmètre actuel).',
-        'info'
-      );
-    }
-  };
-
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--actions-premium';
+
+  const managerHost = document.createElement('div');
+  managerHost.className = 'actions-manager-reading-host';
 
   const main = document.createElement('article');
   main.className = 'content-card card-soft actions-page__main-card';
@@ -365,16 +460,63 @@ export function renderActions() {
 
   let cachedRows = [];
   let usersList = [];
-  const filterRefs = { view: null, status: null, priority: null };
+  const filterRefs = { view: null, status: null, priority: null, preventionBtn: null };
   let filterView = isTerrainSessionRole(getSessionUser()?.role) ? 'mine' : 'all';
   let filterStatus = 'all';
   let filterPriority = 'all';
   let onAssignHandler = async () => {};
   let canAssignActions = true;
+  /** @type {'critiques'|'retard'|'en_cours'|'a_lancer'|'prevention'|'sans_resp'|null} */
+  let kpiStripFilterKey = null;
+
+  let loadActionsFromApi = async () => {};
+
+  const actionDetailDialog = createActionDetailDialog({
+    onRefresh: () => {
+      void loadActionsFromApi();
+    },
+    getUserName: () => getSessionUser()?.name || 'Utilisateur'
+  });
+
+  const kanbanHooks = {
+    onOpenDetail: (row, col) => actionDetailDialog.show(row, col),
+    onOpenEdit: (row, col) => {
+      actionDetailDialog.show(row, col);
+      showToast(
+        'Champs éditables : liaisons et avancement via « Modifier » (stockage local session).',
+        'info'
+      );
+    }
+  };
+
+  function passesKpiStripFilter(row) {
+    if (!kpiStripFilterKey) return true;
+    const col = statusToColumnKey(row.status);
+    if (kpiStripFilterKey === 'critiques') {
+      if (col === 'done') return false;
+      const pk = getActionPriorityFilterKey(col, row.dueDate);
+      return pk === 'retard' || pk === 'urgent';
+    }
+    if (kpiStripFilterKey === 'retard') {
+      if (col === 'done') return false;
+      return col === 'overdue' || getActionPriorityFilterKey(col, row.dueDate) === 'retard';
+    }
+    if (kpiStripFilterKey === 'en_cours') return col === 'doing';
+    if (kpiStripFilterKey === 'a_lancer') return col === 'todo';
+    if (kpiStripFilterKey === 'prevention') {
+      return getResolvedActionType(row, row.id) === 'preventive';
+    }
+    if (kpiStripFilterKey === 'sans_resp') {
+      const o = String(row.owner || '').trim();
+      return !row.assigneeId && (!o || o === 'À assigner' || o === '—');
+    }
+    return true;
+  }
 
   function applyClientFilters(rows) {
     if (!Array.isArray(rows)) return [];
     return rows.filter((row) => {
+      if (!passesKpiStripFilter(row)) return false;
       const col = statusToColumnKey(row.status);
       if (filterStatus !== 'all' && col !== filterStatus) return false;
       if (filterPriority !== 'all') {
@@ -385,7 +527,96 @@ export function renderActions() {
     });
   }
 
+  function renderManagerReading() {
+    const base = cachedRows.filter((row) => {
+      if (filterView === 'unassigned') return true;
+      if (filterView === 'mine') {
+        const id = getSessionUserId();
+        return id && row.assigneeId === id;
+      }
+      if (filterView.startsWith('user:')) {
+        return row.assigneeId === filterView.slice(5);
+      }
+      return true;
+    });
+    const gapCount = countRisksWithoutOpenPreventiveAction(cachedRows);
+    managerHost.replaceChildren(
+      createActionManagerReadingCard(base, {
+        risksWithoutPreventiveCount: gapCount,
+        onSelectFilter: (key) => {
+          if (key === 'preventive_gap') {
+            window.location.hash = 'risks';
+            showToast(
+              'Risques : ouvrez une fiche ou le bouton « Créer action préventive » du registre.',
+              'info'
+            );
+            return;
+          }
+          kpiStripFilterKey = kpiStripFilterKey === key ? null : key;
+          refreshWithFilters();
+        }
+      })
+    );
+  }
+
+  function syncPreventionToolbar() {
+    const b = filterRefs.preventionBtn;
+    if (!b) return;
+    const on = kpiStripFilterKey === 'prevention';
+    b.classList.toggle('actions-filter-prevention-btn--on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  function toggleKpiStripFilter(key) {
+    kpiStripFilterKey = kpiStripFilterKey === key ? null : key;
+    refreshWithFilters();
+  }
+
+  async function patchActionStatusFromDnD(actionId, targetColumnKey) {
+    if (!canAssignActions) {
+      showToast('Changement de statut réservé aux profils avec écriture sur Actions.', 'warning');
+      return;
+    }
+    const row = cachedRows.find((r) => r.id === actionId);
+    if (!row) return;
+    const fromCol = statusToColumnKey(row.status);
+    if (fromCol === targetColumnKey) return;
+    const status = columnKeyToStatus(targetColumnKey);
+    try {
+      const res = await qhseFetch(`/api/actions/${encodeURIComponent(actionId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) {
+        let msg = 'Erreur serveur';
+        try {
+          const b = await res.json();
+          if (b.error) msg = b.error;
+        } catch {
+          /* ignore */
+        }
+        showToast(msg, 'error');
+        return;
+      }
+      appendActionHistory(actionId, `Glisser-déposer Kanban → ${status}`);
+      showToast(`Statut : ${status}`, 'success');
+      activityLogStore.add({
+        module: 'actions',
+        action: 'Changement statut (Kanban)',
+        detail: String(actionId),
+        user: getSessionUser()?.name || 'Pilotage QHSE'
+      });
+      await loadActionsFromApi();
+    } catch (err) {
+      console.error('[actions] PATCH status', err);
+      showToast('Erreur serveur', 'error');
+    }
+  }
+
   function refreshWithFilters() {
+    renderManagerReading();
+    syncPreventionToolbar();
     const filtered = applyClientFilters(cachedRows);
     refreshUi(
       partitionActions(filtered, usersList, onAssignHandler, canAssignActions, kanbanHooks)
@@ -397,44 +628,86 @@ export function renderActions() {
     const critiques = countCritiqueActions(filtered);
     summaryEl.textContent = buildActionsSummaryLine(filtered, critiques);
     const k = summarizeManagerKpis(actionColumns);
+    const nSans = countSansResponsable(filtered);
+    const nPrevOpen = countPreventiveOpen(cachedRows);
+    const prevRatio = preventionRatioHint(cachedRows);
     kpiHost.replaceChildren(
       createQhseKpiStrip([
         {
           label: 'Critiques',
           value: critiques,
           tone: 'red',
-          hint: '',
-          hintTitle: 'Urgent (≤ 3 j) ou retard — hors terminé, périmètre filtré actuel'
+          hint: 'Cliquer pour filtrer',
+          hintTitle: 'Urgent (≤ 3 j) ou retard — hors terminé',
+          kpiKey: 'critiques',
+          selected: kpiStripFilterKey === 'critiques',
+          onClick: toggleKpiStripFilter
         },
         {
           label: 'En retard',
           value: k.enRetard,
           tone: 'amber',
-          hint: '',
-          hintTitle: 'Nombre de fiches dans la colonne « En retard » (filtre actif)'
+          hint: 'Cliquer pour filtrer',
+          hintTitle: 'Colonne retard ou échéance dépassée',
+          kpiKey: 'retard',
+          selected: kpiStripFilterKey === 'retard',
+          onClick: toggleKpiStripFilter
         },
         {
           label: 'En cours',
           value: k.enCours,
           tone: 'blue',
-          hint: '',
-          hintTitle: 'Colonne « En cours » — périmètre filtré'
+          hint: 'Cliquer pour filtrer',
+          hintTitle: 'Colonne « En cours »',
+          kpiKey: 'en_cours',
+          selected: kpiStripFilterKey === 'en_cours',
+          onClick: toggleKpiStripFilter
         },
         {
           label: 'À lancer',
           value: k.aLancer,
           tone: 'green',
-          hint: '',
-          hintTitle: 'Colonne « À lancer » — backlog à démarrer'
+          hint: 'Cliquer pour filtrer',
+          hintTitle: 'Colonne « À lancer »',
+          kpiKey: 'a_lancer',
+          selected: kpiStripFilterKey === 'a_lancer',
+          onClick: toggleKpiStripFilter
+        },
+        {
+          label: 'Prévention',
+          value: nPrevOpen,
+          tone: 'green',
+          hint: prevRatio,
+          hintTitle:
+            'Actions préventives ouvertes (hors terminé). Ratio préventif vs correctif sur le même périmètre.',
+          kpiKey: 'prevention',
+          selected: kpiStripFilterKey === 'prevention',
+          onClick: toggleKpiStripFilter
+        },
+        {
+          label: 'Sans resp.',
+          value: nSans,
+          tone: 'amber',
+          hint: 'Cliquer pour filtrer',
+          hintTitle: 'Pas d’assignation utilisateur claire',
+          kpiKey: 'sans_resp',
+          selected: kpiStripFilterKey === 'sans_resp',
+          onClick: toggleKpiStripFilter
         }
       ])
     );
-    boardHost.replaceChildren(buildKanbanBoard(actionColumns));
+    boardHost.replaceChildren(
+      buildKanbanBoard(actionColumns, {
+        onColumnDrop: (id, targetKey) => {
+          void patchActionStatusFromDnD(id, targetKey);
+        }
+      })
+    );
   }
 
   refreshUi(EMPTY_COLUMNS);
 
-  async function loadActionsFromApi() {
+  loadActionsFromApi = async function loadActionsFromApi() {
     try {
       if (filterView === 'mine' && !getSessionUserId()) {
         showToast(
@@ -538,12 +811,17 @@ export function renderActions() {
     if (terrainOnly) filterView = 'mine';
 
     const toolbar = buildFilterToolbar(usersList, filterRefs, {
-      terrainOnly
+      terrainOnly,
+      onTogglePrevention: () => {
+        kpiStripFilterKey = kpiStripFilterKey === 'prevention' ? null : 'prevention';
+        refreshWithFilters();
+      }
     });
     filterHost.append(toolbar);
     filterRefs.view.value = filterView;
     filterRefs.status.value = filterStatus;
     filterRefs.priority.value = filterPriority;
+    syncPreventionToolbar();
 
     filterRefs.view.addEventListener('change', () => {
       filterView = filterRefs.view.value;
@@ -565,53 +843,20 @@ export function renderActions() {
 
   const createBtn = main.querySelector('.actions-create-btn');
 
-  createBtn.addEventListener('click', async () => {
-    try {
-      const qhse = usersList.find((u) => normalizedUserRole(u.role) === 'QHSE');
-      const body = {
-        title: 'Nouvelle action',
-        detail: 'Pilotage QHSE • Resp. Responsable QHSE',
-        status: 'À lancer',
-        owner: 'Responsable QHSE'
-      };
-      if (qhse) {
-        body.assigneeId = qhse.id;
-        body.owner = qhse.name;
+  createBtn.addEventListener('click', () => {
+    if (createBtn.disabled) return;
+    openActionCreateDialog({
+      users: usersList,
+      onCreated: () => {
+        activityLogStore.add({
+          module: 'actions',
+          action: 'Création action',
+          detail: 'Formulaire pilotage — API + mock liaisons',
+          user: getSessionUser()?.name || 'Responsable QHSE'
+        });
+        void loadActionsFromApi();
       }
-      if (appState.activeSiteId) {
-        body.siteId = appState.activeSiteId;
-      }
-
-      const res = await qhseFetch('/api/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (!res.ok) {
-        try {
-          const errBody = await res.json();
-          console.error('[actions] POST /api/actions', res.status, errBody);
-        } catch {
-          console.error('[actions] POST /api/actions', res.status);
-        }
-        showToast('Erreur serveur', 'error');
-        return;
-      }
-
-      showToast('Action enregistrée', 'info');
-      activityLogStore.add({
-        module: 'actions',
-        action: 'Création action',
-        detail: 'Depuis le plan d’actions — API',
-        user: 'Responsable QHSE'
-      });
-
-      await loadActionsFromApi();
-    } catch (err) {
-      console.error('[actions] POST /api/actions', err);
-      showToast('Erreur serveur', 'error');
-    }
+    });
   });
 
   page.append(
@@ -620,6 +865,7 @@ export function renderActions() {
       hint: 'Les filtres avancés sont réduits : gardez « Responsable » et « Statut » pour cadrer votre liste.',
       nextStep: 'Action principale : traiter d’abord les retards, puis les cartes « À lancer ».'
     }),
+    managerHost,
     main
   );
   return page;

@@ -1,5 +1,30 @@
 import { parseActionMeta } from './actionMeta.js';
 import { showToast } from './toast.js';
+import {
+  ensureDefaultOverlayFromRow,
+  getActionOverlay,
+  getResolvedActionType
+} from '../utils/actionPilotageMock.js';
+import {
+  computeActionUrgency,
+  urgencyTierFromTotal,
+  URGENCY_LABELS,
+  URGENCY_TOOLTIP,
+  IMPACT_LABELS
+} from '../utils/actionUrgency.js';
+
+const PRIO_BADGE = {
+  basse: { label: 'P basse', mod: 'action-card__prio-badge--low' },
+  normale: { label: 'P norm.', mod: 'action-card__prio-badge--norm' },
+  haute: { label: 'P haute', mod: 'action-card__prio-badge--high' },
+  critique: { label: 'P crit.', mod: 'action-card__prio-badge--crit' }
+};
+
+const TYPE_BADGE = {
+  corrective: { label: 'Corr.', title: 'Action corrective' },
+  preventive: { label: 'Prév.', title: 'Action préventive' },
+  improvement: { label: 'Amél.', title: 'Action d’amélioration' }
+};
 
 function formatDueShort(iso) {
   if (!iso) return null;
@@ -78,10 +103,15 @@ function statusPillClass(columnKey) {
 export function createActionKanbanCard(item, columnKey) {
   const card = document.createElement('article');
   card.className = `action-card action-card--v2 action-card--premium action-card--col-${columnKey}`;
-  card.setAttribute('draggable', 'true');
+  card.setAttribute('draggable', item.canDrag === false ? 'false' : 'true');
   card.dataset.actionId = item.actionId != null ? String(item.actionId) : '';
   card.dataset.columnKey = columnKey;
   card.classList.add('action-card--dnd-ready');
+
+  if (item.rawRow && item.actionId) {
+    ensureDefaultOverlayFromRow(item.rawRow, String(item.actionId));
+  }
+  const pilotage = item.actionId ? getActionOverlay(String(item.actionId)) : {};
 
   const parsed = parseActionMeta(item.detail || '');
   const hasNamedAssignee =
@@ -105,6 +135,69 @@ export function createActionKanbanCard(item, columnKey) {
 
   if (isCriticalAccent) card.classList.add('action-card--critical-accent');
   if (isLate) card.classList.add('action-card--late-strong');
+  if (isLate && columnKey !== 'done') card.classList.add('action-card--pulse-late');
+
+  let dueSoon = false;
+  if (columnKey !== 'done' && item.dueDateIso) {
+    const d = new Date(item.dueDateIso);
+    if (!Number.isNaN(d.getTime())) {
+      const days = (d.getTime() - Date.now()) / 86400000;
+      dueSoon = days >= 0 && days <= 3;
+    }
+  }
+  if (dueSoon && !isLate) card.classList.add('action-card--due-soon');
+
+  const ownerStr = String(item.rawRow?.owner || '').trim();
+  const noAssignee =
+    !item.assigneeId &&
+    (!ownerStr || ownerStr === 'À assigner' || ownerStr === '—');
+  if (noAssignee && columnKey !== 'done') card.classList.add('action-card--no-assignee');
+
+  const pb = PRIO_BADGE[pilotage.priority] || PRIO_BADGE.normale;
+
+  const resolvedType =
+    item.rawRow && item.actionId
+      ? getResolvedActionType(item.rawRow, String(item.actionId))
+      : 'corrective';
+  const typeSpec = TYPE_BADGE[resolvedType] || TYPE_BADGE.corrective;
+
+  const urg = computeActionUrgency(item.rawRow || {}, columnKey, pilotage);
+  const tier = columnKey === 'done' ? 'normal' : urgencyTierFromTotal(urg.total);
+  const impactKey = pilotage.impact || 'amelioration';
+  const relanceN = Number(pilotage.relanceCount) || 0;
+
+  if (columnKey !== 'done') {
+    if (tier === 'urgent') {
+      card.classList.add('action-card--urgency-urgent', 'action-card--pulse-urgent');
+    } else if (tier === 'prioritaire') {
+      card.classList.add('action-card--urgency-prioritaire');
+    }
+    if (impactKey === 'reduction_risque_critique' || tier === 'urgent') {
+      card.classList.add('action-card--pilot-highlight');
+    }
+    if (isLate && relanceN === 0) {
+      card.classList.add('action-card--relance-suggest');
+    }
+  }
+
+  const tooltipLines = [
+    item.title,
+    `Statut : ${item.statusLabel || '—'}`,
+    `Impact : ${IMPACT_LABELS[impactKey] || IMPACT_LABELS.amelioration}`,
+    columnKey !== 'done'
+      ? `Urgence : ${URGENCY_LABELS[tier]} (score ${urg.total})`
+      : null,
+    URGENCY_TOOLTIP,
+    `Type : ${typeSpec.title}`,
+    pilotage.origin ? `Origine : ${pilotage.origin}` : null,
+    `Priorité : ${pilotage.priority || 'normale'}`,
+    pilotage.progressPct != null ? `Avancement : ${pilotage.progressPct} %` : null,
+    dueFormatted ? `Échéance : ${dueFormatted}` : null,
+    displayOwner !== '—' ? `Responsable : ${displayOwner}` : 'Sans responsable déclaré',
+    relanceN > 0 ? `Relancé ${relanceN} fois` : null,
+    isLate && relanceN === 0 ? 'Relance recommandée (retard sans relance enregistrée).' : null
+  ].filter(Boolean);
+  card.title = tooltipLines.join('\n');
 
   const head = document.createElement('div');
   head.className = 'action-card__premium-head';
@@ -112,6 +205,11 @@ export function createActionKanbanCard(item, columnKey) {
   const title = document.createElement('h4');
   title.className = 'action-card__title';
   title.textContent = item.title;
+
+  const prioBadge = document.createElement('span');
+  prioBadge.className = `action-card__prio-badge ${pb.mod}`;
+  prioBadge.textContent = pb.label;
+  prioBadge.title = 'Priorité pilotage (fiche locale)';
 
   const menuWrap = document.createElement('div');
   menuWrap.className = 'action-card__menu';
@@ -258,7 +356,7 @@ export function createActionKanbanCard(item, columnKey) {
   }
 
   menuWrap.append(menuBtn, menuPanel);
-  head.append(title, menuWrap);
+  head.append(title, prioBadge, menuWrap);
 
   const statusEl = document.createElement('span');
   statusEl.className = statusPillClass(columnKey);
@@ -266,6 +364,11 @@ export function createActionKanbanCard(item, columnKey) {
 
   const metaRow = document.createElement('div');
   metaRow.className = 'action-card__premium-meta';
+
+  const typeBadge = document.createElement('span');
+  typeBadge.className = `action-card__type-badge action-card__type-badge--${resolvedType}`;
+  typeBadge.textContent = typeSpec.label;
+  typeBadge.title = typeSpec.title;
 
   const dueSide = document.createElement('div');
   dueSide.className = 'action-card__due-compact';
@@ -284,7 +387,10 @@ export function createActionKanbanCard(item, columnKey) {
     dueSide.append(lateBadge);
   }
 
-  metaRow.append(statusEl, dueSide);
+  const metaLeft = document.createElement('div');
+  metaLeft.className = 'action-card__premium-meta-left';
+  metaLeft.append(typeBadge, statusEl);
+  metaRow.append(metaLeft, dueSide);
 
   const ownerEl = document.createElement('p');
   ownerEl.className = 'action-card__owner-lite';

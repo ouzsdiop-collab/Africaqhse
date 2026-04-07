@@ -11,15 +11,21 @@ import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { showToast } from '../components/toast.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
-import {
-  incidentsLinkedToRiskFromApiRows,
-  pushCustomRiskTitle
-} from '../utils/riskIncidentLinks.js';
+import { pushCustomRiskTitle } from '../utils/riskIncidentLinks.js';
+import { getMergedIncidentsForRisk } from '../utils/riskMockIncidentLinks.js';
+import { createRiskManagerReadingCard } from '../components/riskManagerReading.js';
 import { activityLogStore } from '../data/activityLog.js';
 import { appState } from '../utils/state.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import {
+  suggestRiskCausesImpacts,
+  buildActionDefaultsFromCriticalRisk
+} from '../utils/qhseAssistantFormSuggestions.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
+import { createPermit } from '../services/ptw.service.js';
+import { linkModules } from '../services/moduleLinks.service.js';
 
-const CATEGORY_OPTIONS = ['Sécurité', 'Environnement', 'Qualité', 'Autre'];
+const CATEGORY_OPTIONS = ['Sécurité', 'Environnement', 'Qualité'];
 const LEVEL_OPTIONS = [
   { value: 'élevée', label: 'Élevée' },
   { value: 'moyenne', label: 'Moyenne' },
@@ -186,10 +192,36 @@ function defaultTitleFromDescription(text) {
 }
 
 /**
+ * Suggestion locale si l’API d’analyse est indisponible — toujours validée par l’utilisateur.
+ * @param {string} description
+ */
+function mockAnalyzeRisk(description) {
+  const d = String(description).toLowerCase();
+  let category = 'Sécurité';
+  if (/hydrocarbure|pollution|eau|déchets|bassin|rétention|environnement/.test(d)) {
+    category = 'Environnement';
+  } else if (/qualité|non-conform|procédure|lot|conditionnement|contrôle/.test(d)) {
+    category = 'Qualité';
+  }
+  return {
+    category,
+    severity: 'moyenne',
+    probability: 'moyenne',
+    suggestedActions: [
+      'Consigner la mesure de maîtrise dans le registre après validation terrain.',
+      'Vérifier la cohérence avec les exigences ISO 45001 / 14001 applicables au site.'
+    ],
+    causes: 'À préciser après observation (suggestion automatique — non contractuelle).',
+    impacts: 'À évaluer selon le contexte opérationnel local (suggestion automatique).'
+  };
+}
+
+/**
  * @param {object} opts
  * @param {(data: { title: string, detail: string, status: string, tone: string, meta: string }) => void} opts.onSaved — liste locale (pas d’API persistance)
+ * @param {{ title?: string, description?: string, category?: string }} [opts.defaults]
  */
-function openRiskCreateDialog({ onSaved }) {
+export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
   const dialog = document.createElement('dialog');
   dialog.className = 'risks-create-dialog';
 
@@ -199,17 +231,23 @@ function openRiskCreateDialog({ onSaved }) {
   inner.innerHTML = `
     <h2 class="risks-create-dialog__head">Nouvelle fiche risque</h2>
     <p class="risks-create-dialog__lead">
-      Décrivez le risque. L’analyse automatique propose des pistes : vous gardez le contrôle — rien n’est enregistré sans votre validation.
+      Registre QHSE (ISO 45001 / ISO 14001) — décrivez le risque opérationnel. Suggestion automatique (mock / API) : vous validez toujours avant enregistrement.
     </p>
     <form class="risks-form-grid" id="risks-create-form">
+      <label>Type *
+        <select name="category" required>${CATEGORY_OPTIONS.map(
+          (c) => `<option value="${c}">${c}</option>`
+        ).join('')}</select>
+      </label>
       <label>Libellé court
         <input type="text" name="title" autocomplete="off" maxlength="240" placeholder="Ex. Chute hauteur zone concassage" />
       </label>
       <label>Description du risque *
-        <textarea name="description" required placeholder="Contexte, causes possibles, exposition…"></textarea>
+        <textarea name="description" required placeholder="Contexte, exposition, situation terrain…"></textarea>
       </label>
       <div class="risks-form-actions-row">
-        <button type="button" class="btn btn-secondary" data-action="analyze">Analyser le risque</button>
+        <button type="button" class="btn btn-secondary" data-action="analyze">Suggestion automatique (causes / impacts / G·P)</button>
+        <button type="button" class="btn btn-secondary" data-action="assistant-causes">Causes &amp; impacts (assistant local)</button>
       </div>
       <div class="risks-ai-panel" id="risks-ai-panel" hidden>
         <p class="risks-ai-panel__disclaimer" id="risks-ai-disclaimer"></p>
@@ -220,11 +258,6 @@ function openRiskCreateDialog({ onSaved }) {
           <button type="button" class="btn btn-secondary" data-action="ignore-suggestions">Masquer</button>
         </div>
       </div>
-      <label>Catégorie
-        <select name="category">${CATEGORY_OPTIONS.map(
-          (c) => `<option value="${c}">${c}</option>`
-        ).join('')}</select>
-      </label>
       <label>Gravité estimée
         <select name="severity">${LEVEL_OPTIONS.map(
           (o) => `<option value="${o.value}">${o.label}</option>`
@@ -238,6 +271,10 @@ function openRiskCreateDialog({ onSaved }) {
       <label>Actions recommandées (modifiable)
         <textarea name="actions" placeholder="Une mesure par ligne (vous pouvez compléter ou supprimer)."></textarea>
       </label>
+      <label class="risks-form-confirm-row">
+        <input type="checkbox" name="confirm_review" value="1" />
+        <span>Je confirme avoir relu les champs et suggestions avant validation</span>
+      </label>
       <div class="risks-form-actions-row" style="margin-top:18px">
         <button type="submit" class="btn btn-primary">Valider et ajouter au registre (local)</button>
         <button type="button" class="btn btn-secondary" data-action="close">Annuler</button>
@@ -249,12 +286,22 @@ function openRiskCreateDialog({ onSaved }) {
   document.body.append(dialog);
 
   const form = inner.querySelector('#risks-create-form');
+  const d = defaults;
+  if (d.title != null && String(d.title).trim()) {
+    form.querySelector('[name="title"]').value = String(d.title).trim();
+  }
+  if (d.description != null && String(d.description).trim()) {
+    form.querySelector('[name="description"]').value = String(d.description).trim();
+  }
+  if (d.category && CATEGORY_OPTIONS.includes(d.category)) {
+    form.querySelector('[name="category"]').value = d.category;
+  }
   const panel = inner.querySelector('#risks-ai-panel');
   const disclaimerEl = inner.querySelector('#risks-ai-disclaimer');
   const kvHost = inner.querySelector('#risks-ai-kv');
   const actionsList = inner.querySelector('#risks-ai-actions');
 
-  /** @type {{ category: string, severity: string, probability: string, suggestedActions: string[] } | null} */
+  /** @type {{ category: string, severity: string, probability: string, suggestedActions: string[], causes?: string, impacts?: string } | null} */
   let pendingSuggestion = null;
 
   function hidePanel() {
@@ -275,11 +322,20 @@ function openRiskCreateDialog({ onSaved }) {
       sevOk ? data.severity : 'moyenne',
       probOk ? data.probability : 'moyenne'
     );
+    const extraCauses =
+      data.causes != null
+        ? `<div><span>Causes (suggestion)</span><strong>${escapeHtml(String(data.causes))}</strong></div>`
+        : '';
+    const extraImpacts =
+      data.impacts != null
+        ? `<div><span>Impacts (suggestion)</span><strong>${escapeHtml(String(data.impacts))}</strong></div>`
+        : '';
     kvHost.innerHTML = `
-      <div><span>Catégorie suggérée</span><strong>${escapeHtml(data.category)}</strong></div>
+      <div><span>Type suggéré</span><strong>${escapeHtml(data.category)}</strong></div>
       <div><span>Gravité (suggestion)</span><strong>${escapeHtml(levelLabel(data.severity))}</strong></div>
       <div><span>Probabilité (suggestion)</span><strong>${escapeHtml(levelLabel(data.probability))}</strong></div>
-      <div><span>Criticité (suggestion)</span><strong>${escapeHtml(metaReg.status)} · ${escapeHtml(metaReg.meta)}</strong></div>
+      <div><span>Criticité indicielle</span><strong>${escapeHtml(metaReg.status)} · ${escapeHtml(metaReg.meta)}</strong></div>
+      ${extraCauses}${extraImpacts}
     `;
     actionsList.replaceChildren();
     (data.suggestedActions || []).forEach((line) => {
@@ -289,6 +345,17 @@ function openRiskCreateDialog({ onSaved }) {
     });
     panel.hidden = false;
   }
+
+  inner.querySelector('[data-action="assistant-causes"]')?.addEventListener('click', () => {
+    const cat = form.category.value;
+    const titleEl = form.querySelector('[name="title"]');
+    const title = titleEl?.value?.trim() || 'Risque';
+    const desc = form.description.value.trim();
+    const { causes, impacts } = suggestRiskCausesImpacts(cat, title, desc);
+    const block = `\n\n— Causes (assistant local) —\n${causes}\n\n— Impacts (assistant local) —\n${impacts}`;
+    form.description.value = desc ? `${desc}${block}` : block.trim();
+    showToast('Causes et impacts ajoutés dans la description — relisez avant validation.', 'info');
+  });
 
   inner.querySelector('[data-action="analyze"]').addEventListener('click', async () => {
     const desc = form.description.value.trim();
@@ -310,10 +377,9 @@ function openRiskCreateDialog({ onSaved }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        hidePanel();
-        const msg =
-          typeof body?.error === 'string' ? body.error : `Erreur ${res.status}`;
-        showToast(msg, 'error');
+        panel.classList.remove('risks-ai-panel--loading');
+        renderSuggestion(mockAnalyzeRisk(desc));
+        showToast('Suggestion locale — serveur indisponible (à valider).', 'info');
         return;
       }
       if (
@@ -322,16 +388,18 @@ function openRiskCreateDialog({ onSaved }) {
         !body.probability ||
         !Array.isArray(body.suggestedActions)
       ) {
-        hidePanel();
-        showToast('Réponse serveur inattendue.', 'error');
+        panel.classList.remove('risks-ai-panel--loading');
+        renderSuggestion(mockAnalyzeRisk(desc));
+        showToast('Réponse incomplète — suggestion locale affichée.', 'info');
         return;
       }
       panel.classList.remove('risks-ai-panel--loading');
       renderSuggestion(body);
     } catch (err) {
       console.error('[risks] POST /api/risks/analyze', err);
-      hidePanel();
-      showToast('Impossible de joindre le serveur pour l’analyse.', 'error');
+      panel.classList.remove('risks-ai-panel--loading');
+      renderSuggestion(mockAnalyzeRisk(desc));
+      showToast('Mode hors ligne : suggestion locale (à valider).', 'info');
     }
   });
 
@@ -341,7 +409,7 @@ function openRiskCreateDialog({ onSaved }) {
       return;
     }
     const { category, severity, probability, suggestedActions } = pendingSuggestion;
-    form.category.value = CATEGORY_OPTIONS.includes(category) ? category : 'Autre';
+    form.category.value = CATEGORY_OPTIONS.includes(category) ? category : 'Sécurité';
     form.severity.value = LEVEL_OPTIONS.some((o) => o.value === severity) ? severity : 'moyenne';
     form.probability.value = LEVEL_OPTIONS.some((o) => o.value === probability)
       ? probability
@@ -360,6 +428,10 @@ function openRiskCreateDialog({ onSaved }) {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (!form.confirm_review.checked) {
+      showToast('Cochez la confirmation de relecture pour enregistrer la fiche.', 'info');
+      return;
+    }
     const description = form.description.value.trim();
     if (!description) {
       showToast('La description est obligatoire.', 'info');
@@ -373,7 +445,7 @@ function openRiskCreateDialog({ onSaved }) {
     const actionsText = form.actions.value.trim();
     const cat = form.category.value;
     let detail = description;
-    if (cat && cat !== 'Autre') detail = `${description}\n\n(Catégorie : ${cat})`;
+    if (cat) detail = `${description}\n\n(Type : ${cat})`;
     if (actionsText.length > 0) {
       detail = `${detail}\n\n— Mesures envisagées —\n${actionsText}`;
     }
@@ -381,6 +453,7 @@ function openRiskCreateDialog({ onSaved }) {
     const { meta, tone, status } = levelsToRegisterMeta(severity, probability);
     const rowData = {
       title,
+      type: cat,
       detail,
       status,
       tone,
@@ -402,14 +475,6 @@ function openRiskCreateDialog({ onSaved }) {
   });
 
   dialog.showModal();
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function levelLabel(v) {
@@ -443,6 +508,93 @@ export function renderRisks() {
     }
   }
 
+  async function openPreventiveActionFromRisks(riskTitle) {
+    const preset = riskTitle != null ? String(riskTitle).trim() : '';
+    const linked =
+      preset || window.prompt('Libellé du risque (comme dans le registre) :', '') || '';
+    if (!String(linked).trim()) return;
+    const t = String(linked).trim();
+    const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
+      import('../components/actionCreateDialog.js'),
+      import('../services/users.service.js')
+    ]);
+    let users = [];
+    try {
+      users = await fetchUsers();
+    } catch {
+      showToast('Utilisateurs indisponibles.', 'warning');
+    }
+    const riskRow = localRisks.find((r) => String(r.title || '').trim() === t);
+    const defaults = riskRow
+      ? buildActionDefaultsFromCriticalRisk(riskRow)
+      : {
+          actionType: 'preventive',
+          origin: 'risk',
+          linkedRisk: t,
+          title: `Prévention — ${t}`
+        };
+    openActionCreateDialog({
+      users,
+      defaults,
+      onCreated: () => {
+        linkModules({
+          fromModule: 'risks',
+          fromId: t,
+          toModule: 'actions',
+          toId: `action_for_${t}`,
+          kind: 'risk_to_action',
+          label: 'Action préventive'
+        });
+        showToast('Action préventive créée — suivi dans Plan d’actions.', 'success');
+        activityLogStore.add({
+          module: 'risks',
+          action: 'Création action préventive',
+          detail: t,
+          user: 'Pilotage QHSE'
+        });
+      }
+    });
+  }
+
+  function createPtwFromRisk(riskTitle) {
+    const t = String(riskTitle || '').trim();
+    if (!t) return;
+    const type = /électri/i.test(t)
+      ? 'électrique'
+      : /chaud|feu/i.test(t)
+        ? 'travaux à chaud'
+        : /confin/i.test(t)
+          ? 'espace confiné'
+          : 'travail en hauteur';
+    const permit = createPermit({
+      type,
+      description: `PTW généré depuis risque: ${t}`,
+      zone: appState.currentSite || 'Zone opérationnelle',
+      date: new Date().toISOString().slice(0, 10),
+      team: 'Responsable terrain',
+      checklist: [],
+      epi: ['Casque', 'Gants'],
+      safetyConditions: ['Balisage en place'],
+      status: 'pending'
+    });
+    linkModules({
+      fromModule: 'risks',
+      fromId: t,
+      toModule: 'permits',
+      toId: permit.id,
+      kind: 'risk_to_ptw',
+      label: 'PTW lié'
+    });
+    showToast('PTW créé depuis le risque.', 'success');
+    activityLogStore.add({
+      module: 'risks',
+      action: 'Création PTW liée',
+      detail: t,
+      user: 'Pilotage QHSE'
+    });
+    window.location.hash = 'permits';
+  }
+
   const listStack = document.createElement('tbody');
   listStack.className = 'risks-register-premium-table__body';
 
@@ -450,15 +602,19 @@ export function renderRisks() {
   let matrixFilter = null;
   /** @type {RiskTierBucket | null} */
   let tierFilter = null;
+  /** @type {'critique'|'eleve'|'maitrise'|'sans_action'|null} — filtres cartes KPI */
+  let bannerKpiFilter = null;
 
   const matrixPanel = createRiskMatrixPanel({
     variant: 'default',
     showRiskDots: true,
     onFilterChange: (f) => {
       matrixFilter = f;
+      bannerKpiFilter = null;
       updateMatrixStatusLine();
       updateActiveFiltersBar();
       renderList();
+      renderPilot();
     },
     onCellActivate: () => {
       requestAnimationFrame(() => {
@@ -468,6 +624,28 @@ export function renderRisks() {
       });
     }
   });
+
+  const managerHost = document.createElement('div');
+  managerHost.className = 'risks-manager-reading-host';
+
+  function renderManagerReading() {
+    managerHost.replaceChildren();
+    managerHost.append(
+      createRiskManagerReadingCard(localRisks, {
+        onScrollToTitle: (title) => {
+          const safe = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(title) : String(title).replace(/"/g, '\\"');
+          const row = document.querySelector(`tr[data-risk-title="${safe}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+          }
+          document
+            .querySelector('.risks-register-premium-table')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      })
+    );
+  }
 
   const pilotHost = document.createElement('div');
   pilotHost.className = 'risks-pilot-banner-host';
@@ -488,23 +666,34 @@ export function renderRisks() {
     head.className = 'risks-pilot-banner__head';
     head.innerHTML = `
       <div>
-        <div class="section-kicker">Pôle central QHSE</div>
-        <h3 class="risks-pilot-banner__title">Risques</h3>
-        <p class="risks-pilot-banner__lead">Matrice, registre, liaisons Incidents / Actions — analyse assistée toujours validée par l’utilisateur.</p>
+        <div class="section-kicker">Pilotage QHSE</div>
+        <h3 class="risks-pilot-banner__title">Registre des risques opérationnels</h3>
+        <p class="risks-pilot-banner__lead">Aligné ISO 45001 &amp; 14001 — matrice G×P, terrain et actions. Cliquez une carte pour filtrer le tableau.</p>
       </div>`;
     const kpis = document.createElement('div');
     kpis.className = 'risks-pilot-banner__kpis risks-pilot-banner__kpis--four';
-    kpis.setAttribute('aria-label', 'Indicateurs registre risques');
+    kpis.setAttribute('aria-label', 'Indicateurs registre risques — filtres');
     const cards = [
-      ['Critiques', String(nCrit), 'Palier critique', 'risks-pilot-banner__kpi--crit'],
-      ['Élevés', String(nElev), 'Hors palier critique', 'risks-pilot-banner__kpi--elev'],
-      ['Maîtrisés', String(nMait), 'Clôture locale (pilotage)', 'risks-pilot-banner__kpi--ok'],
-      ['Sans action', String(nSans), 'Sans action liée', 'risks-pilot-banner__kpi--action']
+      ['Critiques', String(nCrit), 'Palier critique', 'risks-pilot-banner__kpi--crit', 'critique'],
+      ['Élevés', String(nElev), 'Hors palier critique', 'risks-pilot-banner__kpi--elev', 'eleve'],
+      ['Maîtrisés', String(nMait), 'Clôture locale (pilotage)', 'risks-pilot-banner__kpi--ok', 'maitrise'],
+      ['Sans action', String(nSans), 'Sans action liée', 'risks-pilot-banner__kpi--action', 'sans_action']
     ];
-    cards.forEach(([lbl, val, hint, cls]) => {
-      const d = document.createElement('div');
-      d.className = `risks-pilot-banner__kpi ${cls}`;
-      d.innerHTML = `<span class="risks-pilot-banner__kpi-val">${val}</span><span class="risks-pilot-banner__kpi-lbl">${lbl}</span><span class="risks-pilot-banner__kpi-hint">${hint}</span>`;
+    cards.forEach(([lbl, val, hint, cls, key]) => {
+      const d = document.createElement('button');
+      d.type = 'button';
+      d.className = `risks-pilot-banner__kpi ${cls} risks-pilot-banner__kpi--click`;
+      if (bannerKpiFilter === key) d.classList.add('risks-pilot-banner__kpi--filter-on');
+      d.dataset.kpiFilter = key;
+      d.innerHTML = `<span class="risks-pilot-banner__kpi-val">${escapeHtml(val)}</span><span class="risks-pilot-banner__kpi-lbl">${escapeHtml(lbl)}</span><span class="risks-pilot-banner__kpi-hint">${escapeHtml(hint)}</span>`;
+      d.addEventListener('click', () => {
+        bannerKpiFilter = bannerKpiFilter === key ? null : key;
+        tierFilter = null;
+        syncTierPills();
+        updateActiveFiltersBar();
+        renderList();
+        renderPilot();
+      });
       kpis.append(d);
     });
     art.append(head, kpis);
@@ -746,7 +935,7 @@ export function renderRisks() {
   const matrixHead = document.createElement('div');
   matrixHead.className = 'content-card-head content-card-head--tight';
   matrixHead.innerHTML =
-    '<div><div class="section-kicker">Matrice centrale</div><h3>Gravité × Probabilité</h3><p class="content-card-lead risks-matrix-card-prominent__lead">Survol : détail · Clic sur une case remplie : filtre le registre · Pastilles = palier par fiche.</p></div>';
+    '<div><div class="section-kicker">Matrice centrale</div><h3>Gravité × Probabilité</h3><p class="content-card-lead risks-matrix-card-prominent__lead">Survol : aperçu des fiches · Clic sur une case remplie : filtre le registre. <abbr title="Produit Gravité × Probabilité (1–25), priorisation relative ISO.">G×P</abbr> explicite sur chaque fiche.</p></div>';
   matrixCard.append(matrixHead, matrixStatusLine, matrixPanel.element);
 
   function updateMatrixStatusLine() {
@@ -772,7 +961,8 @@ export function renderRisks() {
   function updateActiveFiltersBar() {
     const hasTier = tierFilter != null;
     const hasMatrix = matrixFilter != null;
-    activeFiltersBar.hidden = !hasTier && !hasMatrix;
+    const hasBanner = bannerKpiFilter != null;
+    activeFiltersBar.hidden = !hasTier && !hasMatrix && !hasBanner;
     activeFiltersBar.replaceChildren();
     if (activeFiltersBar.hidden) return;
     const label = document.createElement('span');
@@ -780,6 +970,25 @@ export function renderRisks() {
     label.textContent = 'Filtres actifs';
     const actions = document.createElement('div');
     actions.className = 'risks-page__active-filters-actions';
+    if (hasBanner) {
+      const map = {
+        critique: 'Carte : Critiques',
+        eleve: 'Carte : Élevés',
+        maitrise: 'Carte : Maîtrisés',
+        sans_action: 'Carte : Sans action'
+      };
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary risks-page__active-filters-btn';
+      b.textContent = `Retirer : ${map[bannerKpiFilter] || 'KPI'}`;
+      b.addEventListener('click', () => {
+        bannerKpiFilter = null;
+        updateActiveFiltersBar();
+        renderList();
+        renderPilot();
+      });
+      actions.append(b);
+    }
     if (hasTier) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -814,10 +1023,12 @@ export function renderRisks() {
     clearAll.textContent = 'Tout afficher';
     clearAll.addEventListener('click', () => {
       tierFilter = null;
+      bannerKpiFilter = null;
       matrixPanel.clearFilter();
       syncTierPills();
       updateActiveFiltersBar();
       renderList();
+      renderPilot();
     });
     actions.append(clearAll);
     activeFiltersBar.append(label, actions);
@@ -882,6 +1093,7 @@ export function renderRisks() {
       btn.dataset.tierKey = key;
       btn.textContent = text;
       btn.addEventListener('click', () => {
+        bannerKpiFilter = null;
         if (key === 'all') tierFilter = null;
         else if (key === 'critique') tierFilter = 'critique';
         else if (key === 'eleve') tierFilter = 'eleve';
@@ -889,6 +1101,7 @@ export function renderRisks() {
         syncTierPills();
         updateActiveFiltersBar();
         renderList();
+        renderPilot();
       });
       tierPills.append(btn);
     }
@@ -923,7 +1136,15 @@ export function renderRisks() {
   function renderList() {
     listStack.replaceChildren();
     let rows = localRisks;
-    if (tierFilter != null) {
+    if (bannerKpiFilter === 'critique') {
+      rows = rows.filter((r) => riskTierBucket(r) === 'critique');
+    } else if (bannerKpiFilter === 'eleve') {
+      rows = rows.filter((r) => riskTierBucket(r) === 'eleve');
+    } else if (bannerKpiFilter === 'maitrise') {
+      rows = rows.filter((r) => r.pilotageState === 'traite');
+    } else if (bannerKpiFilter === 'sans_action') {
+      rows = rows.filter((r) => !hasActionLinked(r));
+    } else if (tierFilter != null) {
       rows = rows.filter((r) => riskTierBucket(r) === tierFilter);
     }
     if (matrixFilter != null) {
@@ -952,6 +1173,9 @@ export function renderRisks() {
         t.textContent = 'Aucun résultat pour cette combinaison de filtres';
         s.textContent =
           'Élargissez le palier ou réinitialisez le filtre matrice via « Tout afficher ».';
+      } else if (bannerKpiFilter != null) {
+        t.textContent = 'Aucune fiche pour ce filtre carte';
+        s.textContent = 'Cliquez à nouveau la carte du bandeau ou « Tout afficher ».';
       } else if (tierFilter != null) {
         t.textContent = 'Aucune fiche pour ce palier';
         s.textContent = 'Choisissez un autre filtre ou cliquez « Tout » ci-dessus.';
@@ -972,8 +1196,13 @@ export function renderRisks() {
     rows.forEach((r) =>
       listStack.append(
         createRiskRegisterRow(r, {
-          linkedIncidents: incidentsLinkedToRiskFromApiRows(incidentRowsRaw, String(r.title || '')),
-          incidentsLinkNote
+          linkedIncidents: getMergedIncidentsForRisk(String(r.title || ''), incidentRowsRaw),
+          incidentsLinkNote,
+          onRefresh: () => void refreshAll(),
+          onCreatePreventiveAction: (title) => {
+            void openPreventiveActionFromRisks(title);
+          },
+          onCreatePtwFromRisk: (title) => createPtwFromRisk(title)
         })
       )
     );
@@ -1013,6 +1242,7 @@ export function renderRisks() {
 
   async function refreshAll() {
     await refreshIncidentLinks();
+    renderManagerReading();
     renderPilot();
     renderPriority();
     renderEvolution();
@@ -1036,12 +1266,17 @@ export function renderRisks() {
         <div class="section-kicker">Registre des risques</div>
         <h3>Tableau compact</h3>
         <p class="content-card-lead risks-page__panel-lead">
-          Ligne = synthèse · clic = détail (causes, impacts, action, incidents). Filtres : paliers ou matrice.
+          Ligne = synthèse · clic = fiche (modal). Filtres : cartes du haut, paliers ci-dessous ou matrice G×P.
         </p>
       </div>
-      <button type="button" class="btn btn-primary risks-add-btn btn--pilotage-cta">
-        + Ajouter un risque
-      </button>
+      <div class="risks-page__panel-actions">
+        <button type="button" class="btn btn-secondary risks-preventive-action-btn">
+          Créer action préventive
+        </button>
+        <button type="button" class="btn btn-primary risks-add-btn btn--pilotage-cta">
+          + Ajouter un risque
+        </button>
+      </div>
     </div>
     <div class="risks-page__list-region"></div>
   `;
@@ -1050,7 +1285,7 @@ export function renderRisks() {
   table.className = 'risks-register-premium-table';
   const caption = document.createElement('caption');
   caption.className = 'risks-register-premium-table__caption';
-  caption.textContent = 'Registre des risques — ouvrir une ligne pour le détail';
+  caption.textContent = 'Registre des risques — clic sur une ligne pour ouvrir la fiche';
   const colgroup = document.createElement('colgroup');
   colgroup.innerHTML = `
     <col class="risks-register-col risks-register-col--risk" />
@@ -1073,6 +1308,10 @@ export function renderRisks() {
   `;
   table.append(caption, colgroup, thead, listStack);
   listRegion.append(activeFiltersBar, table);
+
+  register.querySelector('.risks-preventive-action-btn').addEventListener('click', () => {
+    void openPreventiveActionFromRisks('');
+  });
 
   register.querySelector('.risks-add-btn').addEventListener('click', () => {
     openRiskCreateDialog({
@@ -1105,6 +1344,7 @@ export function renderRisks() {
       hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
       nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
     }),
+    managerHost,
     pilotHost,
     matrixSection,
     insightsHost,

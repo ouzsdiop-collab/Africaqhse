@@ -1,18 +1,21 @@
+import { escapeHtml } from '../utils/escapeHtml.js';
+
 export function createSectionHero(title, description, actions = []) {
   const hero = document.createElement('section');
   hero.className = 'hero card-soft';
 
   const actionsHtml = actions
     .map(
-      (action) => `<button type="button" class="${action.primary ? 'btn btn-primary' : 'btn'}">${action.label}</button>`
+      (action) =>
+        `<button type="button" class="${action.primary ? 'btn btn-primary' : 'btn'}">${escapeHtml(action.label)}</button>`
     )
     .join('');
 
   hero.innerHTML = `
     <div>
       <div class="section-kicker">Vision produit</div>
-      <h1>${title}</h1>
-      <p>${description}</p>
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(description)}</p>
       <div class="inline-actions">${actionsHtml}</div>
     </div>
   `;
@@ -28,12 +31,12 @@ export function createList(items) {
     row.className = 'list-row';
     row.innerHTML = `
       <div>
-        <strong>${item.title}</strong>
-        <p>${item.detail}</p>
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.detail)}</p>
       </div>
       <div class="list-meta">
-        <span class="badge ${item.tone}">${item.status}</span>
-        <small>${item.meta || ''}</small>
+        <span class="badge ${escapeHtml(item.tone)}">${escapeHtml(item.status)}</span>
+        <small>${escapeHtml(item.meta || '')}</small>
       </div>
     `;
     wrapper.append(row);

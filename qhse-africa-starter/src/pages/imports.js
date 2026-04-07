@@ -5,6 +5,7 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { saveImportDraft } from '../utils/importDraft.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 function labelImportStatus(status) {
   switch (status) {
@@ -543,14 +544,16 @@ export function renderImports() {
               timeStyle: 'short'
             })
           : '—';
+        const modSug = escapeHtml(row.suggestedModule || '—');
+        const modCreated = row.moduleCreated ? escapeHtml(row.moduleCreated) : '';
         left.innerHTML = `
-          <strong style="font-size:13px">${String(row.fileName || '—')}</strong>
+          <strong style="font-size:13px">${escapeHtml(String(row.fileName || '—'))}</strong>
           <p style="margin:4px 0 0;font-size:12px;color:var(--text2)">
-            ${d} · ${String(row.fileType || '—')} · ${labelDetectedDocType(row.detectedDocumentType)}
+            ${escapeHtml(d)} · ${escapeHtml(String(row.fileType || '—'))} · ${escapeHtml(labelDetectedDocType(row.detectedDocumentType))}
           </p>
           <p style="margin:4px 0 0;font-size:12px;color:var(--text3)">
-            Module suggéré : ${row.suggestedModule || '—'}
-            ${row.moduleCreated ? ` · Créé : ${row.moduleCreated}` : ''}
+            Module suggéré : ${modSug}
+            ${row.moduleCreated ? ` · Créé : ${modCreated}` : ''}
           </p>
         `;
         const right = document.createElement('div');

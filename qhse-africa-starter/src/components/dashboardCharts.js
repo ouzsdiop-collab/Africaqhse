@@ -2,12 +2,37 @@
  * Graphiques dashboard — SVG / barres CSS, données injectées (pas de lib externe).
  */
 
+import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
+
 function formatChartAxisValue(v) {
   if (!Number.isFinite(v)) return '—';
   const a = Math.abs(v);
   if (a >= 100) return String(Math.round(v));
   if (a < 10 && v % 1 !== 0) return String(Math.round(v * 10) / 10);
   return String(Math.round(v * 100) / 100);
+}
+
+/** Score audit API / formulaire — tolère chaîne, virgule décimale. */
+function normalizeAuditScoreValue(raw) {
+  if (raw == null || raw === '') return NaN;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const n = Number(String(raw).trim().replace(',', '.'));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/**
+ * Date d’audit pour séries temporelles — préfère updatedAt si présent.
+ * @returns {number | null} timestamp ms
+ */
+function getAuditTimestampMs(a) {
+  if (!a || typeof a !== 'object') return null;
+  const candidates = [a.updatedAt, a.createdAt, a.auditDate, a.date, a.performedAt];
+  for (const c of candidates) {
+    if (c == null || c === '') continue;
+    const t = new Date(c).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return null;
 }
 
 function createChartTooltipEl() {
@@ -88,6 +113,34 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
     v2.textContent = valStr;
 
     tip.append(ks, vs, k1, v1, k2, v2);
+    if (
+      options.targetYPercent != null &&
+      Number.isFinite(Number(options.targetYPercent)) &&
+      options.lineTheme === 'audits'
+    ) {
+      const tgt = Math.round(Number(options.targetYPercent));
+      const ko = document.createElement('div');
+      ko.className = 'qhse-chart-tooltip__k';
+      ko.textContent = 'Objectif';
+      const vo = document.createElement('div');
+      vo.className = 'qhse-chart-tooltip__v';
+      vo.style.fontSize = '11px';
+      vo.style.opacity = '0.92';
+      vo.textContent =
+        typeof options.targetLabel === 'string' && options.targetLabel.trim()
+          ? options.targetLabel.trim()
+          : `${tgt} %`;
+      const gap = p.value - tgt;
+      const cmp = document.createElement('div');
+      cmp.className = 'qhse-chart-tooltip__delta';
+      cmp.textContent =
+        gap >= 0.5
+          ? `+${gap.toFixed(0)} pt vs objectif`
+          : gap <= -0.5
+            ? `${gap.toFixed(0)} pt vs objectif`
+            : 'À l’objectif';
+      tip.append(ko, vo, cmp);
+    }
     tip.hidden = false;
     tip.setAttribute('data-visible', 'true');
 
@@ -138,18 +191,36 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
  * @param {number} w
  * @param {number} h
  * @param {number[]} ptsX
+ * @param {{ padV?: number; crosshair?: SVGLineElement | null; valueDecimals?: number; snapPx?: number }} [opts]
  */
-function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX) {
+function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX, opts = {}) {
   let raf = 0;
   const safeSeries = Array.isArray(series) ? series : [];
+  const padV = Number.isFinite(opts.padV) ? opts.padV : 14;
+  const crosshair = opts.crosshair || null;
+  const decimals =
+    opts.valueDecimals != null && Number.isFinite(opts.valueDecimals) ? opts.valueDecimals : 1;
+  const snapPx =
+    opts.snapPx != null && Number.isFinite(opts.snapPx)
+      ? opts.snapPx
+      : ptsX.length > 1
+        ? Math.min(56, Math.abs(ptsX[1] - ptsX[0]) * 0.55)
+        : 48;
 
   function hide() {
     tip.hidden = true;
     tip.setAttribute('data-visible', 'false');
     dotsByCol.flat().forEach((d) => d.classList.remove('dashboard-line-chart-dot--active'));
+    if (crosshair) {
+      crosshair.setAttribute('visibility', 'hidden');
+    }
   }
 
-  function show(col) {
+  /**
+   * @param {number} col
+   * @param {MouseEvent | Touch} e
+   */
+  function show(col, e) {
     tip.replaceChildren();
     const k1 = document.createElement('div');
     k1.className = 'qhse-chart-tooltip__k';
@@ -174,7 +245,11 @@ function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX) {
       name.append(dot, nl);
       const valEl = document.createElement('span');
       valEl.className = 'qhse-chart-tooltip__series-val';
-      valEl.textContent = `${Math.round(val)}`;
+      const numStr =
+        decimals <= 0
+          ? String(Math.round(val))
+          : Number(val.toFixed(decimals)).toString();
+      valEl.textContent = `${numStr} %`;
       row.append(name, valEl);
       tip.append(row);
     });
@@ -183,15 +258,26 @@ function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX) {
     tip.setAttribute('data-visible', 'true');
     const rect = svg.getBoundingClientRect();
     const px = (ptsX[col] / w) * rect.width + rect.left;
-    tip.style.left = `${Math.min(window.innerWidth - 250, px + 12)}px`;
-    tip.style.top = `${Math.max(10, rect.top + 10)}px`;
+    const clientY = 'clientY' in e ? e.clientY : rect.top + 20;
+    tip.style.left = `${Math.min(window.innerWidth - 240, Math.max(8, px - 110))}px`;
+    tip.style.top = `${Math.min(window.innerHeight - 100, Math.max(8, clientY - 48))}px`;
     dotsByCol[col]?.forEach((d) => d.classList.add('dashboard-line-chart-dot--active'));
+    if (crosshair) {
+      const x = ptsX[col];
+      crosshair.setAttribute('x1', String(x));
+      crosshair.setAttribute('x2', String(x));
+      crosshair.setAttribute('y1', String(padV));
+      crosshair.setAttribute('y2', String(h - padV));
+      crosshair.setAttribute('visibility', 'visible');
+    }
   }
 
-  function onMove(e) {
+  function onPointer(e) {
     const rect = svg.getBoundingClientRect();
+    const cx = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX;
+    if (cx == null) return;
     const scaleX = w / rect.width;
-    const xSvg = (e.clientX - rect.left) * scaleX;
+    const xSvg = (cx - rect.left) * scaleX;
     let best = 0;
     let bestD = Infinity;
     ptsX.forEach((x, i) => {
@@ -201,16 +287,19 @@ function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX) {
         best = i;
       }
     });
-    if (bestD > 48) {
+    if (bestD > snapPx) {
       hide();
       return;
     }
     if (raf) cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => show(best));
+    raf = requestAnimationFrame(() => show(best, e));
   }
 
-  svg.addEventListener('mousemove', onMove);
+  svg.addEventListener('mousemove', onPointer);
   svg.addEventListener('mouseleave', hide);
+  svg.addEventListener('touchstart', onPointer, { passive: true });
+  svg.addEventListener('touchmove', onPointer, { passive: true });
+  svg.addEventListener('touchend', hide);
 }
 
 /**
@@ -254,10 +343,69 @@ export function buildIncidentMonthlySeries(incidents) {
 }
 
 /**
+ * NC majeures vs mineures par mois (texte « criticité » dans title/detail — aligné seed Prisma).
+ * @param {object[]} ncs
+ * @param {number} [monthCount=6]
+ * @returns {{ labels: string[]; major: number[]; minor: number[] }}
+ */
+export function buildNcMajorMinorMonthlySeries(ncs, monthCount = 6) {
+  const n = Math.max(1, Math.min(24, Math.floor(Number(monthCount)) || 6));
+  const now = new Date();
+  /** @type {{ key: string; label: string }[]} */
+  const buckets = [];
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: d.toLocaleDateString('fr-FR', { month: 'short' })
+    });
+  }
+  const major = buckets.map(() => 0);
+  const minor = buckets.map(() => 0);
+  if (!Array.isArray(ncs)) {
+    return { labels: buckets.map((b) => b.label), major, minor };
+  }
+  for (const nc of ncs) {
+    const raw = nc?.createdAt;
+    if (!raw) continue;
+    const dt = new Date(raw);
+    if (Number.isNaN(dt.getTime())) continue;
+    const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+    const idx = buckets.findIndex((b) => b.key === key);
+    if (idx < 0) continue;
+    if (ncTextIsMajor(nc)) major[idx] += 1;
+    else minor[idx] += 1;
+  }
+  return { labels: buckets.map((b) => b.label), major, minor };
+}
+
+/**
+ * @param {object} nc
+ */
+function ncTextIsMajor(nc) {
+  const t = `${nc?.title || ''} ${nc?.detail || ''}`.toLowerCase();
+  if (
+    /criticité\s*:\s*mineure|criticité\s*:\s*mineur|\bmineure\b|\bmineur\b|\bfaible\b|\bminor\b/.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  if (
+    /criticité\s*:\s*majeure|criticité\s*:\s*majeur|\bmajeure\b|\bmajeur\b|\bcritique\b|\bmajor\b|\bgrave\b/.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Score moyen des audits par mois calendaire (fenêtre glissante).
  * @param {Array<{ score?: unknown; createdAt?: string; updatedAt?: string }>} audits
  * @param {number} [monthCount=6]
- * @returns {{ label: string; value: number }[]}
+ * @returns {{ label: string; value: number; count: number }[]}
  */
 export function buildMonthlyAuditScoreAvgSeries(audits, monthCount = 6) {
   const n = Math.max(1, Math.min(24, Math.floor(Number(monthCount)) || 6));
@@ -274,11 +422,11 @@ export function buildMonthlyAuditScoreAvgSeries(audits, monthCount = 6) {
     });
   }
   (audits || []).forEach((a) => {
-    const raw = a?.createdAt || a?.updatedAt;
-    const score = Number(a?.score);
-    if (!raw || !Number.isFinite(score)) return;
-    const dt = new Date(raw);
-    if (Number.isNaN(dt.getTime())) return;
+    const score = normalizeAuditScoreValue(a?.score);
+    if (!Number.isFinite(score)) return;
+    const tms = getAuditTimestampMs(a);
+    if (tms == null) return;
+    const dt = new Date(tms);
     const key = `${dt.getFullYear()}-${dt.getMonth()}`;
     const b = buckets.find((x) => x.key === key);
     if (!b) return;
@@ -287,7 +435,8 @@ export function buildMonthlyAuditScoreAvgSeries(audits, monthCount = 6) {
   });
   return buckets.map((b) => ({
     label: b.label,
-    value: b.cnt > 0 ? Math.round((b.sum / b.cnt) * 10) / 10 : 0
+    value: b.cnt > 0 ? Math.round((b.sum / b.cnt) * 10) / 10 : 0,
+    count: b.cnt
   }));
 }
 
@@ -311,11 +460,11 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
 
   const labs = Array.isArray(labels) && labels.length ? labels : ['—'];
   const m = labs.length;
-  const w = analytics ? 432 : 392;
-  const h = analytics ? 186 : 176;
+  const w = analytics ? 528 : 392;
+  const h = analytics ? 204 : 176;
   const padL = 36;
   const padR = 12;
-  const padV = 14;
+  const padV = analytics ? 16 : 14;
   const plotW = w - padL - padR;
   const step = m > 1 ? plotW / (m - 1) : 0;
 
@@ -335,16 +484,23 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
     'Évolution comparée sur la période (une ou plusieurs séries).'
   );
 
-  [100, 50, 0].forEach((gv, idx) => {
+  [100, 75, 50, 25, 0].forEach((gv, idx) => {
+    if (!analytics && (gv === 75 || gv === 25)) return;
     const gy = yAt(gv);
     const gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     gl.setAttribute('x1', String(padL));
     gl.setAttribute('y1', String(gy.toFixed(1)));
     gl.setAttribute('x2', String(w - padR));
     gl.setAttribute('y2', String(gy.toFixed(1)));
+    const isBase = gv === 0;
+    const isMid = gv === 50;
     gl.setAttribute(
       'class',
-      idx === 2 ? 'dashboard-line-chart-grid dashboard-line-chart-grid--base' : 'dashboard-line-chart-grid dashboard-line-chart-grid--soft'
+      isBase
+        ? 'dashboard-line-chart-grid dashboard-line-chart-grid--base'
+        : isMid
+          ? 'dashboard-line-chart-grid dashboard-line-chart-grid--mid'
+          : 'dashboard-line-chart-grid dashboard-line-chart-grid--soft'
     );
     svg.append(gl);
     const tk = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -352,9 +508,35 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
     tk.setAttribute('y', String(gy + 3.5));
     tk.setAttribute('text-anchor', 'end');
     tk.setAttribute('class', 'dashboard-line-chart-y-tick');
-    tk.textContent = String(gv);
+    tk.textContent = `${gv}`;
     svg.append(tk);
   });
+
+  if (analytics) {
+    labs.forEach((_, i) => {
+      const xv = xAt(i);
+      const vl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      vl.setAttribute('x1', String(xv.toFixed(1)));
+      vl.setAttribute('y1', String(padV));
+      vl.setAttribute('x2', String(xv.toFixed(1)));
+      vl.setAttribute('y2', String(h - padV));
+      vl.setAttribute('class', 'kpi-multi-line-vgrid');
+      vl.setAttribute('pointer-events', 'none');
+      svg.append(vl);
+    });
+  }
+
+  /** @type {SVGLineElement | null} */
+  let crosshair = null;
+  if (analytics) {
+    crosshair = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    crosshair.setAttribute('class', 'kpi-multi-line-crosshair');
+    crosshair.setAttribute('stroke', 'rgba(94, 234, 212, 0.45)');
+    crosshair.setAttribute('stroke-width', '1.25');
+    crosshair.setAttribute('pointer-events', 'none');
+    crosshair.setAttribute('visibility', 'hidden');
+    svg.append(crosshair);
+  }
 
   const tgt =
     analytics && options.targetYPercent != null && Number.isFinite(Number(options.targetYPercent))
@@ -462,7 +644,11 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
     wrap.append(interp);
   }
 
-  bindKpiMultiLineHover(svg, tip, labs, series || [], dotsByCol, w, h, ptsX);
+  bindKpiMultiLineHover(svg, tip, labs, series || [], dotsByCol, w, h, ptsX, {
+    padV,
+    crosshair,
+    valueDecimals: analytics ? 1 : 0
+  });
   return wrap;
 }
 
@@ -542,6 +728,39 @@ export function createDashboardLineChart(series, options = {}) {
     wrap.classList.add('dashboard-line-chart-wrap--theme-audits');
   }
 
+  if (lineTheme === 'audits' && (!Array.isArray(series) || series.length === 0)) {
+    const empty = document.createElement('div');
+    empty.className = 'dashboard-audit-chart-empty';
+    empty.setAttribute('role', 'img');
+    empty.setAttribute(
+      'aria-label',
+      'Aucune série de scores d’audit — saisir des audits avec note pour afficher la courbe.'
+    );
+    const inner = document.createElement('div');
+    inner.className = 'dashboard-audit-chart-empty__inner';
+    const icon = document.createElement('span');
+    icon.className = 'dashboard-audit-chart-empty__glyph';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '☑';
+    const t = document.createElement('p');
+    t.className = 'dashboard-audit-chart-empty__title';
+    t.textContent = 'Aucune donnée de score sur les audits chargés';
+    const sub = document.createElement('p');
+    sub.className = 'dashboard-audit-chart-empty__sub';
+    sub.textContent =
+      'La courbe affiche l’évolution des scores (0–100 %) par période. Vérifiez que les audits ont une note et une date.';
+    inner.append(icon, t, sub);
+    const interpret = document.createElement('p');
+    interpret.className = 'dashboard-chart-interpret';
+    interpret.textContent =
+      options.interpretText !== undefined && options.interpretText !== null
+        ? String(options.interpretText)
+        : interpretAuditScoreSeries([]);
+    empty.append(inner);
+    wrap.append(empty, interpret);
+    return wrap;
+  }
+
   const safe = Array.isArray(series) && series.length ? series : [{ label: '—', value: 0 }];
   const w = 400;
   const h = 176;
@@ -552,13 +771,20 @@ export function createDashboardLineChart(series, options = {}) {
   const values = safe.map((p) => (Number.isFinite(p.value) ? p.value : 0));
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
-  const span = Math.max(rawMax - rawMin, 1e-9);
-  const padY = span * 0.1;
-  let vmin = rawMin - padY;
-  let vmax = rawMax + padY;
-  if (rawMin >= 0 && vmin < 0) vmin = 0;
-  if (vmax - vmin < 1e-6) {
-    vmax = vmin + 1;
+  let vmin;
+  let vmax;
+  if (lineTheme === 'audits') {
+    vmin = 0;
+    vmax = 100;
+  } else {
+    const span = Math.max(rawMax - rawMin, 1e-9);
+    const padY = span * 0.1;
+    vmin = rawMin - padY;
+    vmax = rawMax + padY;
+    if (rawMin >= 0 && vmin < 0) vmin = 0;
+    if (vmax - vmin < 1e-6) {
+      vmax = vmin + 1;
+    }
   }
   const yScale = (v) => {
     const t = (v - vmin) / (vmax - vmin);
@@ -668,6 +894,32 @@ export function createDashboardLineChart(series, options = {}) {
     svg.append(tk);
   });
   svg.append(areaPath, linePath);
+  if (lineTheme === 'audits') {
+    const tgt =
+      options.targetYPercent != null && Number.isFinite(Number(options.targetYPercent))
+        ? Math.max(0, Math.min(100, Number(options.targetYPercent)))
+        : 80;
+    const ty = yScale(tgt);
+    const tl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    tl.setAttribute('x1', String(padL));
+    tl.setAttribute('y1', String(ty.toFixed(1)));
+    tl.setAttribute('x2', String(w - padR));
+    tl.setAttribute('y2', String(ty.toFixed(1)));
+    tl.setAttribute('class', 'dashboard-line-chart-target-80');
+    tl.setAttribute('pointer-events', 'none');
+    svg.append(tl);
+    const tlab = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tlab.setAttribute('x', String(w - padR - 2));
+    tlab.setAttribute('y', String(ty - 5));
+    tlab.setAttribute('text-anchor', 'end');
+    tlab.setAttribute('class', 'dashboard-line-chart-target-80-label');
+    const tlabStr =
+      typeof options.targetLabel === 'string' && options.targetLabel.trim()
+        ? options.targetLabel.trim()
+        : `Objectif ${tgt} %`;
+    tlab.textContent = tlabStr;
+    svg.append(tlab);
+  }
 
   const dotR =
     options.variant === 'analytics' && n > 5
@@ -694,8 +946,15 @@ export function createDashboardLineChart(series, options = {}) {
   safe.forEach((p) => {
     const s = document.createElement('span');
     s.className = 'dashboard-line-chart-value-cell';
-    s.textContent = String(p.value);
-    s.title = options.valueTitle ? options.valueTitle(p) : `${p.value} incident(s)`;
+    s.textContent =
+      lineTheme === 'audits'
+        ? `${Number.isFinite(p.value) ? p.value : 0} %`
+        : String(p.value);
+    s.title = options.valueTitle
+      ? options.valueTitle(p)
+      : lineTheme === 'audits'
+        ? `${p.value} %`
+        : `${p.value} incident(s)`;
     valuesRow.append(s);
   });
 
@@ -722,10 +981,13 @@ export function createDashboardLineChart(series, options = {}) {
   interpret.textContent =
     options.interpretText !== undefined
       ? options.interpretText
-      : interpretIncidentTrend(safe);
+      : lineTheme === 'audits'
+        ? interpretAuditScoreSeries(safe)
+        : interpretIncidentTrend(safe);
 
-  const tail = [frame, valuesRow, labels, foot];
-  if (String(interpret.textContent).trim()) tail.push(interpret);
+  const tail = [frame, valuesRow, labels];
+  if (String(foot.textContent || '').trim()) tail.push(foot);
+  if (String(interpret.textContent || '').trim()) tail.push(interpret);
   wrap.append(...tail);
   bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, { w, h });
   return wrap;
@@ -850,7 +1112,7 @@ export function createIncidentTypeBreakdown(entries) {
 }
 
 /**
- * @param {Array<{ status?: string }>} actions
+ * @param {Array<{ status?: string; dueDate?: string | null }>} actions
  */
 export function classifyActionsForMix(actions) {
   if (!Array.isArray(actions)) return { overdue: 0, done: 0, other: 0 };
@@ -859,7 +1121,7 @@ export function classifyActionsForMix(actions) {
   let other = 0;
   actions.forEach((a) => {
     const s = String(a?.status || '').toLowerCase();
-    if (s.includes('retard')) overdue += 1;
+    if (isActionOverdueDashboardRow(a)) overdue += 1;
     else if (
       /termin|clos|ferm|clôtur|realis|réalis|effectu|complete|complété|fait/.test(s)
     )
@@ -894,11 +1156,11 @@ export function buildAuditScoreSeriesFromAudits(audits) {
   if (!Array.isArray(audits) || !audits.length) return [];
   const rows = audits
     .map((a) => {
-      const score = Number(a?.score);
+      const score = normalizeAuditScoreValue(a?.score);
       if (!Number.isFinite(score)) return null;
-      const raw = a?.updatedAt || a?.createdAt;
-      const t = raw ? new Date(raw).getTime() : NaN;
-      return { t: Number.isNaN(t) ? 0 : t, score };
+      const tms = getAuditTimestampMs(a);
+      const t = tms == null ? 0 : tms;
+      return { t, score };
     })
     .filter(Boolean);
   rows.sort((a, b) => a.t - b.t);

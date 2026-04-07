@@ -6,12 +6,13 @@ function rootEl() {
 
 export function getDisplayMode() {
   const v = rootEl().getAttribute('data-display-mode');
-  if (v === 'simple' || v === 'expert') return v;
+  if (v === 'terrain' || v === 'expert') return v;
+  if (v === 'simple') return 'terrain';
   return 'expert';
 }
 
 export function setDisplayMode(mode) {
-  const m = mode === 'simple' ? 'simple' : 'expert';
+  const m = mode === 'terrain' ? 'terrain' : 'expert';
   rootEl().setAttribute('data-display-mode', m);
   try {
     localStorage.setItem(STORAGE_KEY, m);
@@ -24,7 +25,8 @@ export function initDisplayMode() {
   let m = 'expert';
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    if (s === 'simple' || s === 'expert') m = s;
+    if (s === 'terrain' || s === 'expert') m = s;
+    if (s === 'simple') m = 'terrain';
   } catch {
     /* ignore */
   }

@@ -1,22 +1,47 @@
 import { notificationsStore } from '../data/notifications.js';
+import {
+  deriveTierFromItem,
+  markSyntheticNotificationRead,
+  NOTIF_TIER
+} from '../services/notificationIntelligence.service.js';
 
 const KIND_META = {
   incident: { chip: 'Incident critique', icon: '!', className: 'notif-item--incident' },
+  incident_group: { chip: 'Incidents', icon: '!!', className: 'notif-item--incident' },
   action: { chip: 'Action en retard', icon: '⏱', className: 'notif-item--action' },
+  action_group: { chip: 'Actions', icon: '⏱', className: 'notif-item--action' },
   action_assigned: { chip: 'Action assignée', icon: '✓', className: 'notif-item--info' },
   audit: { chip: 'Audit', icon: '☑', className: 'notif-item--audit' },
   nonconformity: { chip: 'Non-conformité', icon: '⚠', className: 'notif-item--action' },
+  doc_compliance: { chip: 'Documents', icon: '📄', className: 'notif-item--audit' },
   info: { chip: 'Information', icon: '◆', className: 'notif-item--info' }
 };
 
 const PRIORITY_META = {
-  critical: { label: 'Priorité critique', className: 'notif-prio-tag--critical' },
-  high: { label: 'Priorité élevée', className: 'notif-prio-tag--high' },
-  normal: { label: 'Priorité normale', className: 'notif-prio-tag--normal' },
-  low: { label: 'Priorité basse', className: 'notif-prio-tag--low' }
+  critical: { label: 'Critique', className: 'notif-prio-tag--critical' },
+  high: { label: 'Attention', className: 'notif-prio-tag--high' },
+  normal: { label: 'Info', className: 'notif-prio-tag--normal' },
+  low: { label: 'Faible', className: 'notif-prio-tag--low' }
 };
 
+const TIER_TAG = {
+  [NOTIF_TIER.CRITIQUE]: { label: 'Critique', className: 'notif-tier-tag--critique' },
+  [NOTIF_TIER.ATTENTION]: { label: 'Attention', className: 'notif-tier-tag--attention' },
+  [NOTIF_TIER.INFO]: { label: 'Info', className: 'notif-tier-tag--info' },
+  [NOTIF_TIER.DIGEST]: { label: 'Digest', className: 'notif-tier-tag--digest' }
+};
+
+const ALLOWED_NOTIF_TIERS = new Set(Object.values(NOTIF_TIER));
+
+/** Évite l’injection dans les classes CSS si `tier` provient de l’API. */
+function sanitizeNotificationTier(tier) {
+  return tier && ALLOWED_NOTIF_TIERS.has(tier) ? tier : NOTIF_TIER.INFO;
+}
+
 function resolveKind(item) {
+  if (item.kind === 'doc_compliance') return 'doc_compliance';
+  if (item.kind === 'action_group') return 'action_group';
+  if (item.kind === 'incident_group') return 'incident_group';
   if (item.kind && KIND_META[item.kind]) return item.kind;
   const t = `${item.title || ''} ${item.detail || ''}`.toLowerCase();
   if (t.includes('audit')) return 'audit';
@@ -29,16 +54,21 @@ function resolveKind(item) {
 
 function resolvePriority(item) {
   if (item.priority && PRIORITY_META[item.priority]) return item.priority;
+  const tier = item.tier || deriveTierFromItem(item);
+  if (tier === NOTIF_TIER.CRITIQUE) return 'critical';
+  if (tier === NOTIF_TIER.ATTENTION) return 'high';
   const k = resolveKind(item);
-  if (k === 'incident') return 'critical';
-  if (k === 'action' || k === 'audit') return 'high';
+  if (k === 'incident' || k === 'incident_group') return 'critical';
+  if (k === 'action' || k === 'action_group' || k === 'audit') return 'high';
   return 'normal';
 }
 
 function badgeTone(item, kind) {
   if (item.read) return 'blue';
-  if (kind === 'incident') return 'red';
-  if (kind === 'action' || kind === 'nonconformity') return 'amber';
+  const tier = item.tier || deriveTierFromItem(item);
+  if (tier === NOTIF_TIER.CRITIQUE) return 'red';
+  if (kind === 'incident' || kind === 'incident_group') return 'red';
+  if (kind === 'action' || kind === 'action_group' || kind === 'nonconformity') return 'amber';
   if (kind === 'audit') return 'blue';
   return 'blue';
 }
@@ -50,18 +80,22 @@ function linkButtonLabel(link) {
 }
 
 /**
- * @param {object} item — notification (store)
- * @param {{ onOpenLink?: (payload: { page: string, ref: string|null, id: string|number }) => void }} options
+ * @param {object} item — notification (store ou présentation)
+ * @param {{ onOpenLink?: (payload: { page: string, ref: string|null, id: string|number }) => void; onAfterMarkRead?: () => void }} options
  */
 export function createNotificationRow(item, options = {}) {
-  const { onOpenLink } = options;
+  const { onOpenLink, onAfterMarkRead } = options;
   const kind = resolveKind(item);
-  const km = KIND_META[kind];
+  const km = KIND_META[kind] || KIND_META.info;
   const prioKey = resolvePriority(item);
   const prio = PRIORITY_META[prioKey];
+  const tierRaw = item.tier || deriveTierFromItem(item);
+  const tier = sanitizeNotificationTier(tierRaw);
+  const tierTag = TIER_TAG[tier] || TIER_TAG[NOTIF_TIER.INFO];
 
   const row = document.createElement('article');
-  row.className = `notif-item ${km.className} ${item.read ? '' : 'unread'}`;
+  row.className = `notif-item ${km.className} ${item.read ? '' : 'unread'} notif-item--tier-${tier}`;
+  if (item.synthetic) row.classList.add('notif-item--synthetic');
 
   const icon = document.createElement('div');
   icon.className = 'notif-item__icon';
@@ -76,10 +110,19 @@ export function createNotificationRow(item, options = {}) {
   const chip = document.createElement('span');
   chip.className = 'notif-item__chip';
   chip.textContent = km.chip;
+  const tierEl = document.createElement('span');
+  tierEl.className = `notif-tier-tag ${tierTag.className}`;
+  tierEl.textContent = tierTag.label;
   const prioTag = document.createElement('span');
   prioTag.className = `notif-prio-tag ${prio.className}`;
   prioTag.textContent = prio.label;
-  topRow.append(chip, prioTag);
+  topRow.append(chip, tierEl, prioTag);
+  if (item.groupedCount && item.groupedCount > 1) {
+    const g = document.createElement('span');
+    g.className = 'notif-group-badge';
+    g.textContent = `${item.groupedCount} regroupées`;
+    topRow.append(g);
+  }
 
   const title = document.createElement('p');
   title.className = 'notif-item__title';
@@ -118,7 +161,12 @@ export function createNotificationRow(item, options = {}) {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      notificationsStore.markRead(item.id);
+      if (item.synthetic) {
+        markSyntheticNotificationRead(item.id);
+      } else {
+        notificationsStore.markRead(item.id);
+      }
+      if (typeof onAfterMarkRead === 'function') onAfterMarkRead();
       const payload = {
         id: item.id,
         page: item.link.page,

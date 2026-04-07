@@ -34,6 +34,12 @@ router.post(
   controller.issueAccessToken
 );
 
+router.patch(
+  '/:id',
+  requirePermission('controlled_documents', 'write'),
+  controller.patchMeta
+);
+
 router.get('/:id', requirePermission('controlled_documents', 'read'), controller.getById);
 
 export default router;

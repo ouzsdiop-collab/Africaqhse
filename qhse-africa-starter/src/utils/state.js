@@ -1,7 +1,9 @@
 const allowedPages = [
   'login',
   'dashboard',
+  'terrain-mode',
   'incidents',
+  'permits',
   'risks',
   'actions',
   'iso',

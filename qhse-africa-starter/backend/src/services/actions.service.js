@@ -97,6 +97,38 @@ export async function createAction(data) {
  * @param {string} actionId
  * @param {string|null} assigneeId — null ou chaîne vide pour retirer l’assignation
  */
+/**
+ * Mise à jour partielle (pilotage Kanban : statut).
+ * @param {string} actionId
+ * @param {{ status?: string }} data
+ */
+export async function updateActionFields(actionId, data) {
+  const id = typeof actionId === 'string' ? actionId.trim() : '';
+  if (!id) {
+    const err = new Error('Identifiant action invalide');
+    err.statusCode = 400;
+    throw err;
+  }
+  /** @type {Record<string, unknown>} */
+  const patch = {};
+  if (data.status != null && String(data.status).trim() !== '') {
+    patch.status = String(data.status).trim();
+  }
+  if (Object.keys(patch).length === 0) {
+    const err = new Error('Aucun champ à mettre à jour');
+    err.statusCode = 400;
+    throw err;
+  }
+  return prisma.action.update({
+    where: { id },
+    data: patch,
+    include: {
+      assignee: { select: assigneeSelect },
+      incident: { select: { id: true, ref: true } }
+    }
+  });
+}
+
 export async function assignAction(actionId, assigneeId) {
   const targetAssigneeId = normalizeAssigneeIdInput(assigneeId);
   if (targetAssigneeId) {

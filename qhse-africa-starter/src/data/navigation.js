@@ -19,6 +19,7 @@ export const navigationGroups = [
     items: [
       { id: 'audits', label: 'Audits', icon: '☑' },
       { id: 'incidents', label: 'Incidents', icon: '!' },
+      { id: 'permits', label: 'Permits to Work', icon: '⌁' },
       { id: 'risks', label: 'Risques', icon: '△' },
       { id: 'actions', label: 'Actions', icon: '✓' }
     ]
@@ -49,6 +50,12 @@ const NAV_ORPHAN_SEARCH_ITEMS = [];
 
 /** Métadonnées shell (topbar) — titres, fil d’Ariane perceptif, CTA principal */
 export const pageTopbarById = {
+  'terrain-mode': {
+    title: 'Mode terrain',
+    kicker: 'Opérations',
+    subtitle: 'Accès direct aux actions essentielles chantier, sans complexité.',
+    cta: { label: 'Déclarer incident', pageId: 'incidents' }
+  },
   dashboard: {
     title: 'Cockpit QHSE',
     kicker: 'Pilotage',
@@ -67,6 +74,12 @@ export const pageTopbarById = {
     kicker: 'Opérations',
     subtitle: 'Suivi des événements, investigations et plans de correction.',
     cta: { label: 'Aller au plan d’actions', pageId: 'actions' }
+  },
+  permits: {
+    title: 'Permits to Work',
+    kicker: 'Opérations',
+    subtitle: 'Gestion terrain des permis de travail: création, checklist sécurité, validations et signatures.',
+    cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
   risks: {
     title: 'Registre des risques',

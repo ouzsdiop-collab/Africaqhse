@@ -11,6 +11,9 @@ router.patch(
   controller.assign
 );
 
+/** Pilotage : mise à jour statut (ex. drag & drop Kanban) */
+router.patch('/:id', requirePermission('actions', 'write'), controller.patchById);
+
 /** Liste : optionnel ?assigneeId=… et/ou ?unassigned=1 (sans query = tout, rétrocompatible) */
 router.get('/', requirePermission('actions', 'read'), controller.getAll);
 

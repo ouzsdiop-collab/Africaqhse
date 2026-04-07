@@ -17,6 +17,7 @@ const IMPORTED_PROOFS_STORAGE_KEY = 'qhse-iso-imported-proofs-v1';
  * @property {string[]} keyPoints
  * @property {string[]} gaps
  * @property {string} createdAt
+ * @property {string} [validatedBy] — validateur terrain (démo locale)
  */
 
 /** @typedef {'conforme' | 'partiel' | 'non_conforme'} ConformityStatus */
@@ -49,14 +50,52 @@ export const CONFORMITY_NORMS = [
   { id: 'iso45001', code: 'ISO 45001', title: 'Santé et sécurité au travail' }
 ];
 
-/** Documents maîtrisés — envoyés à l’API d’aide conformité (titres + versions). */
+/** Documents maîtrisés — démo locale (échéances / responsable enrichis pour statuts conformité). */
 export const CONTROLLED_DOCUMENTS = [
-  { name: 'Manuel intégré SMS', version: '4.2' },
-  { name: 'Procédure audits internes', version: '3.1' },
-  { name: 'Instruction déchets dangereux', version: '2.4' },
-  { name: 'Registre des aspects environnementaux', version: '1.8' },
-  { name: 'DDR site et fiches risques', version: '2.0' },
-  { name: 'Registre gestion du changement (GMC)', version: '1.3' }
+  {
+    name: 'Manuel intégré SMS',
+    version: '4.2',
+    type: 'manuel',
+    expiresAt: '2027-06-01',
+    responsible: 'Direction',
+    createdAt: '2025-01-10T10:00:00.000Z'
+  },
+  {
+    name: 'Procédure audits internes',
+    version: '3.1',
+    type: 'procedure',
+    expiresAt: '2026-04-25',
+    responsible: 'Qualité site',
+    createdAt: '2024-06-01T10:00:00.000Z'
+  },
+  {
+    name: 'Instruction déchets dangereux',
+    version: '2.4',
+    type: 'instruction',
+    expiresAt: '2026-03-10',
+    responsible: 'HSE',
+    createdAt: '2024-03-15T10:00:00.000Z'
+  },
+  {
+    name: 'Registre des aspects environnementaux',
+    version: '1.8',
+    type: 'registre',
+    responsible: 'Environnement'
+  },
+  {
+    name: 'DDR site et fiches risques',
+    version: '2.0',
+    type: 'plan',
+    expiresAt: '2028-01-15',
+    responsible: 'SST'
+  },
+  {
+    name: 'Registre gestion du changement (GMC)',
+    version: '1.3',
+    type: 'registre',
+    expiresAt: '2026-12-01',
+    responsible: 'Qualité site'
+  }
 ];
 
 /**
@@ -295,7 +334,8 @@ export function addImportedDocumentProof(entry) {
     docTypeLabel: String(entry.docTypeLabel || 'Document').slice(0, 120),
     keyPoints: Array.isArray(entry.keyPoints) ? entry.keyPoints.map((s) => String(s).slice(0, 400)) : [],
     gaps: Array.isArray(entry.gaps) ? entry.gaps.map((s) => String(s).slice(0, 400)) : [],
-    createdAt: entry.createdAt || new Date().toISOString()
+    createdAt: entry.createdAt || new Date().toISOString(),
+    validatedBy: entry.validatedBy ? String(entry.validatedBy).slice(0, 120) : ''
   };
   if (!row.requirementId) return '';
   list.push(row);

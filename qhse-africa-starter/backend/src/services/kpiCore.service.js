@@ -60,19 +60,63 @@ export function isNcOpen(status) {
 }
 
 /**
- * Compte les actions en retard (même règle SQL que l’historique dashboard / synthèse).
+ * Action « en retard » (dashboard / synthèse) : hors clôture, et
+ * statut contenant « retard » **ou** échéance `dueDate` dépassée (SQLite `datetime('now')`).
+ * Aligné avec la dérivation client (`actionOverdueDashboard.js`).
+ *
+ * @param {{ status?: string; dueDate?: Date | string | null }} row
+ */
+export function isActionOverdueDashboardRow(row) {
+  const st = String(row?.status ?? '');
+  if (isActionClosedForDashboardKpiSqlMirror(st)) return false;
+  if (includesInsensitive(row?.status, 'retard')) return true;
+  if (row?.dueDate == null || row.dueDate === '') return false;
+  const t = new Date(row.dueDate).getTime();
+  return Number.isFinite(t) && t < Date.now();
+}
+
+function isActionClosedForDashboardKpiSqlMirror(st) {
+  return /termin|clos|ferm|fait|complete|réalis|realis|clôtur|clotur|résolu|resolu|done|effectu|complété/i.test(
+    String(st)
+  );
+}
+
+/** Fragment SQL : statuts considérés comme clôturés (miroir de `isActionClosedForDashboardKpiSqlMirror`). */
+const SQL_ACTION_NOT_CLOSED_FOR_OVERDUE = `NOT (
+  LOWER(COALESCE(status, '')) LIKE '%termin%'
+  OR LOWER(COALESCE(status, '')) LIKE '%clos%'
+  OR LOWER(COALESCE(status, '')) LIKE '%ferm%'
+  OR LOWER(COALESCE(status, '')) LIKE '%fait%'
+  OR LOWER(COALESCE(status, '')) LIKE '%complete%'
+  OR LOWER(COALESCE(status, '')) LIKE '%réalis%'
+  OR LOWER(COALESCE(status, '')) LIKE '%realis%'
+  OR LOWER(COALESCE(status, '')) LIKE '%clôtur%'
+  OR LOWER(COALESCE(status, '')) LIKE '%clotur%'
+  OR LOWER(COALESCE(status, '')) LIKE '%résolu%'
+  OR LOWER(COALESCE(status, '')) LIKE '%resolu%'
+  OR LOWER(COALESCE(status, '')) LIKE '%done%'
+  OR LOWER(COALESCE(status, '')) LIKE '%effectu%'
+  OR LOWER(COALESCE(status, '')) LIKE '%complété%'
+)`;
+
+const SQL_ACTION_OVERDUE_BODY = `(
+  LOWER(COALESCE(status, '')) LIKE '%retard%'
+  OR (dueDate IS NOT NULL AND datetime(dueDate) < datetime('now'))
+)`;
+
+/**
+ * Compte les actions en retard (dashboard / reportingSummary — même règle que les listes `overdueActionItems`).
  * @param {string | null} siteId
  */
 export async function countActionsOverdue(siteId) {
   const sid = normalizeSiteId(siteId);
+  const where = `${SQL_ACTION_NOT_CLOSED_FOR_OVERDUE} AND ${SQL_ACTION_OVERDUE_BODY}`;
   const rows = sid
-    ? await prisma.$queryRaw`
-        SELECT COUNT(*) AS c FROM actions
-        WHERE LOWER(status) LIKE '%retard%' AND siteId = ${sid}
-      `
-    : await prisma.$queryRaw`
-        SELECT COUNT(*) AS c FROM actions WHERE LOWER(status) LIKE '%retard%'
-      `;
+    ? await prisma.$queryRawUnsafe(
+        `SELECT COUNT(*) AS c FROM actions WHERE siteId = ? AND ${where}`,
+        sid
+      )
+    : await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS c FROM actions WHERE ${where}`);
   return Number(rows[0]?.c ?? 0);
 }
 

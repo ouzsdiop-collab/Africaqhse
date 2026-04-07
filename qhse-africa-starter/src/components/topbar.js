@@ -1,5 +1,6 @@
 import { pageTopbarById, getFlattenedNavItems } from '../data/navigation.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 function navigateByHash(pageId) {
   window.location.hash = pageId;
@@ -150,7 +151,7 @@ export function createTopbar({
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'shell-search-result-btn';
-      btn.innerHTML = `<span class="shell-search-result-title">${it.label}</span><span class="shell-search-result-group">${it.groupLabel}</span>`;
+      btn.innerHTML = `<span class="shell-search-result-title">${escapeHtml(it.label)}</span><span class="shell-search-result-group">${escapeHtml(it.groupLabel)}</span>`;
       btn.addEventListener('click', () => {
         if (searchInput) searchInput.value = '';
         searchResults.hidden = true;

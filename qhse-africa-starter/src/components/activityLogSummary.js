@@ -1,4 +1,5 @@
 import { moduleMeta } from './activityLogHelpers.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 /**
  * Bandeau de synthèse (mock) — prêt pour enrichissement futur (filtres / recherche).
@@ -47,7 +48,7 @@ export function createActivityLogSummary(snapshot) {
   timeCard.className = 'activity-log-summary-card';
   timeCard.innerHTML = `
     <span class="activity-log-summary-k">Dernière activité</span>
-    <span class="activity-log-summary-v activity-log-summary-v--sm">${snapshot.lastActivity}</span>
+    <span class="activity-log-summary-v activity-log-summary-v--sm">${escapeHtml(String(snapshot.lastActivity ?? ''))}</span>
     <span class="activity-log-summary-h">Horodatage tel qu’affiché dans le journal</span>
   `;
 

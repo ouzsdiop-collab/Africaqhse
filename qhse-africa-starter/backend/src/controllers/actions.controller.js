@@ -120,6 +120,36 @@ export async function create(req, res, next) {
   }
 }
 
+export async function patchById(req, res, next) {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    if (!id) {
+      return res.status(400).json({ error: 'Identifiant action invalide' });
+    }
+    const status = clampTrimString(req.body?.status, FIELD_LIMITS.actionStatus);
+    if (!status) {
+      return res.status(400).json({ error: 'Champ status requis' });
+    }
+    const updated = await actionsService.updateActionFields(id, { status });
+    void writeAuditLog({
+      userId: auditUserIdFromRequest(req),
+      resource: 'actions',
+      resourceId: updated.id,
+      action: 'update',
+      metadata: { status: updated.status }
+    });
+    res.json(updated);
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Action introuvable' });
+    }
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    next(err);
+  }
+}
+
 export async function assign(req, res, next) {
   try {
     const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';

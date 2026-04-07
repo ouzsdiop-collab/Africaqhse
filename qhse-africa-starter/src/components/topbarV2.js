@@ -7,6 +7,8 @@ import {
 import { canAccessNavPage } from '../utils/permissionsUi.js';
 import { getDisplayMode, setDisplayMode } from '../utils/displayMode.js';
 import { showToast } from './toast.js';
+import { isDemoMode } from '../services/demoMode.service.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 const STYLE_ID = 'qhse-topbar-v2-styles';
 
@@ -28,11 +30,13 @@ function ensureTopbarV2Styles() {
   padding: 8px var(--space-4) 8px clamp(var(--space-3), 2vw, var(--space-4));
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-surface) 88%, var(--color-subtle)) 0%,
+    color-mix(in srgb, var(--color-surface) 84%, var(--palette-accent, #14b8a6) 5%) 0%,
     color-mix(in srgb, var(--color-surface) 96%, var(--color-subtle)) 100%
   );
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-border) 35%, transparent), var(--shadow-sm);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-border) 42%, transparent),
+    0 10px 30px color-mix(in srgb, var(--palette-accent, #14b8a6) 10%, transparent);
   font-family: var(--font-body);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -49,6 +53,7 @@ function ensureTopbarV2Styles() {
   width: 100%;
   min-width: 0;
   height: 100%;
+  padding: 0 clamp(10px, 1vw, 16px);
 }
 .topbar-v2__lead {
   flex: 0 1 42%;
@@ -56,7 +61,7 @@ function ensureTopbarV2Styles() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
 }
 .topbar-v2__page-title {
   margin: 0;
@@ -225,13 +230,29 @@ function ensureTopbarV2Styles() {
   font-size: 13px;
   color: var(--color-text-muted);
 }
+.topbar-v2__demo-pill {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgb(129, 140, 248) 55%, transparent);
+  background: color-mix(in srgb, rgb(99, 102, 241) 22%, transparent);
+  color: color-mix(in srgb, rgb(199, 210, 254) 92%, var(--color-text));
+  line-height: 1.2;
+}
+.topbar-v2__demo-pill[hidden] {
+  display: none !important;
+}
 .topbar-v2__trailing {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding-left: var(--space-2);
+  padding: 4px 0 4px var(--space-2);
   margin-left: var(--space-1);
   border-left: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
 }
@@ -242,8 +263,12 @@ function ensureTopbarV2Styles() {
   min-height: 36px;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-primary-border) 55%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary-bg) 88%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary-border) 58%, var(--color-border));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-primary-bg) 92%, var(--color-surface)) 0%,
+    color-mix(in srgb, var(--color-primary-bg) 78%, var(--color-surface)) 100%
+  );
   color: var(--color-primary-text);
   font-family: inherit;
   font-size: 13px;
@@ -255,7 +280,11 @@ function ensureTopbarV2Styles() {
   white-space: nowrap;
 }
 .topbar-v2__quick:hover {
-  background: color-mix(in srgb, var(--color-primary-bg) 96%, var(--color-surface));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-primary-bg) 98%, var(--color-surface)) 0%,
+    color-mix(in srgb, var(--color-primary-bg) 84%, var(--color-surface)) 100%
+  );
   border-color: color-mix(in srgb, var(--color-primary-border) 72%, var(--color-border));
 }
 .topbar-v2__quick[aria-expanded="true"] {
@@ -363,7 +392,7 @@ function ensureTopbarV2Styles() {
   color: var(--color-text-secondary);
   background: var(--color-subtle);
 }
-[data-display-mode="simple"] .display-mode-toggle {
+[data-display-mode="terrain"] .display-mode-toggle {
   border-color: var(--color-primary-border);
   color: var(--color-primary-text);
   background: var(--color-primary-bg);
@@ -609,6 +638,7 @@ export function createTopbar({
         </div>
       </div>
       <div class="topbar-v2__trailing">
+        <span class="topbar-v2__demo-pill" hidden data-topbar-demo-pill title="Mode démo : données locales pour présentation">Démo</span>
         <span class="topbar-v2__notif-wrap">
           <button type="button" class="topbar-v2__notif notification-toggle" aria-label="Notifications${safeUnread ? ` (${safeUnread} non lues)` : ''}">
             <span class="topbar-v2__notif-icon" aria-hidden="true">${ICON_BELL_SVG}</span>
@@ -633,11 +663,21 @@ export function createTopbar({
             <rect x="3" y="13" width="8" height="8" rx="1"/>
             <rect x="13" y="13" width="8" height="8" rx="1" opacity="0.4"/>
           </svg>
-          <span class="display-mode-label">${mode === 'simple' ? 'Expert' : 'Simplifié'}</span>
+          <span class="display-mode-label">${mode === 'terrain' ? 'Mode complet' : 'Mode terrain'}</span>
         </button>
       </div>
     </div>
   `;
+
+  const demoPill = header.querySelector('[data-topbar-demo-pill]');
+  function syncDemoPill() {
+    if (demoPill instanceof HTMLElement) {
+      demoPill.hidden = !isDemoMode();
+    }
+  }
+  syncDemoPill();
+  window.addEventListener('qhse-demo-mode-changed', syncDemoPill);
+  window.addEventListener('qhse-demo-reset', syncDemoPill);
 
   const titleEl = header.querySelector('[data-tb2-page-title]');
   if (titleEl) {
@@ -653,7 +693,13 @@ export function createTopbar({
   const nameHidden = header.querySelector('.topbar-v2__user-name');
 
   function allAccessibleItems() {
-    return getFlattenedNavItems().filter((item) => canAccessNavPage(role, item.id));
+    const terrainMode = getDisplayMode() === 'terrain';
+    const terrainPages = new Set(['terrain-mode', 'incidents', 'permits', 'actions', 'settings']);
+    return getFlattenedNavItems().filter((item) => {
+      if (!canAccessNavPage(role, item.id)) return false;
+      if (terrainMode && !terrainPages.has(item.id)) return false;
+      return true;
+    });
   }
 
   if (avatarEl) {
@@ -685,7 +731,7 @@ export function createTopbar({
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'shell-search-result-btn';
-      btn.innerHTML = `<span class="shell-search-result-title">${it.label}</span><span class="shell-search-result-group">${it.groupLabel}</span>`;
+      btn.innerHTML = `<span class="shell-search-result-title">${escapeHtml(it.label)}</span><span class="shell-search-result-group">${escapeHtml(it.groupLabel)}</span>`;
       btn.addEventListener('click', () => {
         if (searchInput) searchInput.value = '';
         searchResults.hidden = true;
@@ -729,11 +775,18 @@ export function createTopbar({
   if (modeToggle) {
     modeToggle.addEventListener('click', () => {
       const currentMode = modeToggle.dataset.mode;
-      const newMode = currentMode === 'simple' ? 'expert' : 'simple';
+      const newMode = currentMode === 'terrain' ? 'expert' : 'terrain';
       setDisplayMode(newMode);
       modeToggle.dataset.mode = newMode;
       const label = modeToggle.querySelector('.display-mode-label');
-      if (label) label.textContent = newMode === 'simple' ? 'Expert' : 'Simplifié';
+      if (label) label.textContent = newMode === 'terrain' ? 'Mode complet' : 'Mode terrain';
+      if (newMode === 'terrain') {
+        if (typeof onNavigate === 'function') onNavigate('terrain-mode');
+        else navigateByHash('terrain-mode');
+      } else if (currentPage === 'terrain-mode') {
+        if (typeof onNavigate === 'function') onNavigate('dashboard');
+        else navigateByHash('dashboard');
+      }
     });
   }
 

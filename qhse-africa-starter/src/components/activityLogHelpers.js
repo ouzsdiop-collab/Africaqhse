@@ -213,3 +213,79 @@ export function activityModuleHash(moduleId) {
   };
   return map[moduleId] || 'dashboard';
 }
+
+/**
+ * Repère une mention « action en retard » dans le journal (texte libre).
+ * @param {{ module?: string; action?: string; detail?: string }} entry
+ */
+export function isActivityLateActionMention(entry) {
+  if (entry.module !== 'actions') return false;
+  const blob = `${entry.action || ''} ${entry.detail || ''}`.toLowerCase();
+  return /retard|échéance|en retard|dépass|depass|overdue|late/i.test(blob);
+}
+
+/**
+ * Repère une mention de non-conformité dans le libellé journal.
+ * @param {{ action?: string; detail?: string }} entry
+ */
+export function isActivityNcMention(entry) {
+  const blob = `${entry.action || ''} ${entry.detail || ''}`.toLowerCase();
+  return /non[- ]?conform|nc ouverte|non-conformité|non conformité/i.test(blob);
+}
+
+/**
+ * Jusqu’à `limit` événements « critiques » pour mise en avant (ordre conservé = antichro du flux).
+ * @param {Array<{ module?: string; action?: string; detail?: string }>} entries
+ * @param {number} [limit]
+ */
+export function pickCriticalSpotlightEntries(entries, limit = 3) {
+  const out = [];
+  for (const e of entries) {
+    if (out.length >= limit) break;
+    if (
+      isActivityEntryCritical(e) ||
+      isActivityLateActionMention(e) ||
+      isActivityNcMention(e)
+    ) {
+      out.push(e);
+    }
+  }
+  return out;
+}
+
+/**
+ * Lignes courtes pour le bloc « Analyse du journal » (lecture ISO / pilotage).
+ * @param {{
+ *   incCreated: number;
+ *   actMod: number;
+ *   audLaunched: number;
+ *   crit: number;
+ *   actLate?: number;
+ * }} counts
+ * @param {{ total: number; lastActivity: string; recentModuleKeys: string[] }} snapshot
+ * @param {string} periodLabel
+ * @returns {string[]}
+ */
+export function buildJournalAnalysisLines(counts, snapshot, periodLabel) {
+  const lines = [];
+  const anomalie =
+    (counts.crit || 0) + (counts.actLate || 0) > 0
+      ? `${(counts.crit || 0) + (counts.actLate || 0)} signal(x) sensible(s) (${periodLabel}) — incidents critiques, retards ou NC mentionnés.`
+      : `Aucune anomalie forte détectée sur ${periodLabel} avec les règles textuelles actuelles.`;
+  lines.push(anomalie);
+
+  lines.push(
+    snapshot.total > 0
+      ? `Activité : ${snapshot.total} entrée(s) affichée(s) · dernière trace : ${snapshot.lastActivity}.`
+      : 'Activité : journal vide sur les filtres courants.'
+  );
+
+  const mods = snapshot.recentModuleKeys || [];
+  const trend =
+    mods.length > 0
+      ? `Tendances : modules les plus actifs récemment — ${mods.slice(0, 4).map((k) => moduleMeta(k).label).join(', ')}.`
+      : 'Tendances : pas assez de données pour une répartition modules.';
+  lines.push(trend);
+
+  return lines;
+}
