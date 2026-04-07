@@ -16,6 +16,7 @@ import {
   setDemoMode,
   resetDemoPresentation
 } from '../services/demoMode.service.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
 
 const LS_ALERTS = 'qhse_cfg_alerts_v1';
 const LS_NOTIF = 'qhse_cfg_notif_v1';
@@ -1264,6 +1265,131 @@ export function renderSettings() {
     });
   }
 
-  page.append(hero, secDemo, secA, secB, secC, secD, secH, secE, secF, secG);
+  const secUsers = document.createElement('section');
+  secUsers.className = 'settings-section';
+  secUsers.id = 'settings-anchor-users';
+  secUsers.innerHTML = `
+    <header class="settings-section__head">
+      <p class="settings-section__kicker">I · Gestion des utilisateurs</p>
+      <h4 class="settings-section__title">Utilisateurs</h4>
+      <p class="settings-section__lead">Gestion API des comptes (liste, création, rôle, suppression).</p>
+    </header>
+    <div class="settings-actions-bar" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px" data-users-form>
+      <input class="control-input" placeholder="Nom" data-users-name />
+      <input class="control-input" placeholder="Email" data-users-email />
+      <select class="control-input" data-users-role>
+        <option value="ADMIN">ADMIN</option>
+        <option value="QHSE">QHSE</option>
+        <option value="MANAGER">MANAGER</option>
+        <option value="TERRAIN">TERRAIN</option>
+      </select>
+      <input class="control-input" placeholder="Mot de passe" data-users-password />
+    </div>
+    <div class="settings-actions-bar">
+      <button type="button" class="btn btn-primary" data-users-add>Ajouter utilisateur</button>
+    </div>
+    <div class="settings-alert-list" data-users-list></div>
+  `;
+
+  const usersListHost = secUsers.querySelector('[data-users-list]');
+  const uName = secUsers.querySelector('[data-users-name]');
+  const uEmail = secUsers.querySelector('[data-users-email]');
+  const uRole = secUsers.querySelector('[data-users-role]');
+  const uPass = secUsers.querySelector('[data-users-password]');
+
+  async function loadUsers() {
+    if (!usersListHost) return;
+    usersListHost.innerHTML = '<p class="settings-alert-meta">Chargement utilisateurs...</p>';
+    try {
+      const res = await qhseFetch('/api/users');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const list = await res.json().catch(() => []);
+      usersListHost.replaceChildren();
+      (Array.isArray(list) ? list : []).forEach((u) => {
+        const row = document.createElement('div');
+        row.className = 'settings-alert-row';
+        const main = document.createElement('div');
+        main.className = 'settings-alert-main';
+        main.innerHTML = `<p class="settings-alert-name">${u.name || '—'}</p><p class="settings-alert-meta">${u.email || ''}</p>`;
+        const actions = document.createElement('div');
+        actions.className = 'settings-actions-bar';
+        const roleSel = document.createElement('select');
+        roleSel.className = 'control-input';
+        ['ADMIN', 'QHSE', 'MANAGER', 'TERRAIN'].forEach((r) => {
+          const o = document.createElement('option');
+          o.value = r;
+          o.textContent = r;
+          if (String(u.role || '') === r) o.selected = true;
+          roleSel.append(o);
+        });
+        roleSel.addEventListener('change', async () => {
+          try {
+            const r = await qhseFetch(`/api/users/${encodeURIComponent(String(u.id))}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role: roleSel.value, name: u.name })
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            showToast('Rôle utilisateur mis à jour.', 'success');
+          } catch {
+            showToast('Mise à jour rôle impossible.', 'error');
+          }
+        });
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'btn btn-secondary';
+        del.textContent = 'Supprimer';
+        del.addEventListener('click', async () => {
+          if (!window.confirm(`Supprimer ${u.name || u.email} ?`)) return;
+          try {
+            const r = await qhseFetch(`/api/users/${encodeURIComponent(String(u.id))}`, {
+              method: 'DELETE'
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            showToast('Utilisateur supprimé.', 'success');
+            await loadUsers();
+          } catch {
+            showToast('Suppression impossible.', 'error');
+          }
+        });
+        actions.append(roleSel, del);
+        row.append(main, actions);
+        usersListHost.append(row);
+      });
+    } catch {
+      usersListHost.innerHTML = '<p class="settings-alert-meta">Chargement utilisateurs indisponible.</p>';
+      showToast('Impossible de charger les utilisateurs.', 'warning');
+    }
+  }
+
+  secUsers.querySelector('[data-users-add]')?.addEventListener('click', async () => {
+    const name = String(uName?.value || '').trim();
+    const email = String(uEmail?.value || '').trim();
+    const role = String(uRole?.value || 'QHSE');
+    const password = String(uPass?.value || '').trim();
+    if (!name || !email || !password) {
+      showToast('Nom, email et mot de passe requis.', 'error');
+      return;
+    }
+    try {
+      const r = await qhseFetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, role, password })
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      showToast('Utilisateur créé.', 'success');
+      if (uName) uName.value = '';
+      if (uEmail) uEmail.value = '';
+      if (uPass) uPass.value = '';
+      await loadUsers();
+    } catch {
+      showToast('Création utilisateur impossible.', 'error');
+    }
+  });
+
+  void loadUsers();
+
+  page.append(hero, secDemo, secA, secB, secC, secD, secH, secE, secF, secG, secUsers);
   return page;
 }

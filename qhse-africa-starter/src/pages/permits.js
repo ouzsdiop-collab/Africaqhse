@@ -7,6 +7,7 @@ import {
   listPermits,
   patchPermit,
   signPermit,
+  syncPermitsToApi,
   syncPendingSignatures,
   updatePermitStatus
 } from '../services/ptw.service.js';
@@ -525,6 +526,7 @@ export function renderPermits() {
         </div>
         <span class="ptw-chip ${statusVisualTone(it)}">${isExpiredPermit(it) ? 'expiré' : statusLabel(it.status)}</span>
       </div>
+      <div class="ptw-mini"><strong>API:</strong> ${it.synced ? 'Synchronisé' : 'Local'}</div>
       ${expired ? '<div class="ptw-chip ptw-chip--critical">Permis non clôturé</div>' : ''}
       <p class="ptw-mini">${it.description || ''}</p>
       <div class="ptw-mini"><strong>Expiration:</strong> ${expiryLabel(it)}</div>
@@ -780,6 +782,14 @@ export function renderPermits() {
 
   window.addEventListener('online', () => renderLists());
   window.addEventListener('offline', () => renderLists());
+  void syncPermitsToApi()
+    .then((r) => {
+      if (r?.synced > 0) showToast(`${r.synced} permis synchronisé(s).`, 'success');
+      renderLists();
+    })
+    .catch(() => {
+      // Keep UI fully offline-first.
+    });
   renderLists();
   return page;
 }

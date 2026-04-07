@@ -3,6 +3,9 @@ import { ensureAuditProductsStyles } from '../components/auditProductsStyles.js'
 import { activityLogStore } from '../data/activityLog.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
+import { appState } from '../utils/state.js';
 
 /** Registre produits / FDS — données mock */
 const PRODUCT_REGISTRY = [
@@ -169,7 +172,70 @@ function savePersistedProducts(rows) {
 }
 
 function getAllProducts() {
+  if (apiProductsLoaded) return [...apiProducts];
   return [...PRODUCT_REGISTRY.map((x) => normalizeProductRow(x)), ...loadPersistedProducts()];
+}
+
+/** @type {object[]} */
+let apiProducts = [];
+let apiProductsLoaded = false;
+
+function mapControlledDocumentToProduct(doc) {
+  return normalizeProductRow({
+    id: String(doc?.id || makeProductId()),
+    name: String(doc?.name || 'Document FDS'),
+    cas: '—',
+    site: String(doc?.site?.name || appState.currentSite || 'Site principal'),
+    danger: 'moyen',
+    revision: doc?.updatedAt
+      ? new Date(doc.updatedAt).toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' })
+      : '—',
+    signalWord: 'Attention',
+    hazards: 'FDS importée via API.',
+    fdsFileName: String(doc?.name || ''),
+    fdsValidUntil: doc?.expiresAt ? String(doc.expiresAt).slice(0, 10) : '',
+    fdsPictograms: [],
+    fdsEpi: [],
+    fdsStorage: '',
+    fdsRescue: '',
+    fdsMeasures: '',
+    risksLinked: [],
+    incidentsHint: 'Voir modules risques/incidents pour liaison.',
+    fdsHumanValidated: true,
+    iaSuggestedActions: [],
+    iaInconsistencies: []
+  });
+}
+
+async function loadProductsFromApi() {
+  const res = await qhseFetch(withSiteQuery('/api/controlled-documents?type=fds'));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const rows = await res.json().catch(() => []);
+  apiProducts = (Array.isArray(rows) ? rows : []).map(mapControlledDocumentToProduct);
+  apiProductsLoaded = true;
+}
+
+async function uploadFdsDocument(payload) {
+  const fd = new FormData();
+  fd.append('file', payload.file);
+  fd.append('name', payload.name);
+  fd.append('type', 'fds');
+  if (payload.siteId) fd.append('siteId', payload.siteId);
+  const res = await qhseFetch('/api/controlled-documents', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error || `Upload impossible (${res.status})`);
+  }
+  return res.json();
+}
+
+async function downloadFdsById(id) {
+  const res = await qhseFetch(`/api/controlled-documents/${encodeURIComponent(String(id))}/download`);
+  if (!res.ok) throw new Error(`Téléchargement impossible (${res.status})`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function isTerrainSessionRole() {
@@ -997,7 +1063,7 @@ export function renderProducts() {
     showToast('Brouillon annulé.', 'info');
   });
 
-  validationCard.querySelector('.products-validate-btn')?.addEventListener('click', () => {
+  validationCard.querySelector('.products-validate-btn')?.addEventListener('click', async () => {
     const humanConfirmed = validationCard.querySelector('.products-human-confirm-check')?.checked;
     if (!humanConfirmed) {
       showToast('Cochez la confirmation de contrôle humain contre la FDS officielle.', 'error');
@@ -1033,13 +1099,21 @@ export function renderProducts() {
       iaSuggestedActions: [...pendingIaSuggestedActions],
       iaInconsistencies: [...pendingIaInconsistencies]
     };
-    const persisted = loadPersistedProducts();
-    persisted.push(row);
-    savePersistedProducts(persisted);
-    if (pendingFile) {
-      const old = fdsBlobUrlByProductId.get(id);
-      if (old) URL.revokeObjectURL(old);
-      fdsBlobUrlByProductId.set(id, URL.createObjectURL(pendingFile));
+    if (!pendingFile) {
+      showToast('Ajoutez un fichier FDS avant validation.', 'error');
+      return;
+    }
+    try {
+      const created = await uploadFdsDocument({
+        file: pendingFile,
+        name,
+        siteId: appState.activeSiteId || null
+      });
+      apiProductsLoaded = true;
+      apiProducts = [mapControlledDocumentToProduct(created), ...apiProducts];
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Envoi FDS impossible', 'error');
+      return;
     }
     activityLogStore.add({
       module: 'products',
@@ -1047,7 +1121,7 @@ export function renderProducts() {
       detail: `${name} — validation humaine`,
       user: getSessionUser()?.name || 'Utilisateur'
     });
-    showToast(`Produit « ${name} » enregistré dans le registre.`, 'info');
+    showToast(`Produit « ${name} » enregistré via API.`, 'success');
     resetDraft();
     refreshList();
     refreshKpi();
@@ -1058,6 +1132,12 @@ export function renderProducts() {
   const input = listCard.querySelector('.products-search');
 
   function openProductFds(product) {
+    if (apiProductsLoaded && product?.id && !String(product.id).startsWith('prd-')) {
+      void downloadFdsById(product.id).catch((err) => {
+        showToast(err instanceof Error ? err.message : 'Téléchargement impossible', 'error');
+      });
+      return;
+    }
     const url = fdsBlobUrlByProductId.get(product.id);
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -1125,7 +1205,16 @@ export function renderProducts() {
     clearImportDraft();
   }
 
-  refreshKpi();
-  refreshList();
+  (async () => {
+    try {
+      await loadProductsFromApi();
+    } catch (err) {
+      console.error('[products] GET /api/controlled-documents', err);
+      showToast('Chargement FDS API impossible — mode local.', 'warning');
+    } finally {
+      refreshKpi();
+      refreshList();
+    }
+  })();
   return page;
 }

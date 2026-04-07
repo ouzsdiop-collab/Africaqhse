@@ -35,6 +35,20 @@ import { createAuditDocumentComplianceStrip } from '../components/auditDocumentC
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { linkModules } from '../services/moduleLinks.service.js';
 
+const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
+
+function consumeDashboardIntent() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    localStorage.removeItem(DASHBOARD_INTENT_KEY);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Données mock — module Audits (cockpit) */
 const AUDITS_RETARD_COUNT = 2;
 const NC_OUVERTES_COUNT = 8;
@@ -963,6 +977,7 @@ export function renderAudits() {
   const auditNotifModel = buildAuditSmartNotifications();
   const statusTone = LAST_AUDIT.conforme ? 'green' : 'red';
   const cockpitPrevScore = getCockpitPreviousAuditScore();
+  const dashboardIntent = consumeDashboardIntent();
 
   const page = document.createElement('section');
   page.className =
@@ -2118,6 +2133,18 @@ export function renderAudits() {
       hasCriticalNc: AUDIT_NC_MAJEURES > 0,
       auditsEnRetard: AUDITS_RETARD_COUNT
     });
+    if (dashboardIntent?.source === 'dashboard' && dashboardIntent?.chart === 'qhse_score') {
+      heroCard.querySelector('.audit-premium-header__score')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+      showToast(
+        dashboardIntent?.period
+          ? `Contexte Dashboard appliqué : score QHSE (${dashboardIntent.period}).`
+          : 'Contexte Dashboard appliqué : score QHSE.',
+        'info'
+      );
+    }
   });
 
   return page;

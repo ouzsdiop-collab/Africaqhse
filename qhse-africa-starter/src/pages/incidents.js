@@ -100,6 +100,19 @@ const LIST_SUB_DEFAULT =
 const STATUS_PRESETS = ['Nouveau', 'En cours', 'Investigation', 'Clôturé'];
 
 const INCIDENTS_STATES_STYLE_ID = 'qhse-incidents-states-styles';
+const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
+
+function consumeDashboardIntent() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    localStorage.removeItem(DASHBOARD_INTENT_KEY);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 function ensureIncidentsStatesStyles() {
   if (document.getElementById(INCIDENTS_STATES_STYLE_ID)) return;
@@ -746,6 +759,7 @@ export function renderIncidents(onAddLog) {
   let filterSeverity = '';
   let filterStatus = '';
   let filterSite = '';
+  const dashboardIntent = consumeDashboardIntent();
 
   function renderFilteredList() {
     refreshList();
@@ -1067,6 +1081,12 @@ export function renderIncidents(onAddLog) {
     renderFilteredList();
   });
   filSiteLab.append(filSiteLabSpan, filSiteSel);
+
+  if (dashboardIntent?.source === 'dashboard' && dashboardIntent?.chart === 'incidents_trend') {
+    filterDateRange = '30';
+    dateSel.value = '30';
+    showToast('Filtre auto Dashboard appliqué : incidents récents (30 jours).', 'info');
+  }
 
   const filtersChunkViews = document.createElement('div');
   filtersChunkViews.className = 'incidents-compact-filters__chunk';
