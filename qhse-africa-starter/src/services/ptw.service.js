@@ -1,3 +1,4 @@
+import { qhseFetch } from '../utils/qhseFetch.js';
 const STORAGE_KEY = 'qhse.ptw.permits.v1';
 const SYNC_QUEUE_KEY = 'qhse.ptw.signatures.syncQueue.v1';
 
@@ -112,6 +113,7 @@ export function createPermit(payload) {
       qhse: { signed: false, name: '', signedAt: '', signatureDataUrl: '' }
     },
     signatures: [],
+    synced: false,
     syncState: 'synced',
     syncPendingCount: 0,
     auditTrail: [],
@@ -242,4 +244,41 @@ export function syncPendingSignatures() {
   writeRaw(items);
   writeQueue([]);
   return { synced, pending: 0 };
+}
+
+export async function syncPermitsToApi() {
+  if (!isOnline()) return { synced: 0, pending: listPermits().filter((p) => !p?.synced).length };
+  const items = readRaw();
+  const unsynced = items.filter((p) => !p?.synced);
+  if (!unsynced.length) return { synced: 0, pending: 0 };
+  let synced = 0;
+  for (const permit of unsynced) {
+    const owner =
+      permit?.validations?.supervisor?.name ||
+      permit?.team ||
+      permit?.closedBy ||
+      'Responsable PTW';
+    try {
+      const res = await qhseFetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: String(permit?.type || 'Permis de travail'),
+          detail: JSON.stringify(permit),
+          status: 'À lancer',
+          owner
+        })
+      });
+      if (!res.ok) continue;
+      permit.synced = true;
+      permit.syncState = permit.syncPendingCount > 0 ? 'pending_sync' : 'synced';
+      permit.updatedAt = new Date().toISOString();
+      appendAuditTrail(permit, 'permit_synced_to_api', { endpoint: '/api/actions' });
+      synced += 1;
+    } catch {
+      // Keep local mode intact: skip and retry later.
+    }
+  }
+  writeRaw(items);
+  return { synced, pending: items.filter((p) => !p?.synced).length };
 }

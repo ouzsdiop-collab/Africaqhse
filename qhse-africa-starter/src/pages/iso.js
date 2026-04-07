@@ -34,6 +34,8 @@ import {
 } from '../components/isoAuditReadiness.js';
 import { buildIsoCopilotSuggestions } from '../components/isoCopilotSuggestions.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
 
 /** Normes — cartes allégées (statut + une phrase). */
 const NORMS_LITE = [
@@ -1532,7 +1534,20 @@ export function renderIso(onAddLog) {
   const isoMixChartHosts = { req: null };
   const isoNav = pageTopbarById.iso;
 
-  const auditReadinessEl = createAuditReadinessBanner(computeAuditReadiness(), {
+  const auditApiMeta = { auditsCount: 0, lastAuditDate: '' };
+  const buildReadinessState = () => {
+    const base = computeAuditReadiness();
+    if (!auditApiMeta.auditsCount) return base;
+    const suffix = auditApiMeta.lastAuditDate
+      ? ` · ${auditApiMeta.auditsCount} audit(s) chargés (dernier: ${auditApiMeta.lastAuditDate}).`
+      : ` · ${auditApiMeta.auditsCount} audit(s) chargés.`;
+    return {
+      ...base,
+      message: `${base.message}${suffix}`
+    };
+  };
+
+  const auditReadinessEl = createAuditReadinessBanner(buildReadinessState(), {
     onTreat: () => {
       document.querySelector('.iso-page .iso-cockpit-priorities')?.scrollIntoView({
         behavior: 'smooth',
@@ -1657,8 +1672,8 @@ export function renderIso(onAddLog) {
   };
 
   tableCtx.onAnalyze = (row) => {
-    openComplianceAssistModal({
-      requirement: {
+    void (async () => {
+      const requirement = {
         id: row.id,
         normId: row.normId,
         normCode: row.normCode,
@@ -1667,34 +1682,65 @@ export function renderIso(onAddLog) {
         summary: row.summary,
         evidence: row.evidence,
         status: row.status
-      },
-      controlledDocuments: isoMergedDocsRef.rows.map((r) => ({
-        name: r.name,
-        version: r.version || '—'
-      })),
-      siteId: appState.activeSiteId,
-      onStatusCommitted: (requirementId, status, meta) => {
-        void (async () => {
-          if (
-            !(await ensureSensitiveAccess('critical_validation', {
-              contextLabel: 'mise à jour du statut d’exigence (conformité)'
-            }))
-          ) {
-            return;
+      };
+      try {
+        const assistRes = await qhseFetch('/api/compliance/analyze-assist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clause: `${row.clause} — ${row.title}`,
+            context: [row.summary, row.evidence, row.normCode].filter(Boolean).join(' | ')
+          })
+        });
+        if (assistRes.ok) {
+          const assistData = await assistRes.json().catch(() => null);
+          const assistText =
+            String(
+              assistData?.summary ||
+                assistData?.analysis ||
+                assistData?.suggestion ||
+                assistData?.recommendation ||
+                ''
+            ).trim() || '';
+          if (assistText) {
+            requirement.summary = `${String(requirement.summary || '').trim()}\n\nAssistant API: ${assistText}`;
           }
-          setRequirementStatus(requirementId, status);
-          refreshPilotage();
-          if (typeof onAddLog === 'function') {
-            onAddLog({
-              module: 'iso',
-              action: 'Statut exigence mis à jour (validation humaine)',
-              detail: `${requirementId} → ${status} (${meta.source})`,
-              user: 'Utilisateur'
-            });
-          }
-        })();
+        } else {
+          showToast("Assistant conformité indisponible, ouverture en mode local.", 'warning');
+        }
+      } catch {
+        showToast("Réseau indisponible, assistant conformité en mode local.", 'warning');
       }
-    });
+      openComplianceAssistModal({
+        requirement,
+        controlledDocuments: isoMergedDocsRef.rows.map((r) => ({
+          name: r.name,
+          version: r.version || '—'
+        })),
+        siteId: appState.activeSiteId,
+        onStatusCommitted: (requirementId, status, meta) => {
+          void (async () => {
+            if (
+              !(await ensureSensitiveAccess('critical_validation', {
+                contextLabel: 'mise à jour du statut d’exigence (conformité)'
+              }))
+            ) {
+              return;
+            }
+            setRequirementStatus(requirementId, status);
+            refreshPilotage();
+            if (typeof onAddLog === 'function') {
+              onAddLog({
+                module: 'iso',
+                action: 'Statut exigence mis à jour (validation humaine)',
+                detail: `${requirementId} → ${status} (${meta.source})`,
+                user: 'Utilisateur'
+              });
+            }
+          })();
+        }
+      });
+    })();
   };
 
   function refreshCopilot() {
@@ -1736,17 +1782,46 @@ export function renderIso(onAddLog) {
   const docsSection = createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection);
 
   async function syncControlledDocumentsFromApi() {
-    const api = await fetchControlledDocumentsFromApi();
-    isoMergedDocsRef.rows = mergeControlledDocumentRows(api);
-    const sum = computeDocumentRegistrySummary(isoMergedDocsRef.rows);
-    docStateSummary.update(sum);
-    registryDocImpact.update(sum);
-    docTableSection.refresh();
-    proofStripBundle.refresh();
-    void refreshDocComplianceNotifications();
+    try {
+      const api = await fetchControlledDocumentsFromApi();
+      isoMergedDocsRef.rows = mergeControlledDocumentRows(api);
+      const sum = computeDocumentRegistrySummary(isoMergedDocsRef.rows);
+      docStateSummary.update(sum);
+      registryDocImpact.update(sum);
+      docTableSection.refresh();
+      proofStripBundle.refresh();
+      void refreshDocComplianceNotifications();
+    } catch {
+      showToast('Documents API indisponibles, affichage local conservé.', 'warning');
+    }
+  }
+
+  async function syncAuditsForReadinessFromApi() {
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/audits?limit=50'));
+      if (!res.ok) {
+        showToast('Audits API indisponibles, score local conservé.', 'warning');
+        return;
+      }
+      const payload = await res.json().catch(() => []);
+      const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
+      auditApiMeta.auditsCount = rows.length;
+      const latest = rows
+        .map((r) => String(r?.updatedAt || r?.date || r?.createdAt || '').trim())
+        .filter(Boolean)
+        .sort()
+        .pop();
+      auditApiMeta.lastAuditDate = latest
+        ? new Date(latest).toLocaleDateString('fr-FR')
+        : '';
+      updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
+    } catch {
+      showToast('Réseau audits indisponible, score local conservé.', 'warning');
+    }
   }
 
   void syncControlledDocumentsFromApi();
+  void syncAuditsForReadinessFromApi();
 
   const normsCard = document.createElement('article');
   normsCard.className = 'content-card card-soft iso-norms-hero-wrap iso-norms-central';
@@ -1845,7 +1920,7 @@ export function renderIso(onAddLog) {
   function refreshPilotage() {
     updateGlobalSnapshot(globalSnapshotEl, computeComplianceSummary());
     updateHeroQuickStats();
-    updateAuditReadinessBanner(auditReadinessEl, computeAuditReadiness());
+    updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
     renderNormsGrid();
     refreshPrioritiesCockpit();
     refreshCopilot();

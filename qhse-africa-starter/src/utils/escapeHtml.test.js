@@ -13,4 +13,10 @@ describe('escapeHtml', () => {
     expect(escapeHtml(null)).toBe('');
     expect(escapeHtml(undefined)).toBe('');
   });
+
+  it('gère les cas manquants', () => {
+    expect(escapeHtml('')).toBe('');
+    expect(escapeHtml(42)).toBe('42');
+    expect(escapeHtml('&')).toBe('&amp;');
+  });
 });

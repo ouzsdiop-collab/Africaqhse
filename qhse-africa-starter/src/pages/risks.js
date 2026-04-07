@@ -25,6 +25,20 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createPermit } from '../services/ptw.service.js';
 import { linkModules } from '../services/moduleLinks.service.js';
 
+const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
+
+function consumeDashboardIntent() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    localStorage.removeItem(DASHBOARD_INTENT_KEY);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 const CATEGORY_OPTIONS = ['Sécurité', 'Environnement', 'Qualité'];
 const LEVEL_OPTIONS = [
   { value: 'élevée', label: 'Élevée' },
@@ -426,7 +440,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
     dialog.close();
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!form.confirm_review.checked) {
       showToast('Cochez la confirmation de relecture pour enregistrer la fiche.', 'info');
@@ -465,9 +479,12 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
       trend: 'stable'
     };
     pushCustomRiskTitle(title);
-    onSaved(rowData);
-    dialog.close();
-    showToast('Fiche ajoutée au registre (session courante). Enregistrement serveur : à brancher si besoin.', 'success');
+    try {
+      await Promise.resolve(onSaved?.(rowData));
+      dialog.close();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Création du risque impossible.', 'error');
+    }
   });
 
   dialog.addEventListener('close', () => {
@@ -482,13 +499,62 @@ function levelLabel(v) {
   return o ? o.label : v;
 }
 
+function levelToNum(v) {
+  const s = String(v || '').toLowerCase();
+  if (s.includes('élev') || s.includes('elev') || s === '5' || s === '4') return 5;
+  if (s.includes('faible') || s === '1' || s === '2') return 2;
+  return 3;
+}
+
+function numToLevel(n) {
+  const x = Number(n) || 3;
+  if (x >= 4) return 'élevée';
+  if (x <= 2) return 'faible';
+  return 'moyenne';
+}
+
+function mapApiRiskToUi(row) {
+  const g = Number(row?.gravity ?? row?.severity ?? row?.level ?? 3) || 3;
+  const p = Number(row?.probability ?? 3) || 3;
+  const meta = row?.gp != null && String(row.gp).trim() ? String(row.gp).trim() : `G${g} × P${p}`;
+  const tier = riskTierFromGp(Math.max(1, Math.min(5, g)), Math.max(1, Math.min(5, p)));
+  const statusLabel = row?.status ? String(row.status) : riskLevelLabelFromTier(tier);
+  return {
+    id: row?.id || null,
+    title: String(row?.title || 'Sans titre'),
+    type: String(row?.category || ''),
+    detail: String(row?.description || ''),
+    status: statusLabel,
+    tone: tier >= 5 ? 'red' : tier >= 3 ? 'amber' : 'blue',
+    meta,
+    responsible: String(row?.responsible || row?.owner || 'À désigner'),
+    actionLinked: row?.actionLinked ?? null,
+    pilotageState: /clos|ferm|trait|ma[iî]tris/i.test(statusLabel) ? 'traite' : 'actif',
+    updatedAt: row?.updatedAt ? String(row.updatedAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    trend: row?.trend || 'stable'
+  };
+}
+
+async function fetchRisksApi(filters = {}) {
+  const qs = new URLSearchParams();
+  qs.set('limit', '500');
+  if (filters.status) qs.set('status', String(filters.status));
+  if (filters.category) qs.set('category', String(filters.category));
+  if (filters.q) qs.set('q', String(filters.q));
+  const res = await qhseFetch(withSiteQuery(`/api/risks?${qs.toString()}`));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const list = await res.json().catch(() => []);
+  return Array.isArray(list) ? list.map(mapApiRiskToUi) : [];
+}
+
 export function renderRisks() {
   ensureQhsePilotageStyles();
 
   const page = document.createElement('section');
   page.className = 'page-stack risks-page risks-page--premium';
 
-  const localRisks = [...mockRisks];
+  let localRisks = [];
+  let risksLoading = true;
 
   /** @type {Array<{ description?: string, ref?: string, type?: string, status?: string, createdAt?: string }>} */
   let incidentRowsRaw = [];
@@ -595,6 +661,69 @@ export function renderRisks() {
     window.location.hash = 'permits';
   }
 
+  async function createRiskRemote(data) {
+    const gp = parseRiskMatrixGp(data.meta) || { g: levelToNum('moyenne'), p: levelToNum('moyenne') };
+    const payload = {
+      title: String(data.title || '').trim(),
+      description: String(data.detail || '').trim(),
+      category: String(data.type || '').trim() || 'Sécurité',
+      level: gp.g,
+      gravity: gp.g,
+      severity: gp.g,
+      probability: gp.p,
+      status: String(data.status || 'open'),
+      responsible: String(data.responsible || '').trim() || null,
+      owner: String(data.responsible || '').trim() || null,
+      siteId: appState.activeSiteId || null
+    };
+    const res = await qhseFetch('/api/risks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error || `Erreur création (${res.status})`);
+    }
+    return mapApiRiskToUi(await res.json());
+  }
+
+  async function patchRiskStatusRemote(risk, status) {
+    if (!risk?.id) {
+      showToast('Risque sans identifiant API, action impossible.', 'warning');
+      return;
+    }
+    const res = await qhseFetch(`/api/risks/${encodeURIComponent(String(risk.id))}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error || `Erreur mise à jour (${res.status})`);
+    }
+    showToast('Statut risque mis à jour.', 'success');
+    await refreshAll();
+  }
+
+  async function deleteRiskRemote(risk) {
+    if (!risk?.id) {
+      showToast('Risque sans identifiant API, suppression impossible.', 'warning');
+      return;
+    }
+    const ok = window.confirm(`Supprimer le risque « ${String(risk.title || 'Sans titre')} » ?`);
+    if (!ok) return;
+    const res = await qhseFetch(`/api/risks/${encodeURIComponent(String(risk.id))}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error || `Erreur suppression (${res.status})`);
+    }
+    showToast('Risque supprimé.', 'success');
+    await refreshAll();
+  }
+
   const listStack = document.createElement('tbody');
   listStack.className = 'risks-register-premium-table__body';
 
@@ -604,6 +733,17 @@ export function renderRisks() {
   let tierFilter = null;
   /** @type {'critique'|'eleve'|'maitrise'|'sans_action'|null} — filtres cartes KPI */
   let bannerKpiFilter = null;
+  let dashboardKeywordFilter = '';
+  const dashboardIntent = consumeDashboardIntent();
+
+  function deriveApiFilters() {
+    let status = null;
+    if (bannerKpiFilter === 'maitrise') status = 'clos';
+    let category = null;
+    const kw = String(dashboardKeywordFilter || '').trim();
+    if (kw) category = kw;
+    return { status, category, q: null };
+  }
 
   const matrixPanel = createRiskMatrixPanel({
     variant: 'default',
@@ -691,7 +831,7 @@ export function renderRisks() {
         tierFilter = null;
         syncTierPills();
         updateActiveFiltersBar();
-        renderList();
+        void refreshAll();
         renderPilot();
       });
       kpis.append(d);
@@ -962,7 +1102,8 @@ export function renderRisks() {
     const hasTier = tierFilter != null;
     const hasMatrix = matrixFilter != null;
     const hasBanner = bannerKpiFilter != null;
-    activeFiltersBar.hidden = !hasTier && !hasMatrix && !hasBanner;
+    const hasKeyword = Boolean(dashboardKeywordFilter);
+    activeFiltersBar.hidden = !hasTier && !hasMatrix && !hasBanner && !hasKeyword;
     activeFiltersBar.replaceChildren();
     if (activeFiltersBar.hidden) return;
     const label = document.createElement('span');
@@ -984,7 +1125,7 @@ export function renderRisks() {
       b.addEventListener('click', () => {
         bannerKpiFilter = null;
         updateActiveFiltersBar();
-        renderList();
+        void refreshAll();
         renderPilot();
       });
       actions.append(b);
@@ -1003,7 +1144,7 @@ export function renderRisks() {
         tierFilter = null;
         syncTierPills();
         updateActiveFiltersBar();
-        renderList();
+        void refreshAll();
       });
       actions.append(b);
     }
@@ -1017,6 +1158,18 @@ export function renderRisks() {
       });
       actions.append(b);
     }
+    if (hasKeyword) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary risks-page__active-filters-btn';
+      b.textContent = `Retirer : type « ${dashboardKeywordFilter} »`;
+      b.addEventListener('click', () => {
+        dashboardKeywordFilter = '';
+        updateActiveFiltersBar();
+        void refreshAll();
+      });
+      actions.append(b);
+    }
     const clearAll = document.createElement('button');
     clearAll.type = 'button';
     clearAll.className = 'btn btn-secondary risks-page__active-filters-btn risks-page__active-filters-btn--ghost';
@@ -1024,10 +1177,11 @@ export function renderRisks() {
     clearAll.addEventListener('click', () => {
       tierFilter = null;
       bannerKpiFilter = null;
+      dashboardKeywordFilter = '';
       matrixPanel.clearFilter();
       syncTierPills();
       updateActiveFiltersBar();
-      renderList();
+      void refreshAll();
       renderPilot();
     });
     actions.append(clearAll);
@@ -1100,7 +1254,7 @@ export function renderRisks() {
         else tierFilter = 'modere';
         syncTierPills();
         updateActiveFiltersBar();
-        renderList();
+        void refreshAll();
         renderPilot();
       });
       tierPills.append(btn);
@@ -1135,6 +1289,17 @@ export function renderRisks() {
 
   function renderList() {
     listStack.replaceChildren();
+    if (risksLoading) {
+      const tr = document.createElement('tr');
+      tr.className = 'risks-register-empty-row';
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.className = 'risks-page__list-empty-td';
+      td.textContent = 'Chargement des risques...';
+      tr.append(td);
+      listStack.append(tr);
+      return;
+    }
     let rows = localRisks;
     if (bannerKpiFilter === 'critique') {
       rows = rows.filter((r) => riskTierBucket(r) === 'critique');
@@ -1152,6 +1317,14 @@ export function renderRisks() {
         const gp = parseRiskMatrixGp(r.meta);
         return gp && gp.g === matrixFilter.g && gp.p === matrixFilter.p;
       });
+    }
+    if (dashboardKeywordFilter) {
+      const kw = dashboardKeywordFilter.toLowerCase();
+      rows = rows.filter((r) =>
+        `${String(r.title || '')} ${String(r.status || '')} ${String(r.meta || '')}`
+          .toLowerCase()
+          .includes(kw)
+      );
     }
     if (rows.length === 0) {
       const tr = document.createElement('tr');
@@ -1193,19 +1366,59 @@ export function renderRisks() {
       ? 'Périmètre : site sélectionné dans la barre principale — aligné sur la liste du module Incidents.'
       : 'Périmètre : tous les sites visibles par l’API sur cette requête.';
 
-    rows.forEach((r) =>
-      listStack.append(
-        createRiskRegisterRow(r, {
-          linkedIncidents: getMergedIncidentsForRisk(String(r.title || ''), incidentRowsRaw),
-          incidentsLinkNote,
-          onRefresh: () => void refreshAll(),
-          onCreatePreventiveAction: (title) => {
-            void openPreventiveActionFromRisks(title);
-          },
-          onCreatePtwFromRisk: (title) => createPtwFromRisk(title)
-        })
-      )
-    );
+    rows.forEach((r) => {
+      const frag = createRiskRegisterRow(r, {
+        linkedIncidents: getMergedIncidentsForRisk(String(r.title || ''), incidentRowsRaw),
+        incidentsLinkNote,
+        onRefresh: () => void refreshAll(),
+        onCreatePreventiveAction: (title) => {
+          void openPreventiveActionFromRisks(title);
+        },
+        onCreatePtwFromRisk: (title) => createPtwFromRisk(title)
+      });
+      const tr = frag.firstElementChild;
+      const tdAction = tr?.querySelector('.risk-register-table-row__action');
+      if (tdAction && r?.id) {
+        const bTreat = document.createElement('button');
+        bTreat.type = 'button';
+        bTreat.className = 'risk-register-table-row__act-nav';
+        bTreat.textContent = 'En traitement';
+        bTreat.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            await patchRiskStatusRemote(r, 'en_traitement');
+          } catch (err) {
+            showToast(err instanceof Error ? err.message : 'Mise à jour impossible', 'error');
+          }
+        });
+        const bClose = document.createElement('button');
+        bClose.type = 'button';
+        bClose.className = 'risk-register-table-row__act-nav';
+        bClose.textContent = 'Clore';
+        bClose.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            await patchRiskStatusRemote(r, 'clos');
+          } catch (err) {
+            showToast(err instanceof Error ? err.message : 'Mise à jour impossible', 'error');
+          }
+        });
+        const bDel = document.createElement('button');
+        bDel.type = 'button';
+        bDel.className = 'risk-register-table-row__act-nav';
+        bDel.textContent = 'Supprimer';
+        bDel.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            await deleteRiskRemote(r);
+          } catch (err) {
+            showToast(err instanceof Error ? err.message : 'Suppression impossible', 'error');
+          }
+        });
+        tdAction.append(bTreat, bClose, bDel);
+      }
+      listStack.append(frag);
+    });
   }
 
   const analysisHost = document.createElement('section');
@@ -1241,6 +1454,17 @@ export function renderRisks() {
   }
 
   async function refreshAll() {
+    try {
+      risksLoading = true;
+      renderList();
+      localRisks = await fetchRisksApi(deriveApiFilters());
+    } catch (err) {
+      console.error('[risks] GET /api/risks', err);
+      if (!localRisks.length) localRisks = [...mockRisks];
+      showToast('Risques API indisponibles — affichage démo local.', 'warning');
+    } finally {
+      risksLoading = false;
+    }
     await refreshIncidentLinks();
     renderManagerReading();
     renderPilot();
@@ -1254,6 +1478,13 @@ export function renderRisks() {
     updateActiveFiltersBar();
     matrixPanel.setRisks(localRisks);
     renderList();
+  }
+
+  if (dashboardIntent?.source === 'dashboard' && dashboardIntent?.chart === 'risk_distribution') {
+    dashboardKeywordFilter = String(dashboardIntent?.riskType || '').trim();
+    if (dashboardKeywordFilter) {
+      showToast(`Filtre auto Dashboard appliqué : risque « ${dashboardKeywordFilter} ».`, 'info');
+    }
   }
 
   void refreshAll();
@@ -1315,10 +1546,12 @@ export function renderRisks() {
 
   register.querySelector('.risks-add-btn').addEventListener('click', () => {
     openRiskCreateDialog({
-      onSaved: (data) => {
-        localRisks.unshift(data);
+      onSaved: async (data) => {
+        const created = await createRiskRemote(data);
+        localRisks.unshift(created);
         matrixPanel.clearFilter();
-        void refreshAll();
+        await refreshAll();
+        showToast('Risque créé et synchronisé avec le backend.', 'success');
       }
     });
   });

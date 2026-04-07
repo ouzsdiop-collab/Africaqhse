@@ -5,6 +5,7 @@ import {
   queueTerrainIncident,
   syncTerrainIncidentQueue
 } from '../services/terrainOffline.service.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
 
 const STYLE_ID = 'qhse-terrain-mode-styles';
 
@@ -43,6 +44,19 @@ function criticalAlerts() {
     .slice(0, 3);
 }
 
+function normalizeCriticalAlerts(list) {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : [])
+    .filter((n) => n?.level === 'critical' || n?.priority === 'critical' || n?.priority === 'high')
+    .filter((n) => {
+      const key = `${n?.kind || ''}:${n?.title || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
+}
+
 export function renderTerrainMode() {
   ensureStyles();
   const page = document.createElement('section');
@@ -68,7 +82,7 @@ export function renderTerrainMode() {
     </article>
     <article class="content-card card-soft">
       <div class="terrain-mode-actions">
-        <button type="button" class="terrain-mode-action" data-go="incidents"><span class="terrain-mode-action__icon">!</span><span>Déclarer incident</span></button>
+        <button type="button" class="terrain-mode-action" data-go="incidents"><span class="terrain-mode-action__icon">!</span><span>Déclarer incident</span><span class="badge amber" data-incident-pending-badge>0</span></button>
         <button type="button" class="terrain-mode-action" data-go="permits"><span class="terrain-mode-action__icon">⌁</span><span>Créer un permis (PTW)</span></button>
         <button type="button" class="terrain-mode-action" data-go="actions"><span class="terrain-mode-action__icon">✓</span><span>Voir mes actions</span></button>
         <button type="button" class="terrain-mode-action" data-go="dashboard"><span class="terrain-mode-action__icon">⚠</span><span>Voir alertes</span></button>
@@ -76,18 +90,33 @@ export function renderTerrainMode() {
     </article>
     <article class="content-card card-soft terrain-mode-critical">
       <h3>Alertes critiques</h3>
-      ${
-        critical.length
-          ? `<ul>${critical.map((a) => `<li><strong>${a.title || 'Alerte'}</strong>${a.detail ? ` — ${a.detail}` : ''}</li>`).join('')}</ul>`
-          : '<p class="ptw-mini">Aucune alerte critique active.</p>'
-      }
+      <div data-critical-alerts-host>
+        ${
+          critical.length
+            ? `<ul>${critical.map((a) => `<li><strong>${a.title || 'Alerte'}</strong>${a.detail ? ` — ${a.detail}` : ''}</li>`).join('')}</ul>`
+            : '<p class="ptw-mini">Aucune alerte critique active.</p>'
+        }
+      </div>
     </article>
   `;
 
   const queueStatusEl = page.querySelector('[data-queue-status]');
+  const pendingBadgeEl = page.querySelector('[data-incident-pending-badge]');
+  const criticalHost = page.querySelector('[data-critical-alerts-host]');
+  function renderCriticalAlerts(list) {
+    const alerts = normalizeCriticalAlerts(list);
+    if (!criticalHost) return;
+    criticalHost.innerHTML = alerts.length
+      ? `<ul>${alerts.map((a) => `<li><strong>${a.title || 'Alerte'}</strong>${a.detail ? ` — ${a.detail}` : ''}</li>`).join('')}</ul>`
+      : '<p class="ptw-mini">Aucune alerte critique active.</p>';
+  }
   function updateQueueStatus() {
     const st = getTerrainQueueState();
     queueStatusEl.textContent = `${st.online ? 'En ligne' : 'Hors ligne'} · ${st.pendingIncidents} incident(s) en attente de synchronisation`;
+    if (pendingBadgeEl) {
+      pendingBadgeEl.textContent = String(st.pendingIncidents);
+      pendingBadgeEl.hidden = st.pendingIncidents <= 0;
+    }
   }
 
   const submitBtn = page.querySelector('[data-submit-incident]');
@@ -114,6 +143,21 @@ export function renderTerrainMode() {
     updateQueueStatus();
   });
   window.addEventListener('offline', updateQueueStatus);
+  void (async () => {
+    if (navigator.onLine) {
+      await syncTerrainIncidentQueue().catch(() => {});
+    }
+    try {
+      const res = await qhseFetch('/api/notifications');
+      if (!res.ok) throw new Error('notifications_not_ok');
+      const data = await res.json().catch(() => []);
+      renderCriticalAlerts(data);
+    } catch {
+      renderCriticalAlerts(notificationsStore.all());
+    } finally {
+      updateQueueStatus();
+    }
+  })();
   updateQueueStatus();
 
   page.querySelectorAll('[data-go]').forEach((btn) => {

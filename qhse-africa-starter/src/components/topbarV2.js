@@ -11,6 +11,18 @@ import { isDemoMode } from '../services/demoMode.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 const STYLE_ID = 'qhse-topbar-v2-styles';
+const DASHBOARD_INTENT_LAST_KEY = 'qhse.dashboard.intent.last';
+
+function readDashboardIntentLast() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_INTENT_LAST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 function ensureTopbarV2Styles() {
   if (document.getElementById(STYLE_ID)) return;
@@ -229,6 +241,16 @@ function ensureTopbarV2Styles() {
   padding: var(--space-3);
   font-size: 13px;
   color: var(--color-text-muted);
+}
+.topbar-v2 .shell-search-intent {
+  margin: 0 0 var(--space-1);
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary-border) 58%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary-bg) 72%, transparent);
+  color: var(--color-primary-text);
+  font-size: 11px;
+  font-weight: 700;
 }
 .topbar-v2__demo-pill {
   flex-shrink: 0;
@@ -613,6 +635,7 @@ export function createTopbar({
   const safeUnread = Math.max(0, Number(unreadCount) || 0);
   const badgeLabel = safeUnread > 99 ? '99+' : String(safeUnread);
   const mode = getDisplayMode();
+  const dashboardIntentLast = readDashboardIntentLast();
 
   header.innerHTML = `
     <div class="topbar-v2__inner">
@@ -713,6 +736,27 @@ export function createTopbar({
   const searchResults = header.querySelector('.shell-quick-search-results');
   const searchWrap = header.querySelector('.shell-quick-search');
 
+  function dashboardIntentHint(intent) {
+    if (!intent || intent.source !== 'dashboard') return '';
+    if (intent.chart === 'risk_distribution' && intent.riskType) {
+      return `Contexte Dashboard: risque ${intent.riskType}`;
+    }
+    if (intent.chart === 'incidents_trend') {
+      return 'Contexte Dashboard: incidents (tendance)';
+    }
+    if (intent.chart === 'qhse_score') {
+      return intent.period
+        ? `Contexte Dashboard: score QHSE (${intent.period})`
+        : 'Contexte Dashboard: score QHSE';
+    }
+    return '';
+  }
+
+  if (searchInput) {
+    const hint = dashboardIntentHint(dashboardIntentLast);
+    if (hint) searchInput.placeholder = `${hint} · rechercher…`;
+  }
+
   function renderSearchResults(query) {
     if (!searchResults) return;
     const q = (query || '').trim().toLowerCase();
@@ -725,6 +769,13 @@ export function createTopbar({
       (it) =>
         it.label.toLowerCase().includes(q) || it.groupLabel.toLowerCase().includes(q)
     );
+    const hint = dashboardIntentHint(dashboardIntentLast);
+    if (hint) {
+      const liHint = document.createElement('li');
+      liHint.className = 'shell-search-intent';
+      liHint.textContent = hint;
+      searchResults.append(liHint);
+    }
     const max = 8;
     items.slice(0, max).forEach((it) => {
       const li = document.createElement('li');

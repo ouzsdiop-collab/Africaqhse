@@ -15,9 +15,7 @@ generator client {
 
 
 datasource db {
-
-  provider = "sqlite"
-
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 
 }
@@ -49,11 +47,35 @@ model Site {
   usersDefault    User[]         @relation("UserDefaultSite")
 
   controlledDocuments ControlledDocument[]
+  risks               Risk[]
 
 
 
   @@map("sites")
 
+}
+
+model Risk {
+
+  id          String   @id @default(cuid())
+  ref         String?  @unique
+  title       String
+  description String?
+  category    String?
+  gravity     Int?
+  severity    Int      @default(1)
+  probability Int      @default(1)
+  gp          Int?
+  status      String   @default("open")
+  owner       String?
+  siteId      String?
+  siteRecord  Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([status])
+  @@map("risks")
 }
 
 

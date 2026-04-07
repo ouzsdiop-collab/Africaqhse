@@ -35,7 +35,7 @@ import {
 
 registerBusinessEventListeners();
 
-const app = express();
+export const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
 if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
@@ -115,26 +115,33 @@ app.use((err, req, res, next) => {
   res.status(httpStatus).json(expose);
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`API QHSE Africa — http://localhost:${PORT}`);
-  console.log(`Health: http://localhost:${PORT}/api/health`);
-  console.log(
-    `[security] requireAuth=${isRequireAuthEnabled()} xUserId=${isXUserIdAllowed()} NODE_ENV=${process.env.NODE_ENV || 'undefined'}`
-  );
-  if (!process.env.DATABASE_URL) {
-    console.warn('[qhse-africa-api] DATABASE_URL manquant — voir .env / .env.example');
-  }
-  startAutomationScheduler();
-});
-
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(
-      `[qhse-africa-api] Le port ${PORT} est déjà utilisé (autre terminal / ancien « npm run dev »).` +
-        `\n  Windows : netstat -ano | findstr ":${PORT} " puis taskkill /PID <pid> /F` +
-        `\n  Ou depuis la racine du projet : npm run dev:reset`
+export function startServer() {
+  const server = app.listen(PORT, () => {
+    console.log(`API QHSE Africa — http://localhost:${PORT}`);
+    console.log(`Health: http://localhost:${PORT}/api/health`);
+    console.log(
+      `[security] requireAuth=${isRequireAuthEnabled()} xUserId=${isXUserIdAllowed()} NODE_ENV=${process.env.NODE_ENV || 'undefined'}`
     );
-    process.exit(1);
-  }
-  throw err;
-});
+    if (!process.env.DATABASE_URL) {
+      console.warn('[qhse-africa-api] DATABASE_URL manquant — voir .env / .env.example');
+    }
+    startAutomationScheduler();
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `[qhse-africa-api] Le port ${PORT} est déjà utilisé (autre terminal / ancien « npm run dev »).` +
+          `\n  Windows : netstat -ano | findstr ":${PORT} " puis taskkill /PID <pid> /F` +
+          `\n  Ou depuis la racine du projet : npm run dev:reset`
+      );
+      process.exit(1);
+    }
+    throw err;
+  });
+  return server;
+}
+
+if (process.env.VITEST !== 'true') {
+  startServer();
+}

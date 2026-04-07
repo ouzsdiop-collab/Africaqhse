@@ -71,6 +71,19 @@ function toneByValue(value, warn = 1, crit = 3) {
   return 'green';
 }
 
+function pushDashboardIntent(intent) {
+  try {
+    const payload = JSON.stringify({
+      ...intent,
+      at: new Date().toISOString()
+    });
+    localStorage.setItem('qhse.dashboard.intent', payload);
+    localStorage.setItem('qhse.dashboard.intent.last', payload);
+  } catch {
+    // no-op
+  }
+}
+
 function upsertKpiFilterModal() {
   let d = document.getElementById('qhse-kpi-filter-modal');
   if (d) return d;
@@ -875,21 +888,57 @@ export function renderDashboard() {
       decisionCharts.inc = new Chart(incCtx, {
         type: 'line',
         data: { labels: monthly.map((m) => m.label), datasets: [{ label: 'Incidents', data: monthly.map((m) => m.value), borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,.15)', tension: 0.35, fill: true }] },
-        options: { responsive: true, plugins: { legend: { display: false } } }
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          onHover: (e, elements) => {
+            if (e?.native?.target) e.native.target.style.cursor = elements?.length ? 'pointer' : 'default';
+          },
+          onClick: (_evt, elements) => {
+            const idx = elements?.[0]?.index;
+            const period = idx != null ? monthly[idx]?.label : null;
+            pushDashboardIntent({ source: 'dashboard', chart: 'incidents_trend', period });
+            window.location.hash = 'incidents';
+          }
+        }
       });
     }
     if (riskCtx instanceof HTMLCanvasElement) {
       decisionCharts.risk = new Chart(riskCtx, {
         type: 'doughnut',
         data: { labels: riskTypes.map((r) => r.type), datasets: [{ data: riskTypes.map((r) => r.count), backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#38bdf8'] }] },
-        options: { responsive: true, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: '#cbd5e1' } } },
+          onHover: (e, elements) => {
+            if (e?.native?.target) e.native.target.style.cursor = elements?.length ? 'pointer' : 'default';
+          },
+          onClick: (_evt, elements) => {
+            const idx = elements?.[0]?.index;
+            const riskType = idx != null ? riskTypes[idx]?.type : null;
+            pushDashboardIntent({ source: 'dashboard', chart: 'risk_distribution', riskType });
+            window.location.hash = 'risks';
+          }
+        }
       });
     }
     if (scoreCtx instanceof HTMLCanvasElement) {
       decisionCharts.score = new Chart(scoreCtx, {
         type: 'bar',
         data: { labels: auditScores.map((a) => a.label), datasets: [{ label: 'Score QHSE', data: auditScores.map((a) => a.value), backgroundColor: auditScores.map((a) => (a.value >= 80 ? '#22c55e' : a.value >= 60 ? '#f59e0b' : '#ef4444')) }] },
-        options: { scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } }
+        options: {
+          scales: { y: { min: 0, max: 100 } },
+          plugins: { legend: { display: false } },
+          onHover: (e, elements) => {
+            if (e?.native?.target) e.native.target.style.cursor = elements?.length ? 'pointer' : 'default';
+          },
+          onClick: (_evt, elements) => {
+            const idx = elements?.[0]?.index;
+            const period = idx != null ? auditScores[idx]?.label : null;
+            pushDashboardIntent({ source: 'dashboard', chart: 'qhse_score', period });
+            window.location.hash = 'audits';
+          }
+        }
       });
     }
 
