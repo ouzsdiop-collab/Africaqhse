@@ -7,11 +7,18 @@ import { ensureIsoPageStyles } from '../components/isoPageStyles.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { openComplianceAssistModal } from '../components/isoComplianceAssistPanel.js';
 import { appState } from '../utils/state.js';
+import { getSessionUser } from '../data/sessionUser.js';
+import { activityLogStore } from '../data/activityLog.js';
+import {
+  fetchControlledDocumentsFromApi,
+  mergeControlledDocumentRows,
+  computeDocumentRegistrySummary,
+  refreshDocComplianceNotifications
+} from '../services/documentRegistry.service.js';
 import {
   getRequirements,
   getNormById,
   setRequirementStatus,
-  CONTROLLED_DOCUMENTS,
   computeComplianceSummary,
   DOCUMENT_ATTENTION,
   AUDITS_TO_SCHEDULE,
@@ -20,6 +27,13 @@ import {
   addImportedDocumentProof
 } from '../data/conformityStore.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import {
+  computeAuditReadiness,
+  createAuditReadinessBanner,
+  updateAuditReadinessBanner
+} from '../components/isoAuditReadiness.js';
+import { buildIsoCopilotSuggestions } from '../components/isoCopilotSuggestions.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 /** Normes — cartes allégées (statut + une phrase). */
 const NORMS_LITE = [
@@ -68,12 +82,212 @@ function conformityLabel(st) {
   return 'Non conforme';
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function formatIsoDateShort(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR');
+}
+
+/**
+ * @param {'valide'|'a_renouveler'|'expire'|'sans_echeance'|string} st
+ */
+function docComplianceBadgeClass(st) {
+  if (st === 'valide') return 'green';
+  if (st === 'a_renouveler') return 'amber';
+  if (st === 'expire') return 'red';
+  return 'blue';
+}
+
+/**
+ * @param {(entry: { module: string; action: string; detail?: string; user?: string }) => void} [onAddLog]
+ */
+async function openDocUpdateAction(row, onAddLog) {
+  const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
+    import('../components/actionCreateDialog.js'),
+    import('../services/users.service.js')
+  ]);
+  const users = await fetchUsers().catch(() => []);
+  openActionCreateDialog({
+    users,
+    defaults: {
+      title: `Mise à jour document : ${row.name}`,
+      origin: 'other',
+      actionType: 'corrective',
+      priority: row.complianceStatus === 'expire' ? 'critique' : 'haute',
+      description: `Renouveler ou réviser le document « ${row.name} » (statut : ${row.complianceLabel || row.complianceStatus}). Réf. ${row.id}.`
+    },
+    onCreated: () => {
+      showToast('Action enregistrée.', 'success');
+      if (typeof onAddLog === 'function') {
+        onAddLog({
+          module: 'iso',
+          action: 'Action créée depuis document maîtrisé',
+          detail: row.name,
+          user: getSessionUser()?.name || 'Utilisateur'
+        });
+      }
+    }
+  });
+}
+
+/**
+ * @param {(entry: { module: string; action: string; detail?: string; user?: string }) => void} [onAddLog]
+ */
+function relanceDocResponsable(row, onAddLog) {
+  const who =
+    row.responsible && String(row.responsible).trim() ? String(row.responsible).trim() : 'le responsable désigné';
+  showToast(`Relance enregistrée pour ${who} (simulation) — ${row.name}`, 'info');
+  const entry = {
+    module: 'iso',
+    action: 'Relance responsable document',
+    detail: `${row.name} → ${who}`,
+    user: getSessionUser()?.name || 'Utilisateur'
+  };
+  activityLogStore.add(entry);
+  if (typeof onAddLog === 'function') onAddLog(entry);
+}
+
+function createDocumentStateSummaryBlock() {
+  const root = document.createElement('div');
+  root.className = 'iso-doc-state-summary';
+  root.setAttribute('aria-label', 'État documentaire');
+  function update(summary) {
+    const pct = summary.pctValide == null ? '—' : `${summary.pctValide} %`;
+    root.innerHTML = `
+      <div class="iso-doc-state-summary__head">
+        <span class="iso-doc-state-summary__title">État documentaire</span>
+        <span class="iso-doc-state-summary__hint">Documents avec échéance</span>
+      </div>
+      <div class="iso-doc-state-summary__grid">
+        <div class="iso-doc-state-summary__metric">
+          <span class="iso-doc-state-summary__val iso-doc-state-summary__val--ok">${escapeHtml(pct)}</span>
+          <span class="iso-doc-state-summary__lbl">Valides</span>
+        </div>
+        <div class="iso-doc-state-summary__metric">
+          <span class="iso-doc-state-summary__val iso-doc-state-summary__val--warn">${String(summary.aRenouveler)}</span>
+          <span class="iso-doc-state-summary__lbl">À renouveler</span>
+        </div>
+        <div class="iso-doc-state-summary__metric">
+          <span class="iso-doc-state-summary__val iso-doc-state-summary__val--bad">${String(summary.expire)}</span>
+          <span class="iso-doc-state-summary__lbl">Expirés</span>
+        </div>
+      </div>
+    `;
+  }
+  update(computeDocumentRegistrySummary([]));
+  return { root, update };
+}
+
+function createIsoRegistryComplianceBanner() {
+  const root = document.createElement('div');
+  root.className = 'iso-registry-doc-impact';
+  root.hidden = true;
+  function update(summary) {
+    if (!summary || summary.expire === 0) {
+      root.hidden = true;
+      return;
+    }
+    root.hidden = false;
+    root.innerHTML = `
+      <div class="iso-registry-doc-impact__inner">
+        <span class="badge red">Impact conformité</span>
+        <p class="iso-registry-doc-impact__text">
+          <strong>${summary.expire} document(s) expiré(s)</strong> — risque pour les preuves audit. Consolidez la version courante dans la section Documents.
+        </p>
+        <button type="button" class="text-button iso-registry-doc-impact__link">Voir les documents</button>
+      </div>
+    `;
+    root.querySelector('.iso-registry-doc-impact__link')?.addEventListener('click', () => {
+      document.querySelector('.iso-page .iso-docs-hub-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+  return { root, update };
+}
+
+/**
+ * @param {{ getRows: () => object[]; onAddLog?: (e: object) => void }} opts
+ */
+function createControlledDocumentsTableSection(opts) {
+  const { getRows, onAddLog } = opts;
+  const wrap = document.createElement('div');
+  wrap.className = 'iso-table-wrap';
+
+  function render() {
+    const rows = getRows();
+    wrap.replaceChildren();
+    const table = document.createElement('div');
+    table.className = 'iso-table iso-doc-table';
+    const head = document.createElement('div');
+    head.className = 'iso-table-head';
+    head.innerHTML = `
+      <span>Document</span>
+      <span>Type</span>
+      <span>Création</span>
+      <span>Màj</span>
+      <span>Expiration</span>
+      <span>Responsable</span>
+      <span>Statut</span>
+      <span>Actions</span>
+    `;
+    table.append(head);
+    rows.forEach((row) => {
+      const st = row.complianceStatus || 'sans_echeance';
+      const line = document.createElement('div');
+      line.className = 'iso-table-row';
+      const name = document.createElement('span');
+      name.className = 'iso-cell-strong';
+      name.textContent = row.name;
+      const type = document.createElement('span');
+      type.className = 'iso-cell-muted';
+      type.textContent = row.type || '—';
+      const c0 = document.createElement('span');
+      c0.className = 'iso-cell-muted';
+      c0.textContent = formatIsoDateShort(row.createdAt);
+      const c1 = document.createElement('span');
+      c1.className = 'iso-cell-muted';
+      c1.textContent = formatIsoDateShort(row.updatedAt);
+      const c2 = document.createElement('span');
+      c2.className = 'iso-cell-muted';
+      c2.textContent = formatIsoDateShort(row.expiresAt);
+      const resp = document.createElement('span');
+      resp.className = 'iso-cell-muted';
+      resp.textContent = row.responsible && String(row.responsible).trim() ? row.responsible : '—';
+      const stCell = document.createElement('span');
+      stCell.className = 'iso-doc-status-cell';
+      const badge = document.createElement('span');
+      badge.className = `badge ${docComplianceBadgeClass(st)} iso-doc-compliance-badge iso-doc-compliance--${st}`;
+      badge.textContent = row.complianceLabel || '—';
+      stCell.append(badge);
+      const actCell = document.createElement('span');
+      actCell.className = 'iso-doc-actions-cell';
+      const stack = document.createElement('div');
+      stack.className = 'iso-doc-row-actions';
+      const b1 = document.createElement('button');
+      b1.type = 'button';
+      b1.className = 'btn btn-secondary iso-doc-action-btn';
+      b1.textContent = 'Créer action de mise à jour';
+      b1.addEventListener('click', (e) => {
+        e.stopPropagation();
+        void openDocUpdateAction(row, onAddLog);
+      });
+      const b2 = document.createElement('button');
+      b2.type = 'button';
+      b2.className = 'btn btn-secondary iso-doc-action-btn';
+      b2.textContent = 'Relancer responsable';
+      b2.addEventListener('click', (e) => {
+        e.stopPropagation();
+        relanceDocResponsable(row, onAddLog);
+      });
+      stack.append(b1, b2);
+      actCell.append(stack);
+      line.append(name, type, c0, c1, c2, resp, stCell, actCell);
+      table.append(line);
+    });
+    wrap.append(table);
+  }
+
+  render();
+  return { root: wrap, refresh: render };
 }
 
 /**
@@ -153,7 +367,7 @@ function simulateIsoImportAnalysis(fileName) {
  * @param {object} params
  * @param {string} params.fileName
  * @param {ReturnType<typeof simulateIsoImportAnalysis>} analysis
- * @param {(payload: { requirementId: string; proofStatus: 'present'|'verify'|'missing' }) => void} onValidate
+ * @param {(payload: { requirementId: string; proofStatus: 'present'|'verify'|'missing'; validatedBy?: string }) => void} onValidate
  * @param {() => void} onReject
  */
 function openIsoImportReviewOverlay({ fileName, analysis, onValidate, onReject }) {
@@ -210,6 +424,10 @@ function openIsoImportReviewOverlay({ fileName, analysis, onValidate, onReject }
         <ul class="iso-import-list iso-import-gaps"></ul>
       </div>
       <p class="iso-import-note"></p>
+      <div class="iso-import-block">
+        <div class="iso-import-block-title">Validé par (optionnel)</div>
+        <input type="text" class="control-input iso-import-validated-by" placeholder="Nom, fonction — terrain" autocomplete="name" />
+      </div>
       <div class="iso-import-block">
         <div class="iso-import-block-title">Statut preuve après validation</div>
         <div class="iso-import-proof-radios">
@@ -270,12 +488,13 @@ function openIsoImportReviewOverlay({ fileName, analysis, onValidate, onReject }
     const proofEl = dialog.querySelector('input[name="iso-import-proof"]:checked');
     const proofStatus =
       proofEl?.value === 'missing' || proofEl?.value === 'verify' ? proofEl.value : 'present';
+    const validatedBy = String(dialog.querySelector('.iso-import-validated-by')?.value || '').trim();
     if (!requirementId) {
       showToast('Choisissez une exigence.', 'warning');
       return;
     }
     close();
-    onValidate({ requirementId, proofStatus });
+    onValidate({ requirementId, proofStatus, validatedBy });
   });
 
   dialog.querySelector('.iso-import-reject')?.addEventListener('click', () => {
@@ -304,9 +523,18 @@ function importedProofStatusLabel(st) {
 function formatEvidenceWithImports(baseEvidence, requirementId) {
   const base = String(baseEvidence || '—');
   const links = getImportedDocumentProofs().filter((p) => p.requirementId === requirementId);
-  if (!links.length) return base;
-  const extra = links.map((p) => `· ${p.fileName} (${importedProofStatusLabel(p.proofStatus)})`);
-  return `${base}\n${extra.join('\n')}`;
+  const ico =
+    links.length === 0
+      ? '❌ '
+      : links.some((p) => p.proofStatus === 'present')
+        ? '📎 '
+        : '⚠ ';
+  if (!links.length) return `${ico}${base}`;
+  const extra = links.map((p) => {
+    const v = p.validatedBy ? ` · validé ${p.validatedBy}` : '';
+    return `· ${p.fileName} (${importedProofStatusLabel(p.proofStatus)})${v}`;
+  });
+  return `${ico}${base}\n${extra.join('\n')}`;
 }
 
 /**
@@ -615,8 +843,9 @@ function createNormCardLite(norm) {
  *   onAnalyze: (row: Record<string, unknown> & { normCode: string }) => void;
  *   refreshTable: () => void;
  * }} ctx
+ * @param {{ root: HTMLElement; update: (s: ReturnType<typeof computeDocumentRegistrySummary>) => void }} registryDocImpact
  */
-function createRequirementsTable(ctx) {
+function createRequirementsTable(ctx, registryDocImpact) {
   const wrap = document.createElement('div');
   wrap.className = 'iso-table-wrap iso-table-wrap--req';
 
@@ -676,7 +905,13 @@ function createRequirementsTable(ctx) {
       const normCode = norm ? norm.code : row.normId;
 
       const line = document.createElement('div');
-      line.className = 'iso-table-row';
+      line.className = 'iso-table-row iso-table-row--interactive';
+      line.dataset.isoRequirementId = row.id;
+      line.tabIndex = 0;
+      line.setAttribute(
+        'aria-label',
+        `Ouvrir le détail — ${row.clause} ${row.title}`
+      );
       const stClass = conformityBadgeClass(row.status);
       const badgeLabel = conformityLabel(row.status);
 
@@ -697,8 +932,23 @@ function createRequirementsTable(ctx) {
       btn.type = 'button';
       btn.className = 'btn btn-secondary iso-analyze-btn';
       btn.textContent = 'Traiter';
-      btn.addEventListener('click', () => ctx.onAnalyze({ ...row, normCode }));
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ctx.onAnalyze({ ...row, normCode });
+      });
       assistCell.append(btn);
+
+      const openRow = () => ctx.onAnalyze({ ...row, normCode });
+      line.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        openRow();
+      });
+      line.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openRow();
+        }
+      });
 
       const owner = document.createElement('span');
       owner.className = 'iso-cell-muted';
@@ -716,7 +966,7 @@ function createRequirementsTable(ctx) {
 
   renderRows();
   ctx.refreshTable = renderRows;
-  wrap.append(filterBar, table);
+  wrap.append(registryDocImpact.root, filterBar, table);
   return wrap;
 }
 
@@ -771,62 +1021,44 @@ function createRequirementsHotList(ctx, ref) {
   return wrap;
 }
 
-function createDocumentsTable() {
-  const wrap = document.createElement('div');
-  wrap.className = 'iso-table-wrap';
-  const table = document.createElement('div');
-  table.className = 'iso-table iso-doc-table';
-  const head = document.createElement('div');
-  head.className = 'iso-table-head';
-  head.innerHTML = `<span>Document</span><span>Version</span><span>Révision</span><span>Propriétaire</span>`;
-  table.append(head);
-  CONTROLLED_DOCUMENTS.forEach((row) => {
-    const line = document.createElement('div');
-    line.className = 'iso-table-row';
-    line.innerHTML = `
-      <span class="iso-cell-strong">${escapeHtml(row.name)}</span>
-      <span class="iso-cell-muted">${escapeHtml(row.version || '—')}</span>
-      <span class="iso-cell-muted">—</span>
-      <span class="iso-cell-muted">—</span>
-    `;
-    table.append(line);
-  });
-  wrap.append(table);
-  return wrap;
-}
-
 /**
  * Liste documents critiques / manquants / obsolètes + zone repliable pour la liste complète.
  * @param {{ refreshPilotage?: () => void }} pilotageCtx
  * @param {(payload: { module: string; action: string; detail?: string; user?: string }) => void} [onAddLog]
+ * @param {{ root: HTMLElement; refresh: () => void }} docTableSection
  */
-function createDocumentsPrioritySection(pilotageCtx, onAddLog) {
+function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) {
   const root = document.createElement('div');
   root.className = 'iso-docs-priority';
 
   const importBar = document.createElement('div');
-  importBar.className = 'iso-doc-import-bar';
+  importBar.className = 'iso-doc-import-bar iso-doc-proof-dropzone';
   const importLead = document.createElement('p');
   importLead.className = 'iso-doc-import-lead';
   importLead.textContent =
-    'Importez une pièce, rattachez-la à une exigence et validez le statut de preuve (traitement local, démo).';
+    'Joindre une preuve : fichier lié à une exigence ISO (validation locale, démo). Glisser-déposer ou parcourir.';
   const importBtn = document.createElement('button');
   importBtn.type = 'button';
   importBtn.className = 'btn btn-secondary iso-doc-import-btn';
-  importBtn.textContent = 'Importer un document';
+  importBtn.textContent = 'Joindre une preuve';
+  const preview = document.createElement('p');
+  preview.className = 'iso-doc-import-preview';
+  preview.setAttribute('aria-live', 'polite');
+  preview.hidden = true;
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.className = 'iso-doc-import-file';
-  fileInput.setAttribute('aria-label', 'Choisir un fichier à importer');
+  fileInput.setAttribute('aria-label', 'Choisir un fichier à joindre comme preuve');
   fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.csv,application/pdf';
   fileInput.hidden = true;
 
   importBtn.addEventListener('click', () => fileInput.click());
 
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files && fileInput.files[0];
-    fileInput.value = '';
+  function runImportPipeline(file) {
     if (!file) return;
+    preview.hidden = false;
+    preview.textContent = `Fichier sélectionné : ${file.name}`;
+    importBar.classList.add('iso-doc-proof-dropzone--active');
     importBtn.disabled = true;
     showToast('Traitement du document en cours (simulation)…', 'info');
     window.setTimeout(() => {
@@ -835,7 +1067,7 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog) {
       openIsoImportReviewOverlay({
         fileName: file.name,
         analysis,
-        onValidate: ({ requirementId, proofStatus }) => {
+        onValidate: ({ requirementId, proofStatus, validatedBy }) => {
           void (async () => {
             if (
               !(await ensureSensitiveAccess('confidential_document', {
@@ -850,7 +1082,8 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog) {
               proofStatus,
               docTypeLabel: analysis.docTypeLabel,
               keyPoints: analysis.keyPoints,
-              gaps: analysis.gaps
+              gaps: analysis.gaps,
+              validatedBy: validatedBy || ''
             });
             showToast('Document rattaché à l’exigence — preuve enregistrée localement.', 'success');
             if (typeof onAddLog === 'function') {
@@ -862,16 +1095,46 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog) {
               });
             }
             if (typeof pilotageCtx.refreshPilotage === 'function') pilotageCtx.refreshPilotage();
+            importBar.classList.remove('iso-doc-proof-dropzone--active');
+            preview.hidden = true;
           })();
         },
         onReject: () => {
           showToast('Import annulé.', 'info');
+          importBar.classList.remove('iso-doc-proof-dropzone--active');
+          preview.hidden = true;
         }
       });
     }, 620);
+  }
+
+  ['dragenter', 'dragover'].forEach((ev) => {
+    importBar.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      importBar.classList.add('iso-doc-proof-dropzone--drag');
+    });
+  });
+  ['dragleave', 'drop'].forEach((ev) => {
+    importBar.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      importBar.classList.remove('iso-doc-proof-dropzone--drag');
+    });
+  });
+  importBar.addEventListener('drop', (e) => {
+    const f = e.dataTransfer?.files?.[0];
+    if (f) runImportPipeline(f);
   });
 
-  importBar.append(importLead, importBtn, fileInput);
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    runImportPipeline(file);
+  });
+
+  importBar.append(importLead, importBtn, preview, fileInput);
 
   const listWrap = document.createElement('div');
   listWrap.className = 'iso-doc-attention-list';
@@ -923,7 +1186,7 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog) {
   const fullWrap = document.createElement('div');
   fullWrap.className = 'iso-req-full-wrap';
   fullWrap.hidden = true;
-  fullWrap.append(createDocumentsTable());
+  fullWrap.append(docTableSection.root);
 
   toggleFull.addEventListener('click', () => {
     const open = fullWrap.hidden;
@@ -1010,6 +1273,49 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     list.replaceChildren();
     const reqsNc = getRequirements().filter((r) => r.status === 'non_conforme');
     const reqsOpen = getRequirements().filter((r) => r.status !== 'conforme');
+    const ar = computeAuditReadiness();
+    const firstNc = reqsNc[0];
+    const hero = document.createElement('div');
+    hero.className = 'iso-priority-hero';
+    let hTitle = 'Priorité principale';
+    let hDetail = 'Consolider exigences et preuves avant la prochaine visite audit.';
+    /** @type {() => void} */
+    let hOn = () => {
+      document.querySelector('.iso-page .iso-docs-priority')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    };
+    if (firstNc) {
+      hTitle = 'Non-conformité majeure à traiter immédiatement';
+      const norm = getNormById(firstNc.normId);
+      hDetail = `${firstNc.clause} — ${firstNc.title} (${norm ? norm.code : firstNc.normId}).`;
+      hOn = () => onAnalyze({ ...firstNc, normCode: norm ? norm.code : firstNc.normId });
+    } else if (ar.missingDocsCount > 0) {
+      hTitle = 'Documents manquants — risque pour l’audit';
+      hDetail = `${ar.missingDocsCount} pièce(s) signalée(s) — joindre les preuves au registre.`;
+    } else if (ar.readiness === 'fragile') {
+      hDetail = ar.message;
+    }
+    hero.innerHTML = `
+      <div class="iso-priority-hero-main">
+        <span class="iso-priority-hero-k">À traiter en premier</span>
+        <strong class="iso-priority-hero-title"></strong>
+        <p class="iso-priority-hero-detail"></p>
+      </div>
+    `;
+    const ht = hero.querySelector('.iso-priority-hero-title');
+    const hd = hero.querySelector('.iso-priority-hero-detail');
+    if (ht) ht.textContent = hTitle;
+    if (hd) hd.textContent = hDetail;
+    const hb = document.createElement('button');
+    hb.type = 'button';
+    hb.className = 'btn btn-primary iso-priority-hero-cta';
+    hb.textContent = 'Traiter maintenant';
+    hb.addEventListener('click', hOn);
+    hero.querySelector('.iso-priority-hero-main')?.append(hb);
+    list.append(hero);
+
     const { missing, obsolete, critical } = DOCUMENT_ATTENTION;
     const docLines = [];
     missing.forEach((d) => docLines.push({ tag: 'Manquant', name: d.name, note: d.note }));
@@ -1063,14 +1369,14 @@ function createPrioritiesCockpitBlock(onAnalyze) {
       showToast('Module Audits.', 'info');
     });
 
-    const firstNc = reqsNc[0];
-    const ncDetail = firstNc
-      ? `${firstNc.clause} — ${firstNc.title} (non-conformité à traiter en priorité).`
+    const ncForList = reqsNc[0];
+    const ncDetail = ncForList
+      ? `${ncForList.clause} — ${ncForList.title} (non-conformité à traiter en priorité).`
       : 'Aucune non-conformité stricte ouverte sur le registre démo.';
     appendPriorityRow('Non-conformités majeures', ncDetail, 'Traiter', () => {
-      if (firstNc) {
-        const norm = getNormById(firstNc.normId);
-        onAnalyze({ ...firstNc, normCode: norm ? norm.code : firstNc.normId });
+      if (ncForList) {
+        const norm = getNormById(ncForList.normId);
+        onAnalyze({ ...ncForList, normCode: norm ? norm.code : ncForList.normId });
       } else {
         showToast('Aucune NC majeure listée.', 'info');
       }
@@ -1082,7 +1388,10 @@ function createPrioritiesCockpitBlock(onAnalyze) {
   return { root, refresh };
 }
 
-function createDocProofStrip() {
+/**
+ * @param {() => object[]} getDocRows
+ */
+function createDocProofStrip(getDocRows) {
   const wrap = document.createElement('div');
   wrap.className = 'iso-doc-proof-strip';
   wrap.setAttribute('aria-label', 'Statut des preuves documentaires');
@@ -1091,23 +1400,27 @@ function createDocProofStrip() {
     wrap.replaceChildren();
     const title = document.createElement('div');
     title.className = 'iso-doc-proof-strip-title';
-    title.textContent = 'Preuves (statut indicatif)';
+    title.textContent = 'Documents maîtrisés (conformité / échéance)';
     wrap.append(title);
-    CONTROLLED_DOCUMENTS.forEach((row, i) => {
-      const m = (String(row.name).length + i) % 3;
-      /** @type {{ label: string; cls: string }} */
-      let st;
-      if (m === 0) st = { label: 'Présent', cls: 'green' };
-      else if (m === 1) st = { label: 'Manquant', cls: 'red' };
-      else st = { label: 'À vérifier', cls: 'amber' };
+    const rows = typeof getDocRows === 'function' ? getDocRows() : [];
+    if (!rows.length) {
+      const empty = document.createElement('p');
+      empty.className = 'iso-doc-proof-strip-title';
+      empty.style.opacity = '0.85';
+      empty.textContent = 'Aucun document listé.';
+      wrap.append(empty);
+    }
+    rows.forEach((row) => {
+      const st = row.complianceStatus || 'sans_echeance';
+      const cls = docComplianceBadgeClass(st);
       const line = document.createElement('div');
       line.className = 'iso-doc-proof-row';
       const name = document.createElement('span');
       name.className = 'iso-doc-proof-name';
       name.textContent = row.name;
       const badge = document.createElement('span');
-      badge.className = `badge ${st.cls} iso-doc-proof-badge`;
-      badge.textContent = st.label;
+      badge.className = `badge ${cls} iso-doc-proof-badge iso-doc-compliance--${st}`;
+      badge.textContent = row.complianceLabel || '—';
       line.append(name, badge);
       wrap.append(line);
     });
@@ -1126,7 +1439,8 @@ function createDocProofStrip() {
         line.className = 'iso-doc-proof-row';
         const name = document.createElement('span');
         name.className = 'iso-doc-proof-name';
-        name.textContent = `${imp.fileName} · ${imp.docTypeLabel} → ${reqBit}`;
+        const valBy = imp.validatedBy ? ` · validé ${imp.validatedBy}` : '';
+        name.textContent = `${imp.fileName} · ${imp.docTypeLabel} → ${reqBit}${valBy}`;
         const badge = document.createElement('span');
         const cls =
           imp.proofStatus === 'present' ? 'green' : imp.proofStatus === 'missing' ? 'red' : 'amber';
@@ -1218,6 +1532,16 @@ export function renderIso(onAddLog) {
   const isoMixChartHosts = { req: null };
   const isoNav = pageTopbarById.iso;
 
+  const auditReadinessEl = createAuditReadinessBanner(computeAuditReadiness(), {
+    onTreat: () => {
+      document.querySelector('.iso-page .iso-cockpit-priorities')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+      showToast('Traiter les priorités — écarts, preuves et audits.', 'info');
+    }
+  });
+
   const heroCard = document.createElement('article');
   heroCard.className = 'content-card card-soft iso-header-card iso-hub-intro iso-cockpit-hero';
   heroCard.innerHTML = `
@@ -1237,6 +1561,7 @@ export function renderIso(onAddLog) {
       </div>
       <div class="iso-cockpit-hero-actions">
         <button type="button" class="btn btn-secondary iso-hero-scroll-prio">Voir les priorités</button>
+        <button type="button" class="btn btn-secondary iso-auditor-view-btn" title="Focus écarts, preuves et statuts">Vue auditeur</button>
         <button type="button" class="btn btn-primary btn--pilotage-cta iso-prep-audit">Préparer l’audit</button>
       </div>
     </div>
@@ -1273,6 +1598,15 @@ export function renderIso(onAddLog) {
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
+  heroCard.querySelector('.iso-auditor-view-btn')?.addEventListener('click', () => {
+    page.classList.toggle('iso-page--auditor-mode');
+    const on = page.classList.contains('iso-page--auditor-mode');
+    showToast(
+      on ? 'Vue auditeur : focus sur écarts, preuves et statuts.' : 'Vue complète.',
+      'info'
+    );
+  });
+
   const aiSpotlight = document.createElement('article');
   aiSpotlight.className = 'content-card card-soft iso-ai-spotlight';
   aiSpotlight.setAttribute('aria-label', 'Assistance conformité');
@@ -1284,32 +1618,8 @@ export function renderIso(onAddLog) {
     <p class="iso-ai-lead">
       Accélérez les revues : analyse des écarts, preuves manquantes et pistes de plan d’action, puis traitement dans le registre.
     </p>
-    <div class="iso-ai-suggestion-grid" role="group" aria-label="Assistant conformité — actions suggérées">
-      <button type="button" class="btn btn-secondary iso-ai-suggestion-btn" data-iso-suggest="ecarts">Analyser les écarts</button>
-      <button type="button" class="btn btn-secondary iso-ai-suggestion-btn" data-iso-suggest="preuves">Identifier preuves manquantes</button>
-      <button type="button" class="btn btn-secondary iso-ai-suggestion-btn" data-iso-suggest="plan">Proposer plan d’action</button>
-    </div>
+    <div class="iso-ai-suggestion-grid" role="group" aria-label="Assistant conformité — actions suggérées"></div>
   `;
-
-  aiSpotlight.querySelectorAll('.iso-ai-suggestion-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-iso-suggest');
-      const messages = {
-        ecarts: 'Croiser écarts par norme et responsable — à confirmer en réunion (démo).',
-        preuves: 'Rapprocher preuves documentaires et exigences ouvertes (démo).',
-        plan: 'Ébauche de plan d’action — à formaliser et valider (démo).'
-      };
-      showToast(messages[key] || 'Piste conformité (démo).', 'info');
-      if (key === 'ecarts') {
-        document
-          .querySelector('.iso-page .iso-cockpit-priorities')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      if (key === 'preuves') {
-        document.querySelector('.iso-page .iso-docs-priority')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  });
 
   const summary0 = computeComplianceSummary();
   const globalSnapshotEl = createGlobalSnapshot(summary0);
@@ -1325,6 +1635,20 @@ export function renderIso(onAddLog) {
     if (gapEl) gapEl.textContent = String(gapsOpen);
   }
   updateHeroQuickStats();
+
+  /** @type {{ rows: object[] }} */
+  const isoMergedDocsRef = { rows: mergeControlledDocumentRows([]) };
+  const getIsoDocRows = () => isoMergedDocsRef.rows;
+
+  const registryDocImpact = createIsoRegistryComplianceBanner();
+  const docStateSummary = createDocumentStateSummaryBlock();
+  docStateSummary.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
+  registryDocImpact.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
+
+  const docTableSection = createControlledDocumentsTableSection({
+    getRows: getIsoDocRows,
+    onAddLog
+  });
 
   /** @type {{ refreshTable: () => void; onAnalyze: (row: unknown) => void }} */
   const tableCtx = {
@@ -1344,7 +1668,10 @@ export function renderIso(onAddLog) {
         evidence: row.evidence,
         status: row.status
       },
-      controlledDocuments: CONTROLLED_DOCUMENTS,
+      controlledDocuments: isoMergedDocsRef.rows.map((r) => ({
+        name: r.name,
+        version: r.version || '—'
+      })),
       siteId: appState.activeSiteId,
       onStatusCommitted: (requirementId, status, meta) => {
         void (async () => {
@@ -1370,9 +1697,56 @@ export function renderIso(onAddLog) {
     });
   };
 
-  const pilotageCtx = { refreshPilotage() {} };
-  const docsSection = createDocumentsPrioritySection(pilotageCtx, onAddLog);
-  const proofStripBundle = createDocProofStrip();
+  function refreshCopilot() {
+    const grid = aiSpotlight.querySelector('.iso-ai-suggestion-grid');
+    if (!grid) return;
+    grid.replaceChildren();
+    buildIsoCopilotSuggestions({
+      onScrollTo: (sel) => {
+        document.querySelector(`.iso-page ${sel}`)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      },
+      onOpenFirstNc: () => {
+        const nc = getRequirements().find((r) => r.status === 'non_conforme');
+        if (nc) {
+          const norm = getNormById(nc.normId);
+          tableCtx.onAnalyze({ ...nc, normCode: norm ? norm.code : nc.normId });
+        } else {
+          showToast('Aucune non-conformité ouverte sur le registre.', 'info');
+        }
+      },
+      onHash: (h) => {
+        window.location.hash = h;
+      }
+    }).forEach((item) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary iso-ai-suggestion-btn';
+      btn.textContent = item.label;
+      btn.addEventListener('click', item.onClick);
+      grid.append(btn);
+    });
+  }
+  refreshCopilot();
+
+  const pilotageCtx = { refreshPilotage: () => {} };
+  const proofStripBundle = createDocProofStrip(getIsoDocRows);
+  const docsSection = createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection);
+
+  async function syncControlledDocumentsFromApi() {
+    const api = await fetchControlledDocumentsFromApi();
+    isoMergedDocsRef.rows = mergeControlledDocumentRows(api);
+    const sum = computeDocumentRegistrySummary(isoMergedDocsRef.rows);
+    docStateSummary.update(sum);
+    registryDocImpact.update(sum);
+    docTableSection.refresh();
+    proofStripBundle.refresh();
+    void refreshDocComplianceNotifications();
+  }
+
+  void syncControlledDocumentsFromApi();
 
   const normsCard = document.createElement('article');
   normsCard.className = 'content-card card-soft iso-norms-hero-wrap iso-norms-central';
@@ -1471,11 +1845,16 @@ export function renderIso(onAddLog) {
   function refreshPilotage() {
     updateGlobalSnapshot(globalSnapshotEl, computeComplianceSummary());
     updateHeroQuickStats();
+    updateAuditReadinessBanner(auditReadinessEl, computeAuditReadiness());
     renderNormsGrid();
     refreshPrioritiesCockpit();
+    refreshCopilot();
     tableCtx.refreshTable();
     docsSection.renderAttention();
     proofStripBundle.refresh();
+    docStateSummary.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
+    registryDocImpact.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
+    docTableSection.refresh();
     paintIsoMixCharts();
   }
 
@@ -1495,7 +1874,7 @@ export function renderIso(onAddLog) {
     </div>
   `;
 
-  reqCard.append(createRequirementsTable(tableCtx));
+  reqCard.append(createRequirementsTable(tableCtx, registryDocImpact));
 
   const docsCard = document.createElement('article');
   docsCard.className = 'content-card card-soft iso-docs-hub-card';
@@ -1508,7 +1887,7 @@ export function renderIso(onAddLog) {
       </div>
     </div>
   `;
-  docsCard.append(proofStripBundle.root, docsSection.root);
+  docsCard.append(docStateSummary.root, proofStripBundle.root, docsSection.root);
 
   const reviewCard = document.createElement('article');
   reviewCard.className = 'content-card card-soft iso-review-hub-card';
@@ -1608,6 +1987,7 @@ export function renderIso(onAddLog) {
       hint: 'Le score et les écarts en tête donnent la santé globale ; les priorités listent ce qui mérite une action maintenant.',
       nextStep: 'Étape suivante : traiter les priorités, puis les normes ci-dessous — le registre détaillé reste accessible en défilant ou en mode Expert.'
     }),
+    auditReadinessEl,
     heroCard,
     priorityShell,
     focusWrap,

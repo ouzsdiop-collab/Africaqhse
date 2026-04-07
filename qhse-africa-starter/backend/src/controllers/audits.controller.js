@@ -3,7 +3,10 @@ import * as auditsService from '../services/audits.service.js';
 import * as auditAutoReport from '../services/auditAutoReport.service.js';
 import { isFinalAuditStatus } from '../services/auditAutoReport.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
-import { assertSiteExistsOrNull } from '../services/sites.service.js';
+import {
+  assertSiteExistsOrNull,
+  coalesceQuerySiteIdForList
+} from '../services/sites.service.js';
 import {
   clampTrimString,
   FIELD_LIMITS,

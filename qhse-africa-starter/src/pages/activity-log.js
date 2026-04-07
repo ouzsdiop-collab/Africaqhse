@@ -6,10 +6,13 @@ import {
   buildActivityLogDigest,
   uniqueActivityUsers,
   filterActivityLogEntries,
-  isActivityEntryCritical
+  isActivityEntryCritical,
+  pickCriticalSpotlightEntries,
+  buildJournalAnalysisLines
 } from '../components/activityLogHelpers.js';
 import { createActivityLogSummary } from '../components/activityLogSummary.js';
 import { createActivityLogRow } from '../components/activityLogRow.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 const LS_SCHEDULE = 'qhse-activity-log-schedule';
 const LS_SCOPE = 'qhse-activity-log-export-scope';
@@ -101,22 +104,29 @@ h1{font-size:16px;margin:0 0 12px}table{width:100%;border-collapse:collapse}th,t
   }
 }
 
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 export function renderActivityLog() {
   ensureActivityLogStyles();
 
   const page = document.createElement('section');
   page.className = 'page-stack activity-log-page';
+  if (localStorage.getItem(LS_CRITICAL) === '1') {
+    page.classList.add('activity-log-page--audit-view');
+  }
 
   const card = document.createElement('article');
   card.className = 'content-card card-soft';
+
+  const certStrip = document.createElement('div');
+  certStrip.className = 'activity-log-cert-strip';
+  certStrip.setAttribute('role', 'region');
+  certStrip.setAttribute('aria-label', 'Journal certifiable');
+  certStrip.innerHTML = `
+    <div class="activity-log-cert-badges">
+      <span class="activity-log-cert-badge">Journal certifiable</span>
+      <span class="activity-log-cert-badge activity-log-cert-badge--subtle">Traçabilité inviolable</span>
+    </div>
+    <p class="activity-log-cert-lead">Conforme audit ISO — historique non modifiable</p>
+  `;
 
   const headBlock = document.createElement('div');
   headBlock.className = 'content-card-head';
@@ -213,15 +223,40 @@ export function renderActivityLog() {
   btnPdf.textContent = 'Export PDF';
   exportRow.append(btnCsv, btnPdf);
 
+  const criticalSection = document.createElement('section');
+  criticalSection.className = 'activity-log-critical';
+  criticalSection.innerHTML = `
+    <div class="activity-log-critical-head">
+      <span class="activity-log-critical-title">Faits critiques</span>
+      <span class="activity-log-critical-sub">Top événements sensibles (période active)</span>
+    </div>
+    <div class="activity-log-critical-mount"></div>
+  `;
+
+  const analysisSection = document.createElement('section');
+  analysisSection.className = 'activity-log-analysis';
+  analysisSection.innerHTML = `
+    <div class="activity-log-analysis-head">
+      <span class="activity-log-analysis-title">Lecture synthétique</span>
+    </div>
+    <ul class="activity-log-analysis-list"></ul>
+  `;
+
   const summaryMount = document.createElement('div');
   summaryMount.className = 'activity-log-summary-mount';
 
   const toolbar = document.createElement('div');
   toolbar.className = 'activity-log-toolbar';
   toolbar.setAttribute('role', 'note');
+  toolbar.classList.add('activity-log-toolbar--split');
   toolbar.innerHTML = `
-    <span>Journal filtré</span>
-    <span class="activity-log-toolbar-note">Tri antichronologique · ligne cliquable vers le module · export = vue courante</span>
+    <div class="activity-log-toolbar-main">
+      <span>Journal filtré</span>
+      <span class="activity-log-toolbar-note">Tri antichronologique · ligne cliquable vers le module · export = vue courante</span>
+    </div>
+    <button type="button" class="btn btn-secondary activity-log-audit-view-btn" aria-pressed="false" title="Afficher uniquement les événements critiques">
+      Vue audit
+    </button>
   `;
 
   const tableMount = document.createElement('div');
@@ -235,9 +270,12 @@ export function renderActivityLog() {
   `;
 
   card.append(
+    certStrip,
     headBlock,
+    criticalSection,
     quickSection,
     digestEl,
+    analysisSection,
     prefsEl,
     filtersEl,
     exportRow,
@@ -271,6 +309,18 @@ export function renderActivityLog() {
     });
   }
 
+  const criticalMountEl = criticalSection.querySelector('.activity-log-critical-mount');
+  const analysisListEl = analysisSection.querySelector('.activity-log-analysis-list');
+  const auditBtn = toolbar.querySelector('.activity-log-audit-view-btn');
+
+  function syncAuditUi() {
+    page.classList.toggle('activity-log-page--audit-view', state.criticalOnly);
+    if (auditBtn) {
+      auditBtn.textContent = state.criticalOnly ? 'Vue complète' : 'Vue audit';
+      auditBtn.setAttribute('aria-pressed', state.criticalOnly ? 'true' : 'false');
+    }
+  }
+
   function refresh() {
     const all = activityLogStore.all();
     const filtered = filterActivityLogEntries(all, {
@@ -285,9 +335,51 @@ export function renderActivityLog() {
     quickSection.querySelector('[data-quick="aud"]').textContent = String(quick.audLaunched);
     quickSection.querySelector('[data-quick="crit"]').textContent = String(quick.crit);
     digestEl.textContent = buildActivityLogDigest(quick, periodLabel(state.period));
+
+    const periodBase = filterActivityLogEntries(all, {
+      period: state.period,
+      kind: 'all',
+      user: '',
+      criticalOnly: false
+    });
+    const spotlight = pickCriticalSpotlightEntries(periodBase, 3);
+    if (criticalMountEl) {
+      criticalMountEl.className = 'activity-log-critical-mount';
+      criticalMountEl.replaceChildren();
+      if (!spotlight.length) {
+        const empty = document.createElement('p');
+        empty.className = 'activity-log-critical-empty';
+        empty.setAttribute('role', 'status');
+        empty.textContent = 'Aucun événement critique ne ressort sur la période sélectionnée.';
+        criticalMountEl.append(empty);
+      } else {
+        spotlight.forEach((entry) => {
+          criticalMountEl.append(createActivityLogRow(entry));
+        });
+      }
+    }
+
+    const periodForAnalysis = filterActivityLogEntries(all, {
+      period: state.period,
+      kind: state.kind,
+      user: state.user,
+      criticalOnly: false
+    });
+    if (analysisListEl) {
+      analysisListEl.replaceChildren();
+      const snap = buildActivityLogSnapshot(periodForAnalysis);
+      buildJournalAnalysisLines(quick, snap, periodLabel(state.period)).forEach((line) => {
+        const li = document.createElement('li');
+        li.className = 'activity-log-analysis-item';
+        li.textContent = line;
+        analysisListEl.append(li);
+      });
+    }
+
     summaryMount.replaceChildren(createActivityLogSummary(buildActivityLogSnapshot(filtered)));
     tableMount.replaceChildren(createActivityLogTable(filtered));
     syncPeriodChips();
+    syncAuditUi();
   }
 
   quickSection.querySelectorAll('.activity-log-chip[data-period]').forEach((btn) => {
@@ -319,6 +411,13 @@ export function renderActivityLog() {
 
   critCb.addEventListener('change', () => {
     state.criticalOnly = critCb.checked;
+    localStorage.setItem(LS_CRITICAL, state.criticalOnly ? '1' : '0');
+    refresh();
+  });
+
+  auditBtn?.addEventListener('click', () => {
+    state.criticalOnly = !state.criticalOnly;
+    critCb.checked = state.criticalOnly;
     localStorage.setItem(LS_CRITICAL, state.criticalOnly ? '1' : '0');
     refresh();
   });

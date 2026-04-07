@@ -7,7 +7,10 @@ const DEFAULT_API_BASE = 'http://localhost:3001';
 
 function isTypicalDevStaticPort(port) {
   const p = String(port || '');
-  return p === '5173' || p === '5500' || p === '8080' || p === '3000';
+  if (p === '5500' || p === '8080' || p === '3000') return true;
+  /** Vite : 5173 par défaut, ports suivants si strictPort: false */
+  if (/^517[3-9]$/.test(p)) return true;
+  return false;
 }
 
 function isLocalDevHostname(hostname) {
@@ -49,7 +52,7 @@ export function getApiBase() {
     return devApiBaseFromPageHostname(h);
   }
   /** Vite --host (ex. 192.168.x.x:5173) : API sur la même IP. */
-  if (port === '5173' && h && !isLocalDevHostname(h)) {
+  if (isTypicalDevStaticPort(port) && /^517/.test(port) && h && !isLocalDevHostname(h)) {
     return `http://${h}:3001`;
   }
   return DEFAULT_API_BASE;

@@ -9,6 +9,32 @@ import { addWatermarkToPdf } from './documentWatermark.service.js';
 
 const CLASSIFICATIONS = new Set(['normal', 'sensible', 'critique']);
 
+const RENEW_DAYS = 30;
+
+/**
+ * @param {Date | string | null | undefined} expiresAt
+ * @returns {{ key: 'valide'|'a_renouveler'|'expire'|'sans_echeance', label: string, daysUntil: number | null }}
+ */
+export function computeDocumentComplianceStatus(expiresAt) {
+  if (expiresAt == null) {
+    return { key: 'sans_echeance', label: 'Sans échéance', daysUntil: null };
+  }
+  const end = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
+  if (Number.isNaN(end.getTime())) {
+    return { key: 'sans_echeance', label: 'Sans échéance', daysUntil: null };
+  }
+  const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const now = new Date();
+  const days = Math.round((startOf(end).getTime() - startOf(now).getTime()) / 86400000);
+  if (days < 0) {
+    return { key: 'expire', label: 'Expiré', daysUntil: days };
+  }
+  if (days <= RENEW_DAYS) {
+    return { key: 'a_renouveler', label: 'À renouveler', daysUntil: days };
+  }
+  return { key: 'valide', label: 'Valide', daysUntil: days };
+}
+
 /**
  * @param {string | null | undefined} c
  */
@@ -55,10 +81,15 @@ export function parseListFilters(query) {
 export function toPublicControlledDocument(doc) {
   if (!doc) return null;
   const { path: _path, ...rest } = doc;
+  const comp = computeDocumentComplianceStatus(doc.expiresAt);
   return {
     ...rest,
     /** Indique qu’un fichier binaire est stocké (le chemin serveur n’est jamais exposé). */
-    hasStoredFile: Boolean(_path)
+    hasStoredFile: Boolean(_path),
+    complianceStatus: comp.key,
+    complianceLabel: comp.label,
+    daysUntilExpiry: comp.daysUntil,
+    renewWithinDays: RENEW_DAYS
   };
 }
 
@@ -100,7 +131,9 @@ export async function getControlledDocumentById(id) {
  *   fdsProductRef?: string | null,
  *   isoRequirementRef?: string | null,
  *   riskRef?: string | null,
- *   complianceTag?: string | null
+ *   complianceTag?: string | null,
+ *   expiresAt?: Date | string | null,
+ *   responsible?: string | null
  * }} meta
  */
 export async function createControlledDocument(buffer, meta) {
@@ -108,6 +141,16 @@ export async function createControlledDocument(buffer, meta) {
     originalName: meta.name || 'document'
   });
   const classification = normalizeClassification(meta.classification);
+  let expiresAt = null;
+  if (meta.expiresAt != null && String(meta.expiresAt).trim() !== '') {
+    const d = meta.expiresAt instanceof Date ? meta.expiresAt : new Date(String(meta.expiresAt));
+    expiresAt = Number.isNaN(d.getTime()) ? null : d;
+  }
+  const responsible =
+    meta.responsible != null && String(meta.responsible).trim()
+      ? String(meta.responsible).trim().slice(0, 200)
+      : null;
+
   const row = await prisma.controlledDocument.create({
     data: {
       name: String(meta.name || 'Sans titre').slice(0, 500),
@@ -122,10 +165,55 @@ export async function createControlledDocument(buffer, meta) {
       fdsProductRef: meta.fdsProductRef ? String(meta.fdsProductRef).slice(0, 200) : null,
       isoRequirementRef: meta.isoRequirementRef ? String(meta.isoRequirementRef).slice(0, 200) : null,
       riskRef: meta.riskRef ? String(meta.riskRef).slice(0, 200) : null,
-      complianceTag: meta.complianceTag ? String(meta.complianceTag).slice(0, 200) : null
+      complianceTag: meta.complianceTag ? String(meta.complianceTag).slice(0, 200) : null,
+      expiresAt,
+      responsible
     }
   });
   return row;
+}
+
+/**
+ * @param {string} id
+ * @param {{
+ *   expiresAt?: Date | string | null,
+ *   responsible?: string | null,
+ *   name?: string | null,
+ *   type?: string | null
+ * }} patch
+ */
+export async function updateControlledDocumentMeta(id, patch) {
+  const data = {};
+  if ('expiresAt' in patch) {
+    if (patch.expiresAt == null || String(patch.expiresAt).trim() === '') {
+      data.expiresAt = null;
+    } else {
+      const d =
+        patch.expiresAt instanceof Date ? patch.expiresAt : new Date(String(patch.expiresAt));
+      data.expiresAt = Number.isNaN(d.getTime()) ? null : d;
+    }
+  }
+  if ('responsible' in patch) {
+    data.responsible =
+      patch.responsible == null || String(patch.responsible).trim() === ''
+        ? null
+        : String(patch.responsible).trim().slice(0, 200);
+  }
+  if (patch.name != null && String(patch.name).trim()) {
+    data.name = String(patch.name).trim().slice(0, 500);
+  }
+  if (patch.type != null && String(patch.type).trim()) {
+    data.type = String(patch.type).trim().slice(0, 120);
+  }
+  if (Object.keys(data).length === 0) {
+    const err = new Error('Aucun champ à mettre à jour');
+    err.statusCode = 400;
+    throw err;
+  }
+  return prisma.controlledDocument.update({
+    where: { id },
+    data
+  });
 }
 
 /**

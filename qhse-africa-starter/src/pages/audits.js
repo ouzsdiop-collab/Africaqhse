@@ -14,6 +14,26 @@ import { createAuditFieldMode } from '../components/auditFieldMode.js';
 import { fetchUsers } from '../services/users.service.js';
 import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import {
+  ensureAuditPremiumSaaSStyles,
+  createAuditTerrainWorkflowStrip,
+  downloadAuditIsoPdfFromHtml,
+  buildAuditIsoPdfHtml
+} from '../components/auditPremiumSaaS.js';
+import {
+  ensureAuditExpertUxStyles,
+  createAuditExpertCockpitBlock,
+  createExigenceHeatmap,
+  createProcessScoresBlock,
+  attachModeDirectionButton,
+  runAuditExpertAlerts,
+  buildAuditTimeline,
+  openAuditExcelImportModal,
+  enhanceAuditAssistantCard
+} from '../components/auditExpertUx.js';
+import { createAuditDocumentComplianceStrip } from '../components/auditDocumentComplianceStrip.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
+import { linkModules } from '../services/moduleLinks.service.js';
 
 /** Données mock — module Audits (cockpit) */
 const AUDITS_RETARD_COUNT = 2;
@@ -27,10 +47,30 @@ const AUDIT_PROOFS = [
 ];
 
 const AUDIT_PRIORITY_LINES = [
-  { label: 'NC critiques', detail: '2 écarts majeurs liés au dernier audit — pilotage plan d’actions' },
-  { label: 'Audits à préparer', detail: 'AUD-P-021 (08/04) — dossier preuves incomplet' },
-  { label: 'Preuves manquantes', detail: '3 pièces signalées sur le périmètre stockage' },
-  { label: 'Actions urgentes', detail: `${ACTIONS_RETARD_COUNT} actions en retard < 15 j (lien module Actions)` }
+  {
+    label: 'NC critiques',
+    detail:
+      '2 écarts majeurs sur le dernier audit — escalade direction et plan d’actions prioritaire.'
+  },
+  {
+    label: 'Preuves manquantes',
+    detail: `${AUDIT_PROOFS.filter((p) => p.status === 'missing').length} pièce(s) sans justificatif — compléter le dossier probatoire.`
+  },
+  {
+    label: 'Audits en retard',
+    detail: `${AUDITS_RETARD_COUNT} position(s) à reprogrammer — consulter le planning et les alertes.`
+  }
+];
+
+/** Maquette gravité NC — cockpit expert */
+const AUDIT_NC_MAJEURES = 2;
+const AUDIT_NC_MINEURES = 3;
+
+/** Scores par domaine (mock pilotage) */
+const AUDIT_PROCESS_DOMAIN_SCORES = [
+  { domain: 'Management', score: 82 },
+  { domain: 'Terrain', score: 74 },
+  { domain: 'Environnement', score: 71 }
 ];
 
 const COCKPIT_CYCLE_LABELS = [
@@ -595,11 +635,17 @@ function createChecklistRow(item) {
 /**
  * Constat + bandeau validation humaine (maquette locale — pas d’API).
  * @param {{ point: string; conforme: boolean; proofRef?: string }} item
+ * @param {ReturnType<typeof getSessionUser>} [sessionUser]
+ * @param {{ bumpScore?: (delta: number) => void }} [hooks]
  */
-function createConstatHumanRow(item) {
+function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   const wrap = document.createElement('div');
   wrap.className = 'audit-constat-human audit-constat-human--compact';
+  if (exigenceIndex != null && Number.isFinite(Number(exigenceIndex))) {
+    wrap.id = `audit-exigence-${exigenceIndex}`;
+  }
   const ok = Boolean(item?.conforme);
+  const su = sessionUser || null;
 
   const top = document.createElement('div');
   top.className = 'audit-checklist-compact-top';
@@ -624,6 +670,83 @@ function createConstatHumanRow(item) {
   treatBtn.setAttribute('aria-expanded', 'false');
   top.append(pointEl, badge, proofEl, treatBtn);
 
+  const exRow = document.createElement('div');
+  exRow.className = 'audit-constat-ex-actions';
+  const bProof = document.createElement('button');
+  bProof.type = 'button';
+  bProof.className = 'btn btn-secondary';
+  bProof.textContent = 'Ajouter preuve';
+  bProof.addEventListener('click', () => {
+    showToast('Preuve ajoutée au dossier (maquette locale).', 'info');
+    hooks?.bumpScore?.(0.3);
+    activityLogStore.add({
+      module: 'audits',
+      action: 'Ajout preuve sur exigence',
+      detail: String(item.point || '').slice(0, 100),
+      user: su?.name || su?.email || 'Auditeur'
+    });
+  });
+  const bConst = document.createElement('button');
+  bConst.type = 'button';
+  bConst.className = 'btn btn-secondary';
+  bConst.textContent = 'Ajouter constat';
+  bConst.addEventListener('click', () => {
+    showToast('Constat complémentaire enregistré (maquette).', 'info');
+    activityLogStore.add({
+      module: 'audits',
+      action: 'Constat complémentaire',
+      detail: String(item.point || '').slice(0, 100),
+      user: su?.name || su?.email || 'Auditeur'
+    });
+  });
+  const sevWrap = document.createElement('div');
+  sevWrap.className = 'audit-severity-toggle';
+  sevWrap.setAttribute('role', 'group');
+  sevWrap.setAttribute('aria-label', 'Gravité');
+  let severity = 'mineur';
+  const bMin = document.createElement('button');
+  bMin.type = 'button';
+  bMin.textContent = 'Mineur';
+  bMin.className = 'audit-severity--on';
+  const bMaj = document.createElement('button');
+  bMaj.type = 'button';
+  bMaj.textContent = 'Majeur';
+  function paintSev() {
+    bMin.classList.toggle('audit-severity--on', severity === 'mineur');
+    bMaj.classList.toggle('audit-severity--on', severity === 'majeur');
+  }
+  bMin.addEventListener('click', () => {
+    severity = 'mineur';
+    paintSev();
+  });
+  bMaj.addEventListener('click', () => {
+    severity = 'majeur';
+    paintSev();
+  });
+  sevWrap.append(bMin, bMaj);
+  const bLink = document.createElement('button');
+  bLink.type = 'button';
+  bLink.className = 'text-button';
+  bLink.style.fontWeight = '700';
+  bLink.textContent = 'Lier action';
+  bLink.addEventListener('click', () => {
+    linkModules({
+      fromModule: 'audits',
+      fromId: String(item.point || 'nc'),
+      toModule: 'risks',
+      toId: `risk_from_audit_${String(item.point || 'nc')}`,
+      kind: 'audit_nc_to_risk'
+    });
+    window.location.hash = 'risks';
+    activityLogStore.add({
+      module: 'audits',
+      action: 'Liaison action depuis constat',
+      detail: String(item.point || '').slice(0, 80),
+      user: su?.name || su?.email || 'Auditeur'
+    });
+  });
+  exRow.append(bProof, bConst, sevWrap, bLink);
+
   const strip = document.createElement('div');
   strip.className = 'audit-human-strip audit-human-strip--collapsible';
   strip.hidden = true;
@@ -638,6 +761,25 @@ function createConstatHumanRow(item) {
 
   const actions = document.createElement('div');
   actions.className = 'audit-human-actions';
+
+  const traceWrap = document.createElement('div');
+  traceWrap.className = 'audit-human-trace';
+  const traceHint = document.createElement('p');
+  traceHint.className = 'audit-human-validation-legend';
+  traceHint.style.marginBottom = '6px';
+  traceHint.textContent =
+    'Traçabilité décision — renseignez un commentaire puis validez (utilisateur et date après action).';
+  const traceUser = document.createElement('p');
+  traceUser.className = 'audit-human-trace-meta';
+  traceUser.textContent = 'Utilisateur : —';
+  const traceDate = document.createElement('p');
+  traceDate.className = 'audit-human-trace-meta';
+  traceDate.textContent = 'Date : —';
+  const traceComment = document.createElement('textarea');
+  traceComment.className = 'audit-human-trace-comment';
+  traceComment.setAttribute('aria-label', 'Commentaire de traçabilité');
+  traceComment.placeholder = 'Commentaire (obligatoire en certification ISO — contexte de la décision)';
+  traceWrap.append(traceHint, traceUser, traceDate, traceComment);
 
   /** @type {'pending'|'validated'|'adjusted'|'rejected'} */
   let vState = 'pending';
@@ -662,12 +804,15 @@ function createConstatHumanRow(item) {
     b.addEventListener('click', () => {
       vState = next;
       paintStatus();
+      traceUser.textContent = `Utilisateur : ${su?.name || su?.email || 'Auditeur'}`;
+      traceDate.textContent = `Date : ${new Date().toLocaleString('fr-FR')}`;
       showToast(`Suggestion / constat — ${labels[next]} (maquette, validation humaine).`, 'info');
+      hooks?.bumpScore?.(next === 'validated' ? 0.4 : next === 'adjusted' ? 0.2 : -0.3);
       activityLogStore.add({
         module: 'audits',
         action: `Validation constat : ${labels[next]}`,
-        detail: String(item.point || '').slice(0, 80),
-        user: 'Auditeur'
+        detail: `${String(item.point || '').slice(0, 60)} · ${traceComment.value ? traceComment.value.slice(0, 120) : 'sans commentaire'}`,
+        user: su?.name || su?.email || 'Auditeur'
       });
     });
     return b;
@@ -678,14 +823,14 @@ function createConstatHumanRow(item) {
     wireBtn('Ajuster', 'adjusted'),
     wireBtn('Rejeter', 'rejected')
   );
-  strip.append(legend, statusEl, actions);
+  strip.append(legend, statusEl, actions, traceWrap);
 
   treatBtn.addEventListener('click', () => {
     strip.hidden = !strip.hidden;
     treatBtn.setAttribute('aria-expanded', strip.hidden ? 'false' : 'true');
   });
 
-  wrap.append(top, strip);
+  wrap.append(top, exRow, strip);
   return wrap;
 }
 
@@ -699,6 +844,52 @@ function proofBadgeLabel(st) {
   if (st === 'present') return 'Présent';
   if (st === 'missing') return 'Manquant';
   return 'À vérifier';
+}
+
+/**
+ * Ligne tableau NC + bouton risque (maquette — hash module Risques).
+ * @param {HTMLElement} treatmentTable
+ * @param {{ nc: string; action: string; owner: string; due: string }} r
+ * @param {ReturnType<typeof getSessionUser> | null} su
+ */
+function appendTreatmentRowWithRisk(treatmentTable, r, su) {
+  const line = document.createElement('div');
+  line.className = 'audit-iso-treatment-row';
+  line.setAttribute('role', 'row');
+  const ncCell = document.createElement('span');
+  ncCell.setAttribute('role', 'cell');
+  ncCell.setAttribute('data-label', 'NC');
+  const ncStrong = document.createElement('strong');
+  ncStrong.textContent = r.nc;
+  const riskBtn = document.createElement('button');
+  riskBtn.type = 'button';
+  riskBtn.className = 'btn btn-secondary audit-nc-risk-btn';
+  riskBtn.textContent = 'Créer risque associé';
+  riskBtn.addEventListener('click', () => {
+    window.location.hash = 'risks';
+    showToast('Module Risques — liaison NC (maquette locale).', 'info');
+    activityLogStore.add({
+      module: 'audits',
+      action: 'Créer risque associé depuis NC audit',
+      detail: r.nc,
+      user: su?.name || 'Utilisateur'
+    });
+  });
+  ncCell.append(ncStrong, riskBtn);
+  const a = document.createElement('span');
+  a.setAttribute('role', 'cell');
+  a.setAttribute('data-label', 'Action');
+  a.textContent = r.action;
+  const o = document.createElement('span');
+  o.setAttribute('role', 'cell');
+  o.setAttribute('data-label', 'Responsable');
+  o.textContent = r.owner;
+  const d = document.createElement('span');
+  d.setAttribute('role', 'cell');
+  d.setAttribute('data-label', 'Échéance');
+  d.textContent = r.due;
+  line.append(ncCell, a, o, d);
+  treatmentTable.append(line);
 }
 
 function createPlanningTable() {
@@ -720,15 +911,36 @@ function createPlanningTable() {
 
   PLANNED_AUDITS.forEach((row) => {
     const line = document.createElement('div');
-    line.className = 'audit-plan-row';
+    line.className = 'audit-plan-row audit-plan-row--click';
+    line.setAttribute('role', 'button');
+    line.tabIndex = 0;
+    line.setAttribute('aria-label', `Aller au pilotage — ${row.ref}`);
     const stClass = statutBadgeClass(row.statut);
     line.innerHTML = `
-      <span class="audit-plan-ref" data-label="Réf.">${row.ref}</span>
-      <span data-label="Site">${row.site}</span>
-      <span data-label="Auditeur">${row.auditeur}</span>
-      <span data-label="Date">${row.date}</span>
-      <span data-label="Statut"><span class="badge ${stClass}">${row.statut}</span></span>
+      <span class="audit-plan-ref" data-label="Réf.">${escapeHtml(row.ref)}</span>
+      <span data-label="Site">${escapeHtml(row.site)}</span>
+      <span data-label="Auditeur">${escapeHtml(row.auditeur)}</span>
+      <span data-label="Date">${escapeHtml(row.date)}</span>
+      <span data-label="Statut"><span class="badge ${stClass}">${escapeHtml(row.statut)}</span></span>
     `;
+    const goPilotage = () => {
+      document
+        .getElementById('audit-cockpit-tier-critical')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      activityLogStore.add({
+        module: 'audits',
+        action: 'Navigation depuis planning audit',
+        detail: row.ref,
+        user: 'Utilisateur'
+      });
+    };
+    line.addEventListener('click', goPilotage);
+    line.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        goPilotage();
+      }
+    });
     table.append(line);
   });
 
@@ -741,6 +953,8 @@ export function renderAudits() {
   ensureAuditPlusStyles();
   ensureQhsePilotageStyles();
   ensureDashboardStyles();
+  ensureAuditPremiumSaaSStyles();
+  ensureAuditExpertUxStyles();
 
   const su = getSessionUser();
   const canAuditWrite = canResource(su?.role, 'audits', 'write');
@@ -753,6 +967,16 @@ export function renderAudits() {
   const page = document.createElement('section');
   page.className =
     'page-stack audit-products-page audit-plus-page audit-cockpit-page audit-premium-page';
+
+  /** Ajustement local du score affiché (démo, pas d’écriture serveur). */
+  let scoreAdjust = 0;
+  function bumpScore(delta) {
+    scoreAdjust += delta;
+    scoreAdjust = Math.max(-12, Math.min(12, scoreAdjust));
+    updateScoreUi();
+  }
+  /** @type {(() => void) | null} */
+  let updateScoreUi = null;
 
   const importDraft = readImportDraft();
   const importDraftEl =
@@ -781,6 +1005,53 @@ export function renderAudits() {
       detail: 'Checklist interactive — maquette',
       user: 'Auditeur terrain'
     });
+  }
+
+  function openAuditTerrainSimplified() {
+    page.classList.add('audit-premium-page--terrain');
+    document.querySelector('.audit-cockpit-checklist')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+    showToast('Audit terrain : focus checklist — étapes ci-dessus.', 'info');
+    activityLogStore.add({
+      module: 'audits',
+      action: 'Lancer audit terrain (parcours)',
+      detail: 'Vue simplifiée — démo',
+      user: su?.name || 'Auditeur'
+    });
+  }
+
+  async function generateAuditIsoClientPdf() {
+    try {
+      const curScore = Math.min(
+        100,
+        Math.max(0, Math.round(LAST_AUDIT.score + scoreAdjust))
+      );
+      const html = buildAuditIsoPdfHtml({
+        auditRef: LAST_AUDIT.ref,
+        site: LAST_AUDIT.site,
+        auditeur: LAST_AUDIT.auditeur,
+        date: LAST_AUDIT.date,
+        score: curScore,
+        checklist: CHECKLIST,
+        proofs: AUDIT_PROOFS.map((p) => ({ name: p.name, status: p.status })),
+        treatmentRows: AUDIT_TREATMENT_ROWS,
+        traceRows: AUDIT_TRACE_ROWS,
+        signerName: su?.name || 'Responsable audit'
+      });
+      await downloadAuditIsoPdfFromHtml(html, `audit-iso-${LAST_AUDIT.ref}`);
+      showToast('PDF ISO complet généré (local, html2pdf).', 'info');
+      activityLogStore.add({
+        module: 'audits',
+        action: 'Export PDF ISO complet (html2pdf)',
+        detail: LAST_AUDIT.ref,
+        user: su?.name || 'Utilisateur'
+      });
+    } catch (e) {
+      console.error(e);
+      showToast('Génération PDF locale impossible.', 'error');
+    }
   }
 
   async function generateAuditPdfReport() {
@@ -870,7 +1141,19 @@ export function renderAudits() {
   const checklistConformeCount = CHECKLIST.filter((c) => c.conforme).length;
   const checklistNcPoints = CHECKLIST.length - checklistConformeCount;
   const checklistPartialCount = CHECKLIST.filter((c) => c.partial === true).length;
+  const chartConformeStrict = CHECKLIST.filter((c) => c.conforme && !c.partial).length;
+  const chartNcOnly = CHECKLIST.filter((c) => !c.conforme).length;
   const auditActionsGeneratedCount = LAST_AUDIT.ncCount + AUDIT_TREATMENT_ROWS.length + 2;
+
+  const auditExpertCockpitBlock = createAuditExpertCockpitBlock({
+    score: LAST_AUDIT.score,
+    ncMajeures: AUDIT_NC_MAJEURES,
+    ncMineures: AUDIT_NC_MINEURES,
+    preuvesManquantes: AUDIT_PROOFS.filter((p) => p.status === 'missing').length,
+    actionsCritiques: ACTIONS_RETARD_COUNT,
+    chartLabels: ['Conforme', 'Partiel', 'NC'],
+    chartValues: [chartConformeStrict, checklistPartialCount, chartNcOnly]
+  });
 
   const heroCard = document.createElement('article');
   heroCard.className = 'content-card card-soft audit-premium-header';
@@ -880,24 +1163,24 @@ export function renderAudits() {
         <div class="audit-iso-pilot-bar__main">
           <div class="audit-iso-pilot-bar__title-block">
             <div class="section-kicker audit-premium-header__kicker">Audit documenté</div>
-            <h3 class="audit-premium-header__title">${LAST_AUDIT.ref}</h3>
+            <h3 class="audit-premium-header__title">${escapeHtml(LAST_AUDIT.ref)}</h3>
           </div>
           <dl class="audit-iso-pilot-bar__meta" aria-label="Fiche d’identification audit">
             <div class="audit-iso-pilot-bar__meta-item">
               <dt>Référentiel</dt>
-              <dd>${AUDIT_REFERENTIEL_LABEL}</dd>
+              <dd>${escapeHtml(AUDIT_REFERENTIEL_LABEL)}</dd>
             </div>
             <div class="audit-iso-pilot-bar__meta-item">
               <dt>Site</dt>
-              <dd>${LAST_AUDIT.site}</dd>
+              <dd>${escapeHtml(LAST_AUDIT.site)}</dd>
             </div>
             <div class="audit-iso-pilot-bar__meta-item">
               <dt>Auditeur</dt>
-              <dd>${LAST_AUDIT.auditeur}</dd>
+              <dd>${escapeHtml(LAST_AUDIT.auditeur)}</dd>
             </div>
             <div class="audit-iso-pilot-bar__meta-item">
               <dt>Date</dt>
-              <dd>${LAST_AUDIT.date}</dd>
+              <dd>${escapeHtml(LAST_AUDIT.date)}</dd>
             </div>
             <div class="audit-iso-pilot-bar__meta-item">
               <dt>Statut</dt>
@@ -905,7 +1188,7 @@ export function renderAudits() {
             </div>
           </dl>
           <div class="audit-premium-header__score" aria-label="Score global">
-            <span class="audit-premium-header__score-val">${LAST_AUDIT.score}%</span>
+            <span class="audit-premium-header__score-val">${escapeHtml(LAST_AUDIT.score)}%</span>
             <span class="audit-premium-header__score-lbl">Score global</span>
           </div>
         </div>
@@ -917,9 +1200,9 @@ export function renderAudits() {
       <div class="audit-premium-header__progress-wrap" aria-label="Avancement traitement des constats">
         <div class="audit-premium-header__progress-top">
           <span>Progression constats</span>
-          <span>${LAST_AUDIT.progress}%</span>
+          <span>${escapeHtml(LAST_AUDIT.progress)}%</span>
         </div>
-        <div class="audit-progress-bar audit-premium-header__progress-bar"><span style="width:${LAST_AUDIT.progress}%"></span></div>
+        <div class="audit-progress-bar audit-premium-header__progress-bar"><span style="width:${Math.max(0, Math.min(100, Number(LAST_AUDIT.progress) || 0))}%"></span></div>
       </div>
     </div>
   `;
@@ -930,6 +1213,13 @@ export function renderAudits() {
   heroLaunch.textContent = 'Lancer un audit';
   heroLaunch.addEventListener('click', openAuditTerrain);
   if (!canAuditWrite && su) heroLaunch.style.display = 'none';
+  const heroTerrain = document.createElement('button');
+  heroTerrain.type = 'button';
+  heroTerrain.className = 'btn btn-secondary';
+  heroTerrain.textContent = 'Lancer audit terrain';
+  heroTerrain.title = 'Checklist, parcours simplifié, étapes terrain';
+  heroTerrain.addEventListener('click', openAuditTerrainSimplified);
+  if (!canAuditWrite && su) heroTerrain.style.display = 'none';
   const heroPdf = document.createElement('button');
   heroPdf.type = 'button';
   heroPdf.className = 'btn btn-secondary';
@@ -938,13 +1228,46 @@ export function renderAudits() {
     void generateAuditPdfReport();
   });
   if (!canReportRead && su) heroPdf.style.display = 'none';
-  heroCtasHost?.append(heroLaunch, heroPdf);
+  const heroPdfIso = document.createElement('button');
+  heroPdfIso.type = 'button';
+  heroPdfIso.className = 'btn btn-secondary';
+  heroPdfIso.textContent = 'PDF ISO (complet)';
+  heroPdfIso.title = 'Checklist, preuves, NC, actions, signature — html2pdf';
+  heroPdfIso.addEventListener('click', () => {
+    void generateAuditIsoClientPdf();
+  });
+  if (!canReportRead && su) heroPdfIso.style.display = 'none';
+
+  const scoreHost = heroCard.querySelector('.audit-premium-header__score');
+  const scoreDeltaEl = document.createElement('span');
+  scoreDeltaEl.className = 'audit-score-delta';
+  scoreHost?.append(scoreDeltaEl);
+
+  updateScoreUi = () => {
+    const base = LAST_AUDIT.score;
+    const cur = Math.min(100, Math.max(0, Math.round(base + scoreAdjust)));
+    const valEl = heroCard.querySelector('.audit-premium-header__score-val');
+    if (valEl) valEl.textContent = `${cur}%`;
+    const diff = cur - base;
+    if (scoreDeltaEl) {
+      scoreDeltaEl.textContent =
+        diff === 0 ? '±0%' : diff > 0 ? `+${diff}%` : `${diff}%`;
+      scoreDeltaEl.classList.remove('audit-score-delta--up', 'audit-score-delta--down');
+      if (diff > 0) scoreDeltaEl.classList.add('audit-score-delta--up');
+      else if (diff < 0) scoreDeltaEl.classList.add('audit-score-delta--down');
+    }
+  };
+  updateScoreUi();
+
+  heroCtasHost?.append(heroLaunch, heroTerrain, heroPdf, heroPdfIso);
+  attachModeDirectionButton(page, heroCtasHost);
 
   const notifCard = createAuditIntelligentNotificationsCard({
     canAuditWrite,
     su,
     model: auditNotifModel
   });
+  notifCard.classList.add('audit-expert-hide-direction');
 
   const conformitySummary = document.createElement('div');
   conformitySummary.className = 'audit-iso-conformity-row';
@@ -1038,7 +1361,25 @@ export function renderAudits() {
       downloadAuditPlanActionsCsv();
     })();
   });
-  exportActionsHost?.append(exportConstatsBtn, exportPlanBtn);
+  const exportExcelBtn = document.createElement('button');
+  exportExcelBtn.type = 'button';
+  exportExcelBtn.className = 'btn btn-secondary';
+  exportExcelBtn.textContent = 'Importer audit Excel';
+  exportExcelBtn.addEventListener('click', () => {
+    openAuditExcelImportModal((data) => {
+      showToast(
+        `Import prêt : ${data.exigences.length} exig. · ${data.ncs.length} NC · ${data.preuves.length} preuves (aperçu local).`,
+        'info'
+      );
+      activityLogStore.add({
+        module: 'audits',
+        action: 'Import Excel audit (preview)',
+        detail: 'Validation locale — maquette',
+        user: su?.name || 'Utilisateur'
+      });
+    });
+  });
+  exportActionsHost?.append(exportConstatsBtn, exportPlanBtn, exportExcelBtn);
 
   const auditTrendCard = document.createElement('article');
   auditTrendCard.className = 'content-card card-soft audit-cockpit-chart-card audit-premium-chart-card';
@@ -1065,7 +1406,7 @@ export function renderAudits() {
     const cur = Math.round(Math.max(0, Math.min(100, Number(LAST_AUDIT.score) || 0)));
     const d = cur - cockpitPrevScore;
     const sign = d > 0 ? '+' : '';
-    deltaStrip.innerHTML = `<strong>${sign}${d} pts</strong> vs audit précédent (${cockpitPrevScore}% → ${cur}%).`;
+    deltaStrip.innerHTML = `<strong>${escapeHtml(sign)}${escapeHtml(d)} pts</strong> vs audit précédent (${escapeHtml(cockpitPrevScore)}% → ${escapeHtml(cur)}%).`;
   }
   auditTrendBody.append(deltaStrip);
   auditTrendCard.append(auditTrendBody);
@@ -1079,7 +1420,7 @@ export function renderAudits() {
     let cls = 'audit-cockpit-step';
     if (i < COCKPIT_CYCLE_ACTIVE) cls += ' audit-cockpit-step--done';
     else if (i === COCKPIT_CYCLE_ACTIVE) cls += ' audit-cockpit-step--active';
-    return `<div class="${cls}" role="listitem">${lab}</div>`;
+    return `<div class="${cls}" role="listitem">${escapeHtml(lab)}</div>`;
   }).join('');
 
   cockpitCard.innerHTML = `
@@ -1087,18 +1428,18 @@ export function renderAudits() {
       <div>
         <div class="section-kicker">Pilotage</div>
         <h3>Synthèse opérationnelle</h3>
-        <p class="content-card-lead audit-last-lead">${LAST_AUDIT.ref} · cycle de correction</p>
+        <p class="content-card-lead audit-last-lead">${escapeHtml(LAST_AUDIT.ref)} · cycle de correction</p>
       </div>
     </div>
     <div class="audit-premium-cockpit__body">
       <div class="audit-cockpit-metrics audit-premium-cockpit__metrics">
-        <div class="audit-cockpit-metric"><span>NC (audit)</span><span>${LAST_AUDIT.ncCount}</span></div>
+        <div class="audit-cockpit-metric"><span>NC (audit)</span><span>${escapeHtml(LAST_AUDIT.ncCount)}</span></div>
         <div class="audit-cockpit-metric"><span>Référentiels</span><span class="audit-premium-cockpit__iso">9001 · 14001 · 45001</span></div>
       </div>
       <div class="audit-cockpit-cycle">
         <p class="audit-cockpit-cycle__label">Cycle contrôle &amp; correction</p>
         <div class="audit-cockpit-stepper" role="list">${stepperHtml}</div>
-        <p class="audit-cockpit-cycle-progress">Phase active : <strong>${COCKPIT_CYCLE_LABELS[COCKPIT_CYCLE_ACTIVE]}</strong></p>
+        <p class="audit-cockpit-cycle-progress">Phase active : <strong>${escapeHtml(COCKPIT_CYCLE_LABELS[COCKPIT_CYCLE_ACTIVE])}</strong></p>
       </div>
     </div>
     <div class="audit-cockpit-ctas" data-audit-cockpit-ctas></div>
@@ -1229,8 +1570,55 @@ export function renderAudits() {
     });
   }
 
+  enhanceAuditAssistantCard(
+    iaCard,
+    {
+      missingProofs: AUDIT_PROOFS.filter((p) => p.status === 'missing').length,
+      criticalNc: AUDIT_NC_MAJEURES,
+      recommendations: [
+        'Consolider le dossier probatoire avant la prochaine visite certification.',
+        'Aligner le plan d’actions sur les écarts ISO 14001 identifiés au cockpit.'
+      ]
+    },
+    {
+      onPlan: () => {
+        showToast('Plan d’action structuré — brouillon affiché (maquette).', 'info');
+        document.getElementById('audit-iso-tier-treatment')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+        activityLogStore.add({
+          module: 'audits',
+          action: 'IA — Générer plan d’action',
+          detail: LAST_AUDIT.ref,
+          user: su?.name || 'Utilisateur'
+        });
+      },
+      onReport: () => {
+        void generateAuditIsoClientPdf();
+      },
+      onPrior: () => {
+        document.getElementById('audit-cockpit-tier-critical')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+        showToast('Priorisation : NC critiques et retards (zone « Priorités audit »).', 'info');
+        activityLogStore.add({
+          module: 'audits',
+          action: 'IA — Prioriser',
+          detail: 'Scroll cockpit',
+          user: su?.name || 'Utilisateur'
+        });
+      }
+    }
+  );
+
   const prioCard = document.createElement('article');
-  prioCard.className = 'content-card card-soft audit-cockpit-prio audit-premium-nc';
+  prioCard.className =
+    'content-card card-soft audit-cockpit-prio audit-premium-nc audit-prio-audit-block';
+  if (AUDIT_NC_MAJEURES > 0) {
+    prioCard.classList.add('audit-cockpit-prio--expert-highlight');
+  }
   const prioList = document.createElement('ul');
   prioList.className = 'audit-premium-nc__list';
   AUDIT_PRIORITY_LINES.forEach((line) => {
@@ -1246,9 +1634,9 @@ export function renderAudits() {
   prioCard.innerHTML = `
     <div class="content-card-head content-card-head--tight">
       <div>
-        <div class="section-kicker">Non-conformités</div>
-        <h3>Points critiques &amp; priorités</h3>
-        <p class="audit-cockpit-prio__lead">Vue priorisée — plan d’actions module Actions.</p>
+        <div class="section-kicker">Pilotage</div>
+        <h3>Priorités audit</h3>
+        <p class="audit-cockpit-prio__lead">NC critiques, preuves manquantes, audits en retard — liens opérationnels ci-dessous.</p>
       </div>
     </div>
   `;
@@ -1266,6 +1654,7 @@ export function renderAudits() {
   prioCard.append(prioFoot);
 
   const planCard = document.createElement('article');
+  planCard.id = 'audit-cockpit-planning-block';
   planCard.className = 'content-card card-soft audit-plan-card audit-plan-card--cockpit';
   planCard.innerHTML = `
     <div class="content-card-head content-card-head--tight">
@@ -1294,6 +1683,7 @@ export function renderAudits() {
   if (!canAuditWrite && su) planBtn.style.display = 'none';
   planActions.append(planBtn);
   planCard.append(planActions);
+  planCard.classList.add('audit-expert-hide-direction');
 
   const treatmentCard = document.createElement('article');
   treatmentCard.className =
@@ -1323,16 +1713,7 @@ export function renderAudits() {
   `;
   treatmentTable.append(treatmentHead);
   AUDIT_TREATMENT_ROWS.forEach((r) => {
-    const line = document.createElement('div');
-    line.className = 'audit-iso-treatment-row';
-    line.setAttribute('role', 'row');
-    line.innerHTML = `
-      <span role="cell" data-label="NC">${r.nc}</span>
-      <span role="cell" data-label="Action">${r.action}</span>
-      <span role="cell" data-label="Responsable">${r.owner}</span>
-      <span role="cell" data-label="Échéance">${r.due}</span>
-    `;
-    treatmentTable.append(line);
+    appendTreatmentRowWithRisk(treatmentTable, r, su);
   });
   treatmentCard.append(treatmentTable);
 
@@ -1344,18 +1725,23 @@ export function renderAudits() {
     <div class="content-card-head content-card-head--tight">
       <div>
         <div class="section-kicker">Constats / checklist</div>
-        <h3>Exigences — ${LAST_AUDIT.ref}</h3>
+        <h3>Exigences — ${escapeHtml(LAST_AUDIT.ref)}</h3>
         <p class="content-card-lead audit-premium-checklist__legend">Point, statut, preuve, validation.</p>
       </div>
     </div>
   `;
+  const checklistHeatmap = createExigenceHeatmap(CHECKLIST);
   const checklistStack = document.createElement('div');
   checklistStack.className = 'stack audit-premium-checklist-stack';
-  CHECKLIST.forEach((item) => checklistStack.append(createConstatHumanRow(item)));
-  checklistCard.append(checklistStack);
+  CHECKLIST.forEach((item, idx) =>
+    checklistStack.append(createConstatHumanRow(item, su, { bumpScore }, idx))
+  );
+  checklistCard.append(checklistHeatmap, checklistStack);
 
   const rightStack = document.createElement('div');
   rightStack.className = 'audit-right-stack';
+
+  const processScoresCard = createProcessScoresBlock(AUDIT_PROCESS_DOMAIN_SCORES);
 
   const historyCard = document.createElement('article');
   historyCard.className = 'content-card card-soft audit-cockpit-history audit-premium-history';
@@ -1363,25 +1749,32 @@ export function renderAudits() {
     <div class="content-card-head content-card-head--tight">
       <div>
         <div class="section-kicker">Historique</div>
-        <h3>Scores précédents</h3>
+        <h3>Timeline audit</h3>
+        <p class="content-card-lead" style="margin:4px 0 0;font-size:11px;color:var(--text3)">Événements chronologiques (maquette).</p>
       </div>
     </div>
   `;
-  const histStack = document.createElement('div');
-  histStack.className = 'audit-history-stack';
-  HISTORY.forEach((h) => {
-    const row = document.createElement('article');
-    row.className = 'list-row audit-history-row';
-    row.innerHTML = `
-      <div>
-        <strong>${h.date}</strong>
-        <p style="margin:4px 0 0;font-size:13px;color:var(--text2)">Score ${h.score}%</p>
-      </div>
-      <span class="badge blue">Interne</span>
-    `;
-    histStack.append(row);
-  });
-  historyCard.append(histStack);
+  const timelineEvents = [
+    {
+      when: `${LAST_AUDIT.date} · ouverture`,
+      icon: '📋',
+      title: `Audit ${LAST_AUDIT.ref}`,
+      detail: `${LAST_AUDIT.site} — lancement constats`
+    },
+    ...AUDIT_TRACE_ROWS.map((tr) => ({
+      when: tr.when,
+      icon: '✅',
+      title: tr.action,
+      detail: tr.comment
+    })),
+    ...HISTORY.map((h) => ({
+      when: h.date,
+      icon: '📊',
+      title: 'Score historique',
+      detail: `${h.score}% · audit interne`
+    }))
+  ];
+  historyCard.append(buildAuditTimeline(timelineEvents));
   const histTrend = document.createElement('p');
   histTrend.className = 'audit-cockpit-history__trend';
   const histScores = HISTORY.map((h) => h?.score).filter(
@@ -1399,7 +1792,7 @@ export function renderAudits() {
       : 'Tendance : au moins deux scores valides requis sur cet extrait.';
   historyCard.append(histTrend);
 
-  rightStack.append(historyCard);
+  rightStack.append(processScoresCard, historyCard);
   layout.className = 'two-column audit-cockpit-layout';
   layout.append(checklistCard, rightStack);
 
@@ -1421,22 +1814,23 @@ export function renderAudits() {
     const li = document.createElement('li');
     li.className = 'audit-iso-trace-item';
     li.innerHTML = `
-      <div class="audit-iso-trace-item__who">${tr.who}</div>
-      <div class="audit-iso-trace-item__when">${tr.when}</div>
-      <div class="audit-iso-trace-item__action">${tr.action}</div>
-      <div class="audit-iso-trace-item__comment">${tr.comment}</div>
+      <div class="audit-iso-trace-item__who">${escapeHtml(tr.who)}</div>
+      <div class="audit-iso-trace-item__when">${escapeHtml(tr.when)}</div>
+      <div class="audit-iso-trace-item__action">${escapeHtml(tr.action)}</div>
+      <div class="audit-iso-trace-item__comment">${escapeHtml(tr.comment)}</div>
     `;
     traceList.append(li);
   });
   traceCard.append(traceList);
 
   const proofsCard = document.createElement('article');
-  proofsCard.className = 'content-card card-soft audit-cockpit-proofs audit-premium-proofs';
+  proofsCard.className =
+    'content-card card-soft audit-cockpit-proofs audit-premium-proofs audit-expert-hide-direction';
   proofsCard.innerHTML = `
     <div class="content-card-head content-card-head--tight">
       <div>
         <div class="section-kicker">Documents &amp; preuves</div>
-        <h3>Dossier probatoire — ${LAST_AUDIT.ref}</h3>
+        <h3>Dossier probatoire — ${escapeHtml(LAST_AUDIT.ref)}</h3>
         <p class="content-card-lead audit-premium-proofs__iso-lead">Présents · à vérifier · manquants.</p>
       </div>
     </div>
@@ -1479,9 +1873,64 @@ export function renderAudits() {
   );
   proofsCard.append(proofsGroups);
 
+  const proofMissingActions = document.createElement('div');
+  proofMissingActions.className = 'audit-proof-gen-actions';
+  const proofGenHint = document.createElement('p');
+  proofGenHint.className = 'audit-premium-proofs__iso-lead';
+  proofGenHint.style.marginBottom = '8px';
+  proofGenHint.textContent =
+    'Les preuves manquantes peuvent être converties en actions correctives (maquette locale).';
+  const genFromProofsBtn = document.createElement('button');
+  genFromProofsBtn.type = 'button';
+  genFromProofsBtn.className = 'btn btn-primary';
+  genFromProofsBtn.textContent = 'Générer actions';
+  genFromProofsBtn.addEventListener('click', () => {
+    const missing = AUDIT_PROOFS.filter((p) => p.status === 'missing');
+    if (!missing.length) {
+      showToast('Aucune preuve manquante sur cet extrait.', 'info');
+      return;
+    }
+    let added = 0;
+    let seq = 0;
+    missing.forEach((p) => {
+      const exists = AUDIT_TREATMENT_ROWS.some(
+        (r) => String(r.action || '').includes(String(p.name))
+      );
+      if (exists) return;
+      seq += 1;
+      const row = {
+        nc: `PREUVE-${LAST_AUDIT.ref}-${seq}`,
+        action: `Fournir la preuve : ${p.name}`,
+        owner: su?.name || 'À assigner',
+        due: 'Sous 15 j.'
+      };
+      AUDIT_TREATMENT_ROWS.push(row);
+      appendTreatmentRowWithRisk(treatmentTable, row, su);
+      added += 1;
+    });
+    if (!added) {
+      showToast('Actions déjà générées pour ces preuves — consulter le tableau NC / actions.', 'info');
+      return;
+    }
+    bumpScore(0.6);
+    showToast(`${added} action(s) ajoutée(s) au plan (depuis preuves manquantes).`, 'info');
+    document.getElementById('audit-iso-tier-treatment')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
+    activityLogStore.add({
+      module: 'audits',
+      action: 'Générer actions depuis preuves manquantes',
+      detail: `${added} ligne(s) — ${LAST_AUDIT.ref}`,
+      user: su?.name || 'Utilisateur'
+    });
+  });
+  proofMissingActions.append(proofGenHint, genFromProofsBtn);
+  proofsCard.append(proofMissingActions);
+
   const mainActions = document.createElement('div');
   mainActions.className =
-    'audit-main-actions audit-cockpit-footer-actions audit-premium-footer-actions';
+    'audit-main-actions audit-cockpit-footer-actions audit-premium-footer-actions audit-expert-hide-direction';
 
   const sendReportRow = document.createElement('div');
   sendReportRow.className = 'audit-send-report-row';
@@ -1596,10 +2045,18 @@ export function renderAudits() {
     autoReportNote.hidden = false;
   });
 
+  const docComplianceStrip = createAuditDocumentComplianceStrip();
+
   const tierScore = document.createElement('section');
   tierScore.className = 'audit-cockpit-tier audit-cockpit-tier--score audit-premium-tier';
   tierScore.id = 'audit-cockpit-tier-score';
-  tierScore.append(heroCard, strategicKpis, auditChartsRow);
+  tierScore.append(
+    createAuditTerrainWorkflowStrip(page),
+    heroCard,
+    strategicKpis,
+    docComplianceStrip,
+    auditChartsRow
+  );
 
   const tierCritical = document.createElement('section');
   tierCritical.className = 'audit-cockpit-tier audit-cockpit-tier--critical';
@@ -1614,6 +2071,7 @@ export function renderAudits() {
   const tierActions = document.createElement('section');
   tierActions.className = 'audit-cockpit-tier audit-cockpit-tier--actions';
   tierActions.id = 'audit-cockpit-tier-actions';
+  fieldMode.element.classList.add('audit-expert-hide-direction');
   tierActions.append(notifCard, iaCard, proofsCard, fieldMode.element, mainActions);
 
   const tierNavHost = heroCard.querySelector('[data-audit-tier-nav]');
@@ -1635,17 +2093,32 @@ export function renderAudits() {
     });
   }
 
+  if (importDraftEl) importDraftEl.classList.add('audit-expert-hide-direction');
+
+  const auditGuideEl = createSimpleModeGuide({
+    title: 'Audit — ce qui compte tout de suite',
+    hint: 'Le bandeau du haut résume le dernier audit ; la zone « Critiques » liste ce qui bloque la conformité.',
+    nextStep: 'Ensuite : traiter les constats ouverts, puis le suivi d’avancement — le détail technique reste en mode Expert.'
+  });
+  auditGuideEl.classList.add('audit-expert-hide-direction');
+
   page.append(
-    createSimpleModeGuide({
-      title: 'Audit — ce qui compte tout de suite',
-      hint: 'Le bandeau du haut résume le dernier audit ; la zone « Critiques » liste ce qui bloque la conformité.',
-      nextStep: 'Ensuite : traiter les constats ouverts, puis le suivi d’avancement — le détail technique reste en mode Expert.'
-    }),
+    auditGuideEl,
     ...(importDraftEl ? [importDraftEl] : []),
     tierScore,
     tierCritical,
     tierProgress,
     tierActions
   );
+
+  queueMicrotask(() => {
+    runAuditExpertAlerts({
+      page,
+      score: LAST_AUDIT.score,
+      hasCriticalNc: AUDIT_NC_MAJEURES > 0,
+      auditsEnRetard: AUDITS_RETARD_COUNT
+    });
+  });
+
   return page;
 }

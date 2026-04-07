@@ -162,7 +162,9 @@ export async function create(req, res, next) {
       fdsProductRef: body.fdsProductRef || null,
       isoRequirementRef: body.isoRequirementRef || null,
       riskRef: body.riskRef || null,
-      complianceTag: body.complianceTag || null
+      complianceTag: body.complianceTag || null,
+      expiresAt: body.expiresAt || null,
+      responsible: body.responsible || null
     });
     await writeAuditLog({
       userId: u.id,
@@ -178,6 +180,54 @@ export async function create(req, res, next) {
     });
     return res.status(201).json(controlledDocumentService.toPublicControlledDocument(row));
   } catch (e) {
+    return next(e);
+  }
+}
+
+/**
+ * PATCH /api/controlled-documents/:id
+ * Métadonnées : expiresAt, responsible, name, type (pas le fichier).
+ */
+export async function patchMeta(req, res, next) {
+  try {
+    const u = req.qhseUser;
+    if (!u) {
+      return res.status(401).json({ error: 'Authentification requise.' });
+    }
+    if (!can(u.role, 'controlled_documents', 'write')) {
+      return res.status(403).json({ error: 'Permission refusée.' });
+    }
+    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    if (!controlledDocumentService.canAccessControlledDocument(u, doc.classification, 'write')) {
+      return res.status(403).json({ error: 'Accès refusé pour cette classification.' });
+    }
+    assertDocumentSiteAllowed(u, doc.siteId);
+    const body = req.body || {};
+    const updated = await controlledDocumentService.updateControlledDocumentMeta(req.params.id, {
+      expiresAt: body.expiresAt,
+      responsible: body.responsible,
+      name: body.name,
+      type: body.type
+    });
+    await writeAuditLog({
+      userId: u.id,
+      resource: 'controlled_document',
+      resourceId: updated.id,
+      action: 'controlled_document_update_meta',
+      metadata: {
+        expiresAt: updated.expiresAt,
+        responsible: updated.responsible,
+        name: updated.name
+      }
+    });
+    return res.json(controlledDocumentService.toPublicControlledDocument(updated));
+  } catch (e) {
+    if (e && e.statusCode === 400) {
+      return res.status(400).json({ error: e.message });
+    }
     return next(e);
   }
 }

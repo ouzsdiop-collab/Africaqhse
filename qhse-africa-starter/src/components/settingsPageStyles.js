@@ -19,6 +19,13 @@ const CSS = `
 }
 .settings-section__title{margin:0;font-size:1.05rem;font-weight:800;letter-spacing:-.02em;color:var(--text)}
 .settings-section__lead{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--text2);max-width:60ch}
+.settings-demo-card{padding:16px 18px 18px;border:1px solid rgba(99,102,241,.22);background:rgba(49,46,129,.12)}
+.settings-demo-row{margin-bottom:10px}
+.settings-demo-switch-label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer}
+.settings-demo-toggle{width:18px;height:18px;accent-color:#818cf8;flex-shrink:0;cursor:pointer}
+.settings-demo-hint{margin:0 0 12px;font-size:12px;line-height:1.45;color:var(--text3);max-width:58ch}
+.settings-demo-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.settings-demo-foot{margin:0;font-size:11px;line-height:1.45;color:var(--text3);max-width:62ch;opacity:.95}
 .settings-grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 @media (max-width:800px){.settings-grid-2{grid-template-columns:1fr}}
 .settings-link-card{

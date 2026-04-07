@@ -655,6 +655,29 @@ const CSS = `
 .audit-iso-trace-item__when{font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums}
 .audit-iso-trace-item__action{color:var(--text2)}
 .audit-iso-trace-item__comment{font-size:11px;color:var(--text3);font-style:italic}
+
+.audit-doc-compliance-strip{
+  margin:12px 0 0;padding:14px 16px;border-radius:14px;
+  border:1px solid rgba(148,163,184,.16);background:rgba(0,0,0,.14);
+}
+.audit-doc-compliance-strip__inner{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
+.audit-doc-compliance-strip__kicker{
+  font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);width:100%;
+}
+.audit-doc-compliance-strip__text{
+  flex:1;min-width:200px;margin:0;font-size:13px;line-height:1.45;color:var(--text2);
+}
+.audit-doc-compliance-strip__btn{font-size:12px!important;padding:8px 14px!important;min-height:36px!important}
+.audit-doc-compliance-strip--bad{color:#fecaca;font-weight:700}
+.audit-doc-compliance-strip--warn{color:#fcd34d;font-weight:600}
+
+/* Passe premium fine : lecture plus nette et cohérente */
+.audit-plus-page .audit-premium-header{border-radius:18px}
+.audit-plus-page .audit-cockpit-tier{gap:12px}
+.audit-plus-page .audit-plan-head,.audit-plus-page .audit-plan-row{padding:11px 13px}
+.audit-plus-page .audit-iso-treatment-head,.audit-plus-page .audit-iso-treatment-row{padding:9px 11px}
+.audit-plus-page .audit-cockpit-notifs__item,
+.audit-plus-page .audit-iso-trace-item{border-radius:12px}
 `;
 
 export function ensureAuditPlusStyles() {

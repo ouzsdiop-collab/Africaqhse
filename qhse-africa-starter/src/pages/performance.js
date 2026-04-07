@@ -4,11 +4,27 @@ import { appState, setActiveSiteContext } from '../utils/state.js';
 import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 import {
   buildMonthlyAuditScoreAvgSeries,
   createDashboardLineChart,
-  createPilotageLoadMixChart
+  createPilotageLoadMixChart,
+  interpretAuditScoreSeries
 } from '../components/dashboardCharts.js';
+import { createKpiDetailDrawer } from '../components/kpiDetailDrawer.js';
+import {
+  buildActivityTimelineEntries,
+  buildCockpitRecommendations,
+  computeAbsolutePriority,
+  computeGlobalQhseCockpitLevel,
+  createAbsolutePrioritySection,
+  createCockpitFreshnessIndicator,
+  createGlobalScoreSection,
+  createPrimaryCtaBar,
+  createRecommendationsSection,
+  createTimelineSection,
+  createUrgencySection
+} from '../components/performanceCockpitPremium.js';
 
 const SNAPSHOT_KEY = 'qhse-performance-kpi-snapshot-v1';
 
@@ -21,6 +37,13 @@ const GOALS = {
   ncTreatmentRate: 75,
   actionOnTrackPct: 92
 };
+
+function sanitizeClassToken(value, fallback = 'neutral') {
+  const token = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '');
+  return token || fallback;
+}
 
 function snapshotStorageKey(months) {
   const sid = appState.activeSiteId || 'groupe';
@@ -123,28 +146,97 @@ function trendArrowFromDelta(deltaStr) {
   return '→';
 }
 
-function buildPilotagePriorities(counts, kpis) {
+/**
+ * @param {object} counts
+ * @param {object} kpis
+ */
+function buildPilotagePrioritiesStructured(counts, kpis) {
+  /** @type {{ text: string; kpiKey: string; preset?: Record<string, string> | null }[]} */
   const out = [];
   const od = Number(counts?.actionsOverdue) || 0;
   const nc = Number(counts?.nonConformitiesOpen) || 0;
   const crit = Number(counts?.incidentsCriticalOpen) || 0;
   const avg = kpis?.auditScoreAvg;
   if (crit > 0) {
-    out.push('Clôturer les incidents critiques.');
+    out.push({
+      text: 'Clôturer les incidents critiques.',
+      kpiKey: 'incidentsCritical',
+      preset: { severity: 'critique' }
+    });
   }
   if (od > 0) {
-    out.push(`Débloquer ${od} action(s) en retard.`);
+    out.push({
+      text: `Débloquer ${od} action(s) en retard.`,
+      kpiKey: 'actionsLate'
+    });
   }
   if (nc >= 4) {
-    out.push(`Réduire les NC ouvertes (${nc}).`);
+    out.push({
+      text: `Réduire les NC ouvertes (${nc}).`,
+      kpiKey: 'ncOpen'
+    });
   }
   if (avg != null && !Number.isNaN(avg) && avg < GOALS.auditScore) {
-    out.push(`Rehausser le score audit (cible ${GOALS.auditScore} %).`);
+    out.push({
+      text: `Rehausser le score audit (cible ${GOALS.auditScore} %).`,
+      kpiKey: 'auditScore'
+    });
   }
   if (out.length === 0) {
-    out.push('Préparer revue direction et preuves.');
+    out.push({
+      text: 'Préparer revue direction et preuves.',
+      kpiKey: 'conformity'
+    });
   }
   return out.slice(0, 3);
+}
+
+/**
+ * Lecture métier courte sous chaque KPI (ton = red | amber | green | blue).
+ * @param {string} kind
+ * @param {string} tone
+ */
+function kpiBusinessInsight(kind, tone) {
+  const map = {
+    conformity: {
+      red: 'Conformité très inférieure à l’objectif — plan d’action prioritaire.',
+      amber: 'Écart notable vs cible — activer les leviers NC, retards et sécurité.',
+      green: 'Indice sous contrôle par rapport au repère — consolider les pratiques.',
+      blue: 'Indicateur composite — ouvrir le détail pour prioriser les leviers.'
+    },
+    auditScore: {
+      red: 'Score audit sous le seuil — audits et plans d’amélioration à renforcer.',
+      amber: 'Marge vs objectif serrée — suivre les écarts par site et norme.',
+      green: 'Performance audit alignée sur la cible.',
+      blue: 'Données score incomplètes — compléter les audits notés.'
+    },
+    incidentsCritical: {
+      red: 'Incidents critiques encore ouverts — risque élevé, arbitrage attendu.',
+      amber: 'Points critiques à traiter sans délai.',
+      green: 'Aucun critique ouvert sur le périmètre chargé.',
+      blue: 'Synthèse incidents — ouvrir le détail pour le filtre gravité.'
+    },
+    ncRate: {
+      red: 'Taux de traitement NC sous la cible — goulot sur la clôture.',
+      amber: 'NC : progression à sécuriser (jalons, preuves).',
+      green: 'Traitement NC dans les tolérances affichées.',
+      blue: 'Données NC partielles — fiabiliser le référentiel.'
+    },
+    execution: {
+      red: 'Respect des échéances fragile — désengorger les files d’actions.',
+      amber: 'Retards ponctuels — relancer les porteurs.',
+      green: 'Exécution globalement dans les temps.',
+      blue: 'Indicateur d’adhérence — croiser avec les retards réels.'
+    },
+    actionsLate: {
+      red: 'Actions en retard impactent fortement la performance globale.',
+      amber: 'Retards à traiter en priorité sur la période.',
+      green: 'Aucun retard signalé sur les actions suivies.',
+      blue: 'File actions — filtrer par statut et responsable.'
+    }
+  };
+  const row = map[kind] || {};
+  return row[tone] || row.blue || '—';
 }
 
 function navigateHash(id) {
@@ -160,59 +252,89 @@ function elKpiMain(opts) {
     goalText,
     gapText,
     tone,
-    hash,
-    statusTone
+    statusTone,
+    insight,
+    kpiKey,
+    onOpenDetail
   } = opts;
   const art = document.createElement('article');
-  art.className = `kpi-perf-main-card metric-card card-soft kpi-perf-main-card--${statusTone || 'blue'}`;
+  const safeStatusTone = sanitizeClassToken(statusTone || 'blue', 'blue');
+  const safeTone = sanitizeClassToken(tone || 'blue', 'blue');
+  art.className = `kpi-perf-main-card metric-card card-soft kpi-perf-main-card--${safeStatusTone} kpi-perf-main-card--tone-${safeTone}`;
   art.tabIndex = 0;
-  art.setAttribute('role', 'link');
-  art.setAttribute('aria-label', `${title} — ouvrir le module associé`);
-  art.addEventListener('click', () => navigateHash(hash));
+  art.setAttribute('role', 'button');
+  art.setAttribute(
+    'aria-label',
+    `${escapeHtml(title)} — ouvrir le détail (${escapeHtml(kpiKey || '')})`
+  );
+  art.addEventListener('click', () => onOpenDetail?.(kpiKey));
   art.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      navigateHash(hash);
+      onOpenDetail?.(kpiKey);
     }
   });
   const gapBlock =
     gapText && String(gapText).trim()
-      ? `<div class="kpi-perf-main-gap kpi-perf-main-gap--${tone || 'blue'}">${gapText}</div>`
+      ? `<div class="kpi-perf-main-gap kpi-perf-main-gap--${safeTone}">${escapeHtml(gapText)}</div>`
+      : '';
+  const insightBlock =
+    insight && String(insight).trim()
+      ? `<p class="kpi-perf-main-insight kpi-perf-main-insight--${safeTone}">${escapeHtml(insight)}</p>`
       : '';
   art.innerHTML = `
-    <div class="metric-label">${title}</div>
-    <div class="metric-value ${tone} kpi-perf-main-value">${valueText}</div>
+    <div class="metric-label">${escapeHtml(title)}</div>
+    <div class="metric-value ${safeTone} kpi-perf-main-value">${escapeHtml(valueText)}</div>
     <div class="kpi-perf-main-meta">
-      <span class="kpi-perf-delta">Tendance ${deltaText}</span>
-      <span class="kpi-perf-goal">Obj. ${goalText}</span>
+      <span class="kpi-perf-delta">Tendance ${escapeHtml(deltaText)}</span>
+      <span class="kpi-perf-goal">Obj. ${escapeHtml(goalText)}</span>
     </div>
     ${gapBlock}
+    ${insightBlock}
   `;
   return art;
 }
 
-function elPerfCockpitHero(conformity, prev, counts, kpis) {
+function elPerfCockpitHero(conformity, prev, counts, kpis, onOpenConformityDetail) {
   const v = vigilanceLevel(conformity, counts, kpis);
+  const safeVigilTone = sanitizeClassToken(v.tone, 'amber');
   const dConf = prev ? formatDelta(prev.conformity, conformity) : '—';
   const arrow = trendArrowFromDelta(dConf);
   const section = document.createElement('section');
   section.className = 'kpi-perf-cockpit-hero';
   section.innerHTML = `
-    <div class="kpi-perf-hero-score">
+    <div class="kpi-perf-hero-score" data-kpi-hero-score>
       <span class="kpi-perf-hero-k">Indice de maîtrise QHSE</span>
       <div class="kpi-perf-hero-val-row">
-        <span class="kpi-perf-hero-val metric-value ${toneVsGoal(conformity, GOALS.conformity)}">${conformity}</span>
+        <span class="kpi-perf-hero-val metric-value ${toneVsGoal(conformity, GOALS.conformity)}">${escapeHtml(String(conformity))}</span>
         <span class="kpi-perf-hero-pct">%</span>
         <span class="kpi-perf-hero-trend" aria-hidden="true">${arrow}</span>
       </div>
-      <p class="kpi-perf-hero-sub">vs dernière visite : <strong>${dConf}</strong> pts</p>
+      <p class="kpi-perf-hero-sub">vs dernière visite : <strong>${escapeHtml(dConf)}</strong> pts · <span class="kpi-perf-hero-hint">cliquer pour le détail des leviers</span></p>
     </div>
-    <div class="kpi-perf-hero-vigil kpi-perf-hero-vigil--${v.tone}">
+    <div class="kpi-perf-hero-vigil kpi-perf-hero-vigil--${safeVigilTone}">
       <span class="kpi-perf-hero-vigil-k">Niveau de vigilance</span>
-      <span class="kpi-perf-hero-vigil-l">${v.label}</span>
-      <p class="kpi-perf-hero-vigil-h">${v.hint}</p>
+      <span class="kpi-perf-hero-vigil-l">${escapeHtml(v.label)}</span>
+      <p class="kpi-perf-hero-vigil-h">${escapeHtml(v.hint)}</p>
     </div>
   `;
+  const scoreEl = section.querySelector('[data-kpi-hero-score]');
+  if (onOpenConformityDetail && scoreEl) {
+    scoreEl.classList.add('kpi-perf-hero-score--interactive');
+    scoreEl.setAttribute('role', 'button');
+    scoreEl.tabIndex = 0;
+    scoreEl.setAttribute('aria-label', 'Ouvrir le détail conformité — leviers croisés');
+    scoreEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onOpenConformityDetail();
+    });
+    scoreEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onOpenConformityDetail();
+      }
+    });
+  }
   return section;
 }
 
@@ -230,14 +352,14 @@ function elGoalVsRealCard(rows) {
     const row = document.createElement('div');
     row.className = 'kpi-perf-goalvs-row';
     row.innerHTML = `
-      <div class="kpi-perf-goalvs-label">${r.label}</div>
+      <div class="kpi-perf-goalvs-label">${escapeHtml(r.label)}</div>
       <div class="kpi-perf-goalvs-track" role="presentation">
         <div class="kpi-perf-goalvs-fill" style="width:${pct}%"></div>
         <div class="kpi-perf-goalvs-marker" style="left:${pctG}%"></div>
       </div>
       <div class="kpi-perf-goalvs-vals">
-        <span class="kpi-perf-goalvs-real">${r.realText}</span>
-        <span class="kpi-perf-goalvs-goal">cible ${r.goalText}</span>
+        <span class="kpi-perf-goalvs-real">${escapeHtml(r.realText)}</span>
+        <span class="kpi-perf-goalvs-goal">cible ${escapeHtml(r.goalText)}</span>
       </div>
     `;
     body.append(row);
@@ -302,7 +424,11 @@ function elGapsCard(groups, summaryLine) {
   return card;
 }
 
-function elPrioritiesCard(items) {
+/**
+ * @param {{ text: string; kpiKey: string; preset?: Record<string, string> | null }[]} items
+ * @param {(k: string, p?: Record<string, string> | null) => void} onPick
+ */
+function elPrioritiesCard(items, onPick) {
   const card = document.createElement('section');
   card.className = 'kpi-perf-priorities';
   const h = document.createElement('h2');
@@ -310,15 +436,19 @@ function elPrioritiesCard(items) {
   h.textContent = 'Priorités de pilotage';
   const ol = document.createElement('ol');
   ol.className = 'kpi-perf-priorities-list';
-  items.forEach((text, i) => {
+  items.forEach((item, i) => {
     const li = document.createElement('li');
+    li.className = 'kpi-perf-priorities-li';
     const idx = document.createElement('span');
     idx.className = 'kpi-perf-priorities-idx';
     idx.textContent = String(i + 1);
-    const txt = document.createElement('span');
-    txt.className = 'kpi-perf-priorities-txt';
-    txt.textContent = text;
-    li.append(idx, txt);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'kpi-perf-priorities-btn';
+    btn.textContent = item.text;
+    btn.setAttribute('aria-label', `Ouvrir la liste : ${item.text}`);
+    btn.addEventListener('click', () => onPick(item.kpiKey, item.preset || null));
+    li.append(idx, btn);
     ol.append(li);
   });
   card.append(h, ol);
@@ -340,8 +470,20 @@ function classifyGapGroups(metrics) {
 export function renderPerformance() {
   ensureDashboardStyles();
 
+  /** @type {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[] }} */
+  let perfLists = { incidents: [], actions: [], audits: [], ncs: [] };
+  const kpiDrawer = createKpiDetailDrawer({
+    getData: () => perfLists
+  });
+
+  function openPerfKpi(kpiKey, preset) {
+    if (!kpiKey) return;
+    kpiDrawer.open(kpiKey, preset ?? null);
+  }
+
   const page = document.createElement('section');
   page.className = 'page-stack kpi-performance-page';
+  page.append(kpiDrawer.element);
 
   const header = document.createElement('header');
   header.className = 'kpi-perf-header kpi-perf-header--toolbar-only';
@@ -428,10 +570,12 @@ export function renderPerformance() {
       if (!n.classList.contains('kpi-perf-loading')) n.remove();
     });
     try {
-      const [sumRes, incRes, audRes] = await Promise.all([
+      const [sumRes, incRes, audRes, actRes, ncRes] = await Promise.all([
         qhseFetch(withSiteQuery('/api/reports/summary')),
         qhseFetch(withSiteQuery('/api/incidents?limit=500')),
-        qhseFetch(withSiteQuery('/api/audits?limit=500'))
+        qhseFetch(withSiteQuery('/api/audits?limit=500')),
+        qhseFetch(withSiteQuery('/api/actions?limit=500')),
+        qhseFetch(withSiteQuery('/api/nonconformities?limit=300'))
       ]);
 
       if (sumRes.status === 403) {
@@ -444,6 +588,9 @@ export function renderPerformance() {
       const summary = await sumRes.json();
       const incidents = incRes.ok ? await incRes.json().catch(() => []) : [];
       const audits = audRes.ok ? await audRes.json().catch(() => []) : [];
+      const actions = actRes.ok ? await actRes.json().catch(() => []) : [];
+      const ncs = ncRes.ok ? await ncRes.json().catch(() => []) : [];
+      perfLists = { incidents, actions, audits, ncs };
 
       const counts = summary.counts || {};
       const kpis = summary.kpis || {};
@@ -476,10 +623,13 @@ export function renderPerformance() {
       }));
 
       const progressionChart = createDashboardLineChart(lineSeries, {
+        lineTheme: 'audits',
         ariaLabel: 'Score moyen des audits par mois.',
-        footText: 'Moyenne mensuelle (audits datés, 0–100).',
-        interpretText: '',
-        valueTitle: (p) => `${p.label} : ${p.value} %`
+        footText: `Moyenne mensuelle (audits datés, 0–100 %) · objectif ${GOALS.auditScore} %.`,
+        interpretText: interpretAuditScoreSeries(lineSeries),
+        valueTitle: (p) => `${p.label} : ${p.value} %`,
+        targetYPercent: GOALS.auditScore,
+        targetLabel: `Objectif ${GOALS.auditScore} %`
       });
 
       const goalVsRows = [
@@ -622,6 +772,7 @@ export function renderPerformance() {
         'kpi-perf-main-grid kpi-grid dashboard-kpi-grid kpi-perf-main-grid--tier-ops';
 
       const dConf = prev ? formatDelta(prev.conformity, conformity) : '—';
+      const toneConf = toneVsGoal(conformity, GOALS.conformity);
       tierStrat.append(
         elKpiMain({
           title: 'Conformité globale',
@@ -629,9 +780,11 @@ export function renderPerformance() {
           deltaText: dConf,
           goalText: `${GOALS.conformity} %`,
           gapText: formatEcartVsObjectif(conformity, GOALS.conformity, false, 'pts'),
-          tone: toneVsGoal(conformity, GOALS.conformity),
-          hash: 'iso',
-          statusTone: toneVsGoal(conformity, GOALS.conformity)
+          tone: toneConf,
+          statusTone: toneConf,
+          kpiKey: 'conformity',
+          insight: kpiBusinessInsight('conformity', toneConf),
+          onOpenDetail: openPerfKpi
         })
       );
 
@@ -640,6 +793,8 @@ export function renderPerformance() {
         prev && auditAvg != null && prev.auditScore != null
           ? formatDelta(prev.auditScore, auditAvg)
           : '—';
+      const toneAud =
+        auditAvg != null ? toneVsGoal(auditAvg, GOALS.auditScore) : 'blue';
       tierStrat.append(
         elKpiMain({
           title: 'Score audit moyen',
@@ -650,19 +805,16 @@ export function renderPerformance() {
             auditAvg != null
               ? formatEcartVsObjectif(auditAvg, GOALS.auditScore, false, 'pts')
               : '—',
-          tone:
-            auditAvg != null
-              ? toneVsGoal(auditAvg, GOALS.auditScore)
-              : 'blue',
-          hash: 'audits',
-          statusTone:
-            auditAvg != null
-              ? toneVsGoal(auditAvg, GOALS.auditScore)
-              : 'blue'
+          tone: toneAud,
+          statusTone: toneAud,
+          kpiKey: 'auditScore',
+          insight: kpiBusinessInsight('auditScore', toneAud),
+          onOpenDetail: openPerfKpi
         })
       );
 
       const dCrit = prev ? formatDelta(prev.critOpen, critOpen) : '—';
+      const toneCrit = toneVsGoal(critOpen, 0, true);
       tierStrat.append(
         elKpiMain({
           title: 'Incidents critiques ouverts',
@@ -670,9 +822,11 @@ export function renderPerformance() {
           deltaText: dCrit,
           goalText: '0',
           gapText: formatEcartVsObjectif(critOpen, 0, true, ''),
-          tone: toneVsGoal(critOpen, 0, true),
-          hash: 'incidents',
-          statusTone: toneVsGoal(critOpen, 0, true)
+          tone: toneCrit,
+          statusTone: toneCrit,
+          kpiKey: 'incidentsCritical',
+          insight: kpiBusinessInsight('incidentsCritical', toneCrit),
+          onOpenDetail: openPerfKpi
         })
       );
 
@@ -680,6 +834,8 @@ export function renderPerformance() {
         prev && closeRate != null && prev.ncCloseRate != null
           ? formatDelta(prev.ncCloseRate, closeRate)
           : '—';
+      const toneNc =
+        closeRate != null ? toneVsGoal(closeRate, GOALS.ncTreatmentRate) : 'blue';
       tierOps.append(
         elKpiMain({
           title: 'Taux de traitement NC',
@@ -690,15 +846,11 @@ export function renderPerformance() {
             closeRate != null
               ? formatEcartVsObjectif(closeRate, GOALS.ncTreatmentRate, false, 'pts')
               : '—',
-          tone:
-            closeRate != null
-              ? toneVsGoal(closeRate, GOALS.ncTreatmentRate)
-              : 'blue',
-          hash: 'iso',
-          statusTone:
-            closeRate != null
-              ? toneVsGoal(closeRate, GOALS.ncTreatmentRate)
-              : 'blue'
+          tone: toneNc,
+          statusTone: toneNc,
+          kpiKey: 'ncTreated',
+          insight: kpiBusinessInsight('ncRate', toneNc),
+          onOpenDetail: openPerfKpi
         })
       );
 
@@ -706,6 +858,10 @@ export function renderPerformance() {
         prev && actOnTrackPct != null && prev.actOnTrackPct != null
           ? formatDelta(prev.actOnTrackPct, actOnTrackPct)
           : '—';
+      const toneExe =
+        actOnTrackPct != null
+          ? toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct)
+          : 'blue';
       tierOps.append(
         elKpiMain({
           title: 'Respect des échéances',
@@ -716,19 +872,16 @@ export function renderPerformance() {
             actOnTrackPct != null
               ? formatEcartVsObjectif(actOnTrackPct, GOALS.actionOnTrackPct, false, 'pts')
               : '—',
-          tone:
-            actOnTrackPct != null
-              ? toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct)
-              : 'blue',
-          hash: 'actions',
-          statusTone:
-            actOnTrackPct != null
-              ? toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct)
-              : 'blue'
+          tone: toneExe,
+          statusTone: toneExe,
+          kpiKey: 'actionsOnTrack',
+          insight: kpiBusinessInsight('execution', toneExe),
+          onOpenDetail: openPerfKpi
         })
       );
 
       const dOd = prev ? formatDelta(prev.actionsOverdue, actOd) : '—';
+      const toneOd = toneVsGoal(actOd, GOALS.actionsOverdue, true);
       tierOps.append(
         elKpiMain({
           title: 'Actions en retard',
@@ -736,20 +889,80 @@ export function renderPerformance() {
           deltaText: dOd,
           goalText: String(GOALS.actionsOverdue),
           gapText: formatEcartVsObjectif(actOd, GOALS.actionsOverdue, true, ''),
-          tone: toneVsGoal(actOd, GOALS.actionsOverdue, true),
-          hash: 'actions',
-          statusTone: toneVsGoal(actOd, GOALS.actionsOverdue, true)
+          tone: toneOd,
+          statusTone: toneOd,
+          kpiKey: 'actionsLate',
+          insight: kpiBusinessInsight('actionsLate', toneOd),
+          onOpenDetail: openPerfKpi
         })
       );
 
       const kpiBlock = document.createElement('div');
-      kpiBlock.className = 'kpi-perf-kpi-block';
+      kpiBlock.className = 'kpi-perf-kpi-block kpi-perf-kpi-block--muted';
       const kpiSk = document.createElement('p');
       kpiSk.className = 'kpi-perf-section-k';
       kpiSk.textContent = 'Indicateurs clés';
       kpiBlock.append(kpiSk, tierStrat, tierOps);
 
-      const hero = elPerfCockpitHero(conformity, prev, counts, kpis);
+      const cockpitLevel = computeGlobalQhseCockpitLevel(conformity, counts, kpis, {
+        conformity: GOALS.conformity
+      });
+      const recos = buildCockpitRecommendations(
+        counts,
+        kpis,
+        conformity,
+        GOALS.conformity,
+        GOALS.auditScore
+      );
+      const recoSection = createRecommendationsSection(recos, openPerfKpi, {
+        assistant: true,
+        title: 'Assistant QHSE',
+        subtitle: 'Jusqu’à 3 actions suggérées — cliquer pour traiter'
+      });
+      const globalScoreSection = createGlobalScoreSection(cockpitLevel, () =>
+        openPerfKpi('conformity')
+      );
+      const topPriority = computeAbsolutePriority(
+        counts,
+        kpis,
+        conformity,
+        GOALS.conformity,
+        GOALS.auditScore
+      );
+      const prioritySection = createAbsolutePrioritySection(topPriority, openPerfKpi);
+      const primaryCtaBar = createPrimaryCtaBar({
+        navigateHash,
+        openKpi: openPerfKpi,
+        critOpen,
+        actOd,
+        ncOpen
+      });
+      const freshnessIndicator = createCockpitFreshnessIndicator(new Date());
+      const timelineEntries = buildActivityTimelineEntries(
+        incidents,
+        actions,
+        audits,
+        ncs,
+        12
+      );
+      const timelineSection = createTimelineSection(timelineEntries, openPerfKpi);
+
+      const cockpitPremium = document.createElement('div');
+      cockpitPremium.className = 'kpi-perf-cockpit-premium';
+      cockpitPremium.append(
+        prioritySection,
+        primaryCtaBar,
+        freshnessIndicator,
+        globalScoreSection,
+        recoSection
+      );
+
+      const hero = elPerfCockpitHero(conformity, prev, counts, kpis, () =>
+        openPerfKpi('conformity')
+      );
+      const heroSurface = document.createElement('div');
+      heroSurface.className = 'kpi-perf-hero-surface';
+      heroSurface.append(hero);
       const gapGroups = classifyGapGroups(gapMetrics);
       const nBelow = gapMetrics.filter((m) => m.zone === 'below').length;
       const nWatch = gapMetrics.filter((m) => m.zone === 'watch').length;
@@ -758,7 +971,10 @@ export function renderPerformance() {
         gapGroups,
         `${nBelow} sous cible · ${nWatch} à surveiller · ${nOk} à la cible`
       );
-      const prioritiesCard = elPrioritiesCard(buildPilotagePriorities(counts, kpis, conformity));
+      const prioritiesCard = elPrioritiesCard(
+        buildPilotagePrioritiesStructured(counts, kpis),
+        openPerfKpi
+      );
 
       const alerts = Array.isArray(summary.priorityAlerts)
         ? summary.priorityAlerts.slice(0, 3)
@@ -784,11 +1000,28 @@ export function renderPerformance() {
         alStack.append(p);
       } else {
         alerts.forEach((a) => {
-          const row = document.createElement('div');
+          const row = document.createElement('button');
+          row.type = 'button';
           const level =
             a.level === 'critical' ? 'critical' : a.level === 'high' ? 'high' : 'info';
           row.className = `kpi-perf-alert kpi-perf-alert--${level}`;
-          row.textContent = a.message || a.code || '—';
+          const ico = document.createElement('span');
+          ico.className = 'kpi-perf-alert__ico';
+          ico.setAttribute('aria-hidden', 'true');
+          ico.textContent = level === 'critical' ? '⚠' : level === 'high' ? '◆' : 'ⓘ';
+          const msg = document.createElement('span');
+          msg.className = 'kpi-perf-alert__msg';
+          msg.textContent = a.message || a.code || '—';
+          row.append(ico, msg);
+          row.addEventListener('click', () => {
+            if (level === 'critical') {
+              openPerfKpi('incidentsCritical', { severity: 'critique' });
+            } else if (level === 'high') {
+              openPerfKpi('actionsLate');
+            } else {
+              openPerfKpi('conformity');
+            }
+          });
           alStack.append(row);
         });
       }
@@ -802,23 +1035,20 @@ export function renderPerformance() {
       alertWrap.append(det);
 
       const pilotageRow = document.createElement('div');
-      pilotageRow.className = 'kpi-perf-pilotage-row';
+      pilotageRow.className = 'kpi-perf-pilotage-row kpi-perf-pilotage-row--muted';
       pilotageRow.append(gapsCard, prioritiesCard);
 
       const foot = document.createElement('p');
       foot.className = 'kpi-perf-foot';
       const nInc = Array.isArray(incidents) ? incidents.length : 0;
       const nAud = Array.isArray(audits) ? audits.length : 0;
-      foot.textContent = `Cartes cliquables (module lié). Tendance = dernière visite. Série : ${nInc} incidents · ${nAud} audits. Objectifs = repères locaux.`;
+      foot.textContent = `KPI cliquables → détail filtrable (recherche, tri, ➕). Tendance = dernière visite. Données : ${nInc} incidents · ${actions.length} actions · ${nAud} audits · ${ncs.length} NC. Objectifs = repères locaux.`;
 
-      content.append(
-        hero,
-        kpiBlock,
-        pilotageRow,
-        chartsBand,
-        alertWrap,
-        foot
-      );
+      const analysesStack = document.createElement('div');
+      analysesStack.className = 'kpi-perf-analyses-stack';
+      analysesStack.append(heroSurface, kpiBlock, pilotageRow, chartsBand);
+
+      content.append(cockpitPremium, timelineSection, analysesStack, alertWrap, foot);
 
       writeSnapshot(months, {
         conformity,

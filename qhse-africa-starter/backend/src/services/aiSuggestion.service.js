@@ -82,7 +82,9 @@ export async function generateSuggestion(opts) {
 
   if (isExternalAiEnabled()) {
     const sys =
-      'Tu es un assistant QHSE. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array of {label,value}), warnings (array of strings), proposedPatch (object or null). Aucune clé sensible supplémentaire.';
+      t === 'analytics_quad'
+        ? 'Tu es un analyste QHSE senior. On te fournit un contexte JSON agrégé (actions, incidents, NC, audits, répartition types / statuts) issu du tableau Analytics — pas de données personnelles. Rédige une synthèse en français : 3 à 5 phrases courtes, reliant retards d’actions, volumes relatifs, incidents critiques et statuts d’audits ; ton professionnel, orienté pilotage. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array optionnel de {label,value} pour 2 à 4 pistes), warnings (array of strings), proposedPatch (null).'
+        : 'Tu es un assistant QHSE. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array of {label,value}), warnings (array of strings), proposedPatch (object or null). Aucune clé sensible supplémentaire.';
     const user = JSON.stringify({ type: t, context });
     const ext = await requestJsonCompletion({ system: sys, user });
     providerMeta = {

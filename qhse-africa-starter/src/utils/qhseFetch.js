@@ -5,6 +5,8 @@ import {
   getAuthToken,
   clearAuthSession
 } from '../data/sessionUser.js';
+import { isDemoMode } from '../services/demoMode.service.js';
+import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
 
 /**
  * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (démo).
@@ -12,6 +14,11 @@ import {
  * @param {RequestInit} [init]
  */
 export async function qhseFetch(path, init = {}) {
+  if (isDemoMode()) {
+    const demoRes = await tryDemoFetchResponse(path, init);
+    if (demoRes) return demoRes;
+  }
+
   const base = getApiBase();
   const url = path.startsWith('http')
     ? path

@@ -2,8 +2,16 @@ import { siteOptions, pageTopbarById } from '../data/navigation.js';
 import { appState } from '../utils/state.js';
 import { showToast } from '../components/toast.js';
 import { activityLogStore } from '../data/activityLog.js';
+import { linkModules } from '../services/moduleLinks.service.js';
 import { createSeveritySegment } from '../components/severitySegment.js';
 import { getApiBase } from '../config.js';
+
+function sanitizeClassToken(value, fallback = 'neutral') {
+  const token = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '');
+  return token || fallback;
+}
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import {
@@ -20,14 +28,70 @@ import { canResource } from '../utils/permissionsUi.js';
 import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
 import { getRiskTitlesForSelect, formatRiskLinkTag } from '../utils/riskIncidentLinks.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import { mergeActionOverlay, appendActionHistory } from '../utils/actionPilotageMock.js';
+import { openRiskCreateDialog } from './risks.js';
+import { openActionCreateDialog } from '../components/actionCreateDialog.js';
+import { buildActionDefaultsFromIncident } from '../utils/qhseAssistantFormSuggestions.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 const INCIDENT_TYPES = [
   'Quasi-accident',
   'Accident',
   'Environnement',
+  'Sécurité',
   'Engin / circulation',
   'Autre'
 ];
+
+const CAUSE_CATEGORY_CHIPS = [
+  ['humain', 'Humain'],
+  ['materiel', 'Matériel'],
+  ['organisation', 'Organisation'],
+  ['mixte', 'Mixte']
+];
+
+/**
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(new Error('lecture fichier'));
+    r.readAsDataURL(file);
+  });
+}
+
+function parsePhotosFromApiRow(row) {
+  const raw = row?.photosJson;
+  if (!raw || typeof raw !== 'string') return [];
+  try {
+    const j = JSON.parse(raw);
+    if (!Array.isArray(j)) return [];
+    return j.filter((x) => typeof x === 'string' && x.startsWith('data:image'));
+  } catch {
+    return [];
+  }
+}
+
+function incidentOperationalPhase(status) {
+  const s = String(status || '').toLowerCase();
+  if (/clos|ferm|termin|clôtur|clotur|résolu|resolu|done|complete|trait/.test(s)) {
+    return 'traite';
+  }
+  if (/invest|analys/.test(s) || /\bcours\b/.test(s)) {
+    return 'analyse';
+  }
+  return 'ouvert';
+}
+
+function incidentPhaseLabel(status) {
+  const p = incidentOperationalPhase(status);
+  if (p === 'traite') return 'Traité';
+  if (p === 'analyse') return 'En analyse';
+  return 'Ouvert';
+}
 
 const LIST_SUB_DEFAULT =
   'Tri : gravité critique en tête, puis plus récents. Carte = titre, type, gravité, date, statut.';
@@ -106,6 +170,7 @@ function ensureIncidentsSlideOverStyles() {
   right: 0;
   bottom: 0;
   width: min(440px, 100vw);
+  max-width: 100vw;
   background: var(--bg, #0f172a);
   border-left: 1px solid rgba(255,255,255,.09);
   z-index: 201;
@@ -114,6 +179,10 @@ function ensureIncidentsSlideOverStyles() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+@media (max-width: 520px) {
+  .inc-slideover { width: 100vw; }
+  .incidents-rapid-nav .btn { min-height: 48px; font-size: 15px; }
 }
 .inc-slideover--open {
   transform: translateX(0);
@@ -215,7 +284,12 @@ function mapApiIncident(row) {
     date: formatDateFromIso(row.createdAt),
     createdAt: row.createdAt ?? null,
     createdAtMs,
-    description: typeof row.description === 'string' ? row.description : ''
+    description: typeof row.description === 'string' ? row.description : '',
+    location: typeof row.location === 'string' ? row.location : '',
+    causes: typeof row.causes === 'string' ? row.causes : '',
+    causeCategory: typeof row.causeCategory === 'string' ? row.causeCategory : '',
+    photos: parsePhotosFromApiRow(row),
+    responsible: typeof row.responsible === 'string' ? row.responsible : ''
   };
 }
 
@@ -474,10 +548,96 @@ async function createLinkedAction(inc) {
     return;
   }
   showToast(`Action créée — liée à ${inc.ref}`, 'info');
+  linkModules({
+    fromModule: 'incidents',
+    fromId: inc.ref,
+    toModule: 'actions',
+    toId: `action_for_${inc.ref}`,
+    kind: 'incident_to_action'
+  });
   activityLogStore.add({
     module: 'incidents',
     action: 'Création action liée',
     detail: `Depuis incident ${inc.ref}`,
+    user: getSessionUser()?.name || 'Responsable QHSE'
+  });
+}
+
+/**
+ * @param {ReturnType<typeof mapApiIncident> & { title?: string }} inc
+ */
+async function proposeCorrectiveActionViaAssistant(inc) {
+  await ensureUsersCached();
+  openActionCreateDialog({
+    users: cachedUsersForActions || [],
+    defaults: buildActionDefaultsFromIncident(inc),
+    onCreated: () => {
+      showToast('Action enregistrée — issue du formulaire assistant.', 'success');
+      activityLogStore.add({
+        module: 'incidents',
+        action: 'Création action (assistant guidé)',
+        detail: inc.ref,
+        user: getSessionUser()?.name || 'Utilisateur'
+      });
+    }
+  });
+}
+
+async function createCorrectiveAction(inc) {
+  await ensureUsersCached();
+  const qhse = cachedUsersForActions?.find((u) => normalizedUserRole(u.role) === 'QHSE');
+  const detailParts = [
+    `Action corrective — incident ${inc.ref}`,
+    `${inc.type} · ${inc.site}`,
+    inc.severity ? `Gravité : ${inc.severity}` : '',
+    inc.description ? inc.description.slice(0, 400) : ''
+  ].filter(Boolean);
+  const body = {
+    title: `Corrective — ${inc.ref}`,
+    detail: detailParts.join(' — '),
+    status: 'À lancer',
+    owner: 'Responsable QHSE'
+  };
+  if (qhse) {
+    body.assigneeId = qhse.id;
+    body.owner = qhse.name;
+  }
+  if (appState.activeSiteId) {
+    body.siteId = appState.activeSiteId;
+  }
+  const res = await qhseFetch('/api/actions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    showToast('Impossible de créer l’action corrective', 'error');
+    return;
+  }
+  const created = await res.json();
+  const id = created?.id;
+  if (id) {
+    mergeActionOverlay(String(id), {
+      actionType: 'corrective',
+      origin: 'incident',
+      priority: inc.severity === 'critique' ? 'haute' : 'normale',
+      progressPct: 0,
+      linkedIncident: inc.ref
+    });
+    appendActionHistory(String(id), `Créée depuis incident ${inc.ref} (corrective).`);
+  }
+  showToast(`Action corrective créée — ${inc.ref}`, 'success');
+  linkModules({
+    fromModule: 'incidents',
+    fromId: inc.ref,
+    toModule: 'actions',
+    toId: `corrective_for_${inc.ref}`,
+    kind: 'incident_to_action'
+  });
+  activityLogStore.add({
+    module: 'incidents',
+    action: 'Création action corrective',
+    detail: inc.ref,
     user: getSessionUser()?.name || 'Responsable QHSE'
   });
 }
@@ -502,7 +662,16 @@ function buildIncidentTableRow(inc, handlers) {
   const refSmall = document.createElement('div');
   refSmall.className = 'incidents-table-ref';
   refSmall.textContent = inc.ref;
-  tdTitle.append(titleStrong, refSmall);
+  tdTitle.append(titleStrong);
+  if (inc.severity === 'critique') {
+    const crit = document.createElement('span');
+    crit.className = 'incidents-crit-badge';
+    crit.setAttribute('aria-label', 'Incident critique');
+    crit.textContent = 'Critique';
+    crit.title = 'Gravité critique — priorité terrain';
+    tdTitle.append(crit);
+  }
+  tdTitle.append(refSmall);
 
   const tdSev = document.createElement('td');
   tdSev.className = 'incidents-table-cell';
@@ -642,6 +811,11 @@ export function renderIncidents(onAddLog) {
     box.append(lb, val);
     return { box, val };
   }
+  const stTotal = makeSynthTile(
+    'Total incidents',
+    '',
+    'Nombre de fiches chargées sur le périmètre courant'
+  );
   const stCrit = makeSynthTile(
     'Critiques ouverts',
     'incidents-synth-tile--alert',
@@ -662,7 +836,7 @@ export function renderIncidents(onAddLog) {
     '',
     'Proxy : ancienneté moyenne des dossiers encore ouverts (pas de date de clôture serveur)'
   );
-  statsRow.append(stCrit.box, stRecent.box, stInv.box, stMean.box);
+  statsRow.append(stTotal.box, stCrit.box, stRecent.box, stInv.box, stMean.box);
 
   const insightBar = document.createElement('div');
   insightBar.className = 'incidents-insight incidents-pilotage-block__insight';
@@ -673,7 +847,7 @@ export function renderIncidents(onAddLog) {
 
   const quickActionsCard = document.createElement('article');
   quickActionsCard.className =
-    'content-card card-soft incidents-premium-card incidents-quick-actions-card';
+    'content-card card-soft incidents-premium-card incidents-quick-actions-card incidents-terrain-card';
   const quickActionsInner = document.createElement('div');
   quickActionsInner.className = 'incidents-quick-actions-card__inner';
   const quickActionsCopy = document.createElement('div');
@@ -693,13 +867,13 @@ export function renderIncidents(onAddLog) {
   quickActionsBtns.className = 'incidents-quick-actions-card__buttons';
   const btnDeclare = document.createElement('button');
   btnDeclare.type = 'button';
-  btnDeclare.className = 'btn btn-primary incidents-page-header__cta';
-  btnDeclare.textContent = '+ Déclarer un incident';
+  btnDeclare.className = 'btn btn-primary incidents-page-header__cta incidents-terrain-cta-main';
+  btnDeclare.textContent = 'Déclarer un incident';
   const btnTerrain = document.createElement('button');
   btnTerrain.type = 'button';
-  btnTerrain.className = 'btn btn-secondary incidents-quick-actions-card__terrain';
-  btnTerrain.textContent = 'Déclaration terrain';
-  btnTerrain.title = 'Même assistant — optimisé pour une saisie rapide sur le terrain';
+  btnTerrain.className = 'btn btn-secondary incidents-quick-actions-card__terrain incidents-terrain-cta-sub';
+  btnTerrain.textContent = 'Déclaration terrain (rapide)';
+  btnTerrain.title = 'Même assistant — gros boutons, adapté mobile';
   const btnDash = document.createElement('button');
   btnDash.type = 'button';
   btnDash.className = 'incidents-page-header__linkish';
@@ -763,6 +937,7 @@ export function renderIncidents(onAddLog) {
   function updateHeaderStats() {
     const dash = '—';
     if (apiLoadState === 'loading' || apiLoadState === 'error') {
+      stTotal.val.textContent = dash;
       stCrit.val.textContent = dash;
       stRecent.val.textContent = dash;
       stInv.val.textContent = dash;
@@ -770,6 +945,7 @@ export function renderIncidents(onAddLog) {
       insightBar.hidden = true;
       return;
     }
+    stTotal.val.textContent = String(incidentRecords.length);
     stCrit.val.textContent = String(countCriticalOpenIncidents(incidentRecords));
     stRecent.val.textContent = String(countIncidentsLastDays(incidentRecords, 7));
     stInv.val.textContent = String(countInvestigationOpenIncidents(incidentRecords));
@@ -921,7 +1097,7 @@ export function renderIncidents(onAddLog) {
           5 étapes courtes — une seule question visible à la fois. Validation finale requise avant envoi API.
         </p>
         <p class="incidents-form-api-hint" title="URL technique pour support / intégration">
-          API : <code>${getApiBase()}</code>
+          API : <code>${escapeHtml(getApiBase())}</code>
         </p>
       </div>`;
 
@@ -1028,7 +1204,7 @@ export function renderIncidents(onAddLog) {
   const photoNote = document.createElement('p');
   photoNote.className = 'incidents-form-lead incidents-rapid-photo-note';
   photoNote.textContent =
-    'Le serveur ne stocke pas encore les médias : une mention « photo signalée » sera ajoutée au texte. Pour archivage réel, branchez un endpoint fichiers.';
+    '1 photo, max. ~420 Ko — stockée avec la fiche (aperçu dans le détail). Réduisez la résolution si besoin.';
   const photoPreview = document.createElement('div');
   photoPreview.className = 'incidents-rapid-photo-preview';
   photoInput.addEventListener('change', () => {
@@ -1051,6 +1227,51 @@ export function renderIncidents(onAddLog) {
   const q4 = document.createElement('p');
   q4.className = 'incidents-rapid-q';
   q4.textContent = 'Où cela s’est-il produit ?';
+
+  const qCause = document.createElement('p');
+  qCause.className = 'incidents-rapid-q incidents-rapid-q--compact';
+  qCause.textContent = 'Cause dominante (optionnel)';
+  const causeChipWrap = document.createElement('div');
+  causeChipWrap.className = 'incidents-rapid-type-chips incidents-rapid-type-chips--compact';
+  const causeCatSelect = document.createElement('select');
+  causeCatSelect.className = 'control-select incidents-sr-only';
+  causeCatSelect.setAttribute('aria-hidden', 'true');
+  causeCatSelect.tabIndex = -1;
+  const causeOptNone = document.createElement('option');
+  causeOptNone.value = '';
+  causeOptNone.textContent = '—';
+  causeCatSelect.append(causeOptNone);
+  const causeChipByVal = new Map();
+  CAUSE_CATEGORY_CHIPS.forEach(([val, label]) => {
+    const o = document.createElement('option');
+    o.value = val;
+    o.textContent = label;
+    causeCatSelect.append(o);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'incidents-rapid-chip incidents-rapid-chip--compact';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      causeCatSelect.value = val;
+      causeChipByVal.forEach((btn, k) => {
+        btn.classList.toggle('incidents-rapid-chip--on', k === val);
+      });
+    });
+    causeChipByVal.set(val, b);
+    causeChipWrap.append(b);
+  });
+
+  const respDecl = document.createElement('label');
+  respDecl.className = 'incidents-rapid-resp-field';
+  const respDeclSpan = document.createElement('span');
+  respDeclSpan.textContent = 'Responsable suivi (optionnel)';
+  const respDeclInput = document.createElement('input');
+  respDeclInput.type = 'text';
+  respDeclInput.className = 'control-input';
+  respDeclInput.placeholder = 'Nom, matricule…';
+  respDeclInput.maxLength = 200;
+  respDecl.append(respDeclSpan, respDeclInput);
+
   const siteSelect = document.createElement('select');
   siteSelect.className = 'control-select incident-field-site';
   const locInput = document.createElement('input');
@@ -1122,7 +1343,18 @@ export function renderIncidents(onAddLog) {
   riskLinkHint.textContent =
     'Enregistré dans la description sous forme de repère texte — même logique que le module Risques pour retrouver les incidents liés.';
   riskLinkField.append(riskLinkFieldLabel, riskSelect, riskLinkHint);
-  pane4.append(q4, siteSelect, locInput, dateFactsWrap, riskLinkField, geoRow);
+  pane4.append(
+    q4,
+    qCause,
+    causeChipWrap,
+    causeCatSelect,
+    respDecl,
+    siteSelect,
+    locInput,
+    dateFactsWrap,
+    riskLinkField,
+    geoRow
+  );
 
   const nav = document.createElement('div');
   nav.className = 'incidents-rapid-nav';
@@ -1426,6 +1658,56 @@ export function renderIncidents(onAddLog) {
   analyticsGrid.className = 'incidents-analytics-grid';
   analyticsCard.append(analyticsHead, analyticsGrid);
 
+  const journalCard = document.createElement('article');
+  journalCard.className =
+    'content-card card-soft incidents-premium-card incidents-journal-card';
+  const journalHead = document.createElement('div');
+  journalHead.className = 'content-card-head content-card-head--tight';
+  journalHead.innerHTML = `
+    <div>
+      <div class="section-kicker">Traçabilité</div>
+      <h3>Journal incidents (local)</h3>
+      <p class="incidents-form-lead incidents-journal-card__lead">
+        Dernières actions enregistrées dans cette session — déclarations, statuts, analyses.
+      </p>
+    </div>`;
+  const journalBody = document.createElement('div');
+  journalBody.className = 'incidents-journal-body';
+  journalCard.append(journalHead, journalBody);
+
+  function refreshIncidentJournal() {
+    journalBody.replaceChildren();
+    const items = activityLogStore
+      .all()
+      .filter((e) => e.module === 'incidents')
+      .slice(0, 12);
+    if (!items.length) {
+      const p = document.createElement('p');
+      p.className = 'incidents-journal-empty';
+      p.textContent =
+        'Aucun événement — le journal se remplit quand vous déclarez ou mettez à jour une fiche.';
+      journalBody.append(p);
+      return;
+    }
+    const ul = document.createElement('ul');
+    ul.className = 'incidents-journal-list';
+    items.forEach((e) => {
+      const li = document.createElement('li');
+      li.className = 'incidents-journal-li';
+      const strong = document.createElement('strong');
+      strong.textContent = e.action || '—';
+      const detail = document.createElement('span');
+      detail.className = 'incidents-journal-li__detail';
+      detail.textContent = e.detail ? ` — ${e.detail}` : '';
+      const meta = document.createElement('span');
+      meta.className = 'incidents-journal-li__meta';
+      meta.textContent = ` · ${e.timestamp || ''} · ${e.user || ''}`;
+      li.append(strong, detail, meta);
+      ul.append(li);
+    });
+    journalBody.append(ul);
+  }
+
   const registryShell = document.createElement('div');
   registryShell.className = 'incidents-registry-shell incidents-registry-shell--secondary';
   const registryZoneTitle = document.createElement('div');
@@ -1447,8 +1729,11 @@ export function renderIncidents(onAddLog) {
     quickActionsCard,
     prioritiesCard,
     analyticsCard,
+    journalCard,
     registryShell
   );
+
+  refreshIncidentJournal();
 
   function refreshAnalytics() {
     analyticsGrid.replaceChildren();
@@ -1583,6 +1868,161 @@ export function renderIncidents(onAddLog) {
     statusBlock.append(lab);
     mainSec.append(mainH, head, badges, statusBlock);
 
+    const metaSec = document.createElement('section');
+    metaSec.className = 'incidents-detail-section';
+    const metaH = document.createElement('h3');
+    metaH.className = 'incidents-detail-section__title';
+    metaH.textContent = 'Fiche terrain';
+    const phase = incidentPhaseLabel(row.status);
+    const phasePill = document.createElement('span');
+    const phaseToken = sanitizeClassToken(incidentOperationalPhase(row.status), 'open');
+    phasePill.className = `incidents-phase-pill incidents-phase-pill--${phaseToken}`;
+    phasePill.textContent = phase;
+    phasePill.title = 'Lecture opérationnelle : ouvert / en analyse / traité';
+    const metaDl = document.createElement('dl');
+    metaDl.className = 'incidents-detail-dl';
+    [
+      ['Date', row.date || '—'],
+      ['Site', row.site || '—'],
+      ['Lieu précis', (row.location || '').trim() || '—'],
+      ['Gravité', row.severity || '—']
+    ].forEach(([dt, dd]) => {
+      const dtt = document.createElement('dt');
+      dtt.textContent = dt;
+      const ddd = document.createElement('dd');
+      ddd.textContent = dd;
+      metaDl.append(dtt, ddd);
+    });
+    const dttPh = document.createElement('dt');
+    dttPh.textContent = 'Phase';
+    const dddPh = document.createElement('dd');
+    dddPh.append(phasePill);
+    metaDl.append(dttPh, dddPh);
+    const respLine = document.createElement('p');
+    respLine.className = 'incidents-detail-resp';
+    respLine.textContent = row.responsible?.trim()
+      ? `Responsable suivi : ${row.responsible.trim()}`
+      : 'Responsable suivi : —';
+    metaSec.append(metaH, metaDl, respLine);
+
+    const serverAnalysisSec = document.createElement('section');
+    serverAnalysisSec.className = 'incidents-detail-section incidents-detail-section--analysis';
+    const srvH = document.createElement('h3');
+    srvH.className = 'incidents-detail-section__title';
+    srvH.textContent = 'Analyse causes (serveur)';
+    const srvLead = document.createElement('p');
+    srvLead.className = 'incidents-detail-muted';
+    srvLead.textContent =
+      'Classifiez la cause dominante pour le pilotage (humain / matériel / organisation).';
+    const anaCatLab = document.createElement('label');
+    anaCatLab.className = 'incidents-detail-analysis-field';
+    const anaCatSpan = document.createElement('span');
+    anaCatSpan.textContent = 'Cause dominante';
+    const anaCatSel = document.createElement('select');
+    anaCatSel.className = 'control-select';
+    anaCatSel.disabled = !canWriteIncidents;
+    [
+      ['', '— Non renseigné —'],
+      ['humain', 'Humain'],
+      ['materiel', 'Matériel'],
+      ['organisation', 'Organisation'],
+      ['mixte', 'Mixte']
+    ].forEach(([v, lab]) => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = lab;
+      anaCatSel.append(o);
+    });
+    anaCatSel.value = row.causeCategory || '';
+    anaCatLab.append(anaCatSpan, anaCatSel);
+
+    const anaCausesLab = document.createElement('label');
+    anaCausesLab.className = 'incidents-detail-analysis-field';
+    const anaCausesSpan = document.createElement('span');
+    anaCausesSpan.textContent = 'Causes (texte)';
+    const anaCausesTa = document.createElement('textarea');
+    anaCausesTa.className = 'control-input incidents-detail-analysis-ta';
+    anaCausesTa.rows = 4;
+    anaCausesTa.disabled = !canWriteIncidents;
+    anaCausesTa.value = (row.causes || '').trim();
+    anaCausesTa.placeholder = 'Faits, conditions, facteurs contributifs…';
+    anaCausesLab.append(anaCausesSpan, anaCausesTa);
+
+    const anaRespLab = document.createElement('label');
+    anaRespLab.className = 'incidents-detail-analysis-field';
+    const anaRespSpan = document.createElement('span');
+    anaRespSpan.textContent = 'Responsable suivi';
+    const anaRespInp = document.createElement('input');
+    anaRespInp.type = 'text';
+    anaRespInp.className = 'control-input';
+    anaRespInp.disabled = !canWriteIncidents;
+    anaRespInp.value = (row.responsible || '').trim();
+    anaRespInp.maxLength = 200;
+    anaRespLab.append(anaRespSpan, anaRespInp);
+
+    const btnSaveAnalysis = document.createElement('button');
+    btnSaveAnalysis.type = 'button';
+    btnSaveAnalysis.className = 'btn btn-primary incidents-detail-save-analysis';
+    btnSaveAnalysis.textContent = 'Enregistrer l’analyse';
+    btnSaveAnalysis.hidden = !canWriteIncidents;
+    btnSaveAnalysis.addEventListener('click', async () => {
+      btnSaveAnalysis.disabled = true;
+      try {
+        const res = await qhseFetch(`/api/incidents/${encodeURIComponent(inc.ref)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            causes: anaCausesTa.value.trim() || null,
+            causeCategory: anaCatSel.value || null,
+            responsible: anaRespInp.value.trim() || null
+          })
+        });
+        if (!res.ok) {
+          let msg = 'Enregistrement impossible';
+          try {
+            const b = await res.json();
+            if (b.error) msg = b.error;
+          } catch {
+            /* ignore */
+          }
+          showToast(msg, 'error');
+          return;
+        }
+        const updated = await res.json();
+        const entry = mapApiIncident(updated);
+        if (entry) {
+          const idx = incidentRecords.findIndex((r) => r.ref === entry.ref);
+          if (idx >= 0) incidentRecords[idx] = entry;
+        }
+        showToast('Analyse enregistrée', 'success');
+        if (typeof onAddLog === 'function') {
+          onAddLog({
+            module: 'incidents',
+            action: 'Analyse incident',
+            detail: `${inc.ref} — causes / catégorie`,
+            user: getSessionUser()?.name || 'Terrain'
+          });
+        }
+        refreshIncidentJournal();
+        const fresh = incidentRecords.find((r) => r.ref === inc.ref);
+        if (fresh) renderDetailForIncident(fresh);
+      } catch (e) {
+        console.error('[incidents] PATCH analyse', e);
+        showToast('Erreur réseau', 'error');
+      } finally {
+        btnSaveAnalysis.disabled = false;
+      }
+    });
+
+    serverAnalysisSec.append(
+      srvH,
+      srvLead,
+      anaCatLab,
+      anaCausesLab,
+      anaRespLab,
+      btnSaveAnalysis
+    );
+
     const descSec = document.createElement('section');
     descSec.className = 'incidents-detail-section';
     const descH = document.createElement('h3');
@@ -1597,14 +2037,26 @@ export function renderIncidents(onAddLog) {
     photoSec.className = 'incidents-detail-section';
     const photoH = document.createElement('h3');
     photoH.className = 'incidents-detail-section__title';
-    photoH.textContent = 'Photo';
-    const photoP = document.createElement('p');
-    photoP.className = 'incidents-detail-muted';
-    const hasPhotoMention = /📷|photo terrain|Photo signalée/i.test(row.description || '');
-    photoP.textContent = hasPhotoMention
-      ? 'Une mention de photo figure dans la description. Le stockage fichier n’est pas encore branché sur l’API — conserver la preuve selon votre procédure interne.'
-      : 'Aucune mention de photo sur cette fiche.';
-    photoSec.append(photoH, photoP);
+    photoH.textContent = 'Photos';
+    const shots = Array.isArray(row.photos) ? row.photos : [];
+    if (shots.length) {
+      const grid = document.createElement('div');
+      grid.className = 'incidents-detail-photo-grid';
+      shots.forEach((src, i) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = `Photo ${i + 1} — ${row.ref}`;
+        img.className = 'incidents-detail-photo-thumb';
+        img.loading = 'lazy';
+        grid.append(img);
+      });
+      photoSec.append(photoH, grid);
+    } else {
+      const photoP = document.createElement('p');
+      photoP.className = 'incidents-detail-muted';
+      photoP.textContent = 'Aucune photo sur cette fiche.';
+      photoSec.append(photoH, photoP);
+    }
 
     const aiCause = inferIncidentAiCauseProbable(row);
     const aiAction = inferIncidentAiActionRecommandee(row);
@@ -1694,14 +2146,58 @@ export function renderIncidents(onAddLog) {
     actSec.append(actH, actHost);
 
     const foot = document.createElement('div');
-    foot.className = 'incidents-detail-foot';
+    foot.className = 'incidents-detail-foot incidents-detail-foot--links';
+    const btnCorrAssist = document.createElement('button');
+    btnCorrAssist.type = 'button';
+    btnCorrAssist.className = 'btn btn-secondary';
+    btnCorrAssist.textContent = 'Assistant — action corrective';
+    btnCorrAssist.title = 'Ouvre le formulaire prérempli (IA simulée) — vous validez avant envoi';
+    btnCorrAssist.hidden = !canWriteActions;
+    btnCorrAssist.addEventListener('click', () => {
+      void proposeCorrectiveActionViaAssistant(inc);
+    });
+    const btnCorr = document.createElement('button');
+    btnCorr.type = 'button';
+    btnCorr.className = 'btn btn-primary';
+    btnCorr.textContent = 'Créer action corrective';
+    btnCorr.hidden = !canWriteActions;
+    btnCorr.addEventListener('click', () => {
+      void createCorrectiveAction(inc);
+    });
     const btnAct = document.createElement('button');
     btnAct.type = 'button';
-    btnAct.className = 'btn btn-primary';
-    btnAct.textContent = 'Créer une action liée';
+    btnAct.className = 'btn btn-secondary';
+    btnAct.textContent = 'Créer action liée';
     btnAct.hidden = !canWriteActions;
+    btnAct.title = 'Action de suivi générique (même assistant qu’avant)';
     btnAct.addEventListener('click', () => {
-      createLinkedAction(inc);
+      void createLinkedAction(inc);
+    });
+    const btnRisk = document.createElement('button');
+    btnRisk.type = 'button';
+    btnRisk.className = 'btn btn-secondary';
+    btnRisk.textContent = 'Créer risque associé';
+    btnRisk.addEventListener('click', () => {
+      openRiskCreateDialog({
+        defaults: {
+          category: 'Sécurité',
+          title: `Risque lié ${inc.ref}`,
+          description: `Contexte incident ${inc.ref} — ${inc.type} (${inc.site}).\n\n${(inc.description || '').slice(0, 1400)}`
+        },
+        onSaved: () => {
+          showToast(
+            'Fiche ajoutée au registre Risques (local). Ouvrez le module Risques pour la suite.',
+            'success'
+          );
+          activityLogStore.add({
+            module: 'incidents',
+            action: 'Création risque lié',
+            detail: inc.ref,
+            user: getSessionUser()?.name || 'Terrain'
+          });
+          refreshIncidentJournal();
+        }
+      });
     });
     const btnActionsPage = document.createElement('button');
     btnActionsPage.type = 'button';
@@ -1710,9 +2206,19 @@ export function renderIncidents(onAddLog) {
     btnActionsPage.addEventListener('click', () => {
       window.location.hash = 'actions';
     });
-    foot.append(btnAct, btnActionsPage);
+    foot.append(btnCorrAssist, btnCorr, btnAct, btnRisk, btnActionsPage);
 
-    wrap.append(mainSec, descSec, photoSec, aiSec, analysisSec, actSec, foot);
+    wrap.append(
+      mainSec,
+      metaSec,
+      serverAnalysisSec,
+      descSec,
+      photoSec,
+      aiSec,
+      analysisSec,
+      actSec,
+      foot
+    );
     detailInner.append(wrap);
 
     const linked = await fetchActionsLinkedToIncident(inc.ref);
@@ -1875,6 +2381,7 @@ export function renderIncidents(onAddLog) {
           user: getSessionUser()?.name || 'Responsable QHSE'
         });
       }
+      refreshIncidentJournal();
       refreshList();
     } catch (err) {
       console.error('[incidents] PATCH', err);
@@ -2064,6 +2571,7 @@ export function renderIncidents(onAddLog) {
     }
     refreshAnalytics();
     refreshPrioritiesStrip();
+    refreshIncidentJournal();
   }
 
   try {
@@ -2104,8 +2612,29 @@ export function renderIncidents(onAddLog) {
       return;
     }
 
-    const sev = severity.getValue();
     const descRaw = (descInput.value || '').trim();
+    if (!descRaw) {
+      showToast('La description est obligatoire (terrain).', 'error');
+      return;
+    }
+
+    let photosJsonPayload = null;
+    if (photoInput.files?.[0]) {
+      const f = photoInput.files[0];
+      if (f.size > 450 * 1024) {
+        showToast('Photo trop lourde — max. ~420–450 Ko.', 'error');
+        return;
+      }
+      try {
+        const url = await fileToDataUrl(f);
+        photosJsonPayload = JSON.stringify([url]);
+      } catch {
+        showToast('Lecture photo impossible', 'error');
+        return;
+      }
+    }
+
+    const sev = severity.getValue();
     const dateNote =
       dateFactsInput.value && typeof dateFactsInput.value === 'string'
         ? `Faits le ${formatIsoDateToFr(dateFactsInput.value)}. `
@@ -2113,13 +2642,9 @@ export function renderIncidents(onAddLog) {
     const locPart = locInput.value.trim()
       ? `[Lieu précis] ${locInput.value.trim()}\n`
       : '';
-    const hasPhoto = !!(photoInput.files && photoInput.files.length);
-    const photoPart = hasPhoto
-      ? '📷 Photo terrain signalée (média non stocké sur le serveur dans cette version).\n'
-      : '';
     const riskTitlePick = riskSelect.value.trim();
     const riskPart = riskTitlePick ? `\n\n${formatRiskLinkTag(riskTitlePick)}` : '';
-    const detailText = (dateNote + locPart + photoPart + descRaw + riskPart).trim();
+    const detailText = (dateNote + locPart + descRaw + riskPart).trim();
     const detailForLog = detailText || 'Sans description';
 
     const ref = computeNextRef(incidentRecords);
@@ -2136,6 +2661,10 @@ export function renderIncidents(onAddLog) {
           severity: sev,
           description: detailText || undefined,
           status: 'Nouveau',
+          location: locInput.value.trim() || null,
+          causeCategory: causeCatSelect.value.trim() || null,
+          responsible: respDeclInput.value.trim() || getSessionUser()?.name || null,
+          photosJson: photosJsonPayload,
           ...(siteSelect.selectedOptions[0]?.dataset.siteId
             ? { siteId: siteSelect.selectedOptions[0].dataset.siteId }
             : {})
@@ -2173,6 +2702,7 @@ export function renderIncidents(onAddLog) {
           user: 'Agent terrain'
         });
       }
+      refreshIncidentJournal();
 
       showToast(`Incident enregistré : ${ref}`, 'info');
       descInput.value = '';
@@ -2190,6 +2720,9 @@ export function renderIncidents(onAddLog) {
       await fillIncidentSiteSelect();
       fillIncidentRiskSelect();
       riskSelect.value = '';
+      causeCatSelect.value = '';
+      causeChipByVal.forEach((btn) => btn.classList.remove('incidents-rapid-chip--on'));
+      respDeclInput.value = '';
       setWizardStep(0);
 
       setTimeout(() => {

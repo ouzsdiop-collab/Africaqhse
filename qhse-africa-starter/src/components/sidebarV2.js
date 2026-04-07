@@ -9,6 +9,7 @@ import {
 } from '../data/sessionUser.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
+import { getDisplayMode } from '../utils/displayMode.js';
 
 const STYLE_ID = 'qhse-sidebar-v2-styles';
 
@@ -18,7 +19,7 @@ function ensureSidebarV2Styles() {
   el.id = STYLE_ID;
   el.textContent = `
 .sidebar-v2 {
-  width: 264px;
+  width: 272px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -29,10 +30,10 @@ function ensureSidebarV2Styles() {
   align-self: flex-start;
   z-index: var(--z-sidebar);
   background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--color-surface) 98%, var(--palette-accent, #14b8a6)) 0%,
-    var(--color-surface) 38%,
-    color-mix(in srgb, var(--color-surface) 94%, var(--color-subtle)) 100%
+    168deg,
+    color-mix(in srgb, var(--color-surface) 94%, var(--palette-accent, #14b8a6) 4%) 0%,
+    color-mix(in srgb, var(--color-surface) 98%, var(--color-subtle)) 42%,
+    color-mix(in srgb, var(--color-surface) 92%, var(--color-subtle)) 100%
   );
   border-right: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
   box-shadow: var(--shadow-sm), inset -1px 0 0 color-mix(in srgb, var(--color-border) 28%, transparent);
@@ -141,7 +142,7 @@ function ensureSidebarV2Styles() {
   width: 100%;
   text-align: left;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: calc(var(--radius-md) + 1px);
   padding: var(--space-2) var(--space-3);
   padding-left: calc(var(--space-3) + 3px);
   margin: 0;
@@ -175,7 +176,11 @@ function ensureSidebarV2Styles() {
     width 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar-v2__item:hover {
-  background: color-mix(in srgb, var(--color-subtle) 78%, var(--color-primary-bg));
+  background: linear-gradient(
+    96deg,
+    color-mix(in srgb, var(--color-subtle) 78%, var(--color-primary-bg)) 0%,
+    color-mix(in srgb, var(--color-subtle) 92%, var(--color-surface)) 100%
+  );
   color: var(--color-text);
 }
 .sidebar-v2__item:focus-visible {
@@ -191,8 +196,8 @@ function ensureSidebarV2Styles() {
     color-mix(in srgb, var(--color-primary-bg) 72%, var(--color-surface)) 100%
   );
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-primary-border) 45%, transparent),
-    0 1px 2px color-mix(in srgb, var(--color-primary-text) 8%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--color-primary-border) 46%, transparent),
+    0 6px 18px color-mix(in srgb, var(--color-primary-text) 14%, transparent);
 }
 .sidebar-v2__item--active::before {
   height: 72%;
@@ -623,6 +628,8 @@ const NAV_ICON_SVG = {
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>',
   incidents:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  permits:
+    '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>',
   risks:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   actions:
@@ -660,6 +667,8 @@ export function createSidebar({
   onSessionUserChange
 }) {
   ensureSidebarV2Styles();
+  const terrainMode = getDisplayMode() === 'terrain';
+  const terrainVisiblePages = new Set(['terrain-mode', 'incidents', 'permits', 'actions', 'settings']);
 
   const aside = document.createElement('aside');
   aside.className = 'sidebar-v2';
@@ -916,6 +925,7 @@ export function createSidebar({
     const role = getSessionUser()?.role;
 
     group.items.forEach((item) => {
+      if (terrainMode && !terrainVisiblePages.has(item.id)) return;
       if (!canAccessNavPage(role, item.id)) return;
       const button = document.createElement('button');
       button.type = 'button';

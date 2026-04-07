@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <title>Cockpit QHSE</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +28,34 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div
+        id="qhse-boot-placeholder"
+        style="
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+          padding: 24px;
+          background: #0f172a;
+          color: #e2e8f0;
+          font-family: system-ui, -apple-system, sans-serif;
+          text-align: center;
+        "
+      >
+        <div style="max-width: 32rem; line-height: 1.55">
+          <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600">Chargement du Cockpit QHSE…</p>
+          <p style="margin: 0; font-size: 13px; opacity: 0.82">
+            Si rien n’apparaît après quelques secondes : ouvrez un terminal dans le dossier du projet, exécutez
+            <code style="background: #1e293b; padding: 2px 8px; border-radius: 6px; font-size: 12px">npm run dev</code>
+            puis l’URL
+            <code style="background: #1e293b; padding: 2px 8px; border-radius: 6px; font-size: 12px">http://localhost:5173</code>
+            (évitez d’ouvrir le fichier HTML en double-clic).
+          </p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

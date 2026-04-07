@@ -18,6 +18,8 @@ import {
   createPilotageLoadMixChart,
   interpretAuditScoreSeries
 } from '../components/dashboardCharts.js';
+import { createAnalyticsQuadInsightSection } from '../components/analyticsQuadAiInsight.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 const ANALYTICS_LIST_CAP = 5;
 
@@ -171,33 +173,32 @@ function buildAnalyticsDecisionPanel(counts, kpis, alerts, layout = 'split') {
     'analytics-decision-panel' +
     (layout === 'stacked' ? ' analytics-decision-panel--stacked' : '');
 
-  const synth = document.createElement('div');
-  synth.className = 'analytics-synthesis';
-  buildSynthesisPhrases(counts, kpis).forEach((phrase) => {
-    const p = document.createElement('p');
-    p.textContent = phrase;
-    synth.append(p);
-  });
-
-  const alertsBox = document.createElement('div');
-  alertsBox.className = 'analytics-alerts-compact';
-  alertsBox.setAttribute('aria-label', 'Alertes synthétiques');
   const arr = Array.isArray(alerts) ? alerts : [];
   const hard = arr.filter((a) => a.level === 'critical' || a.level === 'high');
-  const toShow = (hard.length ? hard : arr).slice(0, 3);
+  const toShow = (hard.length ? hard : arr).slice(0, 4);
 
-  if (!toShow.length) {
-    alertsBox.append(emptyNote('Aucune alerte listée.'));
-  } else {
+  const list = document.createElement('div');
+  list.className = 'analytics-decision-list';
+  list.setAttribute('aria-label', 'Synthèse décisionnelle');
+
+  if (toShow.length) {
     toShow.forEach((a) => {
       const row = document.createElement('div');
       row.className = `analytics-alert-chip analytics-alert-chip--${a.level}`;
       row.textContent = (a.message || a.code || '—').trim();
-      alertsBox.append(row);
+      list.append(row);
+    });
+  } else {
+    const phrases = buildSynthesisPhrases(counts, kpis);
+    phrases.forEach((phrase) => {
+      const row = document.createElement('div');
+      row.className = 'analytics-alert-chip analytics-alert-chip--neutral';
+      row.textContent = phrase;
+      list.append(row);
     });
   }
 
-  section.append(synth, alertsBox);
+  section.append(list);
   return section;
 }
 
@@ -305,7 +306,7 @@ function buildAnalyticsMainTrend(counts, data) {
     const chart = createKpiMultiLineChart(
       labels,
       series,
-      `${counts.auditsTotal ?? '—'} audit(s) en base · 0–100 % · réf. 75 %`,
+      `${counts.auditsTotal ?? '—'} audit(s) en base · échelle 0–100 % · réf. 75 % · grille + survol`,
       {
         variant: 'analytics',
         targetYPercent: 75,
@@ -313,6 +314,11 @@ function buildAnalyticsMainTrend(counts, data) {
       }
     );
     body.append(chart);
+    const hint = document.createElement('p');
+    hint.className = 'analytics-chart-interact-hint';
+    hint.textContent =
+      'Survolez la courbe : valeurs à 0,1 % près, ligne verticale de lecture. Mobile : glisser le doigt.';
+    body.append(hint);
   }
 
   return wrapAnalyticsChartCard(
@@ -500,9 +506,9 @@ function buildKpiGrid(counts, kpis) {
     const card = document.createElement('article');
     card.className = 'metric-card card-soft';
     card.innerHTML = `
-      <div class="metric-label">${kpi.label}</div>
-      <div class="metric-value ${kpi.tone}">${kpi.value}</div>
-      <div class="metric-note">${kpi.note}</div>
+      <div class="metric-label">${escapeHtml(kpi.label)}</div>
+      <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
+      <div class="metric-note">${escapeHtml(kpi.note)}</div>
     `;
     grid.append(card);
   });
@@ -517,8 +523,8 @@ function buildStackSection(title, kicker, host) {
   head.className = 'content-card-head';
   head.innerHTML = `
     <div>
-      <div class="section-kicker">${kicker}</div>
-      <h3>${title}</h3>
+      <div class="section-kicker">${escapeHtml(kicker)}</div>
+      <h3>${escapeHtml(title)}</h3>
     </div>
   `;
   card.append(head, host);
@@ -582,9 +588,9 @@ function buildPeriodicSummaryGrid(summary) {
     const card = document.createElement('article');
     card.className = 'metric-card card-soft';
     card.innerHTML = `
-      <div class="metric-label">${kpi.label}</div>
-      <div class="metric-value ${kpi.tone}">${kpi.value}</div>
-      <div class="metric-note">${kpi.note}</div>
+      <div class="metric-label">${escapeHtml(kpi.label)}</div>
+      <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
+      <div class="metric-note">${escapeHtml(kpi.note)}</div>
     `;
     grid.append(card);
   });
@@ -714,8 +720,8 @@ function mountPeriodicReportingBlock(periodicCard) {
           const tone = alertBadgeClass(a.level);
           row.innerHTML = `
             <div>
-              <strong>${a.code || 'ALERTE'}</strong>
-              <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text2)">${a.message || ''}</p>
+              <strong>${escapeHtml(a.code || 'ALERTE')}</strong>
+              <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text2)">${escapeHtml(a.message || '')}</p>
             </div>
             <span class="badge ${tone}">${a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info'}</span>
           `;
@@ -738,10 +744,10 @@ function mountPeriodicReportingBlock(periodicCard) {
           row.className = 'list-row';
           row.innerHTML = `
             <div>
-              <strong>${inc.ref} — ${inc.type}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${inc.site} · ${inc.status}</p>
+              <strong>${escapeHtml(inc.ref)} — ${escapeHtml(inc.type)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(inc.site)} · ${escapeHtml(inc.status)}</p>
             </div>
-            <span class="badge blue">${formatFrDate(inc.createdAt)}</span>
+            <span class="badge blue">${escapeHtml(formatFrDate(inc.createdAt))}</span>
           `;
           incStack.append(row);
         });
@@ -758,10 +764,10 @@ function mountPeriodicReportingBlock(periodicCard) {
           row.className = 'list-row';
           row.innerHTML = `
             <div>
-              <strong>${a.ref}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${a.site} · ${a.status}</p>
+              <strong>${escapeHtml(a.ref)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(a.site)} · ${escapeHtml(a.status)}</p>
             </div>
-            <span class="badge blue">${a.score} %</span>
+            <span class="badge blue">${escapeHtml(a.score)} %</span>
           `;
           audStack.append(row);
         });
@@ -786,8 +792,8 @@ function mountPeriodicReportingBlock(periodicCard) {
           row.className = 'list-row';
           row.innerHTML = `
             <div>
-              <strong>${nc.title}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">Audit ${nc.auditRef} · ${nc.status}</p>
+              <strong>${escapeHtml(nc.title)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">Audit ${escapeHtml(nc.auditRef)} · ${escapeHtml(nc.status)}</p>
             </div>
             <span class="badge amber">NC</span>
           `;
@@ -806,8 +812,8 @@ function mountPeriodicReportingBlock(periodicCard) {
           const due = act.dueDate ? formatFrDate(act.dueDate) : '—';
           row.innerHTML = `
             <div>
-              <strong>${act.title}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${act.owner || '—'} · Échéance ${due}</p>
+              <strong>${escapeHtml(act.title)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(act.owner || '—')} · Échéance ${escapeHtml(due)}</p>
             </div>
             <span class="badge amber">Retard</span>
           `;
@@ -1037,7 +1043,8 @@ export function renderAnalytics() {
       cockpitStack.append(
         buildAnalyticsPrimaryKpis(counts, kpis),
         buildAnalyticsMainSplit(counts, data, kpis, priorityAlerts),
-        buildAnalyticsSecondaryCharts(counts, data)
+        buildAnalyticsSecondaryCharts(counts, data),
+        createAnalyticsQuadInsightSection(counts, data, kpis)
       );
       contentHost.append(cockpitStack);
 
@@ -1057,8 +1064,8 @@ export function renderAnalytics() {
           row.className = 'list-row';
           row.innerHTML = `
             <div>
-              <strong>${nc.title}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">Audit ${nc.auditRef} · ${nc.status}</p>
+              <strong>${escapeHtml(nc.title)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">Audit ${escapeHtml(nc.auditRef)} · ${escapeHtml(nc.status)}</p>
             </div>
             <span class="badge amber">NC</span>
           `;
@@ -1090,8 +1097,8 @@ export function renderAnalytics() {
           const due = act.dueDate ? formatFrDate(act.dueDate) : '—';
           row.innerHTML = `
             <div>
-              <strong>${act.title}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${act.owner || '—'} · Échéance ${due}</p>
+              <strong>${escapeHtml(act.title)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(act.owner || '—')} · Échéance ${escapeHtml(due)}</p>
             </div>
             <span class="badge amber">Retard</span>
           `;
@@ -1120,10 +1127,10 @@ export function renderAnalytics() {
           row.className = 'list-row';
           row.innerHTML = `
             <div>
-              <strong>${a.ref}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${a.site} · ${a.status}</p>
+              <strong>${escapeHtml(a.ref)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(a.site)} · ${escapeHtml(a.status)}</p>
             </div>
-            <span class="badge blue">${a.score} %</span>
+            <span class="badge blue">${escapeHtml(a.score)} %</span>
           `;
           auditStack.append(row);
         });
@@ -1153,10 +1160,10 @@ export function renderAnalytics() {
           row.className = 'list-row';
           row.innerHTML = `
             <div>
-              <strong>${inc.ref} — ${inc.type}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${inc.site} · ${inc.status}</p>
+              <strong>${escapeHtml(inc.ref)} — ${escapeHtml(inc.type)}</strong>
+              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(inc.site)} · ${escapeHtml(inc.status)}</p>
             </div>
-            <span class="badge red">${formatFrDate(inc.createdAt)}</span>
+            <span class="badge red">${escapeHtml(formatFrDate(inc.createdAt))}</span>
           `;
           critStack.append(row);
         });
@@ -1173,8 +1180,8 @@ export function renderAnalytics() {
           const tone = alertBadgeClass(a.level);
           row.innerHTML = `
             <div>
-              <strong>${a.code || 'ALERTE'}</strong>
-              <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text2)">${a.message || ''}</p>
+              <strong>${escapeHtml(a.code || 'ALERTE')}</strong>
+              <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text2)">${escapeHtml(a.message || '')}</p>
             </div>
             <span class="badge ${tone}">${a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info'}</span>
           `;

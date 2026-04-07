@@ -11,6 +11,11 @@ import {
   saveSensitiveAccessPin,
   clearSensitiveAccessSessionCache
 } from '../data/sensitiveAccessConfig.js';
+import {
+  isDemoMode,
+  setDemoMode,
+  resetDemoPresentation
+} from '../services/demoMode.service.js';
 
 const LS_ALERTS = 'qhse_cfg_alerts_v1';
 const LS_NOTIF = 'qhse_cfg_notif_v1';
@@ -275,6 +280,7 @@ export function renderSettings() {
   `;
   const tocNav = hero.querySelector('.settings-toc');
   const tocSpec = [
+    { id: 'settings-anchor-demo', label: 'Mode démo' },
     { id: 'settings-anchor-org', label: 'Organisation' },
     { id: 'settings-anchor-alerts', label: 'Alertes' },
     { id: 'settings-anchor-notif', label: 'Notifications' },
@@ -292,6 +298,62 @@ export function renderSettings() {
     b.addEventListener('click', () => scrollToSettingsSection(id));
     tocNav?.append(b);
   });
+
+  /* —— Mode démo (présentation client) —— */
+  const secDemo = document.createElement('section');
+  secDemo.className = 'settings-section';
+  secDemo.id = 'settings-anchor-demo';
+  secDemo.setAttribute('aria-labelledby', 'settings-demo-title');
+  secDemo.innerHTML = `
+    <header class="settings-section__head">
+      <p class="settings-section__kicker">Présentation</p>
+      <h4 class="settings-section__title" id="settings-demo-title">Mode démo</h4>
+      <p class="settings-section__lead">
+        Active des jeux de données <strong>locaux</strong> cohérents (incidents récents, actions en retard et en cours,
+        audit ISO 45001 en progression, non-conformités, notifications). Idéal pour une démo sans backend ou en salle.
+        Les autres requêtes API non couvertes passent encore par le réseau si le serveur est disponible.
+      </p>
+    </header>
+    <div class="settings-demo-card content-card card-soft">
+      <div class="settings-demo-row">
+        <label class="settings-demo-switch-label">
+          <input type="checkbox" class="settings-demo-toggle" data-demo-toggle />
+          <span>Activer le mode démo</span>
+        </label>
+      </div>
+      <p class="settings-demo-hint">
+        Après activation ou désactivation, la page se recharge pour rafraîchir tableaux de bord, listes et notifications.
+      </p>
+      <div class="settings-demo-actions">
+        <button type="button" class="btn btn-secondary" data-demo-reset>Réinitialiser démo</button>
+      </div>
+      <p class="settings-demo-foot">
+        « Réinitialiser » efface les modifications locales du scénario (glisser-déposer Kanban, patch incidents, lectures de notifications synthétiques) — le mode démo reste tel quel.
+      </p>
+    </div>
+  `;
+  const demoToggle = secDemo.querySelector('[data-demo-toggle]');
+  const demoReset = secDemo.querySelector('[data-demo-reset]');
+  if (demoToggle instanceof HTMLInputElement) {
+    demoToggle.checked = isDemoMode();
+    demoToggle.addEventListener('change', () => {
+      setDemoMode(demoToggle.checked);
+      showToast(
+        demoToggle.checked
+          ? 'Mode démo activé — données locales (rechargement…)'
+          : 'Mode démo désactivé — rechargement…',
+        'info'
+      );
+      window.setTimeout(() => window.location.reload(), 120);
+    });
+  }
+  if (demoReset) {
+    demoReset.addEventListener('click', () => {
+      resetDemoPresentation();
+      showToast('Scénario démo réinitialisé — rechargement…', 'success');
+      window.setTimeout(() => window.location.reload(), 120);
+    });
+  }
 
   /* —— Organisation —— */
   const secA = document.createElement('section');
@@ -1202,6 +1264,6 @@ export function renderSettings() {
     });
   }
 
-  page.append(hero, secA, secB, secC, secD, secH, secE, secF, secG);
+  page.append(hero, secDemo, secA, secB, secC, secD, secH, secE, secF, secG);
   return page;
 }

@@ -4,6 +4,8 @@ import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
 import {
   clampTrimString,
   FIELD_LIMITS,
+  parseIncidentCauseCategory,
+  parseIncidentPhotosJson,
   parseListLimit
 } from '../lib/validation.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
@@ -23,7 +25,20 @@ export async function getAll(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { ref, type, site, severity, description, status, siteId } = req.body;
+    const {
+      ref,
+      type,
+      site,
+      severity,
+      description,
+      status,
+      siteId,
+      location,
+      causes,
+      causeCategory,
+      photosJson,
+      responsible
+    } = req.body;
     const r = clampTrimString(ref, FIELD_LIMITS.incidentRef);
     const ty = clampTrimString(type, FIELD_LIMITS.incidentType);
     const si = clampTrimString(site, FIELD_LIMITS.incidentSiteLabel);
@@ -43,6 +58,36 @@ export async function create(req, res, next) {
         ? undefined
         : clampTrimString(status, FIELD_LIMITS.incidentStatus);
 
+    const loc =
+      location == null || location === ''
+        ? null
+        : clampTrimString(location, FIELD_LIMITS.incidentLocation) || null;
+    const cau =
+      causes == null || causes === ''
+        ? null
+        : clampTrimString(causes, FIELD_LIMITS.incidentCauses) || null;
+    const cat = parseIncidentCauseCategory(
+      causeCategory,
+      FIELD_LIMITS.incidentCauseCategory
+    );
+    if (cat === '__invalid__') {
+      return res.status(400).json({
+        error: 'causeCategory : humain, materiel, organisation ou mixte uniquement'
+      });
+    }
+    const resp =
+      responsible == null || responsible === ''
+        ? null
+        : clampTrimString(responsible, FIELD_LIMITS.incidentResponsible) || null;
+
+    const photosRes = parseIncidentPhotosJson(
+      photosJson,
+      FIELD_LIMITS.incidentPhotosJson
+    );
+    if (!photosRes.ok) {
+      return res.status(400).json({ error: photosRes.error });
+    }
+
     const created = await incidentsService.createIncident({
       ref: r,
       type: ty,
@@ -50,7 +95,12 @@ export async function create(req, res, next) {
       severity: sev,
       description: desc,
       status: st,
-      siteId
+      siteId,
+      location: loc,
+      causes: cau,
+      causeCategory: cat,
+      photosJson: photosRes.value,
+      responsible: resp
     });
     void writeAuditLog({
       userId: auditUserIdFromRequest(req),
@@ -81,14 +131,70 @@ export async function patchByRef(req, res, next) {
   try {
     const rawRef =
       typeof req.params.ref === 'string' ? decodeURIComponent(req.params.ref).trim() : '';
-    const { status } = req.body;
-    const st = clampTrimString(status, FIELD_LIMITS.incidentStatus);
-    if (!rawRef || !st) {
+    if (!rawRef) {
+      return res.status(400).json({ error: 'Référence incident requise' });
+    }
+    const {
+      status,
+      causes,
+      causeCategory,
+      location,
+      responsible,
+      photosJson
+    } = req.body;
+
+    const patch = {};
+    if (status != null && String(status).trim() !== '') {
+      patch.status = clampTrimString(status, FIELD_LIMITS.incidentStatus);
+    }
+    if ('causes' in req.body) {
+      patch.causes =
+        causes == null || causes === ''
+          ? null
+          : clampTrimString(causes, FIELD_LIMITS.incidentCauses) || null;
+    }
+    if ('causeCategory' in req.body) {
+      const cat = parseIncidentCauseCategory(
+        causeCategory,
+        FIELD_LIMITS.incidentCauseCategory
+      );
+      if (cat === '__invalid__') {
+        return res.status(400).json({
+          error: 'causeCategory : humain, materiel, organisation ou mixte uniquement'
+        });
+      }
+      patch.causeCategory = cat;
+    }
+    if ('location' in req.body) {
+      patch.location =
+        location == null || location === ''
+          ? null
+          : clampTrimString(location, FIELD_LIMITS.incidentLocation) || null;
+    }
+    if ('responsible' in req.body) {
+      patch.responsible =
+        responsible == null || responsible === ''
+          ? null
+          : clampTrimString(responsible, FIELD_LIMITS.incidentResponsible) || null;
+    }
+    if ('photosJson' in req.body) {
+      const pr = parseIncidentPhotosJson(
+        photosJson,
+        FIELD_LIMITS.incidentPhotosJson
+      );
+      if (!pr.ok) {
+        return res.status(400).json({ error: pr.error });
+      }
+      patch.photosJson = pr.value;
+    }
+
+    if (Object.keys(patch).length === 0) {
       return res.status(400).json({
-        error: 'Référence incident et statut requis (textes non vides).'
+        error: 'Fournir au moins un champ : status, causes, causeCategory, location, responsible, photosJson'
       });
     }
-    const updated = await incidentsService.updateIncidentByRef(rawRef, { status: st });
+
+    const updated = await incidentsService.updateIncidentByRef(rawRef, patch);
     void writeAuditLog({
       userId: auditUserIdFromRequest(req),
       resource: 'incidents',

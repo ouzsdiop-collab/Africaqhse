@@ -83,15 +83,23 @@ export function setAuthSession(user, token) {
 export async function restoreSessionFromToken() {
   const t = getAuthToken();
   if (!t) return;
+  const ac = new AbortController();
+  const ms = 8000;
+  const tid = setTimeout(() => ac.abort(), ms);
   try {
     const res = await fetch(`${getApiBase()}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${t}` }
+      headers: { Authorization: `Bearer ${t}` },
+      signal: ac.signal
     });
-    if (!res.ok) {
+    /* 401 seul = jeton refusé. Autres erreurs (5xx, 502, coupure) : ne pas vider la session. */
+    if (res.status === 401) {
       clearAuthSession();
       return;
     }
-    const data = await res.json();
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
     if (data?.user?.id) {
       setSessionUser({
         id: data.user.id,
@@ -102,7 +110,10 @@ export async function restoreSessionFromToken() {
     } else {
       clearAuthSession();
     }
-  } catch {
-    /* Erreur réseau : ne pas supprimer le jeton (API lente au boot ou coupure temporaire). */
+  } catch (e) {
+    /* Timeout / réseau : ne pas supprimer le jeton ; l’UI doit quand même s’afficher. */
+    if (e?.name === 'AbortError') return;
+  } finally {
+    clearTimeout(tid);
   }
 }

@@ -61,7 +61,14 @@ const MATRIX = {
 };
 
 /** Navigation restreinte pour TERRAIN (modules terrain + suivi actions). */
-const TERRAIN_PAGES = new Set(['dashboard', 'incidents', 'actions', 'settings']);
+const TERRAIN_PAGES = new Set([
+  'dashboard',
+  'terrain-mode',
+  'incidents',
+  'permits',
+  'actions',
+  'settings'
+]);
 
 /**
  * @param {string | null | undefined} role

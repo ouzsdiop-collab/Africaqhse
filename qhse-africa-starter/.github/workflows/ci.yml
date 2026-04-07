@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+
+  e2e:
+    needs: [frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: file:./prisma/ci-e2e.db
+      JWT_SECRET: ci-e2e-jwt-secret-minimum-32-characters
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install front + Playwright
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Backend — Prisma + seed
+        working-directory: backend
+        run: npm ci && npx prisma db push --accept-data-loss && npm run db:seed
+      - name: E2E (API + Vite via Playwright webServer)
+        run: npm run test:e2e
+        env:
+          CI: true

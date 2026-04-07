@@ -2267,3 +2267,264 @@
 .incidents-registry-shell--secondary .incidents-compact-filters {
   padding: 8px 10px 10px;
 }
+
+/* —— Terrain mobile : gros CTA —— */
+.incidents-terrain-card .incidents-quick-actions-card__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.incidents-terrain-cta-main {
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.incidents-terrain-cta-sub {
+  min-height: 48px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .incidents-terrain-card .incidents-quick-actions-card__buttons {
+    flex-direction: column;
+  }
+  .incidents-terrain-card .incidents-quick-actions-card__buttons .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Badge critique */
+.incidents-crit-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 0 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.22);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  width: fit-content;
+}
+
+.incidents-table-row--critique {
+  box-shadow: inset 3px 0 0 rgba(239, 68, 68, 0.65);
+}
+
+/* Journal local */
+.incidents-journal-card__lead {
+  margin-top: 4px;
+}
+
+.incidents-journal-body {
+  padding: 0 4px 8px;
+}
+
+.incidents-journal-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  line-height: 1.45;
+}
+
+.incidents-journal-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.incidents-journal-li {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.incidents-journal-li__detail {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.incidents-journal-li__meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* Fiche photos & méta */
+.incidents-detail-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.incidents-detail-photo-thumb {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.incidents-detail-dl {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.incidents-detail-dl dt {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.incidents-detail-dl dd {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.incidents-detail-resp {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.incidents-phase-pill {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.incidents-phase-pill--ouvert {
+  background: rgba(59, 130, 246, 0.15);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.incidents-phase-pill--analyse {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.incidents-phase-pill--traite {
+  background: rgba(34, 197, 94, 0.14);
+  color: #bbf7d0;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.incidents-detail-section--analysis .incidents-detail-analysis-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.incidents-detail-section--analysis .incidents-detail-analysis-field span {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+}
+
+.incidents-detail-save-analysis {
+  margin-top: 8px;
+}
+
+.incidents-detail-foot--links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .incidents-detail-foot--links .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+.incidents-rapid-q--compact {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.incidents-rapid-type-chips--compact {
+  gap: 6px;
+}
+
+.incidents-rapid-chip--compact {
+  padding: 8px 12px;
+  font-size: 12px;
+  min-height: 44px;
+}
+
+.incidents-rapid-resp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.incidents-rapid-resp-field span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.incidents-pilotage-block__stats.incidents-synth {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+/* Passe premium fine : cohérence header + liste + densité */
+.incidents-page-header {
+  margin-bottom: 2px;
+}
+
+.incidents-registry-shell {
+  gap: 1rem;
+}
+
+.incident-card {
+  border-radius: 14px;
+}
+
+.incident-card__title {
+  letter-spacing: -0.01em;
+}
+
+.incident-card__act {
+  min-height: 36px;
+  border-radius: 10px;
+}

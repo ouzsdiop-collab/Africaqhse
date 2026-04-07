@@ -68,18 +68,65 @@ export async function createIncident(data) {
       siteId,
       severity: data.severity,
       description: data.description ?? null,
-      status: data.status ?? 'Nouveau'
+      status: data.status ?? 'Nouveau',
+      location: data.location ?? null,
+      causes: data.causes ?? null,
+      causeCategory: data.causeCategory ?? null,
+      photosJson: data.photosJson ?? null,
+      responsible: data.responsible ?? null
     }
   });
 }
 
+const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
+
 /**
  * @param {string} ref
- * @param {{ status: string }} data
+ * @param {{
+ *   status?: string,
+ *   causes?: string | null,
+ *   causeCategory?: string | null,
+ *   location?: string | null,
+ *   responsible?: string | null,
+ *   photosJson?: string | null
+ * }} data
  */
 export async function updateIncidentByRef(ref, data) {
+  const patch = {};
+  if (data.status != null && String(data.status).trim() !== '') {
+    patch.status = data.status;
+  }
+  if ('causes' in data) {
+    patch.causes = data.causes;
+  }
+  if ('causeCategory' in data) {
+    const c = data.causeCategory;
+    if (c == null || c === '') {
+      patch.causeCategory = null;
+    } else if (CAUSE_CATS.has(String(c).toLowerCase())) {
+      patch.causeCategory = String(c).toLowerCase();
+    } else {
+      const err = new Error('causeCategory invalide (humain, materiel, organisation, mixte)');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  if ('location' in data) {
+    patch.location = data.location;
+  }
+  if ('responsible' in data) {
+    patch.responsible = data.responsible;
+  }
+  if ('photosJson' in data) {
+    patch.photosJson = data.photosJson;
+  }
+  if (Object.keys(patch).length === 0) {
+    const err = new Error('Aucun champ valide à mettre à jour');
+    err.statusCode = 400;
+    throw err;
+  }
   return prisma.incident.update({
     where: { ref },
-    data: { status: data.status }
+    data: patch
   });
 }

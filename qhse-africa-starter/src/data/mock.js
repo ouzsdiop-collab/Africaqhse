@@ -21,9 +21,29 @@ export const incidents = [
 export const risks = [
   {
     title: 'Renversement d’engin en pente',
+    type: 'Sécurité',
     detail: 'Zone de manutention — signalisation et stabilité des sols à revoir ; plan de manœuvre à formaliser.',
     causes: 'Pente non balisée ; sol meuble après pluie ; manœuvres simultanées.',
     impacts: 'Blessures graves, arrêt chantier, atteinte matériel et image.',
+    mesuresExistantes:
+      'Signalisation provisoire ; briefing sécurité hebdomadaire ; contrôle visuel des pentes (non formalisé).',
+    gpHistory: [
+      { when: '15/01/2026', g: 3, p: 3, note: 'Estimation initiale' },
+      { when: '10/03/2026', g: 4, p: 3, note: 'Relevé terrain — gravité rehaussée' },
+      { when: '02/04/2026', g: 5, p: 4, note: 'Alignement criticité actuelle' }
+    ],
+    history: [
+      {
+        when: '02/04/2026 16:40',
+        who: 'Chef de chantier',
+        what: 'Mise à jour criticité après relevé terrain.'
+      },
+      {
+        when: '15/03/2026',
+        who: 'Coordinateur QHSE',
+        what: 'Création fiche — intégration registre site.'
+      }
+    ],
     status: 'Critique',
     tone: 'red',
     meta: 'G5 × P4',
@@ -40,9 +60,14 @@ export const risks = [
   },
   {
     title: 'Pollution ponctuelle par hydrocarbures',
+    type: 'Environnement',
     detail: 'Zone stockage — rétention incomplète ; contrôle des absorbants et registre des déchets.',
     causes: 'Rétention non conforme ; stockage temporaire prolongé ; contrôles espacés.',
     impacts: 'Pollution sols / eaux, sanctions, coûts de traitement.',
+    gpHistory: [
+      { when: '01/02/2026', g: 3, p: 2, note: 'Évaluation' },
+      { when: '28/03/2026', g: 4, p: 3, note: 'Dérive constatée — rétention' }
+    ],
     status: 'Très élevé',
     tone: 'amber',
     meta: 'G4 × P3',
@@ -59,6 +84,7 @@ export const risks = [
   },
   {
     title: 'Exposition bruit opérateurs',
+    type: 'Sécurité',
     detail: 'Poste bruyant — EPI disponibles ; campagne de mesures et formation à planifier.',
     causes: 'Postes non insonorisés ; rotations courtes ; affichage insuffisant.',
     impacts: 'Troubles auditifs, plaintes, non-conformité réglementaire.',
@@ -78,6 +104,7 @@ export const risks = [
   },
   {
     title: 'Dérapage procédure contrôle qualité',
+    type: 'Qualité',
     detail: 'Ligne de conditionnement — non-conformité mineure détectée ; revue du mode opératoire.',
     causes: 'Mode opératoire obsolète ; formation partielle ; surcharge de ligne.',
     impacts: 'Lots non conformes, retouches, perte client ponctuelle.',
@@ -97,6 +124,7 @@ export const risks = [
   },
   {
     title: 'Manque de ressources EPI saison hiver',
+    type: 'Sécurité',
     detail: 'Saison pluie — stocks limités sur antenne nord ; besoin de réassort anticipé.',
     causes: 'Prévision logistique insuffisante ; pics d’activité non anticipés.',
     impacts: 'Port partiel des EPI, exposition accrue, risque psychosocial.',

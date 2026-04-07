@@ -1,6 +1,9 @@
 /**
  * Bloc « Aujourd'hui » — visible en mode simplifié via displayModes.css (.dashboard-today-block).
  */
+
+import { escapeHtml } from '../utils/escapeHtml.js';
+
 export function createDashboardTodayBlock({
   sessionUser = null,
   incidents = 0,
@@ -27,9 +30,9 @@ export function createDashboardTodayBlock({
         <div class="dashboard-today-block__title">Aujourd'hui</div>
         <div class="dashboard-today-block__greet">${escapeHtml(greet)}</div>
         <div class="dashboard-today-block__stats">
-          <span class="dashboard-today-block__stat"><strong>${inc}</strong> incidents (total)</span>
-          <span class="dashboard-today-block__stat"><strong>${nCrit}</strong> incidents critiques</span>
-          <span class="dashboard-today-block__stat"><strong>${nLate}</strong> actions en retard</span>
+          <span class="dashboard-today-block__stat"><strong>${escapeHtml(String(inc))}</strong> incidents (total)</span>
+          <span class="dashboard-today-block__stat"><strong>${escapeHtml(String(nCrit))}</strong> incidents critiques</span>
+          <span class="dashboard-today-block__stat"><strong>${escapeHtml(String(nLate))}</strong> actions en retard</span>
         </div>
       </div>
     `;
@@ -42,12 +45,4 @@ export function createDashboardTodayBlock({
 
   render();
   return root;
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

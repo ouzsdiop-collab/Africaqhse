@@ -80,6 +80,21 @@ model Incident {
 
   createdAt   DateTime @default(now())
 
+  /** Zone précise (atelier, ligne, GPS…) — distinct du libellé site */
+  location    String?
+
+  /** Analyse terrain : causes libres */
+  causes      String?
+
+  /** humain | materiel | organisation | mixte */
+  causeCategory String?
+
+  /** JSON : tableau de data URLs (photos terrain, taille limitée côté API) */
+  photosJson  String?
+
+  /** Nom affiché responsable suivi */
+  responsible String?
+
 
 
   linkedActions Action[]
@@ -463,6 +478,14 @@ model ControlledDocument {
   /// Libellé libre de regroupement conformité.
 
   complianceTag String?
+
+  /// Fin de validité documentaire (renouvellement / revue).
+
+  expiresAt DateTime?
+
+  /// Responsable métier du document (nom affiché).
+
+  responsible String?
 
   updatedAt DateTime @updatedAt
 

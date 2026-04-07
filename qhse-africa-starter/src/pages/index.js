@@ -1,17 +1,3 @@
-import { renderDashboard } from './dashboard.js';
-import { renderIncidents } from './incidents.js';
-import { renderRisks } from './risks.js';
-import { renderActions } from './actions.js';
-import { renderIso } from './iso.js';
-import { renderAudits } from './audits.js';
-import { renderProducts } from './products.js';
-import { renderAnalytics } from './analytics.js';
-import { renderPerformance } from './performance.js';
-import { renderAiCenter } from './ai-center.js';
-import { renderActivityLog } from './activity-log.js';
-import { renderSettings } from './settings.js';
-import { renderImports } from './imports.js';
-import { renderSites } from './sites.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
 
@@ -51,60 +37,133 @@ function buildRenderErrorView(err) {
   return wrap;
 }
 
+function createRouteLoadingView() {
+  const wrap = document.createElement('div');
+  wrap.className = 'qhse-route-loading content-card card-soft';
+  wrap.setAttribute('role', 'status');
+  wrap.setAttribute('aria-live', 'polite');
+  wrap.setAttribute('aria-busy', 'true');
+  const p = document.createElement('p');
+  p.className = 'qhse-route-loading__text';
+  p.textContent = 'Chargement du module…';
+  wrap.append(p);
+  return wrap;
+}
+
+/**
+ * Chargement dynamique des pages — réduit le JS initial (code-splitting Vite).
+ * @param {string} pageId
+ * @param {(entry: unknown) => void} onAddLog
+ * @returns {Promise<HTMLElement>}
+ */
+async function importAndRenderPage(pageId, onAddLog) {
+  switch (pageId) {
+    case 'terrain-mode': {
+      const m = await import('./terrain-mode.js');
+      return m.renderTerrainMode();
+    }
+    case 'incidents': {
+      const m = await import('./incidents.js');
+      return m.renderIncidents(onAddLog);
+    }
+    case 'risks': {
+      const m = await import('./risks.js');
+      return m.renderRisks();
+    }
+    case 'actions': {
+      const m = await import('./actions.js');
+      return m.renderActions();
+    }
+    case 'permits': {
+      const m = await import('./permits.js');
+      return m.renderPermits();
+    }
+    case 'iso': {
+      const m = await import('./iso.js');
+      return m.renderIso(onAddLog);
+    }
+    case 'audits': {
+      const m = await import('./audits.js');
+      return m.renderAudits();
+    }
+    case 'products': {
+      const m = await import('./products.js');
+      return m.renderProducts();
+    }
+    case 'imports': {
+      const m = await import('./imports.js');
+      return m.renderImports();
+    }
+    case 'sites': {
+      const m = await import('./sites.js');
+      return m.renderSites();
+    }
+    case 'analytics': {
+      const m = await import('./analytics.js');
+      return m.renderAnalytics();
+    }
+    case 'performance': {
+      const m = await import('./performance.js');
+      return m.renderPerformance();
+    }
+    case 'ai-center': {
+      const m = await import('./ai-center.js');
+      return m.renderAiCenter(onAddLog);
+    }
+    case 'activity-log': {
+      const m = await import('./activity-log.js');
+      return m.renderActivityLog();
+    }
+    case 'settings': {
+      const m = await import('./settings.js');
+      return m.renderSettings();
+    }
+    case 'dashboard':
+    default: {
+      const m = await import('./dashboard.js');
+      return m.renderDashboard();
+    }
+  }
+}
+
+/**
+ * @param {{ currentPage: string; onAddLog: (entry: unknown) => void }} opts
+ * @returns {HTMLElement} conteneur `.page-stack` avec slot async (compatible `attachPageIntro`).
+ */
 export function createPageRenderer({ currentPage, onAddLog }) {
   if (currentPage === 'login') {
-    const el = document.createElement('div');
-    return el;
+    return document.createElement('div');
   }
 
+  const host = document.createElement('div');
+  host.className = 'page-stack qhse-page-host';
+  const slot = document.createElement('div');
+  slot.className = 'qhse-page-slot';
+  host.append(slot);
+
+  let targetPage = currentPage;
   const su = getSessionUser();
   if (su && !canAccessNavPage(su.role, currentPage)) {
     const h = window.location.hash.replace(/^#/, '');
     if (h && h !== 'dashboard') {
       window.location.hash = 'dashboard';
     }
-    try {
-      return renderDashboard();
-    } catch (err) {
-      return buildRenderErrorView(err);
-    }
+    targetPage = 'dashboard';
   }
 
-  try {
-    switch (currentPage) {
-      case 'incidents':
-        return renderIncidents(onAddLog);
-      case 'risks':
-        return renderRisks();
-      case 'actions':
-        return renderActions();
-      case 'iso':
-        return renderIso(onAddLog);
-      case 'audits':
-        return renderAudits();
-      case 'products':
-        return renderProducts();
-      case 'imports':
-        return renderImports();
-      case 'sites':
-        return renderSites();
-      case 'analytics':
-        return renderAnalytics();
-      case 'performance':
-        return renderPerformance();
-      case 'ai-center':
-        return renderAiCenter(onAddLog);
-      case 'activity-log':
-        return renderActivityLog();
-      case 'settings':
-        return renderSettings();
-      case 'dashboard':
-      default:
-        return renderDashboard();
-    }
-  } catch (err) {
-    return buildRenderErrorView(err);
-  }
+  slot.replaceChildren(createRouteLoadingView());
+
+  void importAndRenderPage(targetPage, onAddLog)
+    .then((root) => {
+      if (!slot.isConnected) return;
+      slot.replaceChildren(root);
+    })
+    .catch((err) => {
+      if (!slot.isConnected) return;
+      slot.replaceChildren(buildRenderErrorView(err));
+    });
+
+  return host;
 }
 
 export { createLoginView } from './loginV2.js';

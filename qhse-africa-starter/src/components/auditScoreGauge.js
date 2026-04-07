@@ -1,3 +1,5 @@
+import { escapeHtml } from '../utils/escapeHtml.js';
+
 /** Jauge score audit — pourcentage via variable CSS --gauge-pct. */
 export function createAuditScoreGauge(score, { label = 'Score global' } = {}) {
   const raw = Number(score);
@@ -28,7 +30,7 @@ export function createAuditScoreGauge(score, { label = 'Score global' } = {}) {
 
   const inner = document.createElement('div');
   inner.className = 'audit-score-gauge-inner';
-  inner.innerHTML = `<div><strong>${pct}</strong><small>/ 100</small></div>`;
+  inner.innerHTML = `<div><strong>${escapeHtml(String(pct))}</strong><small>/ 100</small></div>`;
 
   gWrap.append(ring, inner);
 
