@@ -14,7 +14,7 @@ export const CONTENT_SECURITY_POLICY = [
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob:",
   /** Ingestion Sentry (DSN *.ingest.sentry.io) — retirer si vous n’utilisez pas Sentry */
-  "connect-src 'self' https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
+  "connect-src 'self' https://africaqhse-production.up.railway.app https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
   "media-src 'self'",
   "worker-src 'self' blob:",
   "frame-ancestors 'self'",
