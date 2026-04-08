@@ -1,17 +1,12 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
-
-function tid(tenantId) {
-  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-}
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 /**
  * @param {string | null | undefined} tenantId
  * @param {{ siteId?: string | null, limit?: number }} [filters]
  */
 export async function findAllNonConformities(tenantId, filters = {}) {
-  const t = tid(tenantId);
-  if (!t) return [];
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
@@ -23,8 +18,9 @@ export async function findAllNonConformities(tenantId, filters = {}) {
       ? Math.floor(filters.limit)
       : 300;
   const take = Math.min(raw, 500);
+  const tf = prismaTenantFilter(tenantId);
   return prisma.nonConformity.findMany({
-    where: { tenantId: t, ...(siteId ? { siteId } : {}) },
+    where: { ...tf, ...(siteId ? { siteId } : {}) },
     orderBy: { createdAt: 'desc' },
     take
   });
@@ -37,21 +33,17 @@ export async function createNonConformityWithAction(
   tenantId,
   { title, detail, auditRef, siteId: inputSiteId }
 ) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
+  const t = normalizeTenantId(tenantId);
   const actionTitle = `NC audit ${auditRef} — ${title}`;
   const safeTitle =
     actionTitle.length > 220 ? `${actionTitle.slice(0, 217)}...` : actionTitle;
+  const tf = prismaTenantFilter(tenantId);
 
   return prisma.$transaction(async (tx) => {
-    let siteId = await assertSiteExistsOrNull(t, inputSiteId);
+    let siteId = await assertSiteExistsOrNull(tenantId, inputSiteId);
 
     let auditRow = await tx.audit.findFirst({
-      where: { tenantId: t, ref: auditRef },
+      where: { ref: auditRef, ...tf },
       select: { id: true, siteId: true }
     });
 
@@ -61,7 +53,7 @@ export async function createNonConformityWithAction(
 
     const nonConformity = await tx.nonConformity.create({
       data: {
-        tenantId: t,
+        tenantId: t || null,
         title,
         detail: detail ?? null,
         status: 'open',
@@ -73,7 +65,7 @@ export async function createNonConformityWithAction(
 
     const action = await tx.action.create({
       data: {
-        tenantId: t,
+        tenantId: t || null,
         title: safeTitle,
         detail: `NC issue audit ${auditRef} • ${title}`,
         status: 'À lancer',

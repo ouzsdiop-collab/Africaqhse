@@ -71,19 +71,6 @@ export async function streamByToken(req, res, next) {
       if (!v.tenantId || v.tenantId !== doc.tenantId) {
         return res.status(401).json({ error: 'Jeton invalide ou expiré.' });
       }
-      const membership = await prisma.userTenant.findUnique({
-        where: {
-          userId_tenantId: { userId: user.id, tenantId: doc.tenantId }
-        },
-        select: { role: true }
-      });
-      if (!membership) {
-        return res.status(403).json({ error: 'Accès organisation révoqué.' });
-      }
-      qhseUser = {
-        id: user.id,
-        role: String(membership.role ?? '').trim().toUpperCase()
-      };
     }
     if (!controlledDocumentService.canAccessControlledDocument(qhseUser, doc.classification, 'read')) {
       return res.status(403).json({ error: 'Accès refusé pour cette classification.' });

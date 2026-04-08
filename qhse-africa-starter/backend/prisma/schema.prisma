@@ -1,5 +1,4 @@
-// PostgreSQL recommandé en production. Multi-tenant : entités métier scopées par `tenantId`.
-// JWT : claim `tid` = tenant actif + adhésion `UserTenant`.
+// PostgreSQL recommandé en production. V1 mono-tenant : `tenantId` optionnel sur les entités (pas de table tenants).
 
 generator client {
   provider      = "prisma-client-js"
@@ -11,53 +10,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Tenant {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  createdAt DateTime @default(now())
-
-  sites      Site[]
-  userTenants UserTenant[]
-
-  @@map("tenants")
-}
-
-/// Adhésion utilisateur ↔ tenant (rôle et site par défaut propres à l’organisation).
-model UserTenant {
-  id              String   @id @default(cuid())
-  userId          String
-  tenantId        String
-  role            String
-  defaultSiteId   String?
-  createdAt       DateTime @default(now())
-
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  defaultSite Site?  @relation("UserTenantDefaultSite", fields: [defaultSiteId], references: [id], onDelete: SetNull)
-
-  @@unique([userId, tenantId])
-  @@index([tenantId])
-  @@map("user_tenants")
-}
-
 model Site {
   id        String   @id @default(cuid())
-  /// Toujours renseigné en prod / après seed ; nullable pour migration SQLite sans reset.
+  /// Legacy (nullable) — plus de FK vers une table tenants.
   tenantId  String?
   name      String
   code      String?
   address   String?
   createdAt DateTime @default(now())
 
-  tenant     Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   incidents       Incident[]
   audits          Audit[]
   actions         Action[]
   nonConformities NonConformity[]
   controlledDocuments ControlledDocument[]
   risks               Risk[]
-  userTenantsDefault  UserTenant[] @relation("UserTenantDefaultSite")
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -123,8 +90,6 @@ model User {
   role         String
   passwordHash String?
   createdAt    DateTime @default(now())
-
-  userTenants UserTenant[]
 
   assignedActions            Action[]           @relation("ActionAssignee")
   auditLogs                  AuditLog[]

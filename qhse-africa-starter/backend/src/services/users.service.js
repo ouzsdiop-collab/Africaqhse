@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { validatePasswordPolicy } from '../lib/validation.js';
+import { prismaTenantFilter } from '../lib/tenantScope.js';
 
 const userPublicSelect = {
   id: true,
@@ -10,110 +11,66 @@ const userPublicSelect = {
   createdAt: true
 };
 
-function tid(tenantId) {
-  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-}
-
-function mapMembershipToPublic(m) {
-  if (!m?.user) return null;
-  const u = m.user;
-  return {
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: String(m.role ?? '').trim().toUpperCase(),
-    createdAt: u.createdAt
-  };
-}
-
-/** Utilisateurs ayant une adhésion sur ce tenant — le champ `role` est celui de l’adhésion. */
-export async function findAllUsers(tenantId) {
-  const t = tid(tenantId);
-  if (!t) return [];
-  const rows = await prisma.userTenant.findMany({
-    where: { tenantId: t },
-    include: { user: { select: userPublicSelect } },
-    orderBy: { user: { name: 'asc' } },
+/** `_tenantId` est ignoré (V1 mono-tenant). */
+export async function findAllUsers(_tenantId) {
+  return prisma.user.findMany({
+    select: userPublicSelect,
+    orderBy: { name: 'asc' },
     take: 500
   });
-  return rows.map((m) => mapMembershipToPublic(m)).filter(Boolean);
 }
 
-export async function findUserById(tenantId, id) {
-  const t = tid(tenantId);
+export async function findUserById(_tenantId, id) {
   const uid = typeof id === 'string' ? id.trim() : '';
-  if (!t || !uid) return null;
-  const m = await prisma.userTenant.findUnique({
-    where: { userId_tenantId: { userId: uid, tenantId: t } },
-    include: { user: { select: userPublicSelect } }
+  if (!uid) return null;
+  return prisma.user.findUnique({
+    where: { id: uid },
+    select: userPublicSelect
   });
-  return mapMembershipToPublic(m);
 }
 
 /**
- * Crée l’utilisateur global + adhésion au tenant courant.
- * Si `password` est fourni, enregistre un hash bcrypt (connexion e-mail / mot de passe).
+ * Crée un utilisateur global (rôle sur `User`).
  */
-export async function createUser(tenantId, { name, email, role, password }) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
+export async function createUser(_tenantId, { name, email, role, password }) {
   const r = String(role ?? '').trim().toUpperCase();
-  return prisma.$transaction(async (tx) => {
-    let passwordHash = null;
-    if (password != null && String(password).length > 0) {
-      const pwd = String(password);
-      const pv = validatePasswordPolicy(pwd);
-      if (!pv.ok) {
-        const err = new Error(pv.error);
-        err.statusCode = 400;
-        throw err;
-      }
-      passwordHash = await bcrypt.hash(pwd, 10);
+  let passwordHash = null;
+  if (password != null && String(password).length > 0) {
+    const pwd = String(password);
+    const pv = validatePasswordPolicy(pwd);
+    if (!pv.ok) {
+      const err = new Error(pv.error);
+      err.statusCode = 400;
+      throw err;
     }
-    const user = await tx.user.create({
-      data: {
-        name,
-        email,
-        role: r,
-        passwordHash
-      },
-      select: userPublicSelect
-    });
-    await tx.userTenant.create({
-      data: {
-        userId: user.id,
-        tenantId: t,
-        role: r,
-        defaultSiteId: null
-      }
-    });
-    return { ...user, role: r };
+    passwordHash = await bcrypt.hash(pwd, 10);
+  }
+  return prisma.user.create({
+    data: {
+      name,
+      email,
+      role: r,
+      passwordHash
+    },
+    select: userPublicSelect
   });
 }
 
 /**
- * Met à jour nom (global), rôle d’adhésion et/ou mot de passe (hash bcrypt sur `User`).
- * @param {string | null | undefined} tenantId
+ * @param {string | null | undefined} _tenantId
  * @param {string} userId
  * @param {{ name?: string, role?: string, password?: string }} patch
  */
-export async function updateUserInTenant(tenantId, userId, patch) {
-  const t = tid(tenantId);
+export async function updateUserInTenant(_tenantId, userId, patch) {
   const uid = String(userId ?? '').trim();
-  if (!t || !uid) {
+  if (!uid) {
     const err = new Error('Requête invalide');
     err.statusCode = 400;
     throw err;
   }
-  const existing = await prisma.userTenant.findUnique({
-    where: { userId_tenantId: { userId: uid, tenantId: t } }
-  });
+  const existing = await prisma.user.findUnique({ where: { id: uid } });
   if (!existing) {
-    const err = new Error('Utilisateur introuvable dans cette organisation');
+    const err = new Error('Utilisateur introuvable');
     err.code = 'P2025';
     throw err;
   }
@@ -132,60 +89,48 @@ export async function updateUserInTenant(tenantId, userId, patch) {
     throw err;
   }
 
-  await prisma.$transaction(async (tx) => {
-    if (role) {
-      await tx.userTenant.update({
-        where: { userId_tenantId: { userId: uid, tenantId: t } },
-        data: { role }
-      });
+  const userData = {};
+  if (name) userData.name = name;
+  if (role) userData.role = role;
+  if (password) {
+    const pv = validatePasswordPolicy(password);
+    if (!pv.ok) {
+      const err = new Error(pv.error);
+      err.statusCode = 400;
+      throw err;
     }
-    const userData = {};
-    if (name) userData.name = name;
-    if (role) userData.role = role;
-    if (password) {
-      const pv = validatePasswordPolicy(password);
-      if (!pv.ok) {
-        const err = new Error(pv.error);
-        err.statusCode = 400;
-        throw err;
-      }
-      userData.passwordHash = await bcrypt.hash(password, 10);
-    }
-    if (Object.keys(userData).length) {
-      await tx.user.update({ where: { id: uid }, data: userData });
-    }
-  });
+    userData.passwordHash = await bcrypt.hash(password, 10);
+  }
 
-  return findUserById(t, uid);
+  await prisma.user.update({ where: { id: uid }, data: userData });
+  return findUserById(null, uid);
 }
 
 /**
- * Retire l’adhésion au tenant. Si plus aucune adhésion, supprime l’utilisateur global.
- * @param {{ unassignActions?: boolean }} [options] — si `unassignActions`, désassigne d’abord les actions du tenant pour cet utilisateur.
+ * Supprime l’utilisateur. Option : désassigner ses actions d’abord.
+ * @param {{ unassignActions?: boolean }} [options]
  */
-export async function removeUserFromTenant(tenantId, userId, options = {}) {
+export async function removeUserFromTenant(_tenantId, userId, options = {}) {
   const unassignActions = Boolean(options.unassignActions);
-  const t = tid(tenantId);
   const uid = String(userId ?? '').trim();
-  if (!t || !uid) {
+  if (!uid) {
     const err = new Error('Requête invalide');
     err.statusCode = 400;
     throw err;
   }
-  const m = await prisma.userTenant.findUnique({
-    where: { userId_tenantId: { userId: uid, tenantId: t } }
-  });
+  const m = await prisma.user.findUnique({ where: { id: uid } });
   if (!m) {
-    const err = new Error('Utilisateur introuvable dans cette organisation');
+    const err = new Error('Utilisateur introuvable');
     err.code = 'P2025';
     throw err;
   }
+  const tf = prismaTenantFilter(_tenantId);
   const assignedHere = await prisma.action.count({
-    where: { assigneeId: uid, tenantId: t }
+    where: { assigneeId: uid, ...tf }
   });
   if (assignedHere > 0 && !unassignActions) {
     const err = new Error(
-      'Impossible de retirer cet utilisateur : des actions de cette organisation lui sont encore assignées.'
+      'Impossible de retirer cet utilisateur : des actions lui sont encore assignées.'
     );
     err.statusCode = 409;
     err.code = 'USER_HAS_ACTIONS';
@@ -195,16 +140,10 @@ export async function removeUserFromTenant(tenantId, userId, options = {}) {
   await prisma.$transaction(async (tx) => {
     if (unassignActions && assignedHere > 0) {
       await tx.action.updateMany({
-        where: { assigneeId: uid, tenantId: t },
+        where: { assigneeId: uid, ...tf },
         data: { assigneeId: null }
       });
     }
-    await tx.userTenant.delete({
-      where: { userId_tenantId: { userId: uid, tenantId: t } }
-    });
-    const remaining = await tx.userTenant.count({ where: { userId: uid } });
-    if (remaining === 0) {
-      await tx.user.delete({ where: { id: uid } });
-    }
+    await tx.user.delete({ where: { id: uid } });
   });
 }

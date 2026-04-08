@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { prismaTenantFilter } from '../lib/tenantScope.js';
 import {
   generateSuggestion,
   analyzeDocument,
@@ -15,9 +16,7 @@ function userIdFromReq(req) {
 
 export async function list(req, res, next) {
   try {
-    if (!req.qhseTenantId) {
-      return res.status(401).json({ error: 'Contexte organisation requis.' });
-    }
+    const tf = prismaTenantFilter(req.qhseTenantId);
     const limit = parseListLimit(req.query.limit);
     const status =
       typeof req.query.status === 'string' && req.query.status.trim()
@@ -25,7 +24,7 @@ export async function list(req, res, next) {
         : undefined;
     const rows = await prisma.aiSuggestion.findMany({
       where: {
-        tenantId: req.qhseTenantId,
+        ...tf,
         ...(status ? { status } : {})
       },
       orderBy: { createdAt: 'desc' },
@@ -43,15 +42,13 @@ export async function list(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    if (!req.qhseTenantId) {
-      return res.status(401).json({ error: 'Contexte organisation requis.' });
-    }
+    const tf = prismaTenantFilter(req.qhseTenantId);
     const id = String(req.params.id ?? '').trim();
     if (!id) {
       return res.status(400).json({ error: 'Identifiant requis' });
     }
     const row = await prisma.aiSuggestion.findFirst({
-      where: { id, tenantId: req.qhseTenantId },
+      where: { id, ...tf },
       include: {
         createdByUser: { select: { id: true, name: true, email: true } },
         validatedByUser: { select: { id: true, name: true, email: true } },

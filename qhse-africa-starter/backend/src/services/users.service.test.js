@@ -2,15 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
-    userTenant: {
+    user: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      count: vi.fn()
-    },
-    user: {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn()
@@ -44,17 +38,14 @@ describe('users.service', () => {
     prismaMock.$transaction.mockImplementation(async (fn) => fn(prismaMock));
   });
 
-  it('findAllUsers expose le role d’adhésion au tenant', async () => {
-    prismaMock.userTenant.findMany.mockResolvedValueOnce([
+  it('findAllUsers liste tous les utilisateurs', async () => {
+    prismaMock.user.findMany.mockResolvedValueOnce([
       {
-        role: 'qhse',
-        user: {
-          id: 'u1',
-          name: 'A',
-          email: 'a@x.test',
-          role: 'ADMIN',
-          createdAt: new Date('2020-01-01')
-        }
+        id: 'u1',
+        name: 'A',
+        email: 'a@x.test',
+        role: 'ADMIN',
+        createdAt: new Date('2020-01-01')
       }
     ]);
     const out = await usersService.findAllUsers(TENANT);
@@ -63,25 +54,24 @@ describe('users.service', () => {
         id: 'u1',
         name: 'A',
         email: 'a@x.test',
-        role: 'QHSE',
+        role: 'ADMIN',
         createdAt: new Date('2020-01-01')
       }
     ]);
-    expect(prismaMock.userTenant.findMany).toHaveBeenCalledWith(
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { tenantId: TENANT },
         take: 500
       })
     );
   });
 
-  it('findUserById retourne null sans tenant', async () => {
-    expect(await usersService.findUserById('', 'u1')).toBeNull();
-    expect(prismaMock.userTenant.findUnique).not.toHaveBeenCalled();
+  it('findUserById retourne null sans id', async () => {
+    expect(await usersService.findUserById(TENANT, '')).toBeNull();
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it('removeUserFromTenant rejette si des actions sont assignées sur ce tenant', async () => {
-    prismaMock.userTenant.findUnique.mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT });
+  it('removeUserFromTenant rejette si des actions sont assignées', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
     prismaMock.action.count.mockResolvedValueOnce(2);
     await expect(usersService.removeUserFromTenant(TENANT, 'u1')).rejects.toMatchObject({
       statusCode: 409,
@@ -94,39 +84,25 @@ describe('users.service', () => {
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 
-  it('removeUserFromTenant supprime l’adhésion puis l’utilisateur si dernière org', async () => {
-    prismaMock.userTenant.findUnique.mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT });
+  it('removeUserFromTenant supprime l’utilisateur', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
     prismaMock.action.count.mockResolvedValueOnce(0);
-    prismaMock.userTenant.delete.mockResolvedValueOnce({});
-    prismaMock.userTenant.count.mockResolvedValueOnce(0);
     prismaMock.user.delete.mockResolvedValueOnce({});
     await usersService.removeUserFromTenant(TENANT, 'u1');
-    expect(prismaMock.userTenant.delete).toHaveBeenCalled();
     expect(prismaMock.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
   });
 
-  it('removeUserFromTenant avec unassignActions désassigne puis retire le membre', async () => {
-    prismaMock.userTenant.findUnique.mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT });
+  it('removeUserFromTenant avec unassignActions désassigne puis supprime', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
     prismaMock.action.count.mockResolvedValueOnce(3);
     prismaMock.action.updateMany.mockResolvedValueOnce({ count: 3 });
-    prismaMock.userTenant.delete.mockResolvedValueOnce({});
-    prismaMock.userTenant.count.mockResolvedValueOnce(1);
+    prismaMock.user.delete.mockResolvedValueOnce({});
     await usersService.removeUserFromTenant(TENANT, 'u1', { unassignActions: true });
     expect(prismaMock.action.updateMany).toHaveBeenCalledWith({
       where: { assigneeId: 'u1', tenantId: TENANT },
       data: { assigneeId: null }
     });
-    expect(prismaMock.userTenant.delete).toHaveBeenCalled();
-    expect(prismaMock.user.delete).not.toHaveBeenCalled();
-  });
-
-  it('removeUserFromTenant ne supprime pas User s’il reste d’autres adhésions', async () => {
-    prismaMock.userTenant.findUnique.mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT });
-    prismaMock.action.count.mockResolvedValueOnce(0);
-    prismaMock.userTenant.delete.mockResolvedValueOnce({});
-    prismaMock.userTenant.count.mockResolvedValueOnce(1);
-    await usersService.removeUserFromTenant(TENANT, 'u1');
-    expect(prismaMock.user.delete).not.toHaveBeenCalled();
+    expect(prismaMock.user.delete).toHaveBeenCalled();
   });
 
   it('createUser hash le mot de passe et le persiste', async () => {
@@ -137,7 +113,6 @@ describe('users.service', () => {
       role: 'QHSE',
       createdAt: new Date()
     });
-    prismaMock.userTenant.create.mockResolvedValueOnce({});
     const out = await usersService.createUser(TENANT, {
       name: 'N',
       email: 'n@test',
@@ -169,24 +144,20 @@ describe('users.service', () => {
   });
 
   it('updateUserInTenant enregistre un mot de passe sans toucher au rôle', async () => {
-    prismaMock.userTenant.findUnique
-      .mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT })
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce({ id: 'u1' })
       .mockResolvedValueOnce({
+        id: 'u1',
+        name: 'N',
+        email: 'n@test',
         role: 'QHSE',
-        user: {
-          id: 'u1',
-          name: 'N',
-          email: 'n@test',
-          role: 'QHSE',
-          createdAt: new Date()
-        }
+        createdAt: new Date()
       });
     prismaMock.user.update.mockResolvedValueOnce({});
     const out = await usersService.updateUserInTenant(TENANT, 'u1', {
       password: 'new-secret1'
     });
     expect(bcrypt.hash).toHaveBeenCalledWith('new-secret1', 10);
-    expect(prismaMock.userTenant.update).not.toHaveBeenCalled();
     expect(prismaMock.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
       data: { passwordHash: '__pwd_hash__' }
@@ -195,7 +166,7 @@ describe('users.service', () => {
   });
 
   it('updateUserInTenant rejette un mot de passe trop court', async () => {
-    prismaMock.userTenant.findUnique.mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT });
+    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
     await expect(
       usersService.updateUserInTenant(TENANT, 'u1', { password: 'short' })
     ).rejects.toMatchObject({ statusCode: 400 });
@@ -203,27 +174,23 @@ describe('users.service', () => {
   });
 
   it('updateUserInTenant rejette un mot de passe sans chiffre', async () => {
-    prismaMock.userTenant.findUnique.mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT });
+    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
     await expect(
       usersService.updateUserInTenant(TENANT, 'u1', { password: 'abcdefgh' })
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 
-  it('updateUserInTenant met à jour UserTenant et User quand le rôle change', async () => {
-    prismaMock.userTenant.findUnique
-      .mockResolvedValueOnce({ userId: 'u1', tenantId: TENANT })
+  it('updateUserInTenant met à jour nom et rôle sur User', async () => {
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce({ id: 'u1' })
       .mockResolvedValueOnce({
+        id: 'u1',
+        name: 'N',
+        email: 'n@test',
         role: 'DIRECTION',
-        user: {
-          id: 'u1',
-          name: 'N',
-          email: 'n@test',
-          role: 'DIRECTION',
-          createdAt: new Date()
-        }
+        createdAt: new Date()
       });
-    prismaMock.userTenant.update.mockResolvedValueOnce({});
     prismaMock.user.update.mockResolvedValueOnce({});
 
     const out = await usersService.updateUserInTenant(TENANT, 'u1', {
@@ -231,12 +198,6 @@ describe('users.service', () => {
       role: 'DIRECTION'
     });
     expect(out.role).toBe('DIRECTION');
-    expect(prismaMock.userTenant.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId_tenantId: { userId: 'u1', tenantId: TENANT } },
-        data: { role: 'DIRECTION' }
-      })
-    );
     expect(prismaMock.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
       data: { name: 'N', role: 'DIRECTION' }

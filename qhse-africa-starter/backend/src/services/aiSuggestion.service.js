@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../db.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 import { requestJsonCompletion, isExternalAiEnabled } from './aiProvider.service.js';
 
 export const AI_SUGGESTION_STATUS = {
@@ -70,8 +71,7 @@ export async function generateSuggestion(opts) {
     riskRef,
     userId
   } = opts;
-  const tenantRow =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
+  const tenantRow = normalizeTenantId(tenantId) || null;
 
   const typeKey = String(type || 'generic').slice(0, 64);
   let structured = buildStructuredContent({
@@ -144,8 +144,7 @@ export async function generateSuggestion(opts) {
  */
 export async function analyzeDocument(opts) {
   const { tenantId, text, fileName = '', importHistoryId, userId } = opts;
-  const tenantRow =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
+  const tenantRow = normalizeTenantId(tenantId) || null;
   const excerpt = String(text || '')
     .trim()
     .slice(0, 12000);
@@ -219,15 +218,15 @@ export async function analyzeDocument(opts) {
  */
 export async function proposeActions(opts) {
   const { tenantId, targetIncidentId, targetAuditId, userId, note = '' } = opts;
-  const tenantRow =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
+  const tenantRow = normalizeTenantId(tenantId) || null;
+  const tf = prismaTenantFilter(tenantId);
 
   const items = [];
   let summary = 'Propositions d’actions (brouillon) — validation requise.';
 
-  if (targetIncidentId && tenantRow) {
+  if (targetIncidentId) {
     const inc = await prisma.incident.findFirst({
-      where: { id: targetIncidentId, tenantId: tenantRow },
+      where: { id: targetIncidentId, ...tf },
       select: { ref: true, type: true, severity: true, status: true }
     });
     if (inc) {
@@ -240,9 +239,9 @@ export async function proposeActions(opts) {
     }
   }
 
-  if (targetAuditId && tenantRow) {
+  if (targetAuditId) {
     const au = await prisma.audit.findFirst({
-      where: { id: targetAuditId, tenantId: tenantRow },
+      where: { id: targetAuditId, ...tf },
       select: { ref: true, score: true, status: true, site: true }
     });
     if (au) {
@@ -333,7 +332,7 @@ export async function reviewSuggestion(opts) {
     );
   }
 
-  const existing = await prisma.aiSuggestion.findFirst({ where: { id, tenantId: tenantRow } });
+  const existing = await prisma.aiSuggestion.findFirst({ where: { id, ...tf } });
   if (!existing) {
     const err = new Error('Suggestion introuvable');
     err.statusCode = 404;

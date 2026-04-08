@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { prismaTenantFilter } from '../lib/tenantScope.js';
 
 const MAX_TOTAL = 40;
 const MAX_SOURCE_ACTIONS = 120;
@@ -81,16 +82,15 @@ function withinMs(date, ms) {
  * @param {string | null | undefined} tenantId
  */
 export async function getNotificationsFeed(qhseUser, tenantId) {
-  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-  if (!tid) return [];
+  const tf = prismaTenantFilter(tenantId);
   const [incidentRows, actionRows, openNcs, auditRows] = await Promise.all([
     prisma.incident.findMany({
-      where: { tenantId: tid },
+      where: { ...tf },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_INCIDENTS
     }),
     prisma.action.findMany({
-      where: { tenantId: tid },
+      where: { ...tf },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_ACTIONS,
       include: {
@@ -98,12 +98,12 @@ export async function getNotificationsFeed(qhseUser, tenantId) {
       }
     }),
     prisma.nonConformity.findMany({
-      where: { tenantId: tid, status: 'open' },
+      where: { ...tf, status: 'open' },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_NC
     }),
     prisma.audit.findMany({
-      where: { tenantId: tid },
+      where: { ...tf },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_AUDITS
     })

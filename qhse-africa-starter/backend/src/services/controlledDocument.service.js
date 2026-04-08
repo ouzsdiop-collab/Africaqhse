@@ -3,6 +3,7 @@
  */
 
 import { prisma } from '../db.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 import { can } from '../lib/permissions.js';
 import { readControlledFileBuffer, saveControlledFile, deleteControlledFile } from './documentStorage.service.js';
 import { addWatermarkToPdf } from './documentWatermark.service.js';
@@ -10,10 +11,6 @@ import { addWatermarkToPdf } from './documentWatermark.service.js';
 const CLASSIFICATIONS = new Set(['normal', 'sensible', 'critique']);
 
 const RENEW_DAYS = 30;
-
-function tid(tenantId) {
-  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-}
 
 /**
  * @param {Date | string | null | undefined} expiresAt
@@ -102,9 +99,7 @@ export function toPublicControlledDocument(doc) {
  * @param {{ siteId?: string, auditId?: string, classification?: string, type?: string }} filters
  */
 export async function listControlledDocuments(tenantId, filters) {
-  const t = tid(tenantId);
-  if (!t) return [];
-  const where = { tenantId: t };
+  const where = { ...prismaTenantFilter(tenantId) };
   if (filters.siteId) where.siteId = filters.siteId;
   if (filters.auditId) where.auditId = filters.auditId;
   if (filters.classification) where.classification = filters.classification;
@@ -122,10 +117,9 @@ export async function listControlledDocuments(tenantId, filters) {
  * @param {string} id
  */
 export async function getControlledDocumentById(tenantId, id) {
-  const t = tid(tenantId);
-  if (!t) return null;
+  const tf = prismaTenantFilter(tenantId);
   return prisma.controlledDocument.findFirst({
-    where: { id, tenantId: t }
+    where: { id, ...tf }
   });
 }
 
@@ -157,12 +151,7 @@ export async function getControlledDocumentByIdUnscoped(id) {
  * }} meta
  */
 export async function createControlledDocument(buffer, meta) {
-  const tenantRowId = tid(meta.tenantId);
-  if (!tenantRowId) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
+  const tenantRowId = normalizeTenantId(meta.tenantId);
   const { relativePath, sizeBytes } = await saveControlledFile(buffer, {
     originalName: meta.name || 'document'
   });
@@ -179,7 +168,7 @@ export async function createControlledDocument(buffer, meta) {
 
   const row = await prisma.controlledDocument.create({
     data: {
-      tenantId: tenantRowId,
+      tenantId: tenantRowId || null,
       name: String(meta.name || 'Sans titre').slice(0, 500),
       type: String(meta.type || 'other').slice(0, 120),
       path: relativePath,

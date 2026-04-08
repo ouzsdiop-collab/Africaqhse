@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../db.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 /**
  * @param {unknown} siteId
@@ -32,10 +33,13 @@ export function prismaSiteWhere(siteId) {
  * @returns {Record<string, unknown> | undefined}
  */
 export function prismaTenantSiteWhere(tenantId, siteId) {
-  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-  if (!tid) return undefined;
+  const tid = normalizeTenantId(tenantId);
   const sid = normalizeSiteId(siteId);
-  return sid ? { tenantId: tid, siteId: sid } : { tenantId: tid };
+  const tf = prismaTenantFilter(tenantId);
+  if (!tid) {
+    return sid ? { siteId: sid } : {};
+  }
+  return sid ? { ...tf, siteId: sid } : { ...tf };
 }
 
 /**
@@ -123,9 +127,16 @@ const SQL_ACTION_OVERDUE_BODY = `(
  * @param {string | null} siteId
  */
 export async function countActionsOverdue(tenantId, siteId) {
-  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-  if (!tid) return 0;
+  const tid = normalizeTenantId(tenantId);
   const sid = normalizeSiteId(siteId);
+  if (!tid) {
+    const tf = prismaTenantFilter(tenantId);
+    const rows = await prisma.action.findMany({
+      where: { ...tf, ...(sid ? { siteId: sid } : {}) },
+      select: { status: true, dueDate: true }
+    });
+    return rows.filter(isActionOverdueDashboardRow).length;
+  }
   const where = `tenantId = ? AND ${SQL_ACTION_NOT_CLOSED_FOR_OVERDUE} AND ${SQL_ACTION_OVERDUE_BODY}`;
   const rows = sid
     ? await prisma.$queryRawUnsafe(
@@ -143,9 +154,16 @@ export async function countActionsOverdue(tenantId, siteId) {
  * @param {string | null} siteId
  */
 export async function countNonConformitiesOpenHeuristic(tenantId, siteId) {
-  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-  if (!tid) return 0;
+  const tid = normalizeTenantId(tenantId);
   const sid = normalizeSiteId(siteId);
+  if (!tid) {
+    const tf = prismaTenantFilter(tenantId);
+    const rows = await prisma.nonConformity.findMany({
+      where: { ...tf, ...(sid ? { siteId: sid } : {}) },
+      select: { status: true }
+    });
+    return rows.filter((r) => isNcOpen(r.status)).length;
+  }
   const rows = sid
     ? await prisma.$queryRaw`
         SELECT COUNT(*) AS c FROM non_conformities

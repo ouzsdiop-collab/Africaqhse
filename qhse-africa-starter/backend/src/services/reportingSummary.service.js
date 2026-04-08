@@ -4,6 +4,7 @@ import {
   countActionsOverdue,
   countNonConformitiesOpenHeuristic,
   includesInsensitive,
+  isActionOverdueDashboardRow,
   isIncidentLikelyOpen,
   isNcOpen,
   normalizeSiteId,
@@ -78,11 +79,8 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
       : DEFAULT_PERIOD_DAYS;
 
   const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-  if (!tid) {
-    if (emptyIfNoTenant) {
-      return buildEmptyReportingSummary(normalizeSiteId(siteId));
-    }
-    throw Object.assign(new Error('Tenant requis'), { statusCode: 400 });
+  if (!tid && emptyIfNoTenant) {
+    return buildEmptyReportingSummary(normalizeSiteId(siteId));
   }
   const sid = normalizeSiteId(siteId);
   const siteWhere = prismaTenantSiteWhere(tenantId, siteId);
@@ -147,14 +145,38 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
       orderBy: { createdAt: 'desc' },
       take: 500
     }),
-    sid
-      ? prisma.$queryRaw`
+    !tid
+      ? prisma.action
+          .findMany({
+            where: siteWhere,
+            select: {
+              title: true,
+              detail: true,
+              status: true,
+              owner: true,
+              dueDate: true,
+              createdAt: true
+            },
+            take: 800
+          })
+          .then((rows) =>
+            rows
+              .filter(isActionOverdueDashboardRow)
+              .sort(
+                (a, b) =>
+                  (a.dueDate ? new Date(a.dueDate).getTime() : a.createdAt.getTime()) -
+                  (b.dueDate ? new Date(b.dueDate).getTime() : b.createdAt.getTime())
+              )
+              .slice(0, LIST_ACTIONS)
+          )
+      : sid
+        ? prisma.$queryRaw`
       SELECT title, detail, status, owner, dueDate, createdAt FROM actions
       WHERE tenantId = ${tid} AND LOWER(status) LIKE '%retard%' AND siteId = ${sid}
       ORDER BY COALESCE(dueDate, createdAt) ASC
       LIMIT ${LIST_ACTIONS}
     `
-      : prisma.$queryRaw`
+        : prisma.$queryRaw`
       SELECT title, detail, status, owner, dueDate, createdAt FROM actions
       WHERE tenantId = ${tid} AND LOWER(status) LIKE '%retard%'
       ORDER BY COALESCE(dueDate, createdAt) ASC

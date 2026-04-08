@@ -1,9 +1,6 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
-
-function tid(tenantId) {
-  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-}
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 /**
  * @param {string | null | undefined} tenantId
@@ -14,15 +11,10 @@ export async function assertIncidentExistsOrNull(tenantId, incidentId) {
   if (incidentId == null || String(incidentId).trim() === '') {
     return null;
   }
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
   const id = String(incidentId).trim();
+  const tf = prismaTenantFilter(tenantId);
   const row = await prisma.incident.findFirst({
-    where: { id, tenantId: t },
+    where: { id, ...tf },
     select: { id: true }
   });
   if (!row) {
@@ -37,10 +29,9 @@ export async function assertIncidentExistsOrNull(tenantId, incidentId) {
  * @param {string | null | undefined} tenantId
  */
 export async function computeNextIncidentRef(tenantId) {
-  const t = tid(tenantId);
-  if (!t) return 'INC-1';
+  const tf = prismaTenantFilter(tenantId);
   const rows = await prisma.incident.findMany({
-    where: { tenantId: t },
+    where: Object.keys(tf).length ? tf : {},
     select: { ref: true },
     orderBy: { createdAt: 'desc' },
     take: 3000
@@ -58,8 +49,6 @@ export async function computeNextIncidentRef(tenantId) {
  * @param {{ siteId?: string | null, limit?: number }} [filters]
  */
 export async function findAllIncidents(tenantId, filters = {}) {
-  const t = tid(tenantId);
-  if (!t) return [];
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
@@ -71,24 +60,20 @@ export async function findAllIncidents(tenantId, filters = {}) {
       ? Math.floor(filters.limit)
       : 300;
   const take = Math.min(raw, 500);
+  const tf = prismaTenantFilter(tenantId);
   return prisma.incident.findMany({
-    where: { tenantId: t, ...(siteId ? { siteId } : {}) },
+    where: { ...tf, ...(siteId ? { siteId } : {}) },
     orderBy: { createdAt: 'desc' },
     take
   });
 }
 
 export async function createIncident(tenantId, data) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
-  const siteId = await assertSiteExistsOrNull(t, data.siteId);
+  const t = normalizeTenantId(tenantId);
+  const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
   return prisma.incident.create({
     data: {
-      tenantId: t,
+      tenantId: t || null,
       ref: data.ref,
       type: data.type,
       site: data.site,
@@ -120,12 +105,7 @@ const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
  * }} data
  */
 export async function updateIncidentByRef(tenantId, ref, data) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
+  const t = normalizeTenantId(tenantId);
   const patch = {};
   if (data.status != null && String(data.status).trim() !== '') {
     patch.status = data.status;
@@ -159,8 +139,31 @@ export async function updateIncidentByRef(tenantId, ref, data) {
     err.statusCode = 400;
     throw err;
   }
+
+  if (t) {
+    return prisma.incident.update({
+      where: { tenantId_ref: { tenantId: t, ref } },
+      data: patch
+    });
+  }
+
+  const matches = await prisma.incident.findMany({
+    where: { ref },
+    select: { id: true },
+    take: 2
+  });
+  if (matches.length === 0) {
+    const err = new Error('Incident introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  if (matches.length > 1) {
+    const err = new Error('Référence incident ambiguë — contactez l’administrateur.');
+    err.statusCode = 409;
+    throw err;
+  }
   return prisma.incident.update({
-    where: { tenantId_ref: { tenantId: t, ref } },
+    where: { id: matches[0].id },
     data: patch
   });
 }

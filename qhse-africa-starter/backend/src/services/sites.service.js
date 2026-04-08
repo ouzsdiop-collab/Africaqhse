@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 const publicSelect = {
   id: true,
@@ -9,19 +10,10 @@ const publicSelect = {
   tenantId: true
 };
 
-/**
- * @param {unknown} tenantId
- */
-function normalizeTenantId(tenantId) {
-  if (tenantId == null || tenantId === '') return '';
-  return String(tenantId).trim();
-}
-
 export async function findAllSites(tenantId) {
-  const tid = normalizeTenantId(tenantId);
-  if (!tid) return [];
+  const tf = prismaTenantFilter(tenantId);
   return prisma.site.findMany({
-    where: { tenantId: tid },
+    where: Object.keys(tf).length ? tf : {},
     orderBy: [{ name: 'asc' }],
     select: publicSelect,
     take: 200
@@ -33,10 +25,10 @@ export async function findAllSites(tenantId) {
  * @param {unknown} id
  */
 export async function findSiteById(tenantId, id) {
-  const tid = normalizeTenantId(tenantId);
-  if (!tid || !id || typeof id !== 'string') return null;
+  if (!id || typeof id !== 'string') return null;
+  const tf = prismaTenantFilter(tenantId);
   return prisma.site.findFirst({
-    where: { id: id.trim(), tenantId: tid },
+    where: { id: id.trim(), ...tf },
     select: publicSelect
   });
 }
@@ -48,16 +40,11 @@ export async function findSiteById(tenantId, id) {
  */
 export async function assertSiteExistsOrNull(tenantId, siteId) {
   if (siteId === undefined || siteId === null || siteId === '') return null;
-  const tid = normalizeTenantId(tenantId);
-  if (!tid) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
   const id = String(siteId).trim();
   if (!id) return null;
+  const tf = prismaTenantFilter(tenantId);
   const row = await prisma.site.findFirst({
-    where: { id, tenantId: tid },
+    where: { id, ...tf },
     select: { id: true }
   });
   if (!row) {
@@ -74,18 +61,17 @@ export async function assertSiteExistsOrNull(tenantId, siteId) {
  * @returns {Promise<string | null>}
  */
 export async function coalesceQuerySiteIdForList(tenantId, siteId) {
-  const tid = normalizeTenantId(tenantId);
-  if (!tid) return null;
   if (siteId == null) return null;
   const id = String(siteId).trim();
   if (!id) return null;
+  const tf = prismaTenantFilter(tenantId);
   const row = await prisma.site.findFirst({
-    where: { id, tenantId: tid },
+    where: { id, ...tf },
     select: { id: true }
   });
   if (row) return id;
   console.warn(
-    '[qhse-api] siteId de requête absent de ce tenant — filtre ignoré (vue groupe). id=%s',
+    '[qhse-api] siteId de requête inconnu — filtre ignoré (vue groupe). id=%s',
     id
   );
   return null;
@@ -97,11 +83,6 @@ export async function coalesceQuerySiteIdForList(tenantId, siteId) {
  */
 export async function createSite(tenantId, data) {
   const tid = normalizeTenantId(tenantId);
-  if (!tid) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   if (!name) {
     const err = new Error('Le nom du site est requis');
@@ -119,7 +100,7 @@ export async function createSite(tenantId, data) {
 
   return prisma.site.create({
     data: {
-      tenantId: tid,
+      tenantId: tid || null,
       name,
       code,
       address

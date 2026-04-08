@@ -1,4 +1,3 @@
-import { prisma } from '../db.js';
 import { isRequireAuthEnabled } from '../lib/securityConfig.js';
 import * as reportingSummaryService from '../services/reportingSummary.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
@@ -20,22 +19,19 @@ function parsePeriodDaysQuery(req) {
 /** GET /api/reports/summary — synthèse consolidée (permissions : reports:read). */
 export async function getSummary(req, res, next) {
   try {
-    let tenantId = req.qhseTenantId;
-    if (!tenantId && !isRequireAuthEnabled()) {
-      const row = await prisma.tenant.findFirst({
-        orderBy: { createdAt: 'asc' },
-        select: { id: true }
-      });
-      tenantId = row?.id ?? null;
-    }
-
+    const tenantId = req.qhseTenantId;
     const rawSiteId = parseSiteIdQuery(req);
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
     const siteId = await coalesceQuerySiteIdForList(tenantId, rawSiteId);
     const periodDays = parsePeriodDaysQuery(req);
 
+    const emptyIfNoTenant =
+      (tenantId == null || tenantId === '') &&
+      !req.qhseUser &&
+      !isRequireAuthEnabled();
+
     const data = await reportingSummaryService.getReportingSummary(tenantId, siteId, {
-      emptyIfNoTenant: !tenantId && !isRequireAuthEnabled(),
+      emptyIfNoTenant,
       ...(periodDays !== undefined ? { periodDays } : {})
     });
     res.json(data);

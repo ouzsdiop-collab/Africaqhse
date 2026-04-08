@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { prismaTenantFilter } from '../lib/tenantScope.js';
 import * as reportService from '../services/report.service.js';
 import * as emailService from '../services/email.service.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
@@ -15,20 +16,16 @@ async function loadAuditAndNonConformities(tenantId, rawParam) {
   if (!param) {
     return null;
   }
-  const t =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
-  if (!t) {
-    return null;
-  }
+  const tf = prismaTenantFilter(tenantId);
   const audit = await prisma.audit.findFirst({
     where: {
-      tenantId: t,
+      ...tf,
       OR: [{ id: param }, { ref: param }]
     }
   });
   if (!audit) return null;
   const nonConformities = await prisma.nonConformity.findMany({
-    where: { auditRef: audit.ref },
+    where: { auditRef: audit.ref, ...tf },
     orderBy: { createdAt: 'asc' }
   });
   return { audit, nonConformities };

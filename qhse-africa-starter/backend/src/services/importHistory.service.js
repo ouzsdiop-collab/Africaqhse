@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { prismaTenantFilter } from '../lib/tenantScope.js';
 
 /** @typedef {'analysis_only' | 'validated' | 'failed' | 'analysis_failed'} ImportHistoryStatus */
 
@@ -105,11 +106,9 @@ export async function applyConfirmResult(
 ) {
   const id = String(historyId ?? '').trim();
   if (!id) return null;
-  const t =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : '';
-  if (!t) return null;
+  const tf = prismaTenantFilter(tenantId);
   const belongs = await prisma.importHistory.findFirst({
-    where: { id, tenantId: t },
+    where: { id, ...tf },
     select: { id: true }
   });
   if (!belongs) return null;
@@ -153,11 +152,9 @@ export async function applyConfirmResult(
  * @param {string | null | undefined} tenantId
  */
 export async function findAllImportHistory(tenantId) {
-  const t =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
-  const where = t ? { tenantId: t } : { tenantId: null };
+  const tf = prismaTenantFilter(tenantId);
   return prisma.importHistory.findMany({
-    where,
+    where: Object.keys(tf).length ? tf : {},
     orderBy: { createdAt: 'desc' },
     take: LIST_LIMIT
   });
@@ -170,10 +167,8 @@ export async function findAllImportHistory(tenantId) {
 export async function findImportHistoryById(tenantId, id) {
   const trimmed = String(id ?? '').trim();
   if (!trimmed) return null;
-  const t =
-    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
-  if (!t) return null;
+  const tf = prismaTenantFilter(tenantId);
   return prisma.importHistory.findFirst({
-    where: { id: trimmed, tenantId: t }
+    where: { id: trimmed, ...tf }
   });
 }

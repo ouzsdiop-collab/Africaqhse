@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 const LIST_SAMPLE = 8;
 
@@ -90,17 +91,13 @@ function parseBoundaryInput(raw, kind) {
  *   end: Date,
  *   siteId: string | null,
  *   assigneeId: string | null,
- *   tenantId: string
+ *   tenantId: string | null | undefined
  * }} p
  */
 export async function getPeriodicReport(p) {
   const { start, end, siteId, assigneeId, tenantId } = p;
-  const tid = String(tenantId ?? '').trim();
-  if (!tid) {
-    const err = new Error('Tenant requis');
-    err.statusCode = 400;
-    throw err;
-  }
+  const tidStr = normalizeTenantId(tenantId);
+  const tf = prismaTenantFilter(tenantId);
   const period = p.period;
 
   const limitations = [
@@ -109,25 +106,25 @@ export async function getPeriodicReport(p) {
   ];
 
   const incidentWhere = {
-    tenantId: tid,
+    ...tf,
     createdAt: { gte: start, lte: end },
     ...(siteId ? { siteId } : {})
   };
 
   const auditWhere = {
-    tenantId: tid,
+    ...tf,
     createdAt: { gte: start, lte: end },
     ...(siteId ? { siteId } : {})
   };
 
   const ncWhereCreated = {
-    tenantId: tid,
+    ...tf,
     createdAt: { gte: start, lte: end },
     ...(siteId ? { siteId } : {})
   };
 
   const actionBase = {
-    tenantId: tid,
+    ...tf,
     ...(siteId ? { siteId } : {}),
     ...(assigneeId ? { assigneeId } : {})
   };
@@ -194,8 +191,13 @@ export async function getPeriodicReport(p) {
     }),
     prisma.action.count({ where: actionCreatedWhere }),
     (async () => {
-      const parts = [
-        'tenantId = ?',
+      const parts = [];
+      const params = [];
+      if (tidStr) {
+        parts.push('tenantId = ?');
+        params.push(tidStr);
+      }
+      parts.push(
         'datetime(createdAt) >= datetime(?)',
         'datetime(createdAt) <= datetime(?)',
         `(
@@ -209,8 +211,8 @@ export async function getPeriodicReport(p) {
           OR LOWER(status) LIKE '%traitee%'
           OR LOWER(status) LIKE '%fait%'
         )`
-      ];
-      const params = [tid, start.toISOString(), end.toISOString()];
+      );
+      params.push(start.toISOString(), end.toISOString());
       if (siteId) {
         parts.push('siteId = ?');
         params.push(siteId);
@@ -226,13 +228,18 @@ export async function getPeriodicReport(p) {
       return Number(row[0]?.c ?? 0);
     })(),
     (async () => {
-      const parts = [
-        'tenantId = ?',
+      const parts = [];
+      const params = [];
+      if (tidStr) {
+        parts.push('tenantId = ?');
+        params.push(tidStr);
+      }
+      parts.push(
         'datetime(createdAt) >= datetime(?)',
         'datetime(createdAt) <= datetime(?)',
         `LOWER(severity) LIKE '%critique%'`
-      ];
-      const params = [tid, start.toISOString(), end.toISOString()];
+      );
+      params.push(start.toISOString(), end.toISOString());
       if (siteId) {
         parts.push('siteId = ?');
         params.push(siteId);
@@ -255,8 +262,13 @@ export async function getPeriodicReport(p) {
   const ncOpenAmongCreated = ncStatusRows.filter((r) => isNcOpenLike(r.status)).length;
   const ncClosedAmongCreated = ncStatusRows.filter((r) => isNcClosedLike(r.status)).length;
 
-  const overdueSqlParts = [`tenantId = ?`, `LOWER(status) LIKE '%retard%'`];
-  const overdueParams = [tid];
+  const overdueSqlParts = [];
+  const overdueParams = [];
+  if (tidStr) {
+    overdueSqlParts.push('tenantId = ?');
+    overdueParams.push(tidStr);
+  }
+  overdueSqlParts.push(`LOWER(status) LIKE '%retard%'`);
   if (siteId) {
     overdueSqlParts.push('siteId = ?');
     overdueParams.push(siteId);
@@ -413,7 +425,7 @@ export async function getPeriodicReport(p) {
 
 /**
  * @param {{
- *   tenantId: string,
+ *   tenantId?: string | null,
  *   period: 'weekly' | 'monthly' | 'custom',
  *   startDateInput?: string | null,
  *   endDateInput?: string | null,
@@ -422,12 +434,7 @@ export async function getPeriodicReport(p) {
  * }} opts
  */
 export async function buildPeriodicReport(opts) {
-  const tenantId = String(opts.tenantId ?? '').trim();
-  if (!tenantId) {
-    const err = new Error('Tenant requis');
-    err.statusCode = 400;
-    throw err;
-  }
+  const tenantId = normalizeTenantId(opts.tenantId);
   let { period } = opts;
   const startIn = opts.startDateInput ? parseBoundaryInput(opts.startDateInput, 'start') : null;
   const endIn = opts.endDateInput ? parseBoundaryInput(opts.endDateInput, 'end') : null;
@@ -464,7 +471,7 @@ export async function buildPeriodicReport(opts) {
       : null;
   if (siteId) {
     const s = await prisma.site.findFirst({
-      where: { id: siteId, tenantId },
+      where: { id: siteId, ...prismaTenantFilter(opts.tenantId) },
       select: { id: true }
     });
     if (!s) {
@@ -479,12 +486,12 @@ export async function buildPeriodicReport(opts) {
       ? String(opts.assigneeId).trim()
       : null;
   if (assigneeId) {
-    const membership = await prisma.userTenant.findFirst({
-      where: { userId: assigneeId, tenantId },
-      select: { userId: true }
+    const u = await prisma.user.findUnique({
+      where: { id: assigneeId },
+      select: { id: true }
     });
-    if (!membership) {
-      const err = new Error('Responsable (assignee) inconnu ou non rattaché à votre organisation');
+    if (!u) {
+      const err = new Error('Responsable (assignee) inconnu');
       err.statusCode = 400;
       throw err;
     }

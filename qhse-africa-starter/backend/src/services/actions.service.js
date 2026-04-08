@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { assertIncidentExistsOrNull } from './incidents.service.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 const assigneeSelect = {
   id: true,
@@ -9,10 +10,6 @@ const assigneeSelect = {
   role: true
 };
 
-function tid(tenantId) {
-  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-}
-
 function normalizeAssigneeIdInput(value) {
   if (value == null || value === '') return null;
   const s = String(value).trim();
@@ -20,42 +17,41 @@ function normalizeAssigneeIdInput(value) {
 }
 
 /**
- * Vérifie qu’un utilisateur est bien membre du tenant (assignation d’actions).
- * @param {string | null | undefined} tenantId
  * @param {string | null | undefined} userId
  */
-async function assertAssigneeMemberOfTenant(tenantId, userId) {
-  const t = tid(tenantId);
+async function assertAssigneeExists(userId) {
   const uid = normalizeAssigneeIdInput(userId);
-  if (!t || !uid) {
+  if (!uid) {
     const err = new Error('Utilisateur assigné introuvable');
     err.statusCode = 400;
     throw err;
   }
-  const m = await prisma.userTenant.findFirst({
-    where: { tenantId: t, userId: uid },
-    include: { user: { select: { id: true, name: true, email: true, role: true } } }
+  const user = await prisma.user.findUnique({
+    where: { id: uid },
+    select: { id: true, name: true, email: true, role: true }
   });
-  if (!m?.user) {
-    const err = new Error(
-      'Utilisateur assigné introuvable ou non membre de cette organisation'
-    );
+  if (!user) {
+    const err = new Error('Utilisateur assigné introuvable');
     err.statusCode = 400;
     throw err;
   }
-  return m.user;
+  return user;
 }
 
+/**
+ * @param {string | null | undefined} tenantId
+ * @param {string | null | undefined} actionId
+ */
 async function assertActionInTenant(tenantId, actionId) {
-  const t = tid(tenantId);
   const id = typeof actionId === 'string' ? actionId.trim() : '';
-  if (!t || !id) {
+  if (!id) {
     const err = new Error('Action introuvable');
     err.code = 'P2025';
     throw err;
   }
+  const tf = prismaTenantFilter(tenantId);
   const row = await prisma.action.findFirst({
-    where: { id, tenantId: t },
+    where: { id, ...tf },
     select: { id: true }
   });
   if (!row) {
@@ -71,8 +67,6 @@ async function assertActionInTenant(tenantId, actionId) {
  * @param {{ assigneeId?: string|null, unassigned?: boolean, siteId?: string|null, limit?: number }} [filters]
  */
 export async function findAllActions(tenantId, filters = {}) {
-  const t = tid(tenantId);
-  if (!t) return [];
   const unassigned = Boolean(filters.unassigned);
   const assigneeId = normalizeAssigneeIdInput(filters.assigneeId);
   const siteId =
@@ -86,7 +80,9 @@ export async function findAllActions(tenantId, filters = {}) {
       ? Math.min(Math.floor(filters.limit), 500)
       : 300;
 
-  const where = { tenantId: t };
+  const tf = prismaTenantFilter(tenantId);
+  /** @type {Record<string, unknown>} */
+  const where = { ...tf };
   if (siteId) where.siteId = siteId;
   if (unassigned) {
     where.assigneeId = null;
@@ -106,28 +102,23 @@ export async function findAllActions(tenantId, filters = {}) {
 }
 
 export async function createAction(tenantId, data) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
+  const t = normalizeTenantId(tenantId);
   let assigneeId = null;
   let owner =
     typeof data.owner === 'string' ? data.owner.trim() : data.owner ?? null;
 
   const rawAssignee = normalizeAssigneeIdInput(data.assigneeId);
   if (rawAssignee) {
-    const user = await assertAssigneeMemberOfTenant(t, rawAssignee);
+    const user = await assertAssigneeExists(rawAssignee);
     assigneeId = user.id;
     owner = owner && owner !== '' ? owner : user.name;
   }
 
-  const siteId = await assertSiteExistsOrNull(t, data.siteId);
+  const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
 
   /** @type {Record<string, unknown>} */
   const createData = {
-    tenantId: t,
+    tenantId: t || null,
     title: data.title,
     detail: data.detail ?? '',
     status: data.status,
@@ -137,7 +128,7 @@ export async function createAction(tenantId, data) {
     siteId
   };
   if (data.incidentId != null && String(data.incidentId).trim() !== '') {
-    createData.incidentId = await assertIncidentExistsOrNull(t, data.incidentId);
+    createData.incidentId = await assertIncidentExistsOrNull(tenantId, data.incidentId);
   }
 
   return prisma.action.create({
@@ -175,8 +166,7 @@ export async function assignAction(tenantId, actionId, assigneeId) {
   await assertActionInTenant(tenantId, actionId);
   const targetAssigneeId = normalizeAssigneeIdInput(assigneeId);
   if (targetAssigneeId) {
-    const t = tid(tenantId);
-    const user = await assertAssigneeMemberOfTenant(t, targetAssigneeId);
+    const user = await assertAssigneeExists(targetAssigneeId);
     return prisma.action.update({
       where: { id: actionId },
       data: {

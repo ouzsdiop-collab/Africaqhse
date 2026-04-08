@@ -1,9 +1,6 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
-
-function tid(tenantId) {
-  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
-}
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 function normalizeInt(value, fallback = 1, min = 1, max = 5) {
   const n = Number(value);
@@ -39,10 +36,9 @@ function withDerivedRiskFields(row) {
 }
 
 export async function computeNextRiskRef(tenantId) {
-  const t = tid(tenantId);
-  if (!t) return 'RSK-1';
+  const tf = prismaTenantFilter(tenantId);
   const rows = await prisma.risk.findMany({
-    where: { tenantId: t, ref: { not: null } },
+    where: { ref: { not: null }, ...tf },
     select: { ref: true }
   });
   let max = 100;
@@ -60,8 +56,6 @@ export async function computeNextRiskRef(tenantId) {
  * @param {{ siteId?: string|null, limit?: number, q?: string|null, status?: string|null, category?: string|null }} [filters]
  */
 export async function findAllRisks(tenantId, filters = {}) {
-  const t = tid(tenantId);
-  if (!t) return [];
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
@@ -82,8 +76,9 @@ export async function findAllRisks(tenantId, filters = {}) {
       : 300;
   const take = Math.min(raw, 500);
 
+  const tf = prismaTenantFilter(tenantId);
   /** @type {Record<string, unknown>} */
-  const where = { tenantId: t };
+  const where = { ...tf };
   if (siteId) where.siteId = siteId;
   if (status) where.status = status;
   if (category) where.category = category;
@@ -105,20 +100,15 @@ export async function findAllRisks(tenantId, filters = {}) {
 }
 
 export async function findRiskById(tenantId, id) {
-  const t = tid(tenantId);
-  if (!t || !id) return null;
-  const row = await prisma.risk.findFirst({ where: { id, tenantId: t } });
+  if (!id) return null;
+  const tf = prismaTenantFilter(tenantId);
+  const row = await prisma.risk.findFirst({ where: { id, ...tf } });
   return withDerivedRiskFields(row);
 }
 
 export async function createRisk(tenantId, data) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
-  const siteId = await assertSiteExistsOrNull(t, data.siteId);
+  const t = normalizeTenantId(tenantId);
+  const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
   const title = typeof data.title === 'string' ? data.title.trim() : '';
   if (!title) {
     const err = new Error('Champ title requis');
@@ -127,10 +117,10 @@ export async function createRisk(tenantId, data) {
   }
   const probability = parseIntOrNull(data.probability, 1, 5);
   const gravity = parseIntOrNull(data.gravity ?? data.severity, 1, 5);
-  const ref = await computeNextRiskRef(t);
+  const ref = await computeNextRiskRef(tenantId);
   const created = await prisma.risk.create({
     data: {
-      tenantId: t,
+      tenantId: t || null,
       ref,
       title,
       description: data.description ?? null,
@@ -148,12 +138,6 @@ export async function createRisk(tenantId, data) {
 }
 
 export async function updateRiskById(tenantId, id, patch) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
   /** @type {Record<string, unknown>} */
   const data = {};
   if ('title' in patch && patch.title != null) data.title = patch.title;
@@ -172,7 +156,7 @@ export async function updateRiskById(tenantId, id, patch) {
   }
   if ('status' in patch && patch.status != null) data.status = patch.status;
   if ('owner' in patch) data.owner = patch.owner ?? null;
-  if ('siteId' in patch) data.siteId = await assertSiteExistsOrNull(t, patch.siteId);
+  if ('siteId' in patch) data.siteId = await assertSiteExistsOrNull(tenantId, patch.siteId);
 
   if (!Object.keys(data).length) {
     const err = new Error('Aucun champ valide à mettre à jour');
@@ -180,7 +164,8 @@ export async function updateRiskById(tenantId, id, patch) {
     throw err;
   }
 
-  const current = await prisma.risk.findFirst({ where: { id, tenantId: t } });
+  const tf = prismaTenantFilter(tenantId);
+  const current = await prisma.risk.findFirst({ where: { id, ...tf } });
   if (!current) {
     const err = new Error('Risque introuvable');
     err.code = 'P2025';
@@ -196,13 +181,8 @@ export async function updateRiskById(tenantId, id, patch) {
 }
 
 export async function deleteRiskById(tenantId, id) {
-  const t = tid(tenantId);
-  if (!t) {
-    const err = new Error('Contexte organisation manquant');
-    err.statusCode = 400;
-    throw err;
-  }
-  const row = await prisma.risk.findFirst({ where: { id, tenantId: t }, select: { id: true } });
+  const tf = prismaTenantFilter(tenantId);
+  const row = await prisma.risk.findFirst({ where: { id, ...tf }, select: { id: true } });
   if (!row) {
     const err = new Error('Risque introuvable');
     err.code = 'P2025';
