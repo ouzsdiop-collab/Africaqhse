@@ -1,10 +1,17 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 
+function tid(tenantId) {
+  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+}
+
 /**
+ * @param {string | null | undefined} tenantId
  * @param {{ siteId?: string | null, limit?: number }} [filters]
  */
-export async function findAllNonConformities(filters = {}) {
+export async function findAllNonConformities(tenantId, filters = {}) {
+  const t = tid(tenantId);
+  if (!t) return [];
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
@@ -17,31 +24,34 @@ export async function findAllNonConformities(filters = {}) {
       : 300;
   const take = Math.min(raw, 500);
   return prisma.nonConformity.findMany({
-    where: siteId ? { siteId } : undefined,
+    where: { tenantId: t, ...(siteId ? { siteId } : {}) },
     orderBy: { createdAt: 'desc' },
     take
   });
 }
 
 /**
- * Crée une non-conformité et une action liée (plan d’actions) dans une transaction.
- * siteId optionnel : sinon hérité de l’audit lié (auditRef).
+ * @param {string | null | undefined} tenantId
  */
-export async function createNonConformityWithAction({
-  title,
-  detail,
-  auditRef,
-  siteId: inputSiteId
-}) {
+export async function createNonConformityWithAction(
+  tenantId,
+  { title, detail, auditRef, siteId: inputSiteId }
+) {
+  const t = tid(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
   const actionTitle = `NC audit ${auditRef} — ${title}`;
   const safeTitle =
     actionTitle.length > 220 ? `${actionTitle.slice(0, 217)}...` : actionTitle;
 
   return prisma.$transaction(async (tx) => {
-    let siteId = await assertSiteExistsOrNull(inputSiteId);
+    let siteId = await assertSiteExistsOrNull(t, inputSiteId);
 
     let auditRow = await tx.audit.findFirst({
-      where: { ref: auditRef },
+      where: { tenantId: t, ref: auditRef },
       select: { id: true, siteId: true }
     });
 
@@ -51,6 +61,7 @@ export async function createNonConformityWithAction({
 
     const nonConformity = await tx.nonConformity.create({
       data: {
+        tenantId: t,
         title,
         detail: detail ?? null,
         status: 'open',
@@ -62,6 +73,7 @@ export async function createNonConformityWithAction({
 
     const action = await tx.action.create({
       data: {
+        tenantId: t,
         title: safeTitle,
         detail: `NC issue audit ${auditRef} • ${title}`,
         status: 'À lancer',

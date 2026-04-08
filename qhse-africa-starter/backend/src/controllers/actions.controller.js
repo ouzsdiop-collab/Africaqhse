@@ -32,7 +32,7 @@ export async function getAll(req, res, next) {
       typeof aidRaw === 'string' && aidRaw.trim() ? aidRaw.trim() : null;
 
     const rawSiteId = parseSiteIdQuery(req);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
 
     if (unassigned && assigneeId) {
       return res.status(400).json({
@@ -49,7 +49,7 @@ export async function getAll(req, res, next) {
 
     const limit = parseListLimit(req.query.limit);
 
-    const items = await actionsService.findAllActions({
+    const items = await actionsService.findAllActions(req.qhseTenantId, {
       assigneeId: effAssigneeId,
       unassigned: effUnassigned,
       siteId,
@@ -97,16 +97,22 @@ export async function create(req, res, next) {
       due = d;
     }
 
-    const created = await actionsService.createAction({
+    const iid =
+      incidentId != null && incidentId !== ''
+        ? String(incidentId).trim()
+        : undefined;
+    const created = await actionsService.createAction(req.qhseTenantId, {
       title: t,
       detail: det,
       status: st,
       owner: ow || undefined,
       dueDate: due,
       assigneeId: aid,
-      siteId
+      siteId,
+      incidentId: iid
     });
     void emitBusinessEvent('action.created', {
+      tenantId: req.qhseTenantId,
       actionId: created.id,
       siteId: created.siteId ?? null,
       userId: auditUserIdFromRequest(req)
@@ -130,8 +136,11 @@ export async function patchById(req, res, next) {
     if (!status) {
       return res.status(400).json({ error: 'Champ status requis' });
     }
-    const updated = await actionsService.updateActionFields(id, { status });
+    const updated = await actionsService.updateActionFields(req.qhseTenantId, id, {
+      status
+    });
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'actions',
       resourceId: updated.id,
@@ -164,8 +173,13 @@ export async function assign(req, res, next) {
         : String(raw).trim();
     const assigneeForService = normalized === '' ? null : normalized;
 
-    const updated = await actionsService.assignAction(id, assigneeForService);
+    const updated = await actionsService.assignAction(
+      req.qhseTenantId,
+      id,
+      assigneeForService
+    );
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'actions',
       resourceId: updated.id,

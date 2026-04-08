@@ -57,7 +57,7 @@ const PRIO_LABELS = {
 };
 
 /**
- * Fiche action (modal pilotage QHSE) — champs API + overlay mock (session).
+ * Fiche action (modal pilotage QHSE) — champs API + compléments session locale.
  * @param {{ onRefresh?: () => void, getUserName?: () => string }} [opts]
  */
 export function createActionDetailDialog(opts = {}) {
@@ -86,7 +86,7 @@ export function createActionDetailDialog(opts = {}) {
       <dt>API</dt><dd class="action-detail-dialog__api"><code data-ad-api></code></dd>
     </dl>
     <div class="action-detail-dialog__block" data-ad-links-block>
-      <div class="action-detail-dialog__block-label">Liaisons (mock / terrain)</div>
+      <div class="action-detail-dialog__block-label">Liaisons et rattachements</div>
       <dl class="action-detail-dialog__grid action-detail-dialog__grid--links">
         <dt>Risque lié</dt><dd data-ad-risk></dd>
         <dt>Audit lié</dt><dd data-ad-audit></dd>
@@ -352,7 +352,7 @@ export function createActionDetailDialog(opts = {}) {
       pv.className = `action-detail-prio-vis action-detail-prio-vis--${o.priority || 'normale'}`;
       pv.textContent = `Priorité : ${PRIO_LABELS[o.priority] || 'Normale'}`;
       pv.title =
-        'Priorité pilotage (mock) — à aligner avec le registre actions métier si besoin.';
+        'Priorité de pilotage — peut être ajustée selon votre référentiel interne.';
       prioVis.append(pv);
 
       renderProgressControl(row, currentActionId);

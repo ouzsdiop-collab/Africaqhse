@@ -1,5 +1,5 @@
 /**
- * Interception qhseFetch en mode démo — réponses JSON locales + PATCH légers (Kanban / incidents).
+ * Interception qhseFetch en mode exploration — réponses JSON locales + PATCH légers (Kanban / incidents).
  */
 
 import {
@@ -113,7 +113,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
     const body = await readJsonBody(init.body);
     patchDemoActionRuntime(id, body);
     const row = getMergedActions().find((a) => a.id === id);
-    if (!row) return jsonResponse({ error: 'Action introuvable (démo)' }, 404);
+    if (!row) return jsonResponse({ error: 'Action introuvable en mode exploration' }, 404);
     return jsonResponse(row);
   }
 
@@ -125,7 +125,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
     const payload = findAssigneePayload(aid || null);
     patchDemoActionRuntime(id, payload);
     const row = getMergedActions().find((a) => a.id === id);
-    if (!row) return jsonResponse({ error: 'Action introuvable (démo)' }, 404);
+    if (!row) return jsonResponse({ error: 'Action introuvable en mode exploration' }, 404);
     return jsonResponse(row);
   }
 
@@ -135,7 +135,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
     const body = await readJsonBody(init.body);
     patchDemoIncidentRuntime(ref, body);
     const row = getMergedIncidents().find((i) => i.ref === ref);
-    if (!row) return jsonResponse({ error: 'Incident introuvable (démo)' }, 404);
+    if (!row) return jsonResponse({ error: 'Incident introuvable en mode exploration' }, 404);
     return jsonResponse(row);
   }
 

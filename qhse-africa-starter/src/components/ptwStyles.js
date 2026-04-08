@@ -15,6 +15,7 @@ const CSS = `
 .ptw-item{padding:12px;border:1px solid var(--color-border-tertiary);border-radius:12px;background:var(--color-background-primary)}
 .ptw-item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start}
 .ptw-item-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ptw-item-actions .btn{min-height:34px;padding:6px 10px;font-size:12px}
 .ptw-mini{font-size:12px;color:var(--text2)}
 .ptw-chip{padding:5px 10px;border-radius:999px;border:1px solid var(--color-border-secondary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .ptw-status--pending{border-color:rgba(251,146,60,.45);color:#fdba74;background:rgba(251,146,60,.14)}
@@ -59,6 +60,8 @@ const CSS = `
 }
 @media (max-width: 640px){
   .ptw-kpis{grid-template-columns:1fr}
+  .ptw-item-actions{display:grid;grid-template-columns:1fr 1fr}
+  .ptw-item-actions .btn{width:100%}
 }
 `;
 

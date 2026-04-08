@@ -1,4 +1,4 @@
-/** Retour visuel court, accessible (mock — pas de file d’attente). */
+/** Retour visuel court, accessible (pas de file d’attente persistante). */
 export function showToast(message, variant = 'success') {
   const existing = document.querySelector('.app-toast');
   if (existing) existing.remove();

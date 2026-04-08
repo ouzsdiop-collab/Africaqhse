@@ -58,19 +58,39 @@ export async function streamByToken(req, res, next) {
     if (!user) {
       return res.status(401).json({ error: 'Utilisateur invalide.' });
     }
-    const qhseUser = {
+    const doc = await controlledDocumentService.getControlledDocumentByIdUnscoped(v.documentId);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+    /** @type {{ id: string, role: string }} */
+    let qhseUser = {
       id: user.id,
       role: String(user.role ?? '').trim().toUpperCase()
     };
-    const doc = await controlledDocumentService.getControlledDocumentById(v.documentId);
-    if (!doc) {
-      return res.status(404).json({ error: 'Document introuvable.' });
+    if (doc.tenantId) {
+      if (!v.tenantId || v.tenantId !== doc.tenantId) {
+        return res.status(401).json({ error: 'Jeton invalide ou expiré.' });
+      }
+      const membership = await prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: { userId: user.id, tenantId: doc.tenantId }
+        },
+        select: { role: true }
+      });
+      if (!membership) {
+        return res.status(403).json({ error: 'Accès organisation révoqué.' });
+      }
+      qhseUser = {
+        id: user.id,
+        role: String(membership.role ?? '').trim().toUpperCase()
+      };
     }
     if (!controlledDocumentService.canAccessControlledDocument(qhseUser, doc.classification, 'read')) {
       return res.status(403).json({ error: 'Accès refusé pour cette classification.' });
     }
-    const { buffer } = await controlledDocumentService.readDocumentBufferForId(doc.id);
+    const { buffer } = await controlledDocumentService.readDocumentBufferFromRow(doc);
     await writeAuditLog({
+      tenantId: doc.tenantId ?? v.tenantId,
       userId: user.id,
       resource: 'controlled_document',
       resourceId: doc.id,
@@ -106,11 +126,12 @@ export async function list(req, res, next) {
       return res.status(403).json({ error: 'Permission refusée.' });
     }
     const filters = controlledDocumentService.parseListFilters(req.query || {});
-    const rows = await controlledDocumentService.listControlledDocuments(filters);
+    const rows = await controlledDocumentService.listControlledDocuments(req.qhseTenantId, filters);
     const visible = rows.filter((row) =>
       controlledDocumentService.canAccessControlledDocument(u, row.classification, 'read')
     );
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'controlled_document',
       resourceId: 'list',
@@ -152,6 +173,7 @@ export async function create(req, res, next) {
       (typeof body.name === 'string' && body.name.trim()) || req.file.originalname || 'document';
     const type = (typeof body.type === 'string' && body.type.trim()) || 'other';
     const row = await controlledDocumentService.createControlledDocument(req.file.buffer, {
+      tenantId: req.qhseTenantId,
       name,
       type,
       classification,
@@ -167,6 +189,7 @@ export async function create(req, res, next) {
       responsible: body.responsible || null
     });
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: u.id,
       resource: 'controlled_document',
       resourceId: row.id,
@@ -197,7 +220,7 @@ export async function patchMeta(req, res, next) {
     if (!can(u.role, 'controlled_documents', 'write')) {
       return res.status(403).json({ error: 'Permission refusée.' });
     }
-    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    const doc = await controlledDocumentService.getControlledDocumentById(req.qhseTenantId, req.params.id);
     if (!doc) {
       return res.status(404).json({ error: 'Document introuvable.' });
     }
@@ -206,13 +229,14 @@ export async function patchMeta(req, res, next) {
     }
     assertDocumentSiteAllowed(u, doc.siteId);
     const body = req.body || {};
-    const updated = await controlledDocumentService.updateControlledDocumentMeta(req.params.id, {
+    const updated = await controlledDocumentService.updateControlledDocumentMeta(req.qhseTenantId, req.params.id, {
       expiresAt: body.expiresAt,
       responsible: body.responsible,
       name: body.name,
       type: body.type
     });
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: u.id,
       resource: 'controlled_document',
       resourceId: updated.id,
@@ -241,7 +265,7 @@ export async function getById(req, res, next) {
     if (!u) {
       return res.status(401).json({ error: 'Authentification requise.' });
     }
-    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    const doc = await controlledDocumentService.getControlledDocumentById(req.qhseTenantId, req.params.id);
     if (!doc) {
       return res.status(404).json({ error: 'Document introuvable.' });
     }
@@ -250,6 +274,7 @@ export async function getById(req, res, next) {
     }
     assertDocumentSiteAllowed(u, doc.siteId);
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: u.id,
       resource: 'controlled_document',
       resourceId: doc.id,
@@ -276,7 +301,7 @@ export async function issueAccessToken(req, res, next) {
     if (!u) {
       return res.status(401).json({ error: 'Authentification requise.' });
     }
-    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    const doc = await controlledDocumentService.getControlledDocumentById(req.qhseTenantId, req.params.id);
     if (!doc) {
       return res.status(404).json({ error: 'Document introuvable.' });
     }
@@ -288,11 +313,17 @@ export async function issueAccessToken(req, res, next) {
         ? req.body.expiresIn
         : '10m';
     const token = signDocumentAccessToken(
-      { documentId: doc.id, userId: u.id, purpose: 'download' },
+      {
+        documentId: doc.id,
+        userId: u.id,
+        purpose: 'download',
+        tenantId: req.qhseTenantId
+      },
       expiresIn
     );
     const streamPath = `/api/controlled-documents/stream?token=${encodeURIComponent(token)}`;
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: u.id,
       resource: 'controlled_document',
       resourceId: doc.id,
@@ -321,7 +352,7 @@ export async function downloadAuthenticated(req, res, next) {
     if (!u) {
       return res.status(401).json({ error: 'Authentification requise.' });
     }
-    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    const doc = await controlledDocumentService.getControlledDocumentById(req.qhseTenantId, req.params.id);
     if (!doc) {
       return res.status(404).json({ error: 'Document introuvable.' });
     }
@@ -329,8 +360,9 @@ export async function downloadAuthenticated(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé.' });
     }
     assertDocumentSiteAllowed(u, doc.siteId);
-    const { buffer } = await controlledDocumentService.readDocumentBufferForId(doc.id);
+    const { buffer } = await controlledDocumentService.readDocumentBufferForId(req.qhseTenantId, doc.id);
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: u.id,
       resource: 'controlled_document',
       resourceId: doc.id,
@@ -363,7 +395,7 @@ export async function exportWatermarked(req, res, next) {
     if (!u) {
       return res.status(401).json({ error: 'Authentification requise.' });
     }
-    const doc = await controlledDocumentService.getControlledDocumentById(req.params.id);
+    const doc = await controlledDocumentService.getControlledDocumentById(req.qhseTenantId, req.params.id);
     if (!doc) {
       return res.status(404).json({ error: 'Document introuvable.' });
     }
@@ -371,12 +403,13 @@ export async function exportWatermarked(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé.' });
     }
     assertDocumentSiteAllowed(u, doc.siteId);
-    const { buffer } = await controlledDocumentService.readDocumentBufferForId(doc.id);
+    const { buffer } = await controlledDocumentService.readDocumentBufferForId(req.qhseTenantId, doc.id);
     const userLabel = `${u.name || u.id} (${u.email || ''})`.trim();
     const built = await controlledDocumentService.buildWatermarkedExportBuffer(buffer, doc, {
       userLabel
     });
     await writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: u.id,
       resource: 'controlled_document',
       resourceId: doc.id,
@@ -391,6 +424,7 @@ export async function exportWatermarked(req, res, next) {
       }
     });
     void emitBusinessEvent('controlled_document.export', {
+      tenantId: req.qhseTenantId,
       documentId: doc.id,
       userId: u.id,
       classification: doc.classification,

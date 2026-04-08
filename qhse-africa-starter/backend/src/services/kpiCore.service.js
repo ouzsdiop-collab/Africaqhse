@@ -26,6 +26,19 @@ export function prismaSiteWhere(siteId) {
 }
 
 /**
+ * Filtre tenant (+ site optionnel) pour listes Prisma.
+ * @param {string | null | undefined} tenantId
+ * @param {string | null} siteId
+ * @returns {Record<string, unknown> | undefined}
+ */
+export function prismaTenantSiteWhere(tenantId, siteId) {
+  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+  if (!tid) return undefined;
+  const sid = normalizeSiteId(siteId);
+  return sid ? { tenantId: tid, siteId: sid } : { tenantId: tid };
+}
+
+/**
  * @param {unknown} haystack
  * @param {unknown} needle
  */
@@ -106,37 +119,46 @@ const SQL_ACTION_OVERDUE_BODY = `(
 
 /**
  * Compte les actions en retard (dashboard / reportingSummary — même règle que les listes `overdueActionItems`).
+ * @param {string | null | undefined} tenantId
  * @param {string | null} siteId
  */
-export async function countActionsOverdue(siteId) {
+export async function countActionsOverdue(tenantId, siteId) {
+  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+  if (!tid) return 0;
   const sid = normalizeSiteId(siteId);
-  const where = `${SQL_ACTION_NOT_CLOSED_FOR_OVERDUE} AND ${SQL_ACTION_OVERDUE_BODY}`;
+  const where = `tenantId = ? AND ${SQL_ACTION_NOT_CLOSED_FOR_OVERDUE} AND ${SQL_ACTION_OVERDUE_BODY}`;
   const rows = sid
     ? await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) AS c FROM actions WHERE siteId = ? AND ${where}`,
+        `SELECT COUNT(*) AS c FROM actions WHERE ${where} AND siteId = ?`,
+        tid,
         sid
       )
-    : await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS c FROM actions WHERE ${where}`);
+    : await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS c FROM actions WHERE ${where}`, tid);
   return Number(rows[0]?.c ?? 0);
 }
 
 /**
  * NC « ouvertes » selon heuristique SQL (alignée sur reportingSummary).
+ * @param {string | null | undefined} tenantId
  * @param {string | null} siteId
  */
-export async function countNonConformitiesOpenHeuristic(siteId) {
+export async function countNonConformitiesOpenHeuristic(tenantId, siteId) {
+  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+  if (!tid) return 0;
   const sid = normalizeSiteId(siteId);
   const rows = sid
     ? await prisma.$queryRaw`
         SELECT COUNT(*) AS c FROM non_conformities
-        WHERE LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
+        WHERE tenantId = ${tid}
+          AND LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%clôt%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%trait%'
           AND siteId = ${sid}
       `
     : await prisma.$queryRaw`
         SELECT COUNT(*) AS c FROM non_conformities
-        WHERE LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
+        WHERE tenantId = ${tid}
+          AND LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%clôt%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%trait%'
       `;

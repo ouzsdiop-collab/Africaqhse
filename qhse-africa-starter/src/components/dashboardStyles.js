@@ -4306,7 +4306,7 @@ const CSS = `
   }
 }
 
-/* —— Assistant pilotage QHSE (IA simulée) —— */
+/* —— Assistant pilotage QHSE (suggestions assistées) —— */
 .dashboard-band--assistant{
   margin:6px 0 8px;
 }

@@ -151,7 +151,7 @@ export async function buildAssistantSnapshot(input) {
   if (risksSansAction >= 2) {
     anomalies.push({
       level: 'warn',
-      message: `${risksSansAction} risque(s) du jeu démo sans action liée — rattachez des actions dans le registre.`
+      message: `${risksSansAction} risque(s) sans action liée — rattachez des actions dans le registre.`
     });
   }
   if (openish > 12 && overdue > 4) {
@@ -195,7 +195,7 @@ export async function buildAssistantSnapshot(input) {
       internalScore: 70,
       title:
         criticalRisks.length > 1
-          ? `${criticalRisks.length} risques critiques (registre démo)`
+          ? `${criticalRisks.length} risques critiques (registre affiché)`
           : `Risque critique : ${r0.title}`,
       detail: 'Renforcer mesures ou lancer action préventive ciblée.',
       navigateHash: 'risks',
@@ -226,7 +226,7 @@ export async function buildAssistantSnapshot(input) {
       id: 'rec-audits-proches',
       internalScore: 42 + Math.min(auditsSoon * 4, 20),
       title:
-        auditsSoon > 1 ? `${auditsSoon} audits à anticiper (repères démo)` : 'Audit à anticiper (repère démo)',
+        auditsSoon > 1 ? `${auditsSoon} audits à anticiper` : 'Audit à anticiper',
       detail: 'Consolidez preuves et plans d’actions avant la fenêtre audit.',
       navigateHash: 'audits',
       dialogDefaults: a0 ? buildActionDefaultsFromAuditPrep(a0) : null
@@ -257,7 +257,7 @@ export async function buildAssistantSnapshot(input) {
       : 'le périmètre';
   const synthesisParts = [];
   synthesisParts.push(
-    `Score pilotage assisté : ${enriched} % (intègre retards, incidents critiques, documents et risques démo).`
+    `Score pilotage assisté : ${enriched} % (intègre retards, incidents critiques, documents et risques de la vue).`
   );
   if (overdue || docSum.expire || critInc) {
     synthesisParts.push(
@@ -267,7 +267,7 @@ export async function buildAssistantSnapshot(input) {
     synthesisParts.push(`Situation relativement maîtrisée sur ${site} — maintenir le suivi des plans.`);
   }
   if (auditsSoon) {
-    synthesisParts.push(`${auditsSoon} échéance(s) audit à garder en tête (données de démonstration).`);
+    synthesisParts.push(`${auditsSoon} échéance(s) audit à garder en tête sur le planning affiché.`);
   }
 
   return {

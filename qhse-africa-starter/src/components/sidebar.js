@@ -5,7 +5,9 @@ import {
   getSessionUser,
   setSessionUser,
   getAuthToken,
-  clearAuthSession
+  clearAuthSession,
+  getActiveTenant,
+  getSessionTenants
 } from '../data/sessionUser.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
@@ -60,7 +62,7 @@ export function createSidebar({
         <span class="shell-sidebar-header-title">Menu</span>
         <span class="shell-sidebar-header-sub">QHSE Control</span>
       </div>
-      <span class="shell-sidebar-badge" title="Démonstration">Démo</span>
+      <span class="shell-sidebar-badge" title="Exploration sans compte : données d’illustration">Essai</span>
     </div>
     <nav class="shell-side-nav side-nav" aria-label="Navigation principale"></nav>
     <div class="shell-sidebar-footer">
@@ -188,6 +190,14 @@ export function createSidebar({
       roleEl.className = 'shell-account-role';
       roleEl.textContent = u?.role || '';
       meta.append(nameEl, roleEl);
+      const orgT = getActiveTenant();
+      if (orgT?.slug) {
+        const orgEl = document.createElement('div');
+        orgEl.className = 'shell-account-org';
+        orgEl.title = orgT.slug;
+        orgEl.textContent = orgT.name || orgT.slug;
+        meta.append(orgEl);
+      }
       card.append(av, meta);
       profileSlot.append(card);
 
@@ -213,6 +223,21 @@ export function createSidebar({
         window.location.hash = 'login';
       });
       actions.append(logoutBtn, switchBtn);
+      if (getSessionTenants().length > 1) {
+        const orgBtn = document.createElement('button');
+        orgBtn.type = 'button';
+        orgBtn.className = 'shell-btn-link';
+        orgBtn.textContent = 'Organisations…';
+        orgBtn.addEventListener('click', () => {
+          try {
+            sessionStorage.setItem('qhse_settings_focus', 'settings-anchor-org');
+          } catch {
+            /* ignore */
+          }
+          window.location.hash = 'settings';
+        });
+        actions.append(orgBtn);
+      }
       profileSlot.append(actions);
       return;
     }
@@ -220,7 +245,8 @@ export function createSidebar({
     const profileSelect = document.createElement('select');
     profileSelect.className = 'control-select context-select shell-context-select';
     profileSelect.setAttribute('aria-label', 'Choisir un utilisateur pour les permissions');
-    profileSelect.title = 'Profil démo : filtre les entrées du menu selon le rôle.';
+    profileSelect.title =
+      'Sans connexion : choisissez un profil pour prévisualiser le menu selon le rôle (aperçu local).';
     const optProf0 = document.createElement('option');
     optProf0.value = '';
     optProf0.textContent = '— Mode libre —';

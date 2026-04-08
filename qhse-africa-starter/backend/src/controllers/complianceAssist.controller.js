@@ -9,6 +9,7 @@ export async function postAnalyzeAssist(req, res, next) {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const result = await analyzeComplianceAssist({
+      tenantId: req.qhseTenantId,
       requirement: body.requirement,
       controlledDocuments: body.controlledDocuments,
       siteId: body.siteId
@@ -18,6 +19,7 @@ export async function postAnalyzeAssist(req, res, next) {
         ? String(body.requirement.id)
         : 'assist';
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'compliance',
       resourceId: reqId,

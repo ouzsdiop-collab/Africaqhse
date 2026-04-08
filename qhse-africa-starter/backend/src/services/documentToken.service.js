@@ -15,15 +15,25 @@ function getDocumentSecret() {
 }
 
 /**
- * @param {{ documentId: string, userId: string, purpose: 'view' | 'download' }} payload
+ * @param {{
+ *   documentId: string,
+ *   userId: string,
+ *   purpose: 'view' | 'download',
+ *   tenantId?: string | null
+ * }} payload
  * @param {string} [expiresIn] — défaut 5 min
  */
 export function signDocumentAccessToken(payload, expiresIn = '5m') {
+  const tid =
+    payload.tenantId != null && String(payload.tenantId).trim() !== ''
+      ? String(payload.tenantId).trim()
+      : undefined;
   return jwt.sign(
     {
       typ: 'qhse_doc',
       docId: payload.documentId,
-      purpose: payload.purpose
+      purpose: payload.purpose,
+      ...(tid ? { tid } : {})
     },
     getDocumentSecret(),
     {
@@ -36,7 +46,7 @@ export function signDocumentAccessToken(payload, expiresIn = '5m') {
 
 /**
  * @param {string} token
- * @returns {{ documentId: string, userId: string, purpose: string } | null}
+ * @returns {{ documentId: string, userId: string, purpose: string, tenantId: string | null } | null}
  */
 export function verifyDocumentAccessToken(token) {
   if (!token || typeof token !== 'string') return null;
@@ -47,10 +57,13 @@ export function verifyDocumentAccessToken(token) {
     if (p.typ !== 'qhse_doc' || typeof p.docId !== 'string' || typeof p.sub !== 'string') {
       return null;
     }
+    const tid =
+      typeof p.tid === 'string' && p.tid.trim() !== '' ? p.tid.trim() : null;
     return {
       documentId: p.docId,
       userId: p.sub,
-      purpose: p.purpose === 'download' ? 'download' : 'view'
+      purpose: p.purpose === 'download' ? 'download' : 'view',
+      tenantId: tid
     };
   } catch {
     return null;

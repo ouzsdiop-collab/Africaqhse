@@ -23,7 +23,10 @@ export function registerBusinessEventListeners() {
     const { type, payload } = evt;
     const p =
       payload && typeof payload === 'object' ? /** @type {Record<string, unknown>} */ (payload) : {};
+    const tenantId =
+      typeof p.tenantId === 'string' && p.tenantId.trim() !== '' ? p.tenantId.trim() : null;
     void writeAuditLog({
+      tenantId,
       userId: typeof p.userId === 'string' ? p.userId : null,
       resource: 'business_event',
       resourceId: String(type).slice(0, 200),

@@ -14,9 +14,9 @@ import { emitBusinessEvent } from '../services/businessEvents.service.js';
 export async function getAll(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const limit = parseListLimit(req.query.limit);
-    const items = await incidentsService.findAllIncidents({ siteId, limit });
+    const items = await incidentsService.findAllIncidents(req.qhseTenantId, { siteId, limit });
     res.json(items);
   } catch (err) {
     next(err);
@@ -88,7 +88,7 @@ export async function create(req, res, next) {
       return res.status(400).json({ error: photosRes.error });
     }
 
-    const created = await incidentsService.createIncident({
+    const created = await incidentsService.createIncident(req.qhseTenantId, {
       ref: r,
       type: ty,
       site: si,
@@ -103,6 +103,7 @@ export async function create(req, res, next) {
       responsible: resp
     });
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'incidents',
       resourceId: created.id,
@@ -110,6 +111,7 @@ export async function create(req, res, next) {
       metadata: { ref: created.ref, type: created.type }
     });
     void emitBusinessEvent('incident.created', {
+      tenantId: req.qhseTenantId,
       incidentId: created.id,
       ref: created.ref,
       siteId: created.siteId ?? null,
@@ -194,8 +196,9 @@ export async function patchByRef(req, res, next) {
       });
     }
 
-    const updated = await incidentsService.updateIncidentByRef(rawRef, patch);
+    const updated = await incidentsService.updateIncidentByRef(req.qhseTenantId, rawRef, patch);
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'incidents',
       resourceId: updated.id,

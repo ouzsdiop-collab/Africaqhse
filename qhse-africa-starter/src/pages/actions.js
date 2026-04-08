@@ -851,7 +851,7 @@ export function renderActions() {
         activityLogStore.add({
           module: 'actions',
           action: 'Création action',
-          detail: 'Formulaire pilotage — API + mock liaisons',
+          detail: 'Formulaire pilotage — liaisons risque / audit / incident',
           user: getSessionUser()?.name || 'Responsable QHSE'
         });
         void loadActionsFromApi();

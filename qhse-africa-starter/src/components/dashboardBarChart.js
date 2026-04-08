@@ -35,7 +35,7 @@ export function createDashboardBarChart() {
   const foot = document.createElement('p');
   foot.className = 'dashboard-chart-foot';
   foot.textContent =
-    'Tendance : hausse du second trimestre — à corréler avec l’activité extraction et les arrêts maintenance (mock).';
+    'Tendance : évolution sur la période affichée — à corréler avec l’activité site et la maintenance.';
 
   box.append(axis, wrap, foot);
   return box;

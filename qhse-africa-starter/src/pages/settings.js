@@ -1,7 +1,13 @@
 import { showToast } from '../components/toast.js';
 import { ensureSettingsPageStyles } from '../components/settingsPageStyles.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
-import { getSessionUser } from '../data/sessionUser.js';
+import {
+  getSessionUser,
+  getAuthToken,
+  getActiveTenant,
+  getSessionTenants,
+  switchActiveTenant
+} from '../data/sessionUser.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
 import {
   SENSITIVE_ACCESS_ACTION_META,
@@ -13,10 +19,12 @@ import {
 } from '../data/sensitiveAccessConfig.js';
 import {
   isDemoMode,
+  isDemoModeAllowed,
   setDemoMode,
   resetDemoPresentation
 } from '../services/demoMode.service.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { validatePasswordPolicy } from '../utils/passwordPolicy.js';
 
 const LS_ALERTS = 'qhse_cfg_alerts_v1';
 const LS_NOTIF = 'qhse_cfg_notif_v1';
@@ -264,7 +272,7 @@ export function renderSettings() {
         <p class="settings-hero-premium__lead">
           Cadre central pour l’organisation, la veille, les notifications, les exports, les référentiels,
           la gouvernance IA et le cycle de maîtrise (détection → clôture). Les réglages ci-dessous sont
-          enregistrés localement dans le navigateur (démo) — prêts à être reliés à une API paramètres.
+          enregistrés localement dans le navigateur jusqu’à branchement sur une API paramètres.
         </p>
         <div class="settings-hero-premium__meta" aria-hidden="true">
           <span class="settings-hero-chip">Piloter · Agir · Contrôler</span>
@@ -280,8 +288,11 @@ export function renderSettings() {
     </div>
   `;
   const tocNav = hero.querySelector('.settings-toc');
+  const showDemo = isDemoModeAllowed();
   const tocSpec = [
-    { id: 'settings-anchor-demo', label: 'Mode démo' },
+    ...(showDemo
+      ? [{ id: 'settings-anchor-demo', label: 'Exploration hors API' }]
+      : []),
     { id: 'settings-anchor-org', label: 'Organisation' },
     { id: 'settings-anchor-alerts', label: 'Alertes' },
     { id: 'settings-anchor-notif', label: 'Notifications' },
@@ -300,60 +311,63 @@ export function renderSettings() {
     tocNav?.append(b);
   });
 
-  /* —— Mode démo (présentation client) —— */
-  const secDemo = document.createElement('section');
-  secDemo.className = 'settings-section';
-  secDemo.id = 'settings-anchor-demo';
-  secDemo.setAttribute('aria-labelledby', 'settings-demo-title');
-  secDemo.innerHTML = `
+  /** @type {HTMLElement | null} */
+  let secDemo = null;
+  if (showDemo) {
+    secDemo = document.createElement('section');
+    secDemo.className = 'settings-section';
+    secDemo.id = 'settings-anchor-demo';
+    secDemo.setAttribute('aria-labelledby', 'settings-demo-title');
+    secDemo.innerHTML = `
     <header class="settings-section__head">
       <p class="settings-section__kicker">Présentation</p>
-      <h4 class="settings-section__title" id="settings-demo-title">Mode démo</h4>
+      <h4 class="settings-section__title" id="settings-demo-title">Exploration hors API</h4>
       <p class="settings-section__lead">
-        Active des jeux de données <strong>locaux</strong> cohérents (incidents récents, actions en retard et en cours,
-        audit ISO 45001 en progression, non-conformités, notifications). Idéal pour une démo sans backend ou en salle.
-        Les autres requêtes API non couvertes passent encore par le réseau si le serveur est disponible.
+        Fournit des <strong>données d’illustration</strong> cohérentes dans le navigateur (incidents, actions, audits, non-conformités, notifications)
+        pour formation ou pré-production lorsque l’API n’est pas utilisée ou seulement partiellement disponible.
+        Les appels non interceptés continuent d’utiliser le réseau si le serveur est joignable.
       </p>
     </header>
     <div class="settings-demo-card content-card card-soft">
       <div class="settings-demo-row">
         <label class="settings-demo-switch-label">
           <input type="checkbox" class="settings-demo-toggle" data-demo-toggle />
-          <span>Activer le mode démo</span>
+          <span>Activer les données d’exploration locales</span>
         </label>
       </div>
       <p class="settings-demo-hint">
         Après activation ou désactivation, la page se recharge pour rafraîchir tableaux de bord, listes et notifications.
       </p>
       <div class="settings-demo-actions">
-        <button type="button" class="btn btn-secondary" data-demo-reset>Réinitialiser démo</button>
+        <button type="button" class="btn btn-secondary" data-demo-reset>Réinitialiser le scénario</button>
       </div>
       <p class="settings-demo-foot">
-        « Réinitialiser » efface les modifications locales du scénario (glisser-déposer Kanban, patch incidents, lectures de notifications synthétiques) — le mode démo reste tel quel.
+        « Réinitialiser » efface les ajustements locaux (Kanban, incidents, lectures de notifications) tout en conservant le mode exploration activé ou non.
       </p>
     </div>
   `;
-  const demoToggle = secDemo.querySelector('[data-demo-toggle]');
-  const demoReset = secDemo.querySelector('[data-demo-reset]');
-  if (demoToggle instanceof HTMLInputElement) {
-    demoToggle.checked = isDemoMode();
-    demoToggle.addEventListener('change', () => {
-      setDemoMode(demoToggle.checked);
-      showToast(
-        demoToggle.checked
-          ? 'Mode démo activé — données locales (rechargement…)'
-          : 'Mode démo désactivé — rechargement…',
-        'info'
-      );
-      window.setTimeout(() => window.location.reload(), 120);
-    });
-  }
-  if (demoReset) {
-    demoReset.addEventListener('click', () => {
-      resetDemoPresentation();
-      showToast('Scénario démo réinitialisé — rechargement…', 'success');
-      window.setTimeout(() => window.location.reload(), 120);
-    });
+    const demoToggle = secDemo.querySelector('[data-demo-toggle]');
+    const demoReset = secDemo.querySelector('[data-demo-reset]');
+    if (demoToggle instanceof HTMLInputElement) {
+      demoToggle.checked = isDemoMode();
+      demoToggle.addEventListener('change', () => {
+        setDemoMode(demoToggle.checked);
+        showToast(
+          demoToggle.checked
+            ? 'Données d’exploration activées — rechargement…'
+            : 'Données d’exploration désactivées — rechargement…',
+          'info'
+        );
+        window.setTimeout(() => window.location.reload(), 120);
+      });
+    }
+    if (demoReset) {
+      demoReset.addEventListener('click', () => {
+        resetDemoPresentation();
+        showToast('Scénario réinitialisé — rechargement…', 'success');
+        window.setTimeout(() => window.location.reload(), 120);
+      });
+    }
   }
 
   /* —— Organisation —— */
@@ -370,9 +384,59 @@ export function renderSettings() {
         Le périmètre actif reste piloté depuis le pied de menu latéral.
       </p>
     </header>
+    <div class="settings-tenant-switch" data-settings-tenant-switch style="display:none"></div>
     <div class="settings-grid-2" data-settings-org-grid></div>
     <div class="settings-org-context-bar" data-settings-org-context></div>
   `;
+  const tenantSwitchHost = secA.querySelector('[data-settings-tenant-switch]');
+  if (tenantSwitchHost && getAuthToken()) {
+    const tenants = getSessionTenants();
+    const active = getActiveTenant();
+    if (active && tenants.length > 1) {
+      tenantSwitchHost.style.display = 'block';
+      tenantSwitchHost.className = 'settings-tenant-switch content-card card-soft';
+      tenantSwitchHost.style.marginBottom = '16px';
+      tenantSwitchHost.innerHTML = `
+        <p class="settings-section__kicker" style="margin:0 0 8px">Compte connecté</p>
+        <p class="settings-demo-hint" style="margin:0 0 12px">
+          Organisation active : <strong data-tenant-active-name></strong>
+          <span class="dashboard-muted-lead"> — plusieurs organisations sont disponibles pour votre profil.</span>
+        </p>
+        <label class="field field-full">
+          <span>Changer d’organisation</span>
+          <select class="control-input settings-tenant-select"></select>
+        </label>
+        <button type="button" class="btn btn-primary settings-tenant-apply" style="margin-top:10px">Appliquer</button>
+      `;
+      const nameEl = tenantSwitchHost.querySelector('[data-tenant-active-name]');
+      if (nameEl) nameEl.textContent = active.name || active.slug;
+      const sel = tenantSwitchHost.querySelector('.settings-tenant-select');
+      if (sel instanceof HTMLSelectElement) {
+        for (const t of tenants) {
+          const opt = document.createElement('option');
+          opt.value = t.slug;
+          opt.textContent = t.name || t.slug;
+          if (t.slug === active.slug) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      }
+      const applyBtn = tenantSwitchHost.querySelector('.settings-tenant-apply');
+      applyBtn?.addEventListener('click', async () => {
+        const slug = sel instanceof HTMLSelectElement ? sel.value.trim() : '';
+        if (!slug || slug === active.slug) {
+          showToast('Sélectionnez une autre organisation.', 'info');
+          return;
+        }
+        const r = await switchActiveTenant(slug);
+        if (r.ok) {
+          showToast('Organisation mise à jour — rechargement…', 'success');
+          window.setTimeout(() => window.location.reload(), 400);
+        } else {
+          showToast('Changement impossible — reconnectez-vous si besoin.', 'error');
+        }
+      });
+    }
+  }
   const orgGrid = secA.querySelector('[data-settings-org-grid]');
   const cardSites = document.createElement('div');
   cardSites.className = 'settings-link-card';
@@ -454,7 +518,7 @@ export function renderSettings() {
       <p class="settings-section__kicker">B · Alertes intelligentes</p>
       <h4 class="settings-section__title">Alertes intelligentes</h4>
       <p class="settings-section__lead">
-        Règles et niveaux de criticité (maquette). L’évaluation réelle des conditions restera côté serveur.
+        Règles et niveaux de criticité affichés ici. L’évaluation réelle des conditions restera côté serveur.
       </p>
     </header>
     <div class="settings-alert-list" data-settings-alerts></div>
@@ -508,7 +572,7 @@ export function renderSettings() {
       <p class="settings-section__kicker">C · Notifications</p>
       <h4 class="settings-section__title">Notifications</h4>
       <p class="settings-section__lead">
-        Filtres d’affichage dans l’application (mock). Le centre de notifications existant n’est pas modifié.
+        Filtres d’affichage dans l’application (configuration locale). Le centre de notifications existant n’est pas modifié.
       </p>
     </header>
     <div class="settings-prefs-grid" data-settings-notif></div>
@@ -616,7 +680,7 @@ export function renderSettings() {
     exportHost.append(labEl);
   });
 
-  /* —— Sécurité & accès renforcé (code 6 chiffres, démo locale) —— */
+  /* —— Sécurité & accès renforcé (code 6 chiffres, session locale) —— */
   let sensitiveCfg = loadSensitiveAccessConfig();
   const secH = document.createElement('section');
   secH.className = 'settings-section settings-section--sensitive-access';
@@ -880,7 +944,7 @@ export function renderSettings() {
     </div>
     <div class="settings-ia-grid" data-settings-ia></div>
     <p class="settings-ia-states">
-      <strong>Statuts de pilotage (maquette locale) :</strong>
+      <strong>Statuts de pilotage (affichage configuration) :</strong>
       en attente · validé · modifié · rejeté — à synchroniser avec les workflows NC, imports et audits côté API.
     </p>
   `;
@@ -890,7 +954,7 @@ export function renderSettings() {
     { key: 'imports', label: 'Import documents (extraction)' },
     { key: 'audits', label: 'Audits & constats' },
     { key: 'risks', label: 'Risques' },
-    { key: 'aiCenter', label: 'Centre IA (simulations)' }
+    { key: 'aiCenter', label: 'Centre IA (scénarios & assistant)' }
   ];
   function renderIaModules() {
     if (!iaHost) return;
@@ -1021,7 +1085,7 @@ export function renderSettings() {
     <div class="settings-subsection">
       <h5 class="settings-subsection__title">Applications par type d’usage</h5>
       <p class="settings-subsection__lead">
-        Statut initial proposé à la création et obligation de passage humain (maquette locale — pas d’appel API).
+        Statut initial proposé à la création et obligation de passage humain (sans appel API sur cet écran).
       </p>
       <div class="settings-usage-matrix" data-settings-usage-matrix></div>
     </div>
@@ -1201,7 +1265,7 @@ export function renderSettings() {
     lab.style.maxWidth = '48ch';
     lab.style.lineHeight = '1.45';
     lab.innerHTML =
-      '<strong style="color:var(--text)">Portée de la revalidation</strong> après correction <span style="opacity:.8;font-weight:500">(maquette locale)</span>';
+      '<strong style="color:var(--text)">Portée de la revalidation</strong> après correction <span style="opacity:.8;font-weight:500">(réglage local)</span>';
     const sel = document.createElement('select');
     sel.className = 'control-input';
     sel.setAttribute('aria-label', 'Portée de la revalidation après correction');
@@ -1272,7 +1336,7 @@ export function renderSettings() {
     <header class="settings-section__head">
       <p class="settings-section__kicker">I · Gestion des utilisateurs</p>
       <h4 class="settings-section__title">Utilisateurs</h4>
-      <p class="settings-section__lead">Gestion API des comptes (liste, création, rôle, suppression).</p>
+      <p class="settings-section__lead">Liste, création, rôle, mot de passe (8+ caractères : au moins une lettre et un chiffre), suppression.</p>
     </header>
     <div class="settings-actions-bar" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px" data-users-form>
       <input class="control-input" placeholder="Nom" data-users-name />
@@ -1280,7 +1344,8 @@ export function renderSettings() {
       <select class="control-input" data-users-role>
         <option value="ADMIN">ADMIN</option>
         <option value="QHSE">QHSE</option>
-        <option value="MANAGER">MANAGER</option>
+        <option value="DIRECTION">DIRECTION</option>
+        <option value="ASSISTANT">ASSISTANT</option>
         <option value="TERRAIN">TERRAIN</option>
       </select>
       <input class="control-input" placeholder="Mot de passe" data-users-password />
@@ -1296,6 +1361,28 @@ export function renderSettings() {
   const uEmail = secUsers.querySelector('[data-users-email]');
   const uRole = secUsers.querySelector('[data-users-role]');
   const uPass = secUsers.querySelector('[data-users-password]');
+  const currentUserId = String(getSessionUser()?.id || '');
+
+  const USER_ROLE_OPTIONS = ['ADMIN', 'QHSE', 'DIRECTION', 'ASSISTANT', 'TERRAIN'];
+
+  async function readFailedApiResponse(res) {
+    try {
+      const j = await res.json();
+      const body = j && typeof j === 'object' ? j : {};
+      const message =
+        typeof body.error === 'string' && body.error.trim() ? body.error.trim() : '';
+      return { body, message };
+    } catch {
+      return { body: {}, message: '' };
+    }
+  }
+
+  function roleSelectOptions(currentRole) {
+    const cur = String(currentRole || '').toUpperCase();
+    const base = [...USER_ROLE_OPTIONS];
+    if (cur && !base.includes(cur)) base.unshift(cur);
+    return base;
+  }
 
   async function loadUsers() {
     if (!usersListHost) return;
@@ -1315,11 +1402,11 @@ export function renderSettings() {
         actions.className = 'settings-actions-bar';
         const roleSel = document.createElement('select');
         roleSel.className = 'control-input';
-        ['ADMIN', 'QHSE', 'MANAGER', 'TERRAIN'].forEach((r) => {
+        roleSelectOptions(u.role).forEach((r) => {
           const o = document.createElement('option');
           o.value = r;
           o.textContent = r;
-          if (String(u.role || '') === r) o.selected = true;
+          if (String(u.role || '').toUpperCase() === String(r).toUpperCase()) o.selected = true;
           roleSel.append(o);
         });
         roleSel.addEventListener('change', async () => {
@@ -1329,7 +1416,11 @@ export function renderSettings() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ role: roleSel.value, name: u.name })
             });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            if (!r.ok) {
+              const { message } = await readFailedApiResponse(r);
+              showToast(message || `Mise à jour impossible (HTTP ${r.status}).`, 'error');
+              return;
+            }
             showToast('Rôle utilisateur mis à jour.', 'success');
           } catch {
             showToast('Mise à jour rôle impossible.', 'error');
@@ -1339,13 +1430,117 @@ export function renderSettings() {
         del.type = 'button';
         del.className = 'btn btn-secondary';
         del.textContent = 'Supprimer';
+        const pwdBar = document.createElement('div');
+        pwdBar.className = 'settings-actions-bar';
+        pwdBar.style.flexWrap = 'wrap';
+        pwdBar.style.marginTop = '6px';
+        const pwdInput = document.createElement('input');
+        pwdInput.type = 'password';
+        pwdInput.className = 'control-input';
+        pwdInput.placeholder = 'Nouveau mot de passe';
+        pwdInput.autocomplete = 'new-password';
+        pwdInput.style.minWidth = '160px';
+        const pwdConfirm = document.createElement('input');
+        pwdConfirm.type = 'password';
+        pwdConfirm.className = 'control-input';
+        pwdConfirm.placeholder = 'Confirmer le mot de passe';
+        pwdConfirm.autocomplete = 'new-password';
+        pwdConfirm.style.minWidth = '160px';
+        const pwdBtn = document.createElement('button');
+        pwdBtn.type = 'button';
+        pwdBtn.className = 'btn btn-secondary';
+        pwdBtn.textContent = 'Définir le mot de passe';
+        pwdBtn.addEventListener('click', async () => {
+          const pwd = String(pwdInput.value || '');
+          const confirmPwd = String(pwdConfirm.value || '');
+          if (!pwd.trim()) {
+            showToast('Saisir un mot de passe.', 'error');
+            return;
+          }
+          if (pwd.length < 8) {
+            showToast('Mot de passe trop court (minimum 8 caractères).', 'error');
+            return;
+          }
+          if (pwd !== confirmPwd) {
+            showToast('La confirmation du mot de passe ne correspond pas.', 'error');
+            return;
+          }
+          try {
+            const r = await qhseFetch(`/api/users/${encodeURIComponent(String(u.id))}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: pwd })
+            });
+            if (!r.ok) {
+              const { message } = await readFailedApiResponse(r);
+              showToast(message || `Mise à jour impossible (HTTP ${r.status}).`, 'error');
+              return;
+            }
+            pwdInput.value = '';
+            pwdConfirm.value = '';
+            showToast('Mot de passe enregistré. La personne peut se connecter avec cet e-mail.', 'success');
+          } catch {
+            showToast('Enregistrement du mot de passe impossible.', 'error');
+          }
+        });
+        pwdBar.append(pwdInput, pwdConfirm, pwdBtn);
+
         del.addEventListener('click', async () => {
+          if (currentUserId && String(u.id) === currentUserId) {
+            showToast('Suppression de votre propre compte bloquée depuis cette page.', 'warning');
+            return;
+          }
           if (!window.confirm(`Supprimer ${u.name || u.email} ?`)) return;
           try {
             const r = await qhseFetch(`/api/users/${encodeURIComponent(String(u.id))}`, {
               method: 'DELETE'
             });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            if (!r.ok) {
+              const { body, message } = await readFailedApiResponse(r);
+              if (r.status === 409 && body.code === 'USER_HAS_ACTIONS') {
+                const n = body.assignedActionCount;
+                const countLabel =
+                  typeof n === 'number' && n > 1
+                    ? `${n} actions`
+                    : typeof n === 'number' && n === 1
+                      ? '1 action'
+                      : 'les actions';
+                const detail =
+                  message ||
+                  'Des actions de cette organisation sont encore assignées à cette personne.';
+                const retry = window.confirm(
+                  `${detail}\n\nDésassigner ${countLabel} sur cette organisation et retirer ce membre ?`
+                );
+                if (!retry) return;
+                const r2 = await qhseFetch(
+                  `/api/users/${encodeURIComponent(String(u.id))}?unassignActions=1`,
+                  { method: 'DELETE' }
+                );
+                if (!r2.ok) {
+                  const { message: m2 } = await readFailedApiResponse(r2);
+                  showToast(m2 || `Suppression impossible (HTTP ${r2.status}).`, 'error');
+                  return;
+                }
+                showToast('Actions désassignées et membre retiré.', 'success');
+                await loadUsers();
+                return;
+              }
+              if (r.status === 403) {
+                showToast(
+                  message || 'Action interdite pour ce compte.',
+                  'warning'
+                );
+              } else if (r.status === 409) {
+                showToast(
+                  message ||
+                    'Retrait impossible : des actions de cette organisation sont encore assignées à cette personne.',
+                  'warning'
+                );
+              } else {
+                showToast(message || `Suppression impossible (HTTP ${r.status}).`, 'error');
+              }
+              return;
+            }
             showToast('Utilisateur supprimé.', 'success');
             await loadUsers();
           } catch {
@@ -1353,7 +1548,12 @@ export function renderSettings() {
           }
         });
         actions.append(roleSel, del);
-        row.append(main, actions);
+        const actionsCol = document.createElement('div');
+        actionsCol.style.display = 'flex';
+        actionsCol.style.flexDirection = 'column';
+        actionsCol.style.gap = '0';
+        actionsCol.append(actions, pwdBar);
+        row.append(main, actionsCol);
         usersListHost.append(row);
       });
     } catch {
@@ -1371,13 +1571,22 @@ export function renderSettings() {
       showToast('Nom, email et mot de passe requis.', 'error');
       return;
     }
+    const pvNew = validatePasswordPolicy(password);
+    if (!pvNew.ok) {
+      showToast(pvNew.error, 'error');
+      return;
+    }
     try {
       const r = await qhseFetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, role, password })
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        const { message } = await readFailedApiResponse(r);
+        showToast(message || `Création impossible (HTTP ${r.status}).`, 'error');
+        return;
+      }
       showToast('Utilisateur créé.', 'success');
       if (uName) uName.value = '';
       if (uEmail) uEmail.value = '';
@@ -1390,6 +1599,15 @@ export function renderSettings() {
 
   void loadUsers();
 
-  page.append(hero, secDemo, secA, secB, secC, secD, secH, secE, secF, secG, secUsers);
+  page.append(hero, ...(secDemo ? [secDemo] : []), secA, secB, secC, secD, secH, secE, secF, secG, secUsers);
+  try {
+    const focus = sessionStorage.getItem('qhse_settings_focus');
+    if (focus) {
+      sessionStorage.removeItem('qhse_settings_focus');
+      requestAnimationFrame(() => scrollToSettingsSection(focus));
+    }
+  } catch {
+    /* ignore */
+  }
   return page;
 }

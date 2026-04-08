@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
  * Écrit une entrée de journal serveur (ne bloque pas la requête en cas d’échec disque).
  *
  * @param {{
+ *   tenantId?: string | null,
  *   userId?: string | null,
  *   resource: string,
  *   resourceId: string,
@@ -12,6 +13,10 @@ import { prisma } from '../db.js';
  * }} entry
  */
 export async function writeAuditLog(entry) {
+  const tenantId =
+    entry.tenantId != null && String(entry.tenantId).trim() !== ''
+      ? String(entry.tenantId).trim()
+      : null;
   const resource = String(entry.resource || 'unknown').slice(0, 120);
   const resourceId = String(entry.resourceId ?? '').slice(0, 200);
   const action = String(entry.action || 'unknown').slice(0, 120);
@@ -28,6 +33,7 @@ export async function writeAuditLog(entry) {
   try {
     await prisma.auditLog.create({
       data: {
+        tenantId,
         userId,
         resource,
         resourceId,

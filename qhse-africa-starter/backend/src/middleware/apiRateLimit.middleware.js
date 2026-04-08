@@ -24,3 +24,21 @@ export const authLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+/** Import documentaire — prévisualisation / upload (POST avec fichier). */
+export const importUploadLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_UPLOAD_WINDOW_MS) || 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_UPLOAD_MAX) || 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false
+});
+
+/** Documents contrôlés — création avec pièce jointe. */
+export const controlledDocumentUploadLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_UPLOAD_WINDOW_MS) || 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_UPLOAD_MAX) || 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false
+});

@@ -10,13 +10,21 @@ function normalizeRouteId(raw) {
   return String(raw).trim();
 }
 
-async function loadAuditAndNonConformities(rawParam) {
+async function loadAuditAndNonConformities(tenantId, rawParam) {
   const param = normalizeRouteId(rawParam);
   if (!param) {
     return null;
   }
+  const t =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
+  if (!t) {
+    return null;
+  }
   const audit = await prisma.audit.findFirst({
-    where: { OR: [{ id: param }, { ref: param }] }
+    where: {
+      tenantId: t,
+      OR: [{ id: param }, { ref: param }]
+    }
   });
   if (!audit) return null;
   const nonConformities = await prisma.nonConformity.findMany({
@@ -44,7 +52,7 @@ function filterValidEmails(addresses) {
 
 export async function getAuditReport(req, res, next) {
   try {
-    const loaded = await loadAuditAndNonConformities(req.params.id);
+    const loaded = await loadAuditAndNonConformities(req.qhseTenantId, req.params.id);
     if (!loaded) {
       return res.status(404).json({ error: 'Audit introuvable' });
     }
@@ -77,7 +85,7 @@ export async function getAuditReport(req, res, next) {
  */
 export async function sendAuditReportEmail(req, res, next) {
   try {
-    const loaded = await loadAuditAndNonConformities(req.params.id);
+    const loaded = await loadAuditAndNonConformities(req.qhseTenantId, req.params.id);
     if (!loaded) {
       return res.status(404).json({ error: 'Audit introuvable' });
     }
@@ -130,6 +138,7 @@ export async function sendAuditReportEmail(req, res, next) {
       });
 
       void writeAuditLog({
+        tenantId: req.qhseTenantId,
         userId: auditUserIdFromRequest(req),
         resource: 'reports',
         resourceId: audit.id,

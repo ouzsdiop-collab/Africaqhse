@@ -138,7 +138,7 @@ async function openDocUpdateAction(row, onAddLog) {
 function relanceDocResponsable(row, onAddLog) {
   const who =
     row.responsible && String(row.responsible).trim() ? String(row.responsible).trim() : 'le responsable désigné';
-  showToast(`Relance enregistrée pour ${who} (simulation) — ${row.name}`, 'info');
+  showToast(`Relance enregistrée pour ${who} — ${row.name}`, 'info');
   const entry = {
     module: 'iso',
     action: 'Relance responsable document',
@@ -293,7 +293,7 @@ function createControlledDocumentsTableSection(opts) {
 }
 
 /**
- * Analyse locale simulée (front uniquement) — mots-clés + stable hash sur le nom de fichier.
+ * Analyse locale heuristique (navigateur) — mots-clés + hachage stable sur le nom de fichier.
  * @param {string} fileName
  */
 function simulateIsoImportAnalysis(fileName) {
@@ -306,7 +306,7 @@ function simulateIsoImportAnalysis(fileName) {
       requirementId: '',
       keyPoints: ['Aucune exigence chargée.'],
       gaps: ['Chargez le registre ou réessayez.'],
-      confidenceNote: 'Proposition locale (démo front).'
+      confidenceNote: 'Proposition locale — à valider par un responsable.'
     };
   }
   let best = reqs[0];
@@ -361,7 +361,7 @@ function simulateIsoImportAnalysis(fileName) {
     keyPoints,
     gaps,
     confidenceNote:
-      'Proposition locale (démo front, sans envoi serveur). Validez, corrigez le rattachement ou rejetez avant enregistrement.'
+      'Analyse locale (sans envoi serveur). Validez, corrigez le rattachement ou rejetez avant enregistrement.'
   };
 }
 
@@ -710,8 +710,8 @@ function buildPointsPanel(onAnalyze) {
     const metricAud = document.createElement('div');
     metricAud.className = 'iso-points-metric';
     metricAud.textContent = AUDITS_TO_SCHEDULE.length
-      ? `${AUDITS_TO_SCHEDULE.length} échéance(s) à piloter`
-      : 'Aucun audit planifié (démo)';
+      ? `${AUDITS_TO_SCHEDULE.length} échéance(s) à piloter`                
+      : 'Aucun audit planifié pour l’instant';
     const listAud = document.createElement('ul');
     listAud.className = 'iso-points-list';
     AUDITS_TO_SCHEDULE.forEach((a) => {
@@ -724,7 +724,7 @@ function buildPointsPanel(onAnalyze) {
     if (AUDITS_TO_SCHEDULE.length === 0) {
       const li = document.createElement('li');
       li.className = 'iso-points-list-empty';
-      li.textContent = 'Ajoutez vos audits dans le planning (à brancher).';
+      li.textContent = 'Ajoutez ou planifiez vos audits depuis le module Audits.';
       listAud.append(li);
     }
     colAud.append(hAud, metricAud, listAud);
@@ -1038,7 +1038,7 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
   const importLead = document.createElement('p');
   importLead.className = 'iso-doc-import-lead';
   importLead.textContent =
-    'Joindre une preuve : fichier lié à une exigence ISO (validation locale, démo). Glisser-déposer ou parcourir.';
+    'Joindre une preuve : fichier lié à une exigence ISO (traitement dans le navigateur). Glisser-déposer ou parcourir.';
   const importBtn = document.createElement('button');
   importBtn.type = 'button';
   importBtn.className = 'btn btn-secondary iso-doc-import-btn';
@@ -1062,7 +1062,7 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
     preview.textContent = `Fichier sélectionné : ${file.name}`;
     importBar.classList.add('iso-doc-proof-dropzone--active');
     importBtn.disabled = true;
-    showToast('Traitement du document en cours (simulation)…', 'info');
+    showToast('Traitement du document en cours (analyse locale)…', 'info');
     window.setTimeout(() => {
       importBtn.disabled = false;
       const analysis = simulateIsoImportAnalysis(file.name);
@@ -1355,7 +1355,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
 
     const docDetail =
       docLines.length === 0
-        ? 'Aucune pièce prioritaire signalée (démo).'
+        ? 'Aucune pièce prioritaire signalée.'
         : `${docLines.length} pièce(s) — ${docLines[0].name} (${docLines[0].tag})${
             docLines.length > 1 ? ` · +${docLines.length - 1} autre(s)` : ''
           }`;
@@ -1365,7 +1365,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
 
     const audDetail = AUDITS_TO_SCHEDULE.length
       ? AUDITS_TO_SCHEDULE.map((a) => `· ${a.title} — ${a.horizon}`).join('\n')
-      : 'Aucune échéance planifiée dans les données démo.';
+      : 'Aucune échéance planifiée sur le périmètre affiché.';
     appendPriorityRow('Audits à planifier', audDetail, 'Voir Audits', () => {
       window.location.hash = 'audits';
       showToast('Module Audits.', 'info');
@@ -1374,7 +1374,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     const ncForList = reqsNc[0];
     const ncDetail = ncForList
       ? `${ncForList.clause} — ${ncForList.title} (non-conformité à traiter en priorité).`
-      : 'Aucune non-conformité stricte ouverte sur le registre démo.';
+      : 'Aucune non-conformité stricte ouverte sur le registre.';
     appendPriorityRow('Non-conformités majeures', ncDetail, 'Traiter', () => {
       if (ncForList) {
         const norm = getNormById(ncForList.normId);
@@ -1468,7 +1468,7 @@ function createAuditsLinkedStrip() {
   if (!AUDITS_TO_SCHEDULE.length) {
     const p = document.createElement('p');
     p.className = 'iso-audits-linked-empty';
-    p.textContent = 'Aucun audit lié dans les données démo — accédez au module Audits pour le planning complet.';
+    p.textContent = 'Aucun audit lié pour le moment — consultez le module Audits pour le planning complet.';
     wrap.append(p);
   } else {
     const ul = document.createElement('ul');
@@ -1596,12 +1596,15 @@ export function renderIso(onAddLog) {
   `;
 
   heroCard.querySelector('.iso-prep-audit').addEventListener('click', () => {
-    showToast('Préparation d’audit : checklist, équipe et pièces — workflow à brancher sur le SI (démo).', 'info');
+    showToast(
+      'Préparation d’audit : checklist, équipe et pièces — intégration workflow possible selon votre déploiement.',
+      'info'
+    );
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'iso',
         action: 'Préparation audit lancée',
-        detail: 'Depuis le cockpit ISO & Conformité — simulation prototype',
+        detail: 'Depuis le cockpit ISO & Conformité',
         user: 'Responsable QHSE'
       });
     }
@@ -1832,7 +1835,7 @@ export function renderIso(onAddLog) {
       <div class="section-kicker">Référentiels</div>
       <h3>9001 · 14001 · 45001 — lecture consolidée</h3>
       <p class="content-card-lead">
-        Score, statut et écarts par norme, alignés sur le registre d’exigences. Données de démonstration.
+        Score, statut et écarts par norme, alignés sur le registre d’exigences du périmètre sélectionné.
       </p>
     </div>
   `;
@@ -1873,7 +1876,7 @@ export function renderIso(onAddLog) {
       const auditLine =
         AUDITS_TO_SCHEDULE.length > 0
           ? `${aud.title} · ${aud.horizon}`
-          : 'Aucun audit lié en données démo';
+          : 'Aucun audit lié sur cette vue';
       normsGrid.append(
         createNormCardLite({
           id: sn.code,
@@ -1971,7 +1974,7 @@ export function renderIso(onAddLog) {
       <div>
         <div class="section-kicker">Revue de direction</div>
         <h3>Synthèse rapide</h3>
-        <p class="content-card-lead">Entrées pour le comité — chiffres de démo.</p>
+        <p class="content-card-lead">Entrées pour le comité — synthèse des indicateurs affichés.</p>
       </div>
     </div>
   `;

@@ -139,7 +139,7 @@ export function createAuditExpertCockpitBlock(model) {
   head.innerHTML = `
     <div>
       <h3 id="audit-expert-cockpit-title" class="audit-expert-cockpit__title">Cockpit audit</h3>
-      <p class="audit-expert-cockpit__sub">Synthèse direction — indicateurs consolidés (maquette locale).</p>
+      <p class="audit-expert-cockpit__sub">Synthèse direction — indicateurs consolidés sur le périmètre affiché.</p>
     </div>
   `;
 

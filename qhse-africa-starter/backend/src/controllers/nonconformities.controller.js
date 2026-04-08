@@ -11,9 +11,9 @@ import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.serv
 export async function getAll(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const limit = parseListLimit(req.query.limit);
-    const items = await nonconformitiesService.findAllNonConformities({
+    const items = await nonconformitiesService.findAllNonConformities(req.qhseTenantId, {
       siteId,
       limit
     });
@@ -44,8 +44,10 @@ export async function create(req, res, next) {
       detail: d,
       auditRef: ar,
       siteId
-    });
+    }
+    );
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'nonconformities',
       resourceId: String(result.nonConformity.id),

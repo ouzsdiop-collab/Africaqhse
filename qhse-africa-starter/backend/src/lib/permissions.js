@@ -13,6 +13,7 @@ const ALL = ['read', 'write'];
 const MATRIX = {
   ADMIN: { '*': true },
   QHSE: {
+    audit_logs: ['read'],
     incidents: ALL,
     risks: ALL,
     actions: ALL,
@@ -94,6 +95,7 @@ export function can(role, resource, verb) {
 }
 
 export const PERMISSION_RESOURCES = [
+  'audit_logs',
   'incidents',
   'risks',
   'actions',

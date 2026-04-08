@@ -78,14 +78,19 @@ function withinMs(date, ms) {
 
 /**
  * @param {QhseUserCtx} qhseUser — null = flux global historique (aucun ciblage)
+ * @param {string | null | undefined} tenantId
  */
-export async function getNotificationsFeed(qhseUser) {
+export async function getNotificationsFeed(qhseUser, tenantId) {
+  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+  if (!tid) return [];
   const [incidentRows, actionRows, openNcs, auditRows] = await Promise.all([
     prisma.incident.findMany({
+      where: { tenantId: tid },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_INCIDENTS
     }),
     prisma.action.findMany({
+      where: { tenantId: tid },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_ACTIONS,
       include: {
@@ -93,11 +98,12 @@ export async function getNotificationsFeed(qhseUser) {
       }
     }),
     prisma.nonConformity.findMany({
-      where: { status: 'open' },
+      where: { tenantId: tid, status: 'open' },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_NC
     }),
     prisma.audit.findMany({
+      where: { tenantId: tid },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_AUDITS
     })

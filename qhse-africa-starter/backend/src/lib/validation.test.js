@@ -5,7 +5,8 @@ import {
   LIST_DEFAULT_LIMIT,
   LIST_MAX_LIMIT,
   parseAuditScore,
-  parseListLimit
+  parseListLimit,
+  validatePasswordPolicy
 } from './validation.js';
 
 describe('clampTrimString', () => {
@@ -60,6 +61,28 @@ describe('isValidEmailBasic', () => {
   it('rejette > 254 caracteres', () => {
     const longLocal = 'a'.repeat(245);
     expect(isValidEmailBasic(`${longLocal}@example.com`)).toBe(false);
+  });
+});
+
+describe('validatePasswordPolicy', () => {
+  it('accepte lettre + chiffre et longueur >= 8', () => {
+    expect(validatePasswordPolicy('abc12345').ok).toBe(true);
+    expect(validatePasswordPolicy('café2024').ok).toBe(true);
+  });
+
+  it('rejette trop court', () => {
+    expect(validatePasswordPolicy('ab1').ok).toBe(false);
+  });
+
+  it('rejette sans chiffre', () => {
+    const r = validatePasswordPolicy('abcdefgh');
+    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ ok: false });
+  });
+
+  it('rejette sans lettre', () => {
+    const r = validatePasswordPolicy('12345678');
+    expect(r.ok).toBe(false);
   });
 });
 

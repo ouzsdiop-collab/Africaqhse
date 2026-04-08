@@ -89,11 +89,18 @@ function parseBoundaryInput(raw, kind) {
  *   start: Date,
  *   end: Date,
  *   siteId: string | null,
- *   assigneeId: string | null
+ *   assigneeId: string | null,
+ *   tenantId: string
  * }} p
  */
 export async function getPeriodicReport(p) {
-  const { start, end, siteId, assigneeId } = p;
+  const { start, end, siteId, assigneeId, tenantId } = p;
+  const tid = String(tenantId ?? '').trim();
+  if (!tid) {
+    const err = new Error('Tenant requis');
+    err.statusCode = 400;
+    throw err;
+  }
   const period = p.period;
 
   const limitations = [
@@ -102,21 +109,25 @@ export async function getPeriodicReport(p) {
   ];
 
   const incidentWhere = {
+    tenantId: tid,
     createdAt: { gte: start, lte: end },
     ...(siteId ? { siteId } : {})
   };
 
   const auditWhere = {
+    tenantId: tid,
     createdAt: { gte: start, lte: end },
     ...(siteId ? { siteId } : {})
   };
 
   const ncWhereCreated = {
+    tenantId: tid,
     createdAt: { gte: start, lte: end },
     ...(siteId ? { siteId } : {})
   };
 
   const actionBase = {
+    tenantId: tid,
     ...(siteId ? { siteId } : {}),
     ...(assigneeId ? { assigneeId } : {})
   };
@@ -184,6 +195,7 @@ export async function getPeriodicReport(p) {
     prisma.action.count({ where: actionCreatedWhere }),
     (async () => {
       const parts = [
+        'tenantId = ?',
         'datetime(createdAt) >= datetime(?)',
         'datetime(createdAt) <= datetime(?)',
         `(
@@ -198,7 +210,7 @@ export async function getPeriodicReport(p) {
           OR LOWER(status) LIKE '%fait%'
         )`
       ];
-      const params = [start.toISOString(), end.toISOString()];
+      const params = [tid, start.toISOString(), end.toISOString()];
       if (siteId) {
         parts.push('siteId = ?');
         params.push(siteId);
@@ -215,11 +227,12 @@ export async function getPeriodicReport(p) {
     })(),
     (async () => {
       const parts = [
+        'tenantId = ?',
         'datetime(createdAt) >= datetime(?)',
         'datetime(createdAt) <= datetime(?)',
         `LOWER(severity) LIKE '%critique%'`
       ];
-      const params = [start.toISOString(), end.toISOString()];
+      const params = [tid, start.toISOString(), end.toISOString()];
       if (siteId) {
         parts.push('siteId = ?');
         params.push(siteId);
@@ -242,8 +255,8 @@ export async function getPeriodicReport(p) {
   const ncOpenAmongCreated = ncStatusRows.filter((r) => isNcOpenLike(r.status)).length;
   const ncClosedAmongCreated = ncStatusRows.filter((r) => isNcClosedLike(r.status)).length;
 
-  const overdueSqlParts = [`LOWER(status) LIKE '%retard%'`];
-  const overdueParams = [];
+  const overdueSqlParts = [`tenantId = ?`, `LOWER(status) LIKE '%retard%'`];
+  const overdueParams = [tid];
   if (siteId) {
     overdueSqlParts.push('siteId = ?');
     overdueParams.push(siteId);
@@ -400,6 +413,7 @@ export async function getPeriodicReport(p) {
 
 /**
  * @param {{
+ *   tenantId: string,
  *   period: 'weekly' | 'monthly' | 'custom',
  *   startDateInput?: string | null,
  *   endDateInput?: string | null,
@@ -408,6 +422,12 @@ export async function getPeriodicReport(p) {
  * }} opts
  */
 export async function buildPeriodicReport(opts) {
+  const tenantId = String(opts.tenantId ?? '').trim();
+  if (!tenantId) {
+    const err = new Error('Tenant requis');
+    err.statusCode = 400;
+    throw err;
+  }
   let { period } = opts;
   const startIn = opts.startDateInput ? parseBoundaryInput(opts.startDateInput, 'start') : null;
   const endIn = opts.endDateInput ? parseBoundaryInput(opts.endDateInput, 'end') : null;
@@ -443,9 +463,12 @@ export async function buildPeriodicReport(opts) {
       ? String(opts.siteId).trim()
       : null;
   if (siteId) {
-    const s = await prisma.site.findUnique({ where: { id: siteId }, select: { id: true } });
+    const s = await prisma.site.findFirst({
+      where: { id: siteId, tenantId },
+      select: { id: true }
+    });
     if (!s) {
-      const err = new Error('Site inconnu');
+      const err = new Error('Site inconnu ou hors de votre organisation');
       err.statusCode = 400;
       throw err;
     }
@@ -456,13 +479,16 @@ export async function buildPeriodicReport(opts) {
       ? String(opts.assigneeId).trim()
       : null;
   if (assigneeId) {
-    const u = await prisma.user.findUnique({ where: { id: assigneeId }, select: { id: true } });
-    if (!u) {
-      const err = new Error('Responsable (assignee) inconnu');
+    const membership = await prisma.userTenant.findFirst({
+      where: { userId: assigneeId, tenantId },
+      select: { userId: true }
+    });
+    if (!membership) {
+      const err = new Error('Responsable (assignee) inconnu ou non rattaché à votre organisation');
       err.statusCode = 400;
       throw err;
     }
   }
 
-  return getPeriodicReport({ period, start, end, siteId, assigneeId });
+  return getPeriodicReport({ period, start, end, siteId, assigneeId, tenantId });
 }

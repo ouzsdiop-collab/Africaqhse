@@ -39,6 +39,7 @@ function parseAuditScore(raw) {
 /**
  * Valide un brouillon importé et crée l’entité via les services métier existants.
  * @param {{
+ *   tenantId: string | null | undefined,
  *   targetModule: string,
  *   validatedData: Record<string, unknown>,
  *   role: string | null | undefined
@@ -53,6 +54,7 @@ function parseAuditScore(raw) {
  */
 export async function confirmValidatedImport(input) {
   const warnings = [];
+  const tenantId = input.tenantId;
   const targetModule = String(input.targetModule ?? '').trim().toLowerCase();
   const data = input.validatedData;
   const role = input.role;
@@ -111,7 +113,7 @@ export async function confirmValidatedImport(input) {
       checklist = undefined;
     }
     try {
-      const created = await auditsService.createAudit({
+      const created = await auditsService.createAudit(tenantId, {
         ref,
         site,
         score,
@@ -163,8 +165,8 @@ export async function confirmValidatedImport(input) {
         warnings: ['Champs requis pour un incident : type, site, gravité (severity ou gravite).']
       };
     }
-    const ref = await incidentsService.computeNextIncidentRef();
-    const created = await incidentsService.createIncident({
+    const ref = await incidentsService.computeNextIncidentRef(tenantId);
+    const created = await incidentsService.createIncident(tenantId, {
       ref,
       type,
       site,

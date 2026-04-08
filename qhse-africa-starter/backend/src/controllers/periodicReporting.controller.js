@@ -27,6 +27,7 @@ export async function getPeriodic(req, res, next) {
     const assigneeId = queryStringParam(req, 'assigneeId');
 
     const data = await periodicReportingService.buildPeriodicReport({
+      tenantId: req.qhseTenantId,
       period,
       startDateInput: startDate,
       endDateInput: endDate,

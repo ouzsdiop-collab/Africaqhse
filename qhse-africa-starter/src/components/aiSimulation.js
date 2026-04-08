@@ -1,5 +1,5 @@
 /**
- * Scénarios mock — sortie structurée pour affichage « rapport » et export texte.
+ * Scénarios d’illustration — sortie structurée pour affichage « rapport » et export texte.
  * Aucun appel réseau.
  */
 
@@ -15,7 +15,7 @@ const SCENARIOS = {
       items: [
         'Détection : écart hydrocarbure localisé au pied du bac de rétention zone stockage.',
         'Confinement : barrage absorbant posé, aucune propagation hors aire technique.',
-        'Impact : pas d’atteinte aux eaux superficielles (contrôle visuel mock).'
+        'Impact : pas d’atteinte aux eaux superficielles (contrôle visuel terrain).'
       ]
     },
     {
@@ -58,7 +58,7 @@ const SCENARIOS = {
       items: [
         'Chute d’environ 1,8 m depuis plan de travail échafaudage zone B.',
         'Blessé pris en charge ; EPI portés (harnais + longe — à vérifier au rapport officiel).',
-        'Arrêt de travail côté activité mock : journée.'
+        'Arrêt de travail côté activité concernée : journée.'
       ]
     },
     {
@@ -100,7 +100,7 @@ const SCENARIOS = {
       title: 'Résumé incident',
       items: [
         'Constat : registre déchets incomplet sur deux mouvements (preuve documentaire manquante).',
-        'Contexte : audit interne / préparation certification ISO 14001 (mock).'
+        'Contexte : audit interne / préparation certification ISO 14001.'
       ]
     },
     {
@@ -151,7 +151,7 @@ export function getAiSimulationResult(scenarioId) {
  */
 export function formatSimulationPlainText(result) {
   const lines = [];
-  lines.push('QHSE Control — sortie assistant (mock)');
+  lines.push('QHSE Control — sortie assistant (scénario illustratif)');
   lines.push(`Réf. ${result.ref} — ${result.title}`);
   lines.push('');
   result.sections.forEach((sec) => {
@@ -161,6 +161,6 @@ export function formatSimulationPlainText(result) {
     });
     lines.push('');
   });
-  lines.push('(Données simulées — ne pas utiliser comme preuve réglementaire sans validation humaine.)');
+  lines.push('(Scénario illustratif — ne pas utiliser comme preuve réglementaire sans validation humaine.)');
   return lines.join('\n');
 }

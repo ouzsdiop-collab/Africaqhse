@@ -1,64 +1,73 @@
-// Par défaut : SQLite (fichier local, pas de Docker ni serveur PostgreSQL).
-
-// Pour la production avec PostgreSQL : provider = "postgresql" + DATABASE_URL postgres (voir .env.example).
-
-
+// PostgreSQL recommandé en production. Multi-tenant : entités métier scopées par `tenantId`.
+// JWT : claim `tid` = tenant actif + adhésion `UserTenant`.
 
 generator client {
-
   provider      = "prisma-client-js"
-
   binaryTargets = ["native"]
-
 }
-
-
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-
 }
 
-
-
-model Site {
-
+model Tenant {
   id        String   @id @default(cuid())
-
+  slug      String   @unique
   name      String
-
-  code      String?  @unique
-
-  address   String?
-
   createdAt DateTime @default(now())
 
+  sites      Site[]
+  userTenants UserTenant[]
 
+  @@map("tenants")
+}
 
+/// Adhésion utilisateur ↔ tenant (rôle et site par défaut propres à l’organisation).
+model UserTenant {
+  id              String   @id @default(cuid())
+  userId          String
+  tenantId        String
+  role            String
+  defaultSiteId   String?
+  createdAt       DateTime @default(now())
+
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defaultSite Site?  @relation("UserTenantDefaultSite", fields: [defaultSiteId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@map("user_tenants")
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  /// Toujours renseigné en prod / après seed ; nullable pour migration SQLite sans reset.
+  tenantId  String?
+  name      String
+  code      String?
+  address   String?
+  createdAt DateTime @default(now())
+
+  tenant     Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   incidents       Incident[]
-
   audits          Audit[]
-
   actions         Action[]
-
   nonConformities NonConformity[]
-
-  usersDefault    User[]         @relation("UserDefaultSite")
-
   controlledDocuments ControlledDocument[]
   risks               Risk[]
+  userTenantsDefault  UserTenant[] @relation("UserTenantDefaultSite")
 
-
-
+  @@unique([tenantId, code])
+  @@index([tenantId])
   @@map("sites")
-
 }
 
 model Risk {
-
   id          String   @id @default(cuid())
-  ref         String?  @unique
+  tenantId    String?
+  ref         String?
   title       String
   description String?
   category    String?
@@ -73,454 +82,229 @@ model Risk {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([tenantId, ref])
+  @@index([tenantId])
   @@index([siteId])
   @@index([status])
   @@map("risks")
 }
 
-
-
 model Incident {
-
-  id          String   @id @default(cuid())
-
-  ref         String   @unique
-
-  type        String
-
-  site        String
-
-  siteId      String?
-
-  siteRecord  Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
-  severity    String
-
-  description String?
-
-  status      String   @default("Nouveau")
-
-  createdAt   DateTime @default(now())
-
-  /** Zone précise (atelier, ligne, GPS…) — distinct du libellé site */
-  location    String?
-
-  /** Analyse terrain : causes libres */
-  causes      String?
-
-  /** humain | materiel | organisation | mixte */
+  id            String   @id @default(cuid())
+  tenantId      String?
+  ref           String
+  type          String
+  site          String
+  siteId        String?
+  siteRecord    Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  severity      String
+  description   String?
+  status        String   @default("Nouveau")
+  createdAt     DateTime @default(now())
+  location      String?
+  causes        String?
   causeCategory String?
-
-  /** JSON : tableau de data URLs (photos terrain, taille limitée côté API) */
-  photosJson  String?
-
-  /** Nom affiché responsable suivi */
-  responsible String?
-
-
+  photosJson    String?
+  responsible   String?
 
   linkedActions Action[]
-
   aiSuggestions AiSuggestion[]
 
-
-
+  @@unique([tenantId, ref])
+  @@index([tenantId])
+  @@index([siteId])
   @@map("incidents")
-
 }
-
-
 
 model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  role         String
+  passwordHash String?
+  createdAt    DateTime @default(now())
 
-  id            String   @id @default(cuid())
+  userTenants UserTenant[]
 
-  name          String
-
-  email         String   @unique
-
-  role          String
-
-  passwordHash  String?
-
-  defaultSiteId String?
-
-  defaultSite   Site?    @relation("UserDefaultSite", fields: [defaultSiteId], references: [id], onDelete: SetNull)
-
-  createdAt     DateTime @default(now())
-
-
-
-  assignedActions Action[] @relation("ActionAssignee")
-
-  auditLogs       AuditLog[]
-
-  createdAiSuggestions   AiSuggestion[] @relation("AiSuggestionCreatedBy")
-
-  validatedAiSuggestions AiSuggestion[] @relation("AiSuggestionValidatedBy")
-
+  assignedActions            Action[]           @relation("ActionAssignee")
+  auditLogs                  AuditLog[]
+  createdAiSuggestions       AiSuggestion[]     @relation("AiSuggestionCreatedBy")
+  validatedAiSuggestions     AiSuggestion[]     @relation("AiSuggestionValidatedBy")
   createdControlledDocuments ControlledDocument[] @relation("ControlledDocumentCreatedBy")
 
-
-
   @@map("users")
-
 }
 
-
-
 model Action {
-
   id         String    @id @default(cuid())
-
+  tenantId   String?
   title      String
-
   detail     String?
-
   status     String    @default("À lancer")
-
   owner      String?
-
   dueDate    DateTime?
-
   siteId     String?
-
   siteRecord Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
   assigneeId String?
-
   assignee   User?     @relation("ActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-
-  /// Lien métier optionnel vers un incident (complète les champs texte historiques).
-
   incidentId String?
-
   incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
-
   createdAt  DateTime  @default(now())
 
   aiSuggestions AiSuggestion[]
 
-
-
+  @@index([tenantId])
   @@index([incidentId])
-
+  @@index([siteId])
   @@map("actions")
-
 }
-
-
 
 model Audit {
-
   id               String    @id @default(cuid())
-
-  ref              String    @unique
-
+  tenantId         String?
+  ref              String
   site             String
-
   siteId           String?
-
   siteRecord       Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
   score            Int
-
   status           String
-
   checklist        Json?
-
   createdAt        DateTime  @default(now())
-
   autoReportSentAt DateTime?
 
+  nonConformities       NonConformity[]
+  aiSuggestions         AiSuggestion[]
+  controlledDocuments   ControlledDocument[]
 
-
-  nonConformities NonConformity[]
-
-  aiSuggestions AiSuggestion[]
-
-  controlledDocuments ControlledDocument[]
-
-
-
+  @@unique([tenantId, ref])
+  @@index([tenantId])
+  @@index([siteId])
   @@map("audits")
-
 }
-
-
 
 model NonConformity {
+  id         Int      @id @default(autoincrement())
+  tenantId   String?
+  title      String
+  detail     String?
+  status     String   @default("open")
+  auditRef   String
+  auditId    String?
+  audit      Audit?   @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  siteId     String?
+  siteRecord Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
 
-  id          Int      @id @default(autoincrement())
-
-  title       String
-
-  detail      String?
-
-  status      String   @default("open")
-
-  /// Référence texte historique (ex. AUD-001) — conservée pour compatibilité front.
-
-  auditRef    String
-
-  /// Lien métier optionnel vers l’audit (complète auditRef).
-
-  auditId     String?
-
-  audit       Audit?   @relation(fields: [auditId], references: [id], onDelete: SetNull)
-
-  siteId      String?
-
-  siteRecord  Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
-  createdAt   DateTime @default(now())
-
-
-
+  @@index([tenantId])
   @@index([auditId])
-
   @@map("non_conformities")
-
 }
 
-
-
-/** Traçabilité des imports documentaires (analyse → validation éventuelle). */
-
 model ImportHistory {
-
   id                   String   @id @default(cuid())
-
+  tenantId             String?
   fileName             String
-
   fileType             String
-
   detectedDocumentType String?
-
   suggestedModule      String?
-
   suggestedModuleLabel String?
-
   moduleCreated        String?
-
   status               String
-
   warnings             Json?
-
   missingFields        Json?
-
   detectedHints        Json?
-
   confidence           Int?
-
   createdEntityId      String?
-
   createdEntityRef     String?
-
   userId               String?
-
   userName             String?
-
   errorMessage         String?
-
   createdAt            DateTime @default(now())
-
   updatedAt            DateTime @updatedAt
 
   aiSuggestions AiSuggestion[]
 
-
-
+  @@index([tenantId])
   @@map("import_history")
-
 }
-
-
-
-/** Journal d’audit serveur (traçabilité SaaS). */
 
 model AuditLog {
-
   id         String   @id @default(cuid())
-
+  tenantId   String?
   userId     String?
-
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-
   resource   String
-
   resourceId String
-
   action     String
-
   metadata   Json?
-
   createdAt  DateTime @default(now())
 
-
-
+  @@index([tenantId])
   @@index([resource, resourceId])
-
   @@index([createdAt])
-
   @@index([userId])
-
   @@map("audit_logs")
-
 }
-
-
-
-/** Suggestions IA — jamais d’écriture métier directe ; validation humaine obligatoire avant enregistrement. */
 
 model AiSuggestion {
-
   id     String @id @default(cuid())
-
-  /// incident | audit | fds | risk | action | document | iso | generic …
-
+  tenantId String?
   type   String
-
-  /// Schéma JSON versionné (voir aiSuggestion.service.js — clés stables).
-
   content Json
-
-  /// pending_review | accepted | rejected | edited
-
   status String @default("pending_review")
-
-  /// Utilisateur à l’origine de la demande (peut être null si pipeline système).
-
   createdByUserId String?
-
   createdByUser   User?   @relation("AiSuggestionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-
-  /// user | system
-
   createdBySource String  @default("system")
-
   validatedByUserId String?
-
   validatedByUser   User?   @relation("AiSuggestionValidatedBy", fields: [validatedByUserId], references: [id], onDelete: SetNull)
-
   createdAt   DateTime  @default(now())
-
   validatedAt DateTime?
-
-  /// Contenu retouché par l’humain lorsque status = edited (ou complément à content).
-
   editedContent Json?
-
   targetIncidentId String?
-
   targetIncident   Incident? @relation(fields: [targetIncidentId], references: [id], onDelete: SetNull)
-
   targetActionId String?
-
   targetAction   Action? @relation(fields: [targetActionId], references: [id], onDelete: SetNull)
-
   targetAuditId String?
-
   targetAudit   Audit? @relation(fields: [targetAuditId], references: [id], onDelete: SetNull)
-
   importHistoryId String?
-
   importHistory   ImportHistory? @relation(fields: [importHistoryId], references: [id], onDelete: SetNull)
-
-  /// Registre risque sans table dédiée : référence texte optionnelle.
-
   riskRef String?
-
-  /// Traçabilité fournisseur (local | openai | …) — sans données sensibles brutes.
-
   providerMeta Json?
 
-
-
+  @@index([tenantId])
   @@index([status, type])
-
   @@index([createdAt])
-
   @@map("ai_suggestions")
-
 }
-
-
-
-/** Documents confidentiels — accès uniquement via API (pas d’URL fichier publique). */
 
 model ControlledDocument {
-
   id     String @id @default(cuid())
-
+  tenantId String?
   name   String
-
-  /// Type logique : fds | audit_annex | iso_proof | risk_annex | other …
-
   type   String
-
-  /// Chemin relatif sécurisé sous le répertoire de stockage (voir documentStorage.service.js).
-
-  path   String @unique
-
-  /// normal | sensible | critique
-
+  path   String
   classification String @default("normal")
-
   siteId String?
-
   site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
   createdByUserId String?
-
   createdBy       User?   @relation("ControlledDocumentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-
   createdAt DateTime @default(now())
-
   mimeType   String?
-
   sizeBytes  Int?
-
   auditId String?
-
   audit   Audit? @relation(fields: [auditId], references: [id], onDelete: SetNull)
-
-  /// FDS / produit — référence métier (pas de table produit dédiée en V1).
-
   fdsProductRef String?
-
-  /// Conformité / ISO — repère d’exigence ou code clause.
-
   isoRequirementRef String?
-
-  /// Risques — référence texte (registre hors Prisma).
-
   riskRef String?
-
-  /// Libellé libre de regroupement conformité.
-
   complianceTag String?
-
-  /// Fin de validité documentaire (renouvellement / revue).
-
   expiresAt DateTime?
-
-  /// Responsable métier du document (nom affiché).
-
   responsible String?
-
   updatedAt DateTime @updatedAt
 
-
-
+  @@unique([tenantId, path])
+  @@index([tenantId])
   @@index([siteId])
-
   @@index([classification])
-
   @@index([auditId])
-
   @@map("controlled_documents")
-
 }
-
-

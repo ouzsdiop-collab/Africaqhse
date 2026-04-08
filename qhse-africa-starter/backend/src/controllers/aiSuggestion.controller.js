@@ -15,13 +15,19 @@ function userIdFromReq(req) {
 
 export async function list(req, res, next) {
   try {
+    if (!req.qhseTenantId) {
+      return res.status(401).json({ error: 'Contexte organisation requis.' });
+    }
     const limit = parseListLimit(req.query.limit);
     const status =
       typeof req.query.status === 'string' && req.query.status.trim()
         ? req.query.status.trim()
         : undefined;
     const rows = await prisma.aiSuggestion.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        tenantId: req.qhseTenantId,
+        ...(status ? { status } : {})
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
@@ -37,12 +43,15 @@ export async function list(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
+    if (!req.qhseTenantId) {
+      return res.status(401).json({ error: 'Contexte organisation requis.' });
+    }
     const id = String(req.params.id ?? '').trim();
     if (!id) {
       return res.status(400).json({ error: 'Identifiant requis' });
     }
-    const row = await prisma.aiSuggestion.findUnique({
-      where: { id },
+    const row = await prisma.aiSuggestion.findFirst({
+      where: { id, tenantId: req.qhseTenantId },
       include: {
         createdByUser: { select: { id: true, name: true, email: true } },
         validatedByUser: { select: { id: true, name: true, email: true } },
@@ -69,6 +78,7 @@ export async function postGenerate(req, res, next) {
     const uid = userIdFromReq(req);
 
     const row = await generateSuggestion({
+      tenantId: req.qhseTenantId,
       type,
       context,
       targetIncidentId: body.targetIncidentId ?? null,
@@ -80,6 +90,7 @@ export async function postGenerate(req, res, next) {
     });
 
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'ai_suggestions',
       resourceId: row.id,
@@ -104,6 +115,7 @@ export async function postAnalyzeDocument(req, res, next) {
     const uid = userIdFromReq(req);
 
     const row = await analyzeDocument({
+      tenantId: req.qhseTenantId,
       text,
       fileName,
       importHistoryId: body.importHistoryId ?? null,
@@ -111,6 +123,7 @@ export async function postAnalyzeDocument(req, res, next) {
     });
 
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'ai_suggestions',
       resourceId: row.id,
@@ -131,6 +144,7 @@ export async function postProposeActions(req, res, next) {
     const note = typeof body.note === 'string' ? body.note : '';
 
     const row = await proposeActions({
+      tenantId: req.qhseTenantId,
       targetIncidentId: body.targetIncidentId ?? null,
       targetAuditId: body.targetAuditId ?? null,
       userId: uid,
@@ -138,6 +152,7 @@ export async function postProposeActions(req, res, next) {
     });
 
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'ai_suggestions',
       resourceId: row.id,
@@ -167,6 +182,7 @@ export async function patchReview(req, res, next) {
     }
 
     const row = await reviewSuggestion({
+      tenantId: req.qhseTenantId,
       id,
       status,
       validatedByUserId: validatorId,
@@ -174,6 +190,7 @@ export async function patchReview(req, res, next) {
     });
 
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'ai_suggestions',
       resourceId: id,

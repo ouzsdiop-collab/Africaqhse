@@ -14,6 +14,15 @@ describe('permissions can()', () => {
     expect(can('QHSE', 'audits', 'read')).toBe(true);
   });
 
+  it('QHSE peut lire audit_logs', () => {
+    expect(can('QHSE', 'audit_logs', 'read')).toBe(true);
+    expect(can('QHSE', 'audit_logs', 'write')).toBe(false);
+  });
+
+  it('DIRECTION ne lit pas audit_logs', () => {
+    expect(can('DIRECTION', 'audit_logs', 'read')).toBe(false);
+  });
+
   it('DIRECTION lecture seule incidents/audits', () => {
     expect(can('DIRECTION', 'incidents', 'read')).toBe(true);
     expect(can('DIRECTION', 'incidents', 'write')).toBe(false);

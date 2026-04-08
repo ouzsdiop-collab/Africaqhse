@@ -2,19 +2,27 @@
  * Règles UI alignées sur backend/src/lib/permissions.js (V1 — à maintenir en parallèle).
  */
 
+import { getDisplayMode } from './displayMode.js';
+import { TERRAIN_ALLOWED_PAGE_IDS } from './terrainModePages.js';
+
 const ALL = ['read', 'write'];
 
 /** @type {Record<string, Record<string, string[] | true>>} */
 const MATRIX = {
   ADMIN: { '*': true },
   QHSE: {
+    audit_logs: ['read'],
     settings: ['read'],
     incidents: ALL,
+    risks: ALL,
     actions: ALL,
     audits: ALL,
     nonconformities: ALL,
     sites: ALL,
     dashboard: ['read'],
+    compliance: ['read'],
+    controlled_documents: ALL,
+    ai_suggestions: ALL,
     notifications: ['read'],
     users: ALL,
     reports: ALL,
@@ -27,6 +35,9 @@ const MATRIX = {
     nonconformities: ['read'],
     sites: ['read'],
     dashboard: ['read'],
+    compliance: ['read'],
+    controlled_documents: ['read'],
+    ai_suggestions: ['read'],
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
@@ -35,11 +46,15 @@ const MATRIX = {
   ASSISTANT: {
     settings: ['read'],
     incidents: ALL,
+    risks: ALL,
     actions: ['read'],
     audits: ['read'],
     nonconformities: ALL,
     sites: ALL,
     dashboard: ['read'],
+    compliance: ['read'],
+    controlled_documents: ALL,
+    ai_suggestions: ALL,
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
@@ -48,11 +63,13 @@ const MATRIX = {
   TERRAIN: {
     settings: ['read'],
     incidents: ALL,
+    risks: ALL,
     actions: ['read'],
     audits: ['read'],
     nonconformities: ['read'],
     sites: ['read'],
     dashboard: ['read'],
+    compliance: ['read'],
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
@@ -60,14 +77,29 @@ const MATRIX = {
   }
 };
 
-/** Navigation restreinte pour TERRAIN (modules terrain + suivi actions). */
-const TERRAIN_PAGES = new Set([
+/**
+ * Menu profil TERRAIN en mode Complet : accès à tous les modules de la navigation métier
+ * (le mode d’affichage Terrain réduit via {@link TERRAIN_ALLOWED_PAGE_IDS} + filtre sidebar).
+ */
+const TERRAIN_NAV_EXPERT_PAGES = new Set([
   'dashboard',
   'terrain-mode',
+  'analytics',
+  'performance',
+  'activity-log',
+  'audit-logs',
+  'audits',
   'incidents',
   'permits',
+  'risks',
   'actions',
-  'settings'
+  'iso',
+  'products',
+  'habilitations',
+  'ai-center',
+  'settings',
+  'sites',
+  'imports'
 ]);
 
 /**
@@ -95,7 +127,9 @@ export function canResource(role, resource, verb) {
 export function canAccessNavPage(role, pageId) {
   if (!role) return true;
   if (String(role).toUpperCase() === 'TERRAIN') {
-    return TERRAIN_PAGES.has(pageId);
+    return getDisplayMode() === 'terrain'
+      ? TERRAIN_ALLOWED_PAGE_IDS.has(pageId)
+      : TERRAIN_NAV_EXPERT_PAGES.has(pageId);
   }
   return true;
 }

@@ -4,11 +4,13 @@ import {
   getBreadcrumbForPage,
   getNavContextForPage
 } from '../data/navigation.js';
-import { canAccessNavPage } from '../utils/permissionsUi.js';
+import { canAccessNavPage, canResource } from '../utils/permissionsUi.js';
 import { getDisplayMode, setDisplayMode } from '../utils/displayMode.js';
+import { TERRAIN_ALLOWED_PAGE_IDS } from '../utils/terrainModePages.js';
 import { showToast } from './toast.js';
 import { isDemoMode } from '../services/demoMode.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { getActiveTenant } from '../data/sessionUser.js';
 
 const STYLE_ID = 'qhse-topbar-v2-styles';
 const DASHBOARD_INTENT_LAST_KEY = 'qhse.dashboard.intent.last';
@@ -147,6 +149,16 @@ function ensureTopbarV2Styles() {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 160px;
+}
+.topbar-v2__tenant {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--color-text-muted, var(--color-text-tertiary));
+  max-width: min(420px, 88vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .topbar-v2__center {
   flex: 1 1 200px;
@@ -394,30 +406,39 @@ function ensureTopbarV2Styles() {
 .topbar-v2__profile-btn:hover .topbar-v2__avatar {
   filter: brightness(var(--effect-brightness-hover, 1.06));
 }
-.display-mode-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 90%, transparent);
-  background: color-mix(in srgb, var(--color-subtle) 40%, transparent);
-  color: var(--color-text-muted);
+.display-mode-switch {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-subtle) 55%, transparent);
+  gap: 2px;
+}
+.display-mode-seg {
+  border: none;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 150ms ease;
+  color: var(--color-text-muted);
+  background: transparent;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
   white-space: nowrap;
 }
-.display-mode-toggle:hover {
-  border-color: color-mix(in srgb, var(--color-primary-border) 55%, var(--color-border));
+.display-mode-seg:hover {
   color: var(--color-text-secondary);
-  background: var(--color-subtle);
 }
-[data-display-mode="terrain"] .display-mode-toggle {
-  border-color: var(--color-primary-border);
+.display-mode-seg.is-active {
   color: var(--color-primary-text);
   background: var(--color-primary-bg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-text) 12%, transparent);
+}
+[data-display-mode="terrain"] .display-mode-switch {
+  border-color: color-mix(in srgb, var(--color-primary-border) 45%, var(--color-border));
 }
 @media (max-width: 1100px) {
   .topbar-v2__trailing {
@@ -428,8 +449,9 @@ function ensureTopbarV2Styles() {
   .topbar-v2__inner {
     gap: var(--space-2);
   }
-  .topbar-v2 .display-mode-label {
-    display: none;
+  .topbar-v2 .display-mode-seg {
+    padding: 6px 9px;
+    font-size: 10px;
   }
   .topbar-v2__breadcrumb-current {
     max-width: 140px;
@@ -642,6 +664,7 @@ export function createTopbar({
       <div class="topbar-v2__lead">
         <p class="topbar-v2__page-title" data-tb2-page-title></p>
         <div class="topbar-v2__breadcrumb" data-tb2-breadcrumb></div>
+        <p class="topbar-v2__tenant" data-tb2-tenant hidden></p>
       </div>
       <div class="topbar-v2__center">
         <div class="shell-quick-search" role="search">
@@ -661,7 +684,7 @@ export function createTopbar({
         </div>
       </div>
       <div class="topbar-v2__trailing">
-        <span class="topbar-v2__demo-pill" hidden data-topbar-demo-pill title="Mode démo : données locales pour présentation">Démo</span>
+        <span class="topbar-v2__demo-pill" hidden data-topbar-demo-pill title="Exploration : données d’illustration pour prise en main (hors production)">Essai</span>
         <span class="topbar-v2__notif-wrap">
           <button type="button" class="topbar-v2__notif notification-toggle" aria-label="Notifications${safeUnread ? ` (${safeUnread} non lues)` : ''}">
             <span class="topbar-v2__notif-icon" aria-hidden="true">${ICON_BELL_SVG}</span>
@@ -679,15 +702,10 @@ export function createTopbar({
           <span class="topbar-v2__avatar" aria-hidden="true"></span>
           <span class="visually-hidden topbar-v2__user-name"></span>
         </button>
-        <button type="button" class="display-mode-toggle" data-mode="${mode}" aria-label="Basculer le mode d'affichage">
-          <svg class="display-mode-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="8" height="8" rx="1"/>
-            <rect x="13" y="3" width="8" height="8" rx="1"/>
-            <rect x="3" y="13" width="8" height="8" rx="1"/>
-            <rect x="13" y="13" width="8" height="8" rx="1" opacity="0.4"/>
-          </svg>
-          <span class="display-mode-label">${mode === 'terrain' ? 'Mode complet' : 'Mode terrain'}</span>
-        </button>
+        <div class="display-mode-switch" role="group" aria-label="Mode d'affichage">
+          <button type="button" class="display-mode-seg${mode === 'terrain' ? ' is-active' : ''}" data-set-mode="terrain" aria-pressed="${mode === 'terrain' ? 'true' : 'false'}" title="Menu réduit, focus opérations terrain">Terrain</button>
+          <button type="button" class="display-mode-seg${mode === 'expert' ? ' is-active' : ''}" data-set-mode="expert" aria-pressed="${mode === 'expert' ? 'true' : 'false'}" title="Tous les modules QHSE">Complet</button>
+        </div>
       </div>
     </div>
   `;
@@ -712,15 +730,35 @@ export function createTopbar({
     renderBreadcrumb(breadcrumbHost, currentPage, onNavigate, { omitCurrentPage: true });
   }
 
+  const tenantLine = header.querySelector('[data-tb2-tenant]');
+  if (tenantLine instanceof HTMLElement) {
+    const org = getActiveTenant();
+    if (org?.slug) {
+      tenantLine.hidden = false;
+      tenantLine.textContent = org.name || org.slug;
+      tenantLine.title = org.slug;
+    }
+  }
+
   const avatarEl = header.querySelector('.topbar-v2__avatar');
   const nameHidden = header.querySelector('.topbar-v2__user-name');
 
   function allAccessibleItems() {
     const terrainMode = getDisplayMode() === 'terrain';
-    const terrainPages = new Set(['terrain-mode', 'incidents', 'permits', 'actions', 'settings']);
     return getFlattenedNavItems().filter((item) => {
       if (!canAccessNavPage(role, item.id)) return false;
-      if (terrainMode && !terrainPages.has(item.id)) return false;
+      if (terrainMode && !TERRAIN_ALLOWED_PAGE_IDS.has(item.id)) return false;
+      if (
+        'resource' in item &&
+        item.resource &&
+        !canResource(
+          role,
+          item.resource,
+          item.verb === 'write' ? 'write' : 'read'
+        )
+      ) {
+        return false;
+      }
       return true;
     });
   }
@@ -822,22 +860,35 @@ export function createTopbar({
     });
   }
 
-  const modeToggle = header.querySelector('.display-mode-toggle');
-  if (modeToggle) {
-    modeToggle.addEventListener('click', () => {
-      const currentMode = modeToggle.dataset.mode;
-      const newMode = currentMode === 'terrain' ? 'expert' : 'terrain';
-      setDisplayMode(newMode);
-      modeToggle.dataset.mode = newMode;
-      const label = modeToggle.querySelector('.display-mode-label');
-      if (label) label.textContent = newMode === 'terrain' ? 'Mode complet' : 'Mode terrain';
-      if (newMode === 'terrain') {
-        if (typeof onNavigate === 'function') onNavigate('terrain-mode');
-        else navigateByHash('terrain-mode');
-      } else if (currentPage === 'terrain-mode') {
-        if (typeof onNavigate === 'function') onNavigate('dashboard');
-        else navigateByHash('dashboard');
-      }
+  const modeSwitch = header.querySelector('.display-mode-switch');
+  function syncModeSegments(activeMode) {
+    if (!modeSwitch) return;
+    modeSwitch.querySelectorAll('[data-set-mode]').forEach((btn) => {
+      const m = btn.getAttribute('data-set-mode');
+      const on = m === activeMode;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  if (modeSwitch) {
+    modeSwitch.querySelectorAll('[data-set-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-set-mode');
+        if (target !== 'terrain' && target !== 'expert') return;
+        if (getDisplayMode() === target) return;
+        setDisplayMode(target);
+        syncModeSegments(target);
+        if (target === 'terrain') {
+          showToast('Mode terrain — accès opérations et raccourcis chantier.', 'info');
+          if (typeof onNavigate === 'function') onNavigate('terrain-mode');
+          else navigateByHash('terrain-mode');
+        } else {
+          showToast('Mode complet — tous les modules du menu.', 'info');
+          const dest = currentPage === 'terrain-mode' ? 'dashboard' : currentPage;
+          if (typeof onNavigate === 'function') onNavigate(dest);
+          else navigateByHash(dest);
+        }
+      });
     });
   }
 

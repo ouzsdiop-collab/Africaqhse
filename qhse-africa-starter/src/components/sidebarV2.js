@@ -5,11 +5,14 @@ import {
   getSessionUser,
   setSessionUser,
   getAuthToken,
-  clearAuthSession
+  clearAuthSession,
+  getActiveTenant,
+  getSessionTenants
 } from '../data/sessionUser.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
-import { canAccessNavPage } from '../utils/permissionsUi.js';
+import { canAccessNavPage, canResource } from '../utils/permissionsUi.js';
 import { getDisplayMode } from '../utils/displayMode.js';
+import { TERRAIN_ALLOWED_PAGE_IDS } from '../utils/terrainModePages.js';
 
 const STYLE_ID = 'qhse-sidebar-v2-styles';
 
@@ -402,6 +405,18 @@ function ensureSidebarV2Styles() {
   font-size: 10px;
   margin-top: 1px;
 }
+.sidebar-v2__account-org {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 3px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-v2__footer--compact .sidebar-v2__account-org {
+  font-size: 10px;
+}
 .sidebar-v2__btn-logout {
   width: 100%;
   margin-top: var(--space-3);
@@ -640,10 +655,14 @@ const NAV_ICON_SVG = {
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>',
   products:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  habilitations:
+    '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>',
   imports:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
   'activity-log':
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+  'audit-logs':
+    '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 3 4 6 9 6s9-3 9-6V5"/><path d="M3 11v6c0 3 4 6 9 6s9-3 9-6v-6"/></svg>',
   analytics:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
   performance:
@@ -668,7 +687,7 @@ export function createSidebar({
 }) {
   ensureSidebarV2Styles();
   const terrainMode = getDisplayMode() === 'terrain';
-  const terrainVisiblePages = new Set(['terrain-mode', 'incidents', 'permits', 'actions', 'settings']);
+  const terrainVisiblePages = TERRAIN_ALLOWED_PAGE_IDS;
 
   const aside = document.createElement('aside');
   aside.className = 'sidebar-v2';
@@ -678,7 +697,7 @@ export function createSidebar({
       <div class="sidebar-v2__brand-mark" aria-hidden="true">${SHIELD_LOGO_SVG}</div>
       <div class="sidebar-v2__brand-text">
         <span class="sidebar-v2__brand-title">QHSE Control</span>
-        <span class="sidebar-v2__brand-badge" title="Démonstration">Démo</span>
+        <span class="sidebar-v2__brand-badge" title="Exploration sans compte : données d’illustration">Essai</span>
       </div>
     </div>
     <nav class="sidebar-v2__nav" aria-label="Navigation principale"></nav>
@@ -818,6 +837,14 @@ export function createSidebar({
       roleEl.className = 'sidebar-v2__account-role';
       roleEl.textContent = u?.role || '';
       meta.append(nameEl, roleEl);
+      const orgT = getActiveTenant();
+      if (orgT?.slug) {
+        const orgEl = document.createElement('div');
+        orgEl.className = 'sidebar-v2__account-org';
+        orgEl.title = orgT.slug;
+        orgEl.textContent = orgT.name || orgT.slug;
+        meta.append(orgEl);
+      }
       card.append(av, meta);
       profileSlot.append(card);
 
@@ -843,6 +870,21 @@ export function createSidebar({
         window.location.hash = 'login';
       });
       actions.append(logoutBtn, switchBtn);
+      if (getSessionTenants().length > 1) {
+        const orgBtn = document.createElement('button');
+        orgBtn.type = 'button';
+        orgBtn.className = 'sidebar-v2__btn-link';
+        orgBtn.textContent = 'Organisations…';
+        orgBtn.addEventListener('click', () => {
+          try {
+            sessionStorage.setItem('qhse_settings_focus', 'settings-anchor-org');
+          } catch {
+            /* ignore */
+          }
+          window.location.hash = 'settings';
+        });
+        actions.append(orgBtn);
+      }
       profileSlot.append(actions);
       return;
     }
@@ -850,7 +892,8 @@ export function createSidebar({
     const profileSelect = document.createElement('select');
     profileSelect.className = 'control-select context-select shell-context-select';
     profileSelect.setAttribute('aria-label', 'Choisir un utilisateur pour les permissions');
-    profileSelect.title = 'Profil démo : filtre les entrées du menu selon le rôle.';
+    profileSelect.title =
+      'Sans connexion : choisissez un profil pour prévisualiser le menu selon le rôle (aperçu local).';
     const optProf0 = document.createElement('option');
     optProf0.value = '';
     optProf0.textContent = '— Mode libre —';
@@ -911,14 +954,6 @@ export function createSidebar({
   const navBadgeEls = new Map();
 
   navigationGroups.forEach((group, groupIndex) => {
-    const section = document.createElement('section');
-    section.className = 'sidebar-v2__group';
-
-    const title = document.createElement('p');
-    title.className = 'sidebar-v2__group-label';
-    title.textContent = group.label;
-    section.append(title);
-
     const list = document.createElement('div');
     list.className = 'sidebar-v2__items';
 
@@ -927,6 +962,17 @@ export function createSidebar({
     group.items.forEach((item) => {
       if (terrainMode && !terrainVisiblePages.has(item.id)) return;
       if (!canAccessNavPage(role, item.id)) return;
+      if (
+        'resource' in item &&
+        item.resource &&
+        !canResource(
+          role,
+          item.resource,
+          item.verb === 'write' ? 'write' : 'read'
+        )
+      ) {
+        return;
+      }
       const button = document.createElement('button');
       button.type = 'button';
       const isActive = currentPage === item.id;
@@ -958,7 +1004,14 @@ export function createSidebar({
       list.append(button);
     });
 
-    section.append(list);
+    if (!list.childElementCount) return;
+
+    const section = document.createElement('section');
+    section.className = 'sidebar-v2__group';
+    const title = document.createElement('p');
+    title.className = 'sidebar-v2__group-label';
+    title.textContent = group.label;
+    section.append(title, list);
     nav.append(section);
 
     if (groupIndex === 2) {

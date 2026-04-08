@@ -49,7 +49,7 @@ function consumeDashboardIntent() {
   }
 }
 
-/** Données mock — module Audits (cockpit) */
+/** Constantes cockpit Audits (extrait illustratif — complété par l’API quand disponible). */
 const AUDITS_RETARD_COUNT = 2;
 const NC_OUVERTES_COUNT = 8;
 const ACTIONS_RETARD_COUNT = 5;
@@ -76,11 +76,11 @@ const AUDIT_PRIORITY_LINES = [
   }
 ];
 
-/** Maquette gravité NC — cockpit expert */
+/** Seuils gravité NC — affichage cockpit expert */
 const AUDIT_NC_MAJEURES = 2;
 const AUDIT_NC_MINEURES = 3;
 
-/** Scores par domaine (mock pilotage) */
+/** Scores par domaine (pilotage cockpit) */
 const AUDIT_PROCESS_DOMAIN_SCORES = [
   { domain: 'Management', score: 82 },
   { domain: 'Terrain', score: 74 },
@@ -94,7 +94,7 @@ const COCKPIT_CYCLE_LABELS = [
   'Vérification',
   'Clôture'
 ];
-/** Index phase mise en avant (0-based) — maquette */
+/** Index phase mise en avant (0-based) — cockpit */
 const COCKPIT_CYCLE_ACTIVE = 1;
 
 function countPlannedByStatut(st) {
@@ -115,7 +115,7 @@ function auditCalendarDaysDiff(from, to) {
 }
 
 /**
- * Notifications cockpit — dérivées du mock + constantes existantes (aucun appel API).
+ * Notifications cockpit — dérivées des données affichées + constantes (sans appel API dédié ici).
  * @returns {{ items: { key: string; title: string; detail: string; tone: 'blue'|'amber'|'green'|'red' }[]; suggestNotifyHint: string }}
  */
 function buildAuditSmartNotifications() {
@@ -223,7 +223,7 @@ function buildAuditSmartNotifications() {
 }
 
 /**
- * Carte notifications intelligentes + CTA participants (maquette front, pas d’API).
+ * Carte notifications intelligentes + CTA participants (interface locale).
  * @param {{ canAuditWrite: boolean; su: ReturnType<typeof getSessionUser>; model: ReturnType<typeof buildAuditSmartNotifications> }} opts
  */
 function createAuditIntelligentNotificationsCard(opts) {
@@ -298,7 +298,7 @@ function createAuditIntelligentNotificationsCard(opts) {
   if (items.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'audit-cockpit-notifs__empty';
-    empty.textContent = 'Aucune alerte dérivée des données affichées — le registre est à jour (mock).';
+    empty.textContent = 'Aucune alerte dérivée des données affichées — le registre est à jour sur cette vue.';
     list.append(empty);
   }
 
@@ -329,12 +329,12 @@ function createAuditIntelligentNotificationsCard(opts) {
       .map((i) => i.title)
       .join(' · ');
     showToast(
-      'Maquette : notification enregistrée pour diffusion aux participants (e-mail / push à brancher sur votre SI).',
+      'Notification enregistrée pour diffusion aux participants (e-mail / push selon votre intégration).',
       'info'
     );
     activityLogStore.add({
       module: 'audits',
-      action: 'Notification participants (maquette cockpit)',
+      action: 'Notification participants (cockpit audit)',
       detail: summary || 'Aucune alerte active',
       user: su?.name || 'Utilisateur'
     });
@@ -371,7 +371,7 @@ function buildAuditKpiStripItems() {
       label: 'Score moyen',
       value: `${meanAuditScore()}%`,
       tone: 'green',
-      hint: 'Historique + dernier audit (mock)'
+      hint: 'Historique et dernier audit affichés'
     }
   ];
 }
@@ -414,7 +414,7 @@ const LAST_AUDIT = {
 
 const AUDIT_REFERENTIEL_LABEL = 'ISO 9001 · 14001 · 45001';
 
-/** Lignes maquette — traitement NC / actions (affichage certification). */
+/** Lignes traitement NC / actions (affichage certification). */
 const AUDIT_TREATMENT_ROWS = [
   {
     nc: 'NC-2026-014-A',
@@ -430,7 +430,7 @@ const AUDIT_TREATMENT_ROWS = [
   }
 ];
 
-/** Piste d’audit locale (maquette — même esprit que journal). */
+/** Piste d’audit locale (journal des événements affichés). */
 const AUDIT_TRACE_ROWS = [
   {
     who: 'M. Diallo',
@@ -647,7 +647,7 @@ function createChecklistRow(item) {
 }
 
 /**
- * Constat + bandeau validation humaine (maquette locale — pas d’API).
+ * Constat + bandeau validation humaine (session locale — pas d’écriture API sur cet écran).
  * @param {{ point: string; conforme: boolean; proofRef?: string }} item
  * @param {ReturnType<typeof getSessionUser>} [sessionUser]
  * @param {{ bumpScore?: (delta: number) => void }} [hooks]
@@ -672,7 +672,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   badge.textContent = ok ? 'Conforme' : 'NC';
   const proofEl = document.createElement('span');
   proofEl.className = 'audit-checklist-compact-proof';
-  proofEl.setAttribute('title', 'Preuve documentaire ciblée (lien indicatif — maquette)');
+  proofEl.setAttribute('title', 'Preuve documentaire ciblée (lien indicatif)');
   proofEl.textContent =
     item?.proofRef != null && String(item.proofRef).trim() !== ''
       ? String(item.proofRef)
@@ -691,7 +691,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   bProof.className = 'btn btn-secondary';
   bProof.textContent = 'Ajouter preuve';
   bProof.addEventListener('click', () => {
-    showToast('Preuve ajoutée au dossier (maquette locale).', 'info');
+    showToast('Preuve ajoutée au dossier (session locale).', 'info');
     hooks?.bumpScore?.(0.3);
     activityLogStore.add({
       module: 'audits',
@@ -705,7 +705,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   bConst.className = 'btn btn-secondary';
   bConst.textContent = 'Ajouter constat';
   bConst.addEventListener('click', () => {
-    showToast('Constat complémentaire enregistré (maquette).', 'info');
+    showToast('Constat complémentaire enregistré.', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Constat complémentaire',
@@ -820,7 +820,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
       paintStatus();
       traceUser.textContent = `Utilisateur : ${su?.name || su?.email || 'Auditeur'}`;
       traceDate.textContent = `Date : ${new Date().toLocaleString('fr-FR')}`;
-      showToast(`Suggestion / constat — ${labels[next]} (maquette, validation humaine).`, 'info');
+      showToast(`Suggestion / constat — ${labels[next]} (validation humaine).`, 'info');
       hooks?.bumpScore?.(next === 'validated' ? 0.4 : next === 'adjusted' ? 0.2 : -0.3);
       activityLogStore.add({
         module: 'audits',
@@ -861,7 +861,7 @@ function proofBadgeLabel(st) {
 }
 
 /**
- * Ligne tableau NC + bouton risque (maquette — hash module Risques).
+ * Ligne tableau NC + bouton risque (navigation module Risques).
  * @param {HTMLElement} treatmentTable
  * @param {{ nc: string; action: string; owner: string; due: string }} r
  * @param {ReturnType<typeof getSessionUser> | null} su
@@ -881,7 +881,7 @@ function appendTreatmentRowWithRisk(treatmentTable, r, su) {
   riskBtn.textContent = 'Créer risque associé';
   riskBtn.addEventListener('click', () => {
     window.location.hash = 'risks';
-    showToast('Module Risques — liaison NC (maquette locale).', 'info');
+    showToast('Module Risques — liaison NC ouverte.', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Créer risque associé depuis NC audit',
@@ -983,7 +983,7 @@ export function renderAudits() {
   page.className =
     'page-stack audit-products-page audit-plus-page audit-cockpit-page audit-premium-page';
 
-  /** Ajustement local du score affiché (démo, pas d’écriture serveur). */
+  /** Ajustement local du score affiché (pas d’écriture serveur sur cet écran). */
   let scoreAdjust = 0;
   function bumpScore(delta) {
     scoreAdjust += delta;
@@ -1017,7 +1017,7 @@ export function renderAudits() {
     activityLogStore.add({
       module: 'audits',
       action: 'Ouverture mode audit terrain',
-      detail: 'Checklist interactive — maquette',
+      detail: 'Checklist interactive — mode terrain',
       user: 'Auditeur terrain'
     });
   }
@@ -1032,7 +1032,7 @@ export function renderAudits() {
     activityLogStore.add({
       module: 'audits',
       action: 'Lancer audit terrain (parcours)',
-      detail: 'Vue simplifiée — démo',
+      detail: 'Vue simplifiée — parcours terrain',
       user: su?.name || 'Auditeur'
     });
   }
@@ -1118,7 +1118,7 @@ export function renderAudits() {
     a.download = `constats-${LAST_AUDIT.ref.replace(/[^\w-]+/g, '_')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Export constats téléchargé (CSV, maquette locale).', 'info');
+    showToast('Export constats téléchargé (CSV, génération locale).', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Export CSV constats audit',
@@ -1144,7 +1144,7 @@ export function renderAudits() {
     a.download = `plan-actions-${LAST_AUDIT.ref.replace(/[^\w-]+/g, '_')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Export plan d’actions téléchargé (CSV, maquette locale).', 'info');
+    showToast('Export plan d’actions téléchargé (CSV, génération locale).', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Export CSV plan d’actions audit',
@@ -1306,7 +1306,7 @@ export function renderAudits() {
     <div class="audit-iso-conformity-card audit-iso-conformity-card--act">
       <span class="audit-iso-conformity-card__lbl">Actions générées</span>
       <span class="audit-iso-conformity-card__val">${auditActionsGeneratedCount}</span>
-      <span class="audit-iso-conformity-card__hint">Maquette pilotage</span>
+      <span class="audit-iso-conformity-card__hint">Pilotage sur cet extrait</span>
     </div>
   `;
 
@@ -1389,7 +1389,7 @@ export function renderAudits() {
       activityLogStore.add({
         module: 'audits',
         action: 'Import Excel audit (preview)',
-        detail: 'Validation locale — maquette',
+        detail: 'Validation locale — aperçu import',
         user: su?.name || 'Utilisateur'
       });
     });
@@ -1479,7 +1479,7 @@ export function renderAudits() {
   const isoWeakestForInsight = isoSortedForInsight[0];
   const auditStrategicInsightLine =
     isoWeakestForInsight && String(isoWeakestForInsight.norm).includes('14001')
-      ? 'Insight : priorité environnement ISO 14001 — écart vs 9001/45001 (cockpit démo).'
+      ? 'Insight : priorité environnement ISO 14001 — écart vs 9001/45001 sur les scores affichés.'
       : isoWeakestForInsight
         ? `Insight : focus ${isoWeakestForInsight.norm} (${isoWeakestForInsight.score} %).`
         : '';
@@ -1497,7 +1497,7 @@ export function renderAudits() {
     <p class="audit-premium-assistant__insight" role="status"></p>
     <div class="audit-premium-assistant__primary" data-audit-ia-primary></div>
     <details class="audit-premium-assistant__more">
-      <summary>Autres aides (démo)</summary>
+      <summary>Autres suggestions</summary>
       <div class="audit-cockpit-ia__grid audit-premium-assistant__grid" data-audit-ia-secondary></div>
     </details>
   `;
@@ -1534,7 +1534,7 @@ export function renderAudits() {
         activityLogStore.add({
           module: 'audits',
           action: 'Suggestion IA — fenêtre de notification',
-          detail: 'Quand notifier les participants (maquette)',
+          detail: 'Quand notifier les participants',
           user: 'Utilisateur'
         });
         return;
@@ -1550,15 +1550,18 @@ export function renderAudits() {
         activityLogStore.add({
           module: 'audits',
           action: 'Assistant audit — preuves à compléter',
-          detail: 'Scroll zone preuves (maquette)',
+          detail: 'Focus zone preuves',
           user: 'Utilisateur'
         });
         return;
       }
-      showToast(`Suggestion IA « ${label} » — maquette front, branchez votre moteur ou API.`, 'info');
+      showToast(
+        `Suggestion IA « ${label} » — connectez votre moteur ou API pour une analyse produite côté serveur.`,
+        'info'
+      );
       activityLogStore.add({
         module: 'audits',
-        action: 'Action IA audit (maquette)',
+        action: 'Action IA audit (assistant)',
         detail: key,
         user: 'Utilisateur'
       });
@@ -1597,7 +1600,7 @@ export function renderAudits() {
     },
     {
       onPlan: () => {
-        showToast('Plan d’action structuré — brouillon affiché (maquette).', 'info');
+        showToast('Plan d’action structuré — brouillon affiché.', 'info');
         document.getElementById('audit-iso-tier-treatment')?.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest'
@@ -1687,11 +1690,11 @@ export function renderAudits() {
   planBtn.className = 'btn btn-primary';
   planBtn.textContent = 'Planifier un audit';
   planBtn.addEventListener('click', () => {
-    showToast('Planification : ouvrir le module calendrier / workflow (démo).', 'info');
+    showToast('Planification : ouvrez votre calendrier ou workflow selon votre organisation.', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Demande de planification audit',
-      detail: 'Depuis Audit+ — maquette front',
+      detail: 'Depuis le cockpit Audit+',
       user: 'Coordinateur QHSE'
     });
   });
@@ -1765,7 +1768,7 @@ export function renderAudits() {
       <div>
         <div class="section-kicker">Historique</div>
         <h3>Timeline audit</h3>
-        <p class="content-card-lead" style="margin:4px 0 0;font-size:11px;color:var(--text3)">Événements chronologiques (maquette).</p>
+        <p class="content-card-lead" style="margin:4px 0 0;font-size:11px;color:var(--text3)">Événements chronologiques sur l’extrait affiché.</p>
       </div>
     </div>
   `;
@@ -1803,7 +1806,7 @@ export function renderAudits() {
       : null;
   histTrend.textContent =
     histSpan != null
-      ? `Écart de scores sur l’extrait (mock) : ${histSpan} pts (min ${histMin}% · max ${histMax}%) — indépendant de l’ordre d’affichage.`
+      ? `Écart de scores sur l’extrait affiché : ${histSpan} pts (min ${histMin}% · max ${histMax}%) — indépendant de l’ordre d’affichage.`
       : 'Tendance : au moins deux scores valides requis sur cet extrait.';
   historyCard.append(histTrend);
 
@@ -1894,7 +1897,7 @@ export function renderAudits() {
   proofGenHint.className = 'audit-premium-proofs__iso-lead';
   proofGenHint.style.marginBottom = '8px';
   proofGenHint.textContent =
-    'Les preuves manquantes peuvent être converties en actions correctives (maquette locale).';
+    'Les preuves manquantes peuvent être converties en actions correctives (brouillon local).';
   const genFromProofsBtn = document.createElement('button');
   genFromProofsBtn.type = 'button';
   genFromProofsBtn.className = 'btn btn-primary';

@@ -42,7 +42,7 @@ export function createAuditScoreGauge(score, { label = 'Score global' } = {}) {
   note.textContent =
     pct >= 80
       ? 'Seuil direction : objectif de maintien.'
-      : 'Sous le seuil cible — plan d’actions à suivre (mock).';
+      : 'Sous le seuil cible — plan d’actions à suivre.';
 
   wrap.append(cap, gWrap, note);
   return wrap;

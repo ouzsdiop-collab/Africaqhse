@@ -1,5 +1,5 @@
 /**
- * Données de pilotage QHSE (mock front, sessionStorage) — complètent l’API actions.
+ * Données de pilotage QHSE (sessionStorage) — complètent l’API actions.
  */
 
 const STORAGE_KEY = 'qhse-action-pilotage-overlay-v1';

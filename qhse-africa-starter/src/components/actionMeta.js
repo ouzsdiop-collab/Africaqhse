@@ -1,4 +1,4 @@
-/** Extrait périmètre, responsable et échéance depuis le texte mock « detail ». */
+/** Extrait périmètre, responsable et échéance depuis le texte du champ « detail ». */
 export function parseActionMeta(detail) {
   const parts = detail.split('•').map((p) => p.trim());
   let site = '—';

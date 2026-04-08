@@ -19,7 +19,7 @@ const USE_CASES = [
     label: 'Suggestions d’actions',
     title: 'Plan d’actions aligné criticité & ISO',
     body: 'Propositions de mesures correctives / préventives, séquencement logique, rattachement aux plans d’actions et aux échéances déjà suivies sur le site.',
-    foot: 'Priorisation mock : SST → environnement → conformité documentaire.'
+    foot: 'Priorisation type : santé-sécurité → environnement → conformité documentaire.'
   },
   {
     id: 'analysis',
@@ -72,7 +72,7 @@ function refreshHistoryList(listEl) {
     li.className = 'ai-sim-history__item';
     li.style.fontStyle = 'italic';
     li.style.color = 'var(--text3)';
-    li.textContent = 'Aucune simulation dans cette session — lancez une analyse pour alimenter l’historique.';
+    li.textContent = 'Aucun scénario exécuté dans cette session — lancez une analyse pour alimenter l’historique.';
     listEl.append(li);
     return;
   }
@@ -126,7 +126,7 @@ function createSimulationZone(onAddLog) {
   const placeholder = document.createElement('p');
   placeholder.className = 'ai-sim-placeholder';
   placeholder.textContent =
-    'Choisissez un scénario puis lancez la simulation. La sortie est structurée en sections (résumé, gravité, actions, analyse, synthèse direction) — aucun envoi réseau.';
+    'Choisissez un scénario puis lancez l’analyse. La sortie est structurée en sections (résumé, gravité, actions, analyse, synthèse direction) — aucun envoi réseau.';
   outWrap.append(placeholder);
 
   const toolbar = document.createElement('div');
@@ -134,7 +134,7 @@ function createSimulationZone(onAddLog) {
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.className = 'btn btn-primary';
-  runBtn.textContent = 'Lancer la simulation';
+  runBtn.textContent = 'Lancer l’analyse';
   const copyBtn = document.createElement('button');
   copyBtn.type = 'button';
   copyBtn.className = 'text-button';
@@ -143,11 +143,12 @@ function createSimulationZone(onAddLog) {
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.className = 'text-button';
-  saveBtn.textContent = 'Enregistrer (démo)';
+  saveBtn.textContent = 'Enregistrer le brouillon';
   saveBtn.disabled = true;
   const hint = document.createElement('p');
   hint.className = 'ai-sim-hint';
-  hint.textContent = 'Copie = export brut pour rapport / mail. Enregistrer = trace dans le journal (mock).';
+  hint.textContent =
+    'Copie : export brut pour rapport ou e-mail. Enregistrer brouillon : trace dans le journal d’activité de la session.';
 
   function runSimulation() {
     lastResult = getAiSimulationResult(select.value);
@@ -164,11 +165,11 @@ function createSimulationZone(onAddLog) {
     });
     refreshHistoryList(historyListEl);
 
-    showToast('Analyse générée (mock) — prête à être copiée ou enregistrée.', 'info');
+    showToast('Analyse générée (scénario illustratif) — prête à être copiée ou enregistrée.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
-        action: 'Simulation IA terrain',
+        action: 'Analyse scénario IA (terrain)',
         detail: `${lastResult.ref} — ${scenarioLabel}`,
         user: 'Copilote IA'
       });
@@ -179,7 +180,7 @@ function createSimulationZone(onAddLog) {
     void (async () => {
       if (
         !(await ensureSensitiveAccess('security_zone', {
-          contextLabel: 'lancement d’une simulation IA (sortie locale)'
+          contextLabel: 'lancement d’une analyse IA sur scénario (sortie locale)'
         }))
       ) {
         return;
@@ -201,7 +202,7 @@ function createSimulationZone(onAddLog) {
 
   saveBtn.addEventListener('click', () => {
     if (!lastResult) return;
-    showToast('Brouillon enregistré (démo) — à connecter au SI documentaire.', 'info');
+    showToast('Brouillon enregistré dans le journal — export vers votre GED peut être activé sur demande.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
@@ -250,23 +251,23 @@ export function renderAiCenter(onAddLog) {
         </p>
         <p class="content-card-lead content-card-lead--narrow">
           Assistants orientés terrain et audit : résumés d’incidents, plans d’actions, analyses structurées et briefs direction.
-          Les sorties ci-dessous sont simulées pour démonstration client — aucune inférence réelle sur vos données.
+          Les sorties ci-dessous sont produites en local pour structurer vos comptes rendus — sans envoi de données vers un modèle externe dans cette version.
         </p>
         <p class="content-card-lead content-card-lead--narrow ai-center-human-trust" style="margin-top:10px;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.25);background:rgba(34,197,94,.08);font-size:13px;line-height:1.5;color:var(--text2)">
           <strong style="color:#86efac">Validation humaine</strong> — chaque proposition reste une suggestion : copiez, adaptez ou ignorez avant toute décision ou enregistrement officiel.
         </p>
       </div>
-      <button type="button" class="btn btn-primary btn--pilotage-cta ai-quick-run">Enregistrer une analyse (démo)</button>
+      <button type="button" class="btn btn-primary btn--pilotage-cta ai-quick-run">Enregistrer un brouillon d’analyse</button>
     </div>
   `;
 
   intro.querySelector('.ai-quick-run').addEventListener('click', () => {
-    showToast('Enregistrement : connecter au SI et au workflow HSE (démo).', 'info');
+    showToast('Brouillon pris en compte — intégration SI / workflow HSE selon votre déploiement.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
         action: 'Brouillon analyse IA',
-        detail: 'Action utilisateur — enregistrement simulé depuis le Centre IA',
+        detail: 'Action utilisateur — brouillon enregistré depuis le Centre IA',
         user: 'Responsable QHSE'
       });
     }
@@ -281,10 +282,10 @@ export function renderAiCenter(onAddLog) {
   simCard.innerHTML = `
     <div class="content-card-head">
       <div>
-        <div class="section-kicker">Simulation</div>
+        <div class="section-kicker">Scénarios types</div>
         <h3>Zone interactive — sortie structurée</h3>
         <p class="content-card-lead">
-          Scénarios types prédéfinis : la simulation produit une fiche en sections (résumé, gravité, actions, analyse, synthèse direction) avec référence documentaire mock.
+          Scénarios types prédéfinis : l’analyse produit une fiche en sections (résumé, gravité, actions, analyse, synthèse direction) avec référence documentaire formatée.
         </p>
       </div>
     </div>

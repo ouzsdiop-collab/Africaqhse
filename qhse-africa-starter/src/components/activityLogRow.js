@@ -67,7 +67,7 @@ export function createActivityLogRow(entry) {
     const mark = document.createElement('span');
     mark.className = 'activity-log-importance';
     mark.textContent = 'À suivre';
-    mark.title = 'Action ou événement sensible pour la traçabilité (règle mock)';
+    mark.title = 'Action ou événement sensible — conservé pour la traçabilité';
     actWrap.append(mark);
   }
   cAct.append(actWrap);

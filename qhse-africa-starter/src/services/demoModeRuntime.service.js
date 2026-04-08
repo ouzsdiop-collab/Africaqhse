@@ -1,5 +1,5 @@
 /**
- * État runtime mode démo (session) — patches sur incidents / actions sans API.
+ * État runtime mode exploration (session) — patches sur incidents / actions sans API.
  */
 
 const KEY = 'qhse-demo-runtime-v1';

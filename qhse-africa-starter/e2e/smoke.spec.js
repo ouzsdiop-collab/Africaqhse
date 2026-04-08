@@ -29,4 +29,19 @@ test.describe('Smoke QHSE', () => {
     await expect(page.locator('.app-shell')).toBeVisible({ timeout: 30_000 });
     await expect(page).toHaveURL(/#dashboard/);
   });
+
+  test('API readiness (base SQL)', async ({ request }) => {
+    const apiBase = process.env.E2E_API_BASE || 'http://127.0.0.1:3001';
+    const res = await request.get(`${apiBase}/api/health/ready`).catch(() => null);
+    test.skip(!res, 'API absente');
+    expect([200, 503]).toContain(res.status());
+  });
+
+  test('navigation lazy vers Risques', async ({ page }) => {
+    await page.goto('/#risks');
+    await expect(page.locator('.risks-page--premium')).toBeVisible({ timeout: 45_000 });
+    await expect(
+      page.getByRole('heading', { name: /Registre des risques opérationnels/i })
+    ).toBeVisible();
+  });
 });

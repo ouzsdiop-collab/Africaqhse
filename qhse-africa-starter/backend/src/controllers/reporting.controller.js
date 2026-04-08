@@ -8,8 +8,8 @@ export async function getSummary(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
-    const data = await reportingSummaryService.getReportingSummary(siteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const data = await reportingSummaryService.getReportingSummary(req.qhseTenantId, siteId);
     res.json(data);
   } catch (err) {
     next(err);

@@ -222,7 +222,7 @@ export function createLoginView({ onSuccess }) {
         </div>
       </div>
     </div>
-    <p class="lv2-gdpr">Conforme RGPD · Données hébergées EU</p>
+    <p class="lv2-gdpr">Sécurité des accès · Journal d’audit · Multi-organisations</p>
   `;
 
   const leftMain = left.querySelector('.lv2-left-main');
@@ -261,8 +261,15 @@ export function createLoginView({ onSuccess }) {
         </div>
       </label>
       <button type="submit" class="btn btn-primary lv2-submit">Se connecter</button>
+      <div class="lv2-org-panel" style="display:none;margin-top:16px;padding:12px;border-radius:10px;background:rgba(15,23,42,.06);border:1px solid rgba(15,23,42,.1)">
+        <label class="lv2-field">
+          <span class="lv2-field-label">Organisation</span>
+          <select class="control-input lv2-input lv2-org-select" required></select>
+        </label>
+        <button type="button" class="btn btn-primary lv2-org-continue" style="margin-top:12px;width:100%">Continuer</button>
+      </div>
       <div class="lv2-sep" style="margin:20px 0" aria-hidden="true"></div>
-      <button type="button" class="lv2-demo-link">Continuer en démonstration →</button>
+      <button type="button" class="lv2-demo-link">Continuer en exploration (sans compte) →</button>
     </form>
   `;
 
@@ -272,6 +279,96 @@ export function createLoginView({ onSuccess }) {
   const submitBtn = inner.querySelector('.lv2-submit');
   const skipBtn = inner.querySelector('.lv2-demo-link');
   const lv2EyeBtn = inner.querySelector('.lv2-eye-btn');
+  const orgPanel = inner.querySelector('.lv2-org-panel');
+  const orgSelect = inner.querySelector('.lv2-org-select');
+  const orgContinue = inner.querySelector('.lv2-org-continue');
+
+  function hideOrgPanel() {
+    if (orgPanel) orgPanel.style.display = 'none';
+    if (orgSelect) orgSelect.innerHTML = '';
+  }
+
+  function showOrgPicker(tenants) {
+    if (!orgPanel || !orgSelect || !Array.isArray(tenants) || !tenants.length) return;
+    orgSelect.innerHTML = '';
+    for (const t of tenants) {
+      const slug = typeof t.slug === 'string' ? t.slug : '';
+      if (!slug) continue;
+      const opt = document.createElement('option');
+      opt.value = slug;
+      opt.textContent = typeof t.name === 'string' && t.name ? t.name : slug;
+      orgSelect.appendChild(opt);
+    }
+    if (!orgSelect.options.length) return;
+    orgPanel.style.display = 'block';
+  }
+
+  async function submitLogin(tenantSlug) {
+    const email = String(emailEl?.value || '').trim();
+    const password = passEl?.value || '';
+    if (!email || !password) {
+      showToast('Saisissez e-mail et mot de passe', 'error');
+      return;
+    }
+    const prevLabel = submitBtn?.textContent || '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Connexion…';
+    }
+    hideOrgPanel();
+    try {
+      const payload = { email, password };
+      if (tenantSlug) payload.tenantSlug = tenantSlug;
+      const res = await fetch(`${getApiBase()}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 409 || (res.status === 400 && Array.isArray(body.tenants) && body.tenants.length)) {
+        showToast(typeof body.error === 'string' ? body.error : 'Choisissez une organisation', 'error');
+        showOrgPicker(body.tenants || []);
+        return;
+      }
+      if (!res.ok) {
+        showToast(typeof body.error === 'string' ? body.error : 'Connexion impossible', 'error');
+        return;
+      }
+      if (!body.token || !body.user?.id) {
+        showToast('Réponse serveur invalide', 'error');
+        return;
+      }
+      setAuthSession(
+        {
+          id: body.user.id,
+          name: body.user.name || '',
+          email: body.user.email || '',
+          role: body.user.role || ''
+        },
+        body.token,
+        { tenant: body.tenant, tenants: body.tenants }
+      );
+      showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
+      window.location.hash = 'dashboard';
+      onSuccess();
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prevLabel;
+      }
+    }
+  }
+
+  orgContinue?.addEventListener('click', () => {
+    const slug = orgSelect?.value?.trim();
+    if (!slug) {
+      showToast('Sélectionnez une organisation', 'error');
+      return;
+    }
+    void submitLogin(slug);
+  });
 
   if (lv2EyeBtn && passEl) {
     const eyeHost = lv2EyeBtn;
@@ -293,53 +390,18 @@ export function createLoginView({ onSuccess }) {
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = String(emailEl?.value || '').trim();
-    const password = passEl?.value || '';
-    if (!email || !password) {
-      showToast('Saisissez e-mail et mot de passe', 'error');
-      return;
-    }
-    const prevLabel = submitBtn?.textContent || '';
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Connexion…';
-    }
-    try {
-      const res = await fetch(`${getApiBase()}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showToast(typeof body.error === 'string' ? body.error : 'Connexion impossible', 'error');
-        return;
-      }
-      if (!body.token || !body.user?.id) {
-        showToast('Réponse serveur invalide', 'error');
-        return;
-      }
-      setAuthSession(
-        {
-          id: body.user.id,
-          name: body.user.name || '',
-          email: body.user.email || '',
-          role: body.user.role || ''
-        },
-        body.token
-      );
-      showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
-      window.location.hash = 'dashboard';
-      onSuccess();
-    } catch {
-      showToast('Réseau ou serveur indisponible', 'error');
-    } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = prevLabel;
-      }
-    }
+    await submitLogin('');
   });
+
+  if (import.meta.env.DEV) {
+    const devHint = document.createElement('p');
+    devHint.className = 'lv2-dev-hint';
+    devHint.style.cssText =
+      'margin:18px 0 0;font-size:11px;color:rgba(148,163,184,.5);line-height:1.5';
+    devHint.innerHTML =
+      'Développement local — après <code style="font-size:10px;opacity:.95">npx prisma db seed</code> : comptes de test (voir <code style="font-size:10px">backend/prisma/seed.js</code>), ex. <code style="font-size:10px">qhse@qhse.local</code> / <code style="font-size:10px">Demo2026!</code>.';
+    inner.appendChild(devHint);
+  }
 
   right.append(inner);
   screen.append(left, right);

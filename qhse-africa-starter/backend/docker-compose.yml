@@ -1,7 +1,9 @@
-# Optionnel — uniquement si vous avez installé Docker Desktop (https://docker.com/products/docker-desktop).
-# Sinon le projet utilise SQLite par défaut (fichier prisma/dev.db), sans Docker.
-# docker compose up -d
-# puis : npx prisma db push  (avec schema Prisma en provider postgresql)
+# PostgreSQL local — Docker Desktop (https://docker.com/products/docker-desktop).
+# Depuis ce dossier :
+#   docker compose up -d
+# Puis (une fois le conteneur prêt) :
+#   npx prisma migrate deploy
+#   npm run db:seed
 
 services:
   db:

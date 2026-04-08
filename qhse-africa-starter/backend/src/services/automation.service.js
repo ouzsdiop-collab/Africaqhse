@@ -41,20 +41,26 @@ function formatWeeklyEmailBody(report) {
 /**
  * Destinataires synthèse : profils pilotage (e-mail renseigné).
  */
-async function fetchWeeklyRecipientEmails() {
-  const users = await prisma.user.findMany({
+async function fetchWeeklyRecipientEmails(tenantId) {
+  const tid = String(tenantId ?? '').trim();
+  if (!tid) return [];
+  const memberships = await prisma.userTenant.findMany({
     where: {
+      tenantId: tid,
       role: { in: WEEKLY_RECIPIENT_ROLES }
     },
-    select: { email: true, name: true, role: true }
+    include: {
+      user: { select: { email: true, name: true } }
+    }
   });
   const seen = new Set();
   const out = [];
-  for (const u of users) {
-    const e = String(u.email ?? '').trim().toLowerCase();
+  for (const m of memberships) {
+    const u = m.user;
+    const e = String(u?.email ?? '').trim().toLowerCase();
     if (!e || seen.has(e)) continue;
     seen.add(e);
-    out.push({ email: e, name: u.name, role: u.role });
+    out.push({ email: e, name: u?.name, role: m.role });
   }
   return out;
 }
@@ -69,27 +75,28 @@ export async function runWeeklySummaryEmail() {
     return { sent: 0, skipped: 0, detail };
   }
 
-  const report = await buildPeriodicReport({ period: 'weekly' });
-  const body = formatWeeklyEmailBody(report);
-  const recipients = await fetchWeeklyRecipientEmails();
-  if (!recipients.length) {
-    detail.push('Aucun destinataire (rôles ADMIN/QHSE/DIRECTION avec e-mail).');
-    return { sent: 0, skipped: 0, detail };
-  }
-
-  const subject = `[QHSE] Synthèse hebdomadaire (${report.meta?.startDate?.slice(0, 10) ?? ''})`;
-
+  const tenants = await prisma.tenant.findMany({ select: { id: true, name: true } });
   let sent = 0;
-  for (const r of recipients) {
-    await sendMailText({
-      to: [r.email],
-      subject,
-      text: body
-    });
-    sent += 1;
+  for (const tenant of tenants) {
+    const report = await buildPeriodicReport({ tenantId: tenant.id, period: 'weekly' });
+    const body = formatWeeklyEmailBody(report);
+    const recipients = await fetchWeeklyRecipientEmails(tenant.id);
+    if (!recipients.length) {
+      detail.push(`[${tenant.name}] Aucun destinataire (rôles pilotage).`);
+      continue;
+    }
+    const subject = `[QHSE] ${tenant.name} — synthèse hebdomadaire (${report.meta?.startDate?.slice(0, 10) ?? ''})`;
+    for (const r of recipients) {
+      await sendMailText({
+        to: [r.email],
+        subject,
+        text: body
+      });
+      sent += 1;
+    }
   }
 
-  detail.push(`${sent} e-mail(s) individuel(s) envoyé(s) (destinataires masqués).`);
+  detail.push(`${sent} e-mail(s) envoyé(s) sur ${tenants.length} organisation(s).`);
   return { sent, skipped: 0, detail };
 }
 
@@ -104,58 +111,65 @@ export async function runOverdueActionReminders() {
     return { emailsSent: 0, assignees: 0, detail };
   }
 
-  const actions = await prisma.action.findMany({
-    where: { assigneeId: { not: null } },
-    include: {
-      assignee: { select: { id: true, email: true, name: true } }
-    },
-    orderBy: { dueDate: 'asc' }
-  });
-
-  const overdue = actions.filter(
-    (a) => includesRetard(a.status) && isActionStillOpenish(a.status)
-  );
-  const byAssignee = new Map();
-  for (const a of overdue) {
-    const id = a.assigneeId;
-    if (!id || !a.assignee?.email) continue;
-    if (!byAssignee.has(id)) {
-      byAssignee.set(id, { user: a.assignee, items: [] });
-    }
-    byAssignee.get(id).items.push(a);
-  }
-
+  const tenants = await prisma.tenant.findMany({ select: { id: true, name: true } });
   let emailsSent = 0;
-  for (const { user, items } of byAssignee.values()) {
-    const email = String(user.email ?? '').trim();
-    if (!email) continue;
+  let assigneesTotal = 0;
 
-    const lines = [
-      `Bonjour ${user.name || ''},`,
-      '',
-      `Vous avez ${items.length} action(s) signalée(s) en retard dans QHSE Africa :`,
-      ''
-    ];
-    items.forEach((act, i) => {
-      const due = act.dueDate
-        ? new Date(act.dueDate).toLocaleDateString('fr-FR')
-        : 'sans échéance';
-      lines.push(`${i + 1}. ${act.title} — échéance ${due} — statut « ${act.status} »`);
+  for (const tenant of tenants) {
+    const actions = await prisma.action.findMany({
+      where: { tenantId: tenant.id, assigneeId: { not: null } },
+      include: {
+        assignee: { select: { id: true, email: true, name: true } }
+      },
+      orderBy: { dueDate: 'asc' }
     });
-    lines.push('', '—', 'Message automatique — merci de mettre à jour le plan d’actions.');
 
-    await sendMailText({
-      to: [email],
-      subject: `[QHSE] Relance : ${items.length} action(s) en retard`,
-      text: lines.join('\n')
-    });
-    emailsSent += 1;
+    const overdue = actions.filter(
+      (a) => includesRetard(a.status) && isActionStillOpenish(a.status)
+    );
+    const byAssignee = new Map();
+    for (const a of overdue) {
+      const id = a.assigneeId;
+      if (!id || !a.assignee?.email) continue;
+      if (!byAssignee.has(id)) {
+        byAssignee.set(id, { user: a.assignee, items: [] });
+      }
+      byAssignee.get(id).items.push(a);
+    }
+
+    assigneesTotal += byAssignee.size;
+
+    for (const { user, items } of byAssignee.values()) {
+      const email = String(user.email ?? '').trim();
+      if (!email) continue;
+
+      const lines = [
+        `Bonjour ${user.name || ''},`,
+        '',
+        `[${tenant.name}] Vous avez ${items.length} action(s) signalée(s) en retard :`,
+        ''
+      ];
+      items.forEach((act, i) => {
+        const due = act.dueDate
+          ? new Date(act.dueDate).toLocaleDateString('fr-FR')
+          : 'sans échéance';
+        lines.push(`${i + 1}. ${act.title} — échéance ${due} — statut « ${act.status} »`);
+      });
+      lines.push('', '—', 'Message automatique — merci de mettre à jour le plan d’actions.');
+
+      await sendMailText({
+        to: [email],
+        subject: `[QHSE] ${tenant.name} — relance : ${items.length} action(s) en retard`,
+        text: lines.join('\n')
+      });
+      emailsSent += 1;
+    }
   }
 
   detail.push(
-    `${emailsSent} e-mail(s) de relance envoyé(s) pour ${byAssignee.size} responsable(s) avec actions en retard.`
+    `${emailsSent} e-mail(s) de relance sur ${assigneesTotal} binôme(s) org/responsable.`
   );
-  return { emailsSent, assignees: byAssignee.size, detail };
+  return { emailsSent, assignees: assigneesTotal, detail };
 }
 
 /**
