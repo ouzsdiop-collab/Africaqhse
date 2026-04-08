@@ -5,10 +5,9 @@ WORKDIR /app
 RUN apk add --no-cache openssl libstdc++
 
 COPY package.json package-lock.json ./
-RUN npm ci
-
 COPY prisma ./prisma
 COPY scripts ./scripts
+RUN NPM_CONFIG_IGNORE_SCRIPTS=true npm ci
 RUN npx prisma generate
 
 COPY src ./src
