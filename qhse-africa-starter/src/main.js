@@ -69,10 +69,100 @@ function createTerrainBottomNav(currentPage, onNavigate) {
   return nav;
 }
 
+const SW_UPDATE_SESSION_KEY = 'qhse-sw-update-pending';
+/** Une fois : `localStorage.setItem('qhse-sw-purge-once','1')` puis recharger — désinscription + vidage caches + reload. */
+const SW_PURGE_ONCE_KEY = 'qhse-sw-purge-once';
+const SW_DEBUG_STORAGE_KEY = 'qhse_sw_debug';
+
+let swClientHooksInstalled = false;
+let swLoadHandlerRegistered = false;
+
+function swDebugLog(...args) {
+  const on =
+    (import.meta.env && import.meta.env.DEV) ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem(SW_DEBUG_STORAGE_KEY) === '1');
+  if (on) console.info('[QHSE/SW]', ...args);
+}
+
 function registerPwaServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
+
+  if (!swClientHooksInstalled) {
+    swClientHooksInstalled = true;
+    let controllerChangeReloadScheduled = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      swDebugLog('controllerchange', {
+        controller: navigator.serviceWorker.controller?.scriptURL,
+        pendingReloadFlag: sessionStorage.getItem(SW_UPDATE_SESSION_KEY)
+      });
+      if (controllerChangeReloadScheduled) return;
+      if (sessionStorage.getItem(SW_UPDATE_SESSION_KEY) !== '1') return;
+      sessionStorage.removeItem(SW_UPDATE_SESSION_KEY);
+      controllerChangeReloadScheduled = true;
+      swDebugLog('reload once after SW update');
+      window.location.reload();
+    });
+  }
+
+  if (swLoadHandlerRegistered) return;
+  swLoadHandlerRegistered = true;
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    void (async () => {
+      if (localStorage.getItem(SW_PURGE_ONCE_KEY) === '1') {
+        localStorage.removeItem(SW_PURGE_ONCE_KEY);
+        swDebugLog('purge-once: unregister all + delete caches');
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        } catch (e) {
+          console.warn('[QHSE/SW] purge-once failed', e);
+        }
+        window.location.reload();
+        return;
+      }
+
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        swDebugLog('registered', {
+          scope: reg.scope,
+          active: reg.active?.state,
+          waiting: Boolean(reg.waiting),
+          installing: Boolean(reg.installing)
+        });
+
+        const pingWaiting = () => {
+          if (reg.waiting && navigator.serviceWorker.controller) {
+            swDebugLog('ping waiting → SKIP_WAITING');
+            sessionStorage.setItem(SW_UPDATE_SESSION_KEY, '1');
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        };
+
+        pingWaiting();
+
+        reg.addEventListener('updatefound', () => {
+          if (!navigator.serviceWorker.controller) {
+            swDebugLog('updatefound (première installation, pas de reload auto)');
+            return;
+          }
+          sessionStorage.setItem(SW_UPDATE_SESSION_KEY, '1');
+          swDebugLog('updatefound → marqué pour reload au prochain controllerchange');
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            swDebugLog('installing statechange', nw.state);
+            if (nw.state === 'installed' && reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
   });
 }
 

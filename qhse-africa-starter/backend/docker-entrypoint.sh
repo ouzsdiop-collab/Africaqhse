@@ -4,5 +4,6 @@ if [ -z "$DATABASE_URL" ]; then
   echo "DATABASE_URL est requis."
   exit 1
 fi
+npx prisma generate
 npx prisma migrate deploy
-exec node src/server.js
+exec "$@"

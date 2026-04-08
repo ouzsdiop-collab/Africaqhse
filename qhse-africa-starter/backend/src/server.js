@@ -147,8 +147,9 @@ app.use((err, req, res, _next) => {
 });
 
 export function startServer() {
-  const server = app.listen(PORT, () => {
-    console.log(`API QHSE Africa — http://localhost:${PORT}`);
+  const host = process.env.BIND_HOST || '0.0.0.0';
+  const server = app.listen(PORT, host, () => {
+    console.log(`API QHSE Africa — écoute sur ${host}:${PORT}`);
     console.log(
       `Santé: GET /api/health · readiness DB: GET /api/health/ready`
     );

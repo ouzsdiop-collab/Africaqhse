@@ -20,3 +20,4 @@ RUN chmod +x /docker-entrypoint.sh
 ENV NODE_ENV=production
 EXPOSE 3001
 ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["npm", "start"]

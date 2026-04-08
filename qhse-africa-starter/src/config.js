@@ -1,3 +1,4 @@
+/** Build prod : définir VITE_API_BASE (ex. https://xxx.up.railway.app) sans slash final — injecté au build Vite. */
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
 
 export function getApiBase() {

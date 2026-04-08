@@ -1,6 +1,6 @@
 /**
  * Politique d’accès API — compatible dev local et durcissement prod / SaaS.
- * Variables : REQUIRE_AUTH, ALLOW_X_USER_ID, NODE_ENV, CORS_ORIGINS
+ * Variables : REQUIRE_AUTH, ALLOW_X_USER_ID, NODE_ENV, CORS_ORIGINS, FRONTEND_URL
  */
 
 let warnedCorsProd = false;
@@ -10,6 +10,18 @@ let warnedCorsProd = false;
  */
 function normalizeOrigin(value) {
   return String(value).trim().replace(/\/+$/, '');
+}
+
+/**
+ * Liste d’origines autorisées : CORS_ORIGINS (virgules) + option FRONTEND_URL (une URL).
+ */
+function buildCorsOriginList() {
+  const fromCors = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((s) => normalizeOrigin(s)).filter(Boolean)
+    : [];
+  const front = process.env.FRONTEND_URL ? normalizeOrigin(process.env.FRONTEND_URL) : '';
+  const merged = front ? [front, ...fromCors] : [...fromCors];
+  return [...new Set(merged)];
 }
 
 /**
@@ -42,13 +54,7 @@ export function isXUserIdAllowed() {
  * Options passées à cors().
  */
 export function getCorsMiddlewareOptions() {
-  const raw = process.env.CORS_ORIGINS;
-  const list = raw
-    ? raw
-        .split(',')
-        .map((s) => normalizeOrigin(s))
-        .filter(Boolean)
-    : [];
+  const list = buildCorsOriginList();
 
   return {
     origin(origin, callback) {
