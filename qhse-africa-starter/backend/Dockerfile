@@ -23,6 +23,5 @@ ENV NODE_NO_WARNINGS=1
 
 EXPOSE 3001
 ENTRYPOINT ["/docker-entrypoint.sh"]
-# `node` direct : PID 1 = Node, signaux et logs Railway plus fiables qu’avec `npm start`.
-# Équivalent à `npm start` (même fichier d’entrée).
-CMD ["node", "src/server.js"]
+# L’entrypoint exécute `npm start` explicitement ; CMD reste la valeur par défaut Docker.
+CMD ["npm", "start"]

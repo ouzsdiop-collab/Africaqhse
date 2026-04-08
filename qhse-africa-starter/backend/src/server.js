@@ -61,6 +61,10 @@ try {
   process.exit(1);
 }
 
+if (process.env.VITEST !== 'true') {
+  console.log('🚀 SERVER STARTING...');
+}
+
 export const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
@@ -169,9 +173,11 @@ app.use((err, req, res, _next) => {
 
 export function startServer() {
   bootErrLine(`startServer() — app.listen(${JSON.stringify(BIND_HOST)}, ${PORT})…`);
+  console.log('🚀 ABOUT TO LISTEN...');
 
   const server = app.listen(PORT, BIND_HOST, () => {
     bootErrLine('callback listen — socket TCP ouvert, prêt à accepter les connexions');
+    console.log(`🚀 API RUNNING ON ${BIND_HOST}:${PORT}`);
     console.log(`API QHSE Africa — écoute sur ${BIND_HOST}:${PORT}`);
     console.log(
       `Santé: GET /api/health · readiness DB: GET /api/health/ready`
