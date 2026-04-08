@@ -63,7 +63,7 @@ export function buildActivityLogSnapshot(entries) {
 /** @typedef {'24h' | '7j' | 'all'} ActivityLogPeriod */
 
 /**
- * Filtre temporel best-effort sur l’horodatage affiché (données locales / mock).
+ * Filtre temporel best-effort sur l’horodatage affiché (données locales).
  * @param {{ timestamp?: string }} entry
  * @param {ActivityLogPeriod} period
  */

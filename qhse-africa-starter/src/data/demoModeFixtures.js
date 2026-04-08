@@ -1,6 +1,6 @@
 /**
- * Jeu de données démo — scénario cohérent (Mine Kassa, audit en cours, incidents récents, NC, actions).
- * Utilisé uniquement lorsque le mode démo est actif (voir demoModeFetch.js).
+ * Jeu de données d’exploration — scénario cohérent (Mine Kassa, audit en cours, incidents récents, NC, actions).
+ * Utilisé lorsque le mode exploration local est actif (voir demoModeFetch.js).
  */
 
 export const DEMO_SITE_ID = 'site-demo-kassa';
@@ -12,7 +12,7 @@ export const demoSites = [
     id: DEMO_SITE_ID,
     name: DEMO_SITE_LABEL,
     code: 'MK-RDC',
-    address: 'Site minier — démonstration',
+    address: 'Site minier — jeu d’illustration',
     createdAt: '2025-06-01T08:00:00.000Z'
   }
 ];
@@ -352,21 +352,21 @@ export function buildDemoReportingSummary(incidents, actions, audits, ncs) {
     priorityAlerts.push({
       level: 'critical',
       code: 'INCIDENTS_CRITIQUES',
-      message: `${criticalOpen.length} incident(s) critique(s) encore ouverts (démo).`
+      message: `${criticalOpen.length} incident(s) critique(s) encore ouverts.`
     });
   }
   if (overdue.length > 0) {
     priorityAlerts.push({
       level: 'high',
       code: 'ACTIONS_RETARD',
-      message: `${overdue.length} action(s) en retard — relance plan d’actions (démo).`
+      message: `${overdue.length} action(s) en retard — relance du plan d’actions recommandée.`
     });
   }
   if (openNc.length > 0) {
     priorityAlerts.push({
       level: openNc.length >= 3 ? 'high' : 'info',
       code: 'NC_OUVERTES',
-      message: `${openNc.length} non-conformité(s) ouverte(s) (démo).`
+      message: `${openNc.length} non-conformité(s) ouverte(s).`
     });
   }
 
@@ -420,7 +420,7 @@ export function buildDemoReportingSummary(incidents, actions, audits, ncs) {
     })),
     priorityAlerts,
     export: {
-      documentTitle: 'Synthèse QHSE — mode démo',
+      documentTitle: 'Synthèse QHSE — exploration locale',
       schemaVersion: 1,
       sectionsOrder: [
         'counts',
@@ -441,7 +441,7 @@ export const demoNotifications = [
     id: 'demo-notif-1',
     kind: 'incident',
     title: 'Incident critique — INC-DEMO-2026-04',
-    detail: 'Quasi-accident zone T3 — investigation en cours (démo).',
+    detail: 'Quasi-accident zone T3 — investigation en cours.',
     level: 'critical',
     read: false,
     timestamp: '2026-04-02T15:30:00.000Z'
@@ -450,7 +450,7 @@ export const demoNotifications = [
     id: 'demo-notif-2',
     kind: 'action',
     title: 'Actions en retard — 2 fiches',
-    detail: 'Signalisation nord + preuves formation SST (démo).',
+    detail: 'Signalisation nord + preuves formation SST.',
     level: 'warning',
     read: false,
     timestamp: '2026-04-01T08:00:00.000Z'
@@ -459,7 +459,7 @@ export const demoNotifications = [
     id: 'demo-notif-3',
     kind: 'audit',
     title: 'Audit récent — AUD-DEMO-2026-03',
-    detail: 'Audit ISO 45001 en cours — score provisoire 76 % (démo).',
+    detail: 'Audit ISO 45001 en cours — score provisoire 76 %.',
     level: 'info',
     read: false,
     timestamp: '2026-03-22T09:00:00.000Z'
@@ -468,7 +468,7 @@ export const demoNotifications = [
     id: 'demo-notif-4',
     kind: 'nonconformity',
     title: 'Non-conformité ouverte — Registre formation SST',
-    detail: 'NC majeure liée à AUD-DEMO-2026-03 (démo).',
+    detail: 'NC majeure liée à AUD-DEMO-2026-03.',
     level: 'critical',
     read: false,
     timestamp: '2026-03-21T12:00:00.000Z'
@@ -477,7 +477,7 @@ export const demoNotifications = [
     id: 'demo-notif-5',
     kind: 'action_assigned',
     title: 'Action assignée — Garde-corps T3',
-    detail: 'Vous êtes responsable du suivi (démo).',
+    detail: 'Vous êtes responsable du suivi.',
     level: 'info',
     read: true,
     timestamp: '2026-04-02T16:00:00.000Z'

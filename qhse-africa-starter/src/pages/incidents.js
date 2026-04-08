@@ -2171,7 +2171,7 @@ export function renderIncidents(onAddLog) {
     btnCorrAssist.type = 'button';
     btnCorrAssist.className = 'btn btn-secondary';
     btnCorrAssist.textContent = 'Assistant — action corrective';
-    btnCorrAssist.title = 'Ouvre le formulaire prérempli (IA simulée) — vous validez avant envoi';
+    btnCorrAssist.title = 'Ouvre le formulaire prérempli par l’assistant — vous validez avant envoi';
     btnCorrAssist.hidden = !canWriteActions;
     btnCorrAssist.addEventListener('click', () => {
       void proposeCorrectiveActionViaAssistant(inc);

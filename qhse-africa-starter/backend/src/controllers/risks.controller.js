@@ -19,7 +19,7 @@ function parseBoundedInt(value, field, res) {
 export async function getAll(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const limit = parseListLimit(req.query.limit);
     const q =
       req.query.q != null && String(req.query.q).trim()
@@ -33,7 +33,13 @@ export async function getAll(req, res, next) {
       req.query.category != null && String(req.query.category).trim()
         ? String(req.query.category).trim()
         : null;
-    const items = await risksService.findAllRisks({ siteId, limit, q, status, category });
+    const items = await risksService.findAllRisks(req.qhseTenantId, {
+      siteId,
+      limit,
+      q,
+      status,
+      category
+    });
     res.json(items);
   } catch (err) {
     next(err);
@@ -44,7 +50,7 @@ export async function getById(req, res, next) {
   try {
     const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
     if (!id) return res.status(400).json({ error: 'Identifiant risque requis' });
-    const row = await risksService.findRiskById(id);
+    const row = await risksService.findRiskById(req.qhseTenantId, id);
     if (!row) return res.status(404).json({ error: 'Risque introuvable' });
     res.json(row);
   } catch (err) {
@@ -55,7 +61,7 @@ export async function getById(req, res, next) {
 export async function getStats(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const status =
       req.query.status != null && String(req.query.status).trim()
         ? String(req.query.status).trim()
@@ -64,7 +70,7 @@ export async function getStats(req, res, next) {
       req.query.category != null && String(req.query.category).trim()
         ? String(req.query.category).trim()
         : null;
-    const stats = await risksService.getRiskStats({ siteId, status, category });
+    const stats = await risksService.getRiskStats(req.qhseTenantId, { siteId, status, category });
     res.json(stats);
   } catch (err) {
     next(err);
@@ -98,7 +104,7 @@ export async function create(req, res, next) {
       req.body?.owner == null || req.body.owner === ''
         ? null
         : clampTrimString(req.body.owner, 200) || null;
-    const created = await risksService.createRisk({
+    const created = await risksService.createRisk(req.qhseTenantId, {
       title,
       description,
       category,
@@ -110,6 +116,7 @@ export async function create(req, res, next) {
       siteId: req.body?.siteId
     });
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'risks',
       resourceId: created.id,
@@ -164,8 +171,9 @@ export async function patchById(req, res, next) {
     }
     if ('siteId' in req.body) patch.siteId = req.body.siteId;
 
-    const updated = await risksService.updateRiskById(id, patch);
+    const updated = await risksService.updateRiskById(req.qhseTenantId, id, patch);
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'risks',
       resourceId: updated.id,
@@ -184,13 +192,14 @@ export async function remove(req, res, next) {
   try {
     const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
     if (!id) return res.status(400).json({ error: 'Identifiant risque requis' });
-    const deleted = await risksService.deleteRiskById(id);
+    const deleted = await risksService.deleteRiskById(req.qhseTenantId, id);
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'risks',
-      resourceId: deleted.id,
+      resourceId: deleted.id ?? id,
       action: 'delete',
-      metadata: { title: deleted.title }
+      metadata: {}
     });
     res.status(200).json(deleted);
   } catch (err) {
@@ -213,6 +222,7 @@ export async function analyze(req, res, next) {
     }
     const result = analyzeRiskDescription(description);
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'risks',
       resourceId: 'analyze',

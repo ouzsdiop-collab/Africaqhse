@@ -1,5 +1,5 @@
 /**
- * Évolution G/P — pilotage dynamique (mock / données locales).
+ * Évolution G/P — pilotage dynamique (données locales).
  */
 
 /**

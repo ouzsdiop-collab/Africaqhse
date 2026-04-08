@@ -1,5 +1,5 @@
 /**
- * Store notifications — mock front, prêt pour branchement API.
+ * Store notifications — état front, prêt pour branchement API.
  * Champs utiles backend : id, kind, title, detail, level, read, timestamp, link, priority.
  */
 import { qhseFetch } from '../utils/qhseFetch.js';

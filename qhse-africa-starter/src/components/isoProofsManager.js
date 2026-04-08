@@ -299,7 +299,7 @@ function openProofModal(opts = {}) {
   panel.innerHTML = `
     <div class="iso-proof-modal__head">
       <h3 id="iso-proof-modal-title">Joindre une preuve ISO</h3>
-      <p>Preuve stockée localement (démo) — rattachement obligatoire pour le registre.</p>
+      <p>Preuve traitée dans le navigateur — rattachement obligatoire pour le registre maîtrisé.</p>
     </div>
     <div class="iso-proof-modal__body">
       <div class="iso-proof-drop" tabindex="0">

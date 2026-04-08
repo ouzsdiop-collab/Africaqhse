@@ -25,11 +25,17 @@ export function getJwtSecret() {
 
 /**
  * @param {{ id: string, name: string, email: string, role: string }} user
+ * @param {string} tenantId — organisation active (claim `tid`)
  */
-export function issueAccessToken(user) {
+export function issueAccessToken(user, tenantId) {
+  const tid = typeof tenantId === 'string' ? tenantId.trim() : '';
+  if (!tid) {
+    throw new Error('tenantId requis pour émettre un jeton');
+  }
   return jwt.sign(
     {
       sub: user.id,
+      tid,
       role: String(user.role ?? '').trim().toUpperCase()
     },
     getJwtSecret(),
@@ -70,5 +76,57 @@ export async function authenticateWithEmailPassword(email, password) {
     name: user.name,
     email: user.email,
     role: String(user.role ?? '').trim().toUpperCase()
+  };
+}
+
+/**
+ * @param {string} userId
+ */
+export async function listUserTenants(userId) {
+  if (!userId || typeof userId !== 'string') return [];
+  return prisma.userTenant.findMany({
+    where: { userId: userId.trim() },
+    include: { tenant: { select: { id: true, slug: true, name: true } } },
+    orderBy: { createdAt: 'asc' }
+  });
+}
+
+/**
+ * @param {string} userId
+ * @param {unknown} tenantSlug — optionnel ; si plusieurs adhésions, requis
+ */
+export async function resolveActiveMembership(userId, tenantSlug) {
+  const list = await listUserTenants(userId);
+  if (!list.length) {
+    return { kind: 'no_membership' };
+  }
+  const rawSlug =
+    tenantSlug != null && String(tenantSlug).trim() !== ''
+      ? String(tenantSlug).trim().toLowerCase()
+      : '';
+  if (rawSlug) {
+    const m = list.find((x) => String(x.tenant.slug).toLowerCase() === rawSlug);
+    if (!m) {
+      return {
+        kind: 'unknown_tenant',
+        tenants: list.map((x) => ({
+          slug: x.tenant.slug,
+          name: x.tenant.name,
+          role: String(x.role ?? '').trim().toUpperCase()
+        }))
+      };
+    }
+    return { kind: 'ok', membership: m };
+  }
+  if (list.length === 1) {
+    return { kind: 'ok', membership: list[0] };
+  }
+  return {
+    kind: 'tenant_required',
+    tenants: list.map((x) => ({
+      slug: x.tenant.slug,
+      name: x.tenant.name,
+      role: String(x.role ?? '').trim().toUpperCase()
+    }))
   };
 }

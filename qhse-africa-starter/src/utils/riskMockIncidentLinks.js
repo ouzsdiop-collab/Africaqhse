@@ -1,5 +1,5 @@
 /**
- * Liaisons incident → risque (mock front, sessionStorage).
+ * Liaisons incident → risque (sessionStorage).
  */
 
 import { incidentsLinkedToRiskFromApiRows } from './riskIncidentLinks.js';
@@ -48,7 +48,7 @@ export function addMockIncidentRefToRisk(riskTitle, incidentRef) {
 }
 
 /**
- * Fusion API (description) + refs mock.
+ * Fusion API (description) + références locales.
  * @param {string} riskTitle
  * @param {Array<object>} apiRows
  */
@@ -77,7 +77,7 @@ export function getMergedIncidentsForRisk(riskTitle, apiRows) {
       fromApi.push({
         ref,
         type: '—',
-        status: 'Lien manuel (mock)',
+        status: 'Lien manuel',
         date: '—'
       });
     }

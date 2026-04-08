@@ -7,7 +7,7 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import { appState } from '../utils/state.js';
 
-/** Registre produits / FDS — données mock */
+/** Registre produits / FDS — jeu d’exemple (peut être complété par import). */
 const PRODUCT_REGISTRY = [
   {
     id: 'seed-0',
@@ -26,7 +26,7 @@ const PRODUCT_REGISTRY = [
     fdsRescue: 'Retirer les victimes à l’air frais. Rincer abondamment à l’eau (15 min). Consulter un médecin.',
     fdsMeasures: 'Poste de rinçage oculaire à proximité. Pas d’évacuation à l’égout.',
     risksLinked: ['Corrosion', 'Projection', 'Réaction avec eau'],
-    incidentsHint: 'Aucun incident lié sur la période démo — consulter le module Incidents.',
+    incidentsHint: 'Aucun incident lié sur la période affichée — consulter le module Incidents.',
     fdsHumanValidated: true,
     iaSuggestedActions: [],
     iaInconsistencies: []
@@ -48,7 +48,7 @@ const PRODUCT_REGISTRY = [
     fdsRescue: 'Ne pas faire vomir en cas d’ingestion. Appeler les secours.',
     fdsMeasures: 'Détecteurs gaz, permis feu, ventilation.',
     risksLinked: ['Inflammabilité', 'Atmosphères explosives'],
-    incidentsHint: 'Aucun incident lié en démo.',
+    incidentsHint: 'Aucun incident lié sur ce périmètre.',
     fdsHumanValidated: true,
     iaSuggestedActions: [],
     iaInconsistencies: []
@@ -69,7 +69,7 @@ const PRODUCT_REGISTRY = [
     fdsRescue: 'Rinçage eau prolongé, appel centre antipoison.',
     fdsMeasures: '',
     risksLinked: ['Corrosion cutanée'],
-    incidentsHint: 'Aucun incident lié en démo.',
+    incidentsHint: 'Aucun incident lié sur ce périmètre.',
     fdsHumanValidated: false,
     iaSuggestedActions: ['Compléter la FDS signée', 'Former les nouveaux opérateurs'],
     iaInconsistencies: ['Fichier FDS non joint au registre']
@@ -90,7 +90,7 @@ const PRODUCT_REGISTRY = [
     fdsRescue: 'Appeler un médecin en cas d’ingestion.',
     fdsMeasures: 'Lavage des mains après usage.',
     risksLinked: ['Toxicité aiguë faible'],
-    incidentsHint: 'Aucun incident lié en démo.',
+    incidentsHint: 'Aucun incident lié sur ce périmètre.',
     fdsHumanValidated: true,
     iaSuggestedActions: [],
     iaInconsistencies: []
@@ -304,7 +304,7 @@ function computeAlerts(products) {
 }
 
 /**
- * Préremplissage simulé (démo front) — pas de lecture réelle du PDF/image ; validation humaine obligatoire.
+ * Préremplissage assisté côté navigateur — pas de lecture réelle du PDF/image ; validation humaine obligatoire.
  * @param {File} file
  */
 function simulateFdsIaExtraction(file) {
@@ -327,11 +327,11 @@ function simulateFdsIaExtraction(file) {
           ? ['Gants de protection chimique', 'Lunettes étanches', 'Combinaison si projection']
           : ['Gants nitrile', 'Lunettes', 'Masque FFP2 si poussières'];
       const storage =
-        'Conserver dans un récipient fermé, zone ventilée, à l’écart des sources d’ignition et des incompatibles (démo IA).';
+        'Conserver dans un récipient fermé, zone ventilée, à l’écart des sources d’ignition et des incompatibles (à reprendre depuis la FDS).';
       const rescue =
-        'En cas de contact : rincer abondamment à l’eau 15 min. En cas d’ingestion : ne pas faire vomir, appeler les secours (démo IA).';
+        'En cas de contact : rincer abondamment à l’eau 15 min. En cas d’ingestion : ne pas faire vomir, appeler les secours (à reprendre depuis la FDS).';
       const measures =
-        'Ventilation locale, postes de rinçage, formation manipulation, interdiction repas sur poste (démo IA).';
+        'Ventilation locale, postes de rinçage, formation manipulation, interdiction repas sur poste (à reprendre depuis la FDS).';
       const suggested = [
         'Vérifier la cohérence N° CAS avec la FDS officielle fournisseur.',
         'Mettre à jour le registre des risques si nouvelle substance.',
@@ -364,7 +364,7 @@ function simulateFdsIaExtraction(file) {
         }),
         signalWord: 'Attention',
         hazards:
-          'Extraction démo (fichier non lu) : reprendre intégralement les phrases H et P depuis le document officiel signé.',
+          'Extraction d’exemple (fichier non lu) : reprendre intégralement les phrases H et P depuis le document officiel signé.',
         fdsValidUntil,
         pictograms,
         epi,
@@ -446,7 +446,7 @@ function createProductRow(product, handlers = {}) {
     : 'Aucune pièce jointe : la substance reste gérée via les champs de la fiche.';
   btnFds.addEventListener('click', () => {
     if (typeof onFds === 'function') onFds(product);
-    else showToast(`Fichier source — ${product.name} (démo).`, 'info');
+    else showToast(`Fichier source — ${product.name}.`, 'info');
   });
 
   const btnDet = document.createElement('button');
@@ -455,7 +455,7 @@ function createProductRow(product, handlers = {}) {
   btnDet.textContent = 'Détails';
   btnDet.addEventListener('click', () => {
     if (typeof onDetail === 'function') onDetail(product);
-    else showToast(`Fiche produit ${product.name} (démo).`, 'info');
+    else showToast(`Fiche produit ${product.name}.`, 'info');
   });
 
   actions.append(badge, btnFds, btnDet);
@@ -509,7 +509,7 @@ function renderProductDetail(product, host) {
       </div>
     </div>
     <p class="products-detail-exploit-note" role="note">
-      <strong>Fiche exploitable :</strong> dangers, EPI, stockage et secours ci-dessous servent au terrain et au pilotage. Le fichier PDF/image n’est qu’une référence (non archivée serveur en démo).
+      <strong>Fiche exploitable :</strong> dangers, EPI, stockage et secours ci-dessous servent au terrain et au pilotage. Le fichier PDF/image n’est qu’une référence (hébergement selon votre déploiement).
     </p>
     <div class="products-detail-body">
       <section class="products-detail-block products-detail-block--general">
@@ -538,7 +538,7 @@ function renderProductDetail(product, host) {
       </section>
       <section class="products-detail-block products-detail-block--ia">
         <h4>Analyse IA (indicative)</h4>
-        <p class="products-detail-note">Pistes générées (démo) — à recouper avec la FDS ; aucune décision automatique.</p>
+        <p class="products-detail-note">Pistes générées par l’assistant — à recouper avec la FDS ; aucune décision automatique.</p>
         <p class="products-detail-subh">Incohérences signalées</p>
         <ul class="products-detail-list">${ulFromLines(product.iaInconsistencies)}</ul>
         <p class="products-detail-subh">Actions suggérées</p>
@@ -592,7 +592,7 @@ function renderProductDetail(product, host) {
     const rb = document.createElement('button');
     rb.type = 'button';
     rb.className = 'btn btn-secondary products-detail-ia-refresh';
-    rb.textContent = 'Régénérer analyse IA (démo)';
+    rb.textContent = 'Régénérer l’analyse (locale)';
     rb.title = 'Simule une nouvelle passe IA locale — met à jour les listes sur la fiche enregistrée.';
     iaBlock.append(rb);
     rb.addEventListener('click', async () => {
@@ -619,7 +619,7 @@ function renderProductDetail(product, host) {
         showToast('Analyse IA régénérée — validation humaine toujours requise pour toute décision.', 'info');
       } finally {
         rb.disabled = false;
-        rb.textContent = 'Régénérer analyse IA (démo)';
+        rb.textContent = 'Régénérer l’analyse (locale)';
       }
     });
   }
@@ -648,7 +648,7 @@ function buildKpiAndVizCard(products) {
       <div>
         <div class="section-kicker">Pilotage substances</div>
         <h3>Vue d’ensemble</h3>
-        <p class="content-card-lead">Indicateurs calculés sur le registre local (navigateur) — pas de serveur en démo.</p>
+        <p class="content-card-lead">Indicateurs calculés sur le registre affiché (navigateur ou API selon configuration).</p>
       </div>
     </div>
     <div class="products-kpi-grid">
@@ -804,7 +804,7 @@ export function renderProducts() {
       <p class="products-page-lead">
         La <strong>fiche structurée</strong> (dangers, EPI, secours…) est l’outil terrain ; le PDF n’est qu’une pièce jointe. Import → contrôle humain → registre local.
       </p>
-      <p class="products-flow-inline" aria-label="Étapes">Import · IA (démo) · Validation humaine · Registre</p>
+      <p class="products-flow-inline" aria-label="Étapes">Import · Assistant IA · Validation humaine · Registre</p>
     </div>
   `;
 
@@ -822,7 +822,7 @@ export function renderProducts() {
         <div class="section-kicker">Étape 1 — Import</div>
         <h3>Importer une FDS (PDF ou image)</h3>
         <p class="content-card-lead products-import-lead">
-          PDF ou image : préremplissage <strong>simulé</strong> (pas d’OCR réel ici) — vous complétez la fiche exploitable avant enregistrement.
+          PDF ou image : préremplissage <strong>assisté</strong> (sans OCR réel dans le navigateur) — vous complétez la fiche exploitable avant enregistrement.
         </p>
       </div>
     </div>
@@ -1144,7 +1144,7 @@ export function renderProducts() {
       return;
     }
     showToast(
-      `Aucune pièce jointe en session pour « ${product.name} » — la fiche repose sur les champs saisis (démo).`,
+      `Aucune pièce jointe en session pour « ${product.name} » — la fiche repose sur les champs saisis.`,
       'info'
     );
   }

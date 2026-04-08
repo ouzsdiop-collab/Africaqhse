@@ -11,7 +11,14 @@ export const navigationGroups = [
       { id: 'dashboard', label: 'Dashboard', icon: '◫' },
       { id: 'analytics', label: 'Analytics / Synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
-      { id: 'activity-log', label: 'Journal', icon: '≣' }
+      { id: 'activity-log', label: 'Journal', icon: '≣' },
+      {
+        id: 'audit-logs',
+        label: 'Journal serveur',
+        icon: '≡',
+        resource: 'audit_logs',
+        verb: 'read'
+      }
     ]
   },
   {
@@ -28,7 +35,8 @@ export const navigationGroups = [
     label: 'Conformité',
     items: [
       { id: 'iso', label: 'ISO & Conformité', icon: '◎' },
-      { id: 'products', label: 'Produits / FDS', icon: '⚗' }
+      { id: 'products', label: 'Produits / FDS', icon: '⚗' },
+      { id: 'habilitations', label: 'Habilitations', icon: '⛑' }
     ]
   },
   {
@@ -57,9 +65,9 @@ export const pageTopbarById = {
     cta: { label: 'Déclarer incident', pageId: 'incidents' }
   },
   dashboard: {
-    title: 'Cockpit QHSE',
+    title: 'Tableau de bord',
     kicker: 'Pilotage',
-    subtitle: 'Vue consolidée des indicateurs critiques, alertes et priorités du jour.',
+    subtitle: 'Indicateurs critiques, alertes et priorités du jour, par organisation et par site.',
     cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
   sites: {
@@ -111,6 +119,12 @@ export const pageTopbarById = {
     subtitle: 'Fiches de données sécurité et registres produits.',
     cta: { label: 'ISO & Conformité', pageId: 'iso' }
   },
+  habilitations: {
+    title: 'Habilitations',
+    kicker: 'Conformité',
+    subtitle: 'Registre des habilitations terrain, sous-traitants, échéances et conformité multi-sites.',
+    cta: { label: 'Voir les audits', pageId: 'audits' }
+  },
   imports: {
     title: 'Import de documents',
     kicker: 'Documents',
@@ -143,11 +157,18 @@ export const pageTopbarById = {
     subtitle: 'Historique des changements et traçabilité opérationnelle.',
     cta: { label: 'Audits', pageId: 'audits' }
   },
+  'audit-logs': {
+    title: 'Journal serveur',
+    kicker: 'Pilotage',
+    subtitle:
+      'Traçabilité des actions sensibles enregistrées par l’API (multi-tenant, conservation serveur).',
+    cta: { label: 'Journal', pageId: 'activity-log' }
+  },
   settings: {
     title: 'Paramètres & configuration',
     kicker: 'Paramètres',
     subtitle:
-      'Organisation, alertes, notifications, exports, référentiels, règles IA et cycle de contrôle — préférences locales (démo) jusqu’à branchement API.',
+      'Organisation, sécurité des accès, alertes, notifications, exports et options d’affichage — centralisez vos préférences métier.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }
   }
 };

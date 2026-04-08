@@ -19,9 +19,9 @@ import { emitBusinessEvent } from '../services/businessEvents.service.js';
 export async function getAll(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const limit = parseListLimit(req.query.limit);
-    const items = await auditsService.findAllAudits({ siteId, limit });
+    const items = await auditsService.findAllAudits(req.qhseTenantId, { siteId, limit });
     res.json(items);
   } catch (err) {
     next(err);
@@ -43,7 +43,7 @@ export async function create(req, res, next) {
     if (!parsed.ok) {
       return res.status(400).json({ error: parsed.error });
     }
-    const created = await auditsService.createAudit({
+    const created = await auditsService.createAudit(req.qhseTenantId, {
       ref: r,
       site: si,
       score: parsed.value,
@@ -55,6 +55,7 @@ export async function create(req, res, next) {
     const payload =
       delivery.sent && delivery.audit ? delivery.audit : created;
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'audits',
       resourceId: payload.id,
@@ -92,7 +93,10 @@ export async function patch(req, res, next) {
     }
 
     const existing = await prisma.audit.findFirst({
-      where: { OR: [{ id: param }, { ref: param }] }
+      where: {
+        tenantId: req.qhseTenantId,
+        OR: [{ id: param }, { ref: param }]
+      }
     });
     if (!existing) {
       return res.status(404).json({ error: 'Audit introuvable' });
@@ -128,7 +132,7 @@ export async function patch(req, res, next) {
         data.siteId = null;
       } else {
         try {
-          data.siteId = await assertSiteExistsOrNull(siteId);
+          data.siteId = await assertSiteExistsOrNull(req.qhseTenantId, siteId);
         } catch (e) {
           if (e.statusCode === 400) {
             return res.status(400).json({ error: e.message });
@@ -151,6 +155,7 @@ export async function patch(req, res, next) {
       delivery.sent && delivery.audit ? delivery.audit : updated;
 
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'audits',
       resourceId: payload.id,
@@ -163,6 +168,7 @@ export async function patch(req, res, next) {
       !isFinalAuditStatus(existing.status)
     ) {
       void emitBusinessEvent('audit.validated', {
+        tenantId: req.qhseTenantId,
         auditId: payload.id,
         ref: payload.ref,
         siteId: payload.siteId ?? null,

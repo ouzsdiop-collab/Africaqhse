@@ -54,21 +54,29 @@ export function isFinalAuditStatus(status) {
 
 const RECIPIENT_ROLES = new Set(['ADMIN', 'QHSE', 'DIRECTION']);
 
-async function collectAutomaticRecipientEmails() {
-  const users = await prisma.user.findMany({
-    select: { email: true, role: true }
+/**
+ * Destinataires des rapports auto : adhésions actives dans le tenant (rôles pilotage).
+ * @param {string | null | undefined} tenantId
+ */
+async function collectAutomaticRecipientEmails(tenantId) {
+  const t =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : '';
+  if (!t) return [];
+  const memberships = await prisma.userTenant.findMany({
+    where: {
+      tenantId: t,
+      role: { in: Array.from(RECIPIENT_ROLES) }
+    },
+    include: { user: { select: { email: true } } }
   });
   const out = [];
   const seen = new Set();
-  for (const u of users) {
-    const r = String(u.role ?? '')
-      .trim()
-      .toUpperCase();
-    if (!RECIPIENT_ROLES.has(r)) continue;
-    const e = String(u.email ?? '').trim().toLowerCase();
+  for (const m of memberships) {
+    const u = m.user;
+    const e = String(u?.email ?? '').trim().toLowerCase();
     if (!e || !EMAIL_RE.test(e) || seen.has(e)) continue;
     seen.add(e);
-    out.push(u.email.trim());
+    out.push(String(u.email).trim());
   }
   return out;
 }
@@ -90,7 +98,7 @@ export async function trySendFinalAuditReport(_previous, current) {
     return { sent: false, reason: 'already_sent' };
   }
 
-  const recipients = await collectAutomaticRecipientEmails();
+  const recipients = await collectAutomaticRecipientEmails(current.tenantId);
   if (!recipients.length) {
     console.warn(
       '[auditAutoReport] Aucun destinataire (rôles ADMIN / QHSE / DIRECTION avec e-mail valide).'
@@ -106,8 +114,12 @@ export async function trySendFinalAuditReport(_previous, current) {
   }
 
   try {
+    const ncWhere = { auditRef: current.ref };
+    if (current.tenantId) {
+      ncWhere.tenantId = current.tenantId;
+    }
     const nonConformities = await prisma.nonConformity.findMany({
-      where: { auditRef: current.ref },
+      where: ncWhere,
       orderBy: { createdAt: 'asc' }
     });
 

@@ -16,11 +16,15 @@ import {
 } from './services/notificationIntelligence.service.js';
 import { appState, setActiveSiteContext, setCurrentPage } from './utils/state.js';
 import { getSessionUser, restoreSessionFromToken } from './data/sessionUser.js';
-import { pageTopbarById } from './data/navigation.js';
+import { getNavContextForPage, pageTopbarById } from './data/navigation.js';
 import { qhseFetch } from './utils/qhseFetch.js';
 import { withSiteQuery } from './utils/siteFilter.js';
 import { getDisplayMode } from './utils/displayMode.js';
+import { TERRAIN_ALLOWED_PAGE_IDS, TERRAIN_BOTTOM_NAV_ITEMS } from './utils/terrainModePages.js';
 import { syncTerrainIncidentQueue } from './services/terrainOffline.service.js';
+import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
+
+ensureProductionDemoModeOff();
 
 const MOBILE_STYLE_ID = 'qhse-terrain-mobile-shell';
 
@@ -29,13 +33,19 @@ function ensureTerrainMobileStyles() {
   const el = document.createElement('style');
   el.id = MOBILE_STYLE_ID;
   el.textContent = `
-@media (max-width: 900px){
+.terrain-bottom-nav{display:none!important}
+@media (max-width:900px){
   [data-display-mode="terrain"] .sidebar-v2{display:none!important}
   [data-display-mode="terrain"] .topbar-v2__center,
-  [data-display-mode="terrain"] .topbar-v2__quick-wrap,
-  [data-display-mode="terrain"] .topbar-v2__ai{display:none!important}
+  [data-display-mode="terrain"] .topbar-v2__quick-wrap{display:none!important}
   [data-display-mode="terrain"] .main-shell{padding-bottom:74px}
-  .terrain-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:2000;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;background:color-mix(in srgb,var(--color-surface) 95%,black);border-top:1px solid var(--color-border-secondary)}
+  [data-display-mode="terrain"] .terrain-bottom-nav{
+    display:grid!important;
+    position:fixed;left:0;right:0;bottom:0;z-index:2000;
+    grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;
+    background:color-mix(in srgb,var(--color-surface) 95%,black);
+    border-top:1px solid var(--color-border-secondary)
+  }
   .terrain-bottom-nav__btn{min-height:48px;border:1px solid var(--color-border-secondary);border-radius:12px;background:var(--color-background-secondary);color:var(--text);font-size:12px;font-weight:700}
   .terrain-bottom-nav__btn.is-active{border-color:color-mix(in srgb,var(--app-accent,#14b8a6) 45%,var(--color-border-secondary));background:color-mix(in srgb,var(--app-accent,#14b8a6) 16%,var(--color-background-secondary))}
 }
@@ -47,12 +57,7 @@ function createTerrainBottomNav(currentPage, onNavigate) {
   const nav = document.createElement('nav');
   nav.className = 'terrain-bottom-nav';
   nav.setAttribute('aria-label', 'Navigation terrain');
-  const items = [
-    { id: 'terrain-mode', label: 'Accueil' },
-    { id: 'actions', label: 'Actions' },
-    { id: 'permits', label: 'Permis' },
-    { id: 'settings', label: 'Profil' }
-  ];
+  const items = TERRAIN_BOTTOM_NAV_ITEMS;
   items.forEach((it) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -160,7 +165,7 @@ function showFatalShell(message, detail) {
   const p = document.createElement('p');
   p.style.cssText = 'margin:0 0 14px;font-size:14px;line-height:1.5;opacity:.9;';
   p.textContent =
-    'Si vous ouvrez les fichiers en double-clic (file://), utilisez plutôt le serveur de dev : dans le dossier du projet, exécutez npm run dev puis ouvrez http://localhost:5173 .';
+    'QHSE Control doit être servi via un serveur web (recommandé : npm run dev puis http://localhost:5173). L’ouverture directe du fichier (file://) n’est pas prise en charge.';
   const code = document.createElement('pre');
   code.style.cssText =
     'margin:0 0 16px;padding:12px;border-radius:10px;background:rgba(0,0,0,.35);font-size:12px;overflow:auto;white-space:pre-wrap;word-break:break-word;';
@@ -180,9 +185,29 @@ function logBootEvent() {
   activityLogStore.add({
     module: 'system',
     action: 'Application initialisée',
-    detail: 'Shell front chargé avec succès',
+    detail: 'Application QHSE Control prête',
     user: 'Système'
   });
+}
+
+const APP_BRAND_TITLE = 'QHSE Control/** @param {string} pageId */';
+
+function syncDocumentTitle(pageId) {
+  if (pageId === 'login') {
+    document.title = `${APP_BRAND_TITLE} — Connexion`;
+    return;
+  }
+  const meta = pageTopbarById[pageId];
+  if (meta?.title) {
+    document.title = `${meta.title} · ${APP_BRAND_TITLE}`;
+    return;
+  }
+  const ctx = getNavContextForPage(pageId);
+  if (ctx?.item?.label) {
+    document.title = `${ctx.item.label} · ${APP_BRAND_TITLE}`;
+    return;
+  }
+  document.title = APP_BRAND_TITLE;
 }
 
 function renderApp() {
@@ -203,13 +228,13 @@ function renderApp() {
     const terrainMode = getDisplayMode() === 'terrain';
     ensureTerrainMobileStyles();
     if (terrainMode) {
-      const terrainAllowed = new Set(['terrain-mode', 'incidents', 'permits', 'actions', 'settings']);
-      if (!terrainAllowed.has(appState.currentPage)) {
+      if (!TERRAIN_ALLOWED_PAGE_IDS.has(appState.currentPage)) {
         setCurrentPage('terrain-mode');
       }
     }
 
     if (appState.currentPage === 'login') {
+      syncDocumentTitle('login');
       app.append(
         createLoginView({
           onSuccess: () => renderApp()
@@ -324,6 +349,7 @@ function renderApp() {
       shell.append(mobileNav);
     }
     app.append(shell);
+    syncDocumentTitle(appState.currentPage);
     void refreshShellNavBadges(sidebar).catch((err) => {
       console.error('[QHSE] refreshShellNavBadges', err);
     });
@@ -354,7 +380,7 @@ async function boot() {
     if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
       showFatalShell(
         'Application non chargée (fichier local)',
-        'Ouvrez http://localhost:5173 après npm run dev (dossier qhse-africa-starter). Le mode file:// ne charge pas correctement les modules JavaScript.'
+        'Ouvrez http://localhost:5173 après npm run dev. Le mode file:// ne charge pas correctement les modules JavaScript.'
       );
       return;
     }

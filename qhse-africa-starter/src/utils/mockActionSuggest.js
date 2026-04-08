@@ -1,5 +1,5 @@
 /**
- * Suggestion locale (mock IA) pour création d’action — à valider terrain.
+ * Suggestion locale (assistant) pour création d’action — à valider terrain.
  */
 
 /**

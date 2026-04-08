@@ -21,7 +21,7 @@ export function openActionCreateDialog(opts) {
 
   inner.innerHTML = `
     <h2 class="action-create-dialog__title">Nouvelle action</h2>
-    <p class="action-create-dialog__lead">L’origine est obligatoire — suggestion automatique (mock) pour accélérer la saisie terrain.</p>
+    <p class="action-create-dialog__lead">L’origine est obligatoire — l’assistant peut préremplir la description et la priorité pour gagner du temps sur le terrain.</p>
     <form class="action-create-dialog__form" id="action-create-form">
       <label>Titre *
         <input type="text" name="title" required maxlength="240" placeholder="Ex. Réduction dérive température cuve 3" />
@@ -64,13 +64,13 @@ export function openActionCreateDialog(opts) {
           <option value="">— À assigner —</option>
         </select>
       </label>
-      <label>Risque lié (ref. mock)
+      <label>Risque lié (référence)
         <input type="text" name="linkedRisk" placeholder="Ex. Renversement engin" maxlength="200" />
       </label>
-      <label>Audit lié (ref. mock)
+      <label>Audit lié (référence)
         <input type="text" name="linkedAudit" placeholder="Ex. AUD-2026-04" maxlength="120" />
       </label>
-      <label>Incident lié (ref. mock)
+      <label>Incident lié (référence)
         <input type="text" name="linkedIncident" placeholder="Ex. INC-204" maxlength="120" />
       </label>
       <label>Statut initial

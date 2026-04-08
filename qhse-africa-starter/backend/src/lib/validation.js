@@ -4,6 +4,10 @@ export const LIST_DEFAULT_LIMIT = 300;
 /** Plafond absolu pour ?limit= */
 export const LIST_MAX_LIMIT = 500;
 
+/** Mot de passe utilisateur (création / reset admin) — aligné API + UI. */
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;
+
 export const FIELD_LIMITS = {
   actionTitle: 500,
   actionDetail: 8000,
@@ -66,6 +70,31 @@ export function isValidEmailBasic(email) {
   const t = email.trim().toLowerCase();
   if (t.length < 5 || t.length > FIELD_LIMITS.emailMax) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+}
+
+/**
+ * Politique V1 : longueur, au moins une lettre (Unicode), au moins un chiffre.
+ * @param {unknown} password
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function validatePasswordPolicy(password) {
+  const p = String(password ?? '');
+  if (p.length < PASSWORD_MIN_LENGTH) {
+    return {
+      ok: false,
+      error: `Mot de passe trop court (minimum ${PASSWORD_MIN_LENGTH} caractères)`
+    };
+  }
+  if (p.length > PASSWORD_MAX_LENGTH) {
+    return { ok: false, error: 'Mot de passe trop long' };
+  }
+  if (!/\p{L}/u.test(p)) {
+    return { ok: false, error: 'Le mot de passe doit contenir au moins une lettre' };
+  }
+  if (!/\d/.test(p)) {
+    return { ok: false, error: 'Le mot de passe doit contenir au moins un chiffre' };
+  }
+  return { ok: true };
 }
 
 /**

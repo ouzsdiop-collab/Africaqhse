@@ -90,13 +90,24 @@ function isActionOverdue(row) {
 }
 
 /**
- * @param {{ siteId?: string | null }} opt
+ * @param {{ tenantId?: string | null, siteId?: string | null }} opt
  */
 async function loadAppSignals(opt) {
+  const tenantId =
+    opt.tenantId != null && String(opt.tenantId).trim() !== ''
+      ? String(opt.tenantId).trim()
+      : null;
+  if (!tenantId) {
+    return { overdueActions: 0, openNc: 0, openActionsSample: 0 };
+  }
   const siteId =
     opt.siteId != null && String(opt.siteId).trim() !== '' ? String(opt.siteId).trim() : null;
-  const actionWhere = siteId ? { siteId } : undefined;
-  const ncWhere = siteId ? { siteId } : undefined;
+  const actionWhere = { tenantId };
+  const ncWhere = { tenantId };
+  if (siteId) {
+    actionWhere.siteId = siteId;
+    ncWhere.siteId = siteId;
+  }
 
   const [actions, ncs] = await Promise.all([
     prisma.action.findMany({
@@ -216,7 +227,7 @@ export async function analyzeComplianceAssist(input) {
 
   const controlled = Array.isArray(input.controlledDocuments) ? input.controlledDocuments : [];
 
-  const historyRows = await findAllImportHistory();
+  const historyRows = await findAllImportHistory(tenantId);
   const recent = historyRows.slice(0, 100);
   const extraCorpus = corpusFromImportHistory(recent);
 
@@ -232,7 +243,7 @@ export async function analyzeComplianceAssist(input) {
     extraCorpus
   );
 
-  const appSignals = await loadAppSignals({ siteId: input.siteId });
+  const appSignals = await loadAppSignals({ tenantId, siteId: input.siteId });
 
   let penalty = 0;
   if (appSignals.overdueActions >= 8) penalty += 1;

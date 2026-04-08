@@ -1,5 +1,5 @@
 /**
- * Bloc graphiques audit (dashboard) — Chart.js, données API + jeu démo si vide.
+ * Bloc graphiques audit (dashboard) — Chart.js, données API ou jeu d’illustration si vide.
  */
 
 import {
@@ -158,10 +158,10 @@ export function createDashboardAuditChartBlock() {
 
     interpret.textContent = model.interpret || '';
     const footBits = [];
-    if (model.usingDemoScore) footBits.push('courbe score : jeu de démonstration');
-    if (model.usingDemoNc) footBits.push('NC majeures / mineures : jeu de démonstration');
+    if (model.usingDemoScore) footBits.push('courbe score : série illustrative en l’absence d’historique suffisant');
+    if (model.usingDemoNc) footBits.push('NC majeures / mineures : série illustrative en l’absence d’historique suffisant');
     foot.textContent = footBits.length
-      ? `Note — ${footBits.join(' · ')}. Les données réelles remplacent la démo dès qu’elles existent sur la période.`
+      ? `Note — ${footBits.join(' · ')}. Les chiffres réels s’affichent dès que les audits et NC couvrent la période.`
       : 'Données issues des audits et NC chargés pour les six derniers mois.';
 
     setVisible(skeleton, true);

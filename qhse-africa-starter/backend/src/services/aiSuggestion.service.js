@@ -47,6 +47,7 @@ export function buildStructuredContent(partial) {
 
 /**
  * @param {{
+ *   tenantId?: string | null,
  *   type: string,
  *   context?: Record<string, unknown>,
  *   targetIncidentId?: string | null,
@@ -59,6 +60,7 @@ export function buildStructuredContent(partial) {
  */
 export async function generateSuggestion(opts) {
   const {
+    tenantId,
     type,
     context = {},
     targetIncidentId,
@@ -68,10 +70,12 @@ export async function generateSuggestion(opts) {
     riskRef,
     userId
   } = opts;
+  const tenantRow =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
 
-  const t = String(type || 'generic').slice(0, 64);
+  const typeKey = String(type || 'generic').slice(0, 64);
   let structured = buildStructuredContent({
-    summary: `Suggestion générée (type « ${t} ») — revue obligatoire avant toute action.`,
+       summary: `Suggestion générée (type « ${typeKey} ») — revue obligatoire avant toute action.`,
     confidence: 0.45,
     items: [{ label: 'Contexte', value: JSON.stringify(context).slice(0, 3000), source: 'heuristic' }],
     proposedPatch: null,
@@ -82,10 +86,10 @@ export async function generateSuggestion(opts) {
 
   if (isExternalAiEnabled()) {
     const sys =
-      t === 'analytics_quad'
+      typeKey === 'analytics_quad'
         ? 'Tu es un analyste QHSE senior. On te fournit un contexte JSON agrégé (actions, incidents, NC, audits, répartition types / statuts) issu du tableau Analytics — pas de données personnelles. Rédige une synthèse en français : 3 à 5 phrases courtes, reliant retards d’actions, volumes relatifs, incidents critiques et statuts d’audits ; ton professionnel, orienté pilotage. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array optionnel de {label,value} pour 2 à 4 pistes), warnings (array of strings), proposedPatch (null).'
         : 'Tu es un assistant QHSE. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array of {label,value}), warnings (array of strings), proposedPatch (object or null). Aucune clé sensible supplémentaire.';
-    const user = JSON.stringify({ type: t, context });
+    const user = JSON.stringify({ type: typeKey, context });
     const ext = await requestJsonCompletion({ system: sys, user });
     providerMeta = {
       mode: 'openai',
@@ -110,7 +114,8 @@ export async function generateSuggestion(opts) {
 
   const row = await prisma.aiSuggestion.create({
     data: {
-      type: t,
+      tenantId: tenantRow,
+      type: typeKey,
       content: structured,
       status: AI_SUGGESTION_STATUS.PENDING,
       createdBySource: userId ? 'user' : 'system',
@@ -130,6 +135,7 @@ export async function generateSuggestion(opts) {
 /**
  * Analyse document interne — ne stocke pas le texte brut hors JSON structuré (extraits limités).
  * @param {{
+ *   tenantId?: string | null,
  *   text: string,
  *   fileName?: string,
  *   importHistoryId?: string | null,
@@ -137,7 +143,9 @@ export async function generateSuggestion(opts) {
  * }} opts
  */
 export async function analyzeDocument(opts) {
-  const { text, fileName = '', importHistoryId, userId } = opts;
+  const { tenantId, text, fileName = '', importHistoryId, userId } = opts;
+  const tenantRow =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
   const excerpt = String(text || '')
     .trim()
     .slice(0, 12000);
@@ -185,6 +193,7 @@ export async function analyzeDocument(opts) {
 
   const row = await prisma.aiSuggestion.create({
     data: {
+      tenantId: tenantRow,
       type: 'document',
       content: structured,
       status: AI_SUGGESTION_STATUS.PENDING,
@@ -201,6 +210,7 @@ export async function analyzeDocument(opts) {
 /**
  * Propose des actions correctives (brouillon) à partir du périmètre métier — sans écriture dans `actions`.
  * @param {{
+ *   tenantId?: string | null,
  *   targetIncidentId?: string | null,
  *   targetAuditId?: string | null,
  *   userId: string | null,
@@ -208,14 +218,16 @@ export async function analyzeDocument(opts) {
  * }} opts
  */
 export async function proposeActions(opts) {
-  const { targetIncidentId, targetAuditId, userId, note = '' } = opts;
+  const { tenantId, targetIncidentId, targetAuditId, userId, note = '' } = opts;
+  const tenantRow =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
 
   const items = [];
   let summary = 'Propositions d’actions (brouillon) — validation requise.';
 
-  if (targetIncidentId) {
-    const inc = await prisma.incident.findUnique({
-      where: { id: targetIncidentId },
+  if (targetIncidentId && tenantRow) {
+    const inc = await prisma.incident.findFirst({
+      where: { id: targetIncidentId, tenantId: tenantRow },
       select: { ref: true, type: true, severity: true, status: true }
     });
     if (inc) {
@@ -228,9 +240,9 @@ export async function proposeActions(opts) {
     }
   }
 
-  if (targetAuditId) {
-    const au = await prisma.audit.findUnique({
-      where: { id: targetAuditId },
+  if (targetAuditId && tenantRow) {
+    const au = await prisma.audit.findFirst({
+      where: { id: targetAuditId, tenantId: tenantRow },
       select: { ref: true, score: true, status: true, site: true }
     });
     if (au) {
@@ -265,6 +277,7 @@ export async function proposeActions(opts) {
 
   const row = await prisma.aiSuggestion.create({
     data: {
+      tenantId: tenantRow,
       type: 'action',
       content: structured,
       status: AI_SUGGESTION_STATUS.PENDING,
@@ -282,6 +295,7 @@ export async function proposeActions(opts) {
 /**
  * Validation humaine — met à jour uniquement `AiSuggestion`.
  * @param {{
+ *   tenantId?: string | null,
  *   id: string,
  *   status: string,
  *   validatedByUserId: string,
@@ -289,7 +303,9 @@ export async function proposeActions(opts) {
  * }} opts
  */
 export async function reviewSuggestion(opts) {
-  const { id, status, validatedByUserId, editedContent } = opts;
+  const { tenantId, id, status, validatedByUserId, editedContent } = opts;
+  const tenantRow =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
   const st = String(status || '').trim();
   if (
     ![AI_SUGGESTION_STATUS.ACCEPTED, AI_SUGGESTION_STATUS.REJECTED, AI_SUGGESTION_STATUS.EDITED].includes(
@@ -297,6 +313,11 @@ export async function reviewSuggestion(opts) {
     )
   ) {
     const err = new Error('Statut de validation invalide');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!tenantRow) {
+    const err = new Error('Contexte organisation manquant');
     err.statusCode = 400;
     throw err;
   }
@@ -312,8 +333,16 @@ export async function reviewSuggestion(opts) {
     );
   }
 
+  const existing = await prisma.aiSuggestion.findFirst({ where: { id, tenantId: tenantRow } });
+  if (!existing) {
+    const err = new Error('Suggestion introuvable');
+    err.statusCode = 404;
+    err.code = 'P2025';
+    throw err;
+  }
+
   return prisma.aiSuggestion.update({
-    where: { id },
+    where: { id: existing.id },
     data: updateData
   });
 }

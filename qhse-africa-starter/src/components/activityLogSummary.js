@@ -2,7 +2,7 @@ import { moduleMeta } from './activityLogHelpers.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 /**
- * Bandeau de synthèse (mock) — prêt pour enrichissement futur (filtres / recherche).
+ * Bandeau de synthèse du journal — prêt pour enrichissement futur (filtres / recherche).
  * @param {{ total: number, lastActivity: string, recentModuleKeys: string[] }} snapshot
  */
 export function createActivityLogSummary(snapshot) {
@@ -14,7 +14,7 @@ export function createActivityLogSummary(snapshot) {
   totalCard.innerHTML = `
     <span class="activity-log-summary-k">Entrées enregistrées</span>
     <span class="activity-log-summary-v">${snapshot.total}</span>
-    <span class="activity-log-summary-h">Périmètre journal (mock)</span>
+    <span class="activity-log-summary-h">Périmètre du journal (session)</span>
   `;
 
   const modCard = document.createElement('div');

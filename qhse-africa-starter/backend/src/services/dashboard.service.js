@@ -3,7 +3,7 @@ import {
   countActionsOverdue,
   includesInsensitive,
   isActionOverdueDashboardRow,
-  prismaSiteWhere
+  prismaTenantSiteWhere
 } from './kpiCore.service.js';
 
 const LIST_MAX = 5;
@@ -11,17 +11,18 @@ const LIST_MAX = 5;
 const RECENT_SCAN = 500;
 
 /**
+ * @param {string} tenantId
  * @param {string | null} [siteId] — filtre strict sur siteId Prisma ; null = tous périmètres
  */
-export async function getDashboardStats(siteId = null) {
-  const siteFilter = prismaSiteWhere(siteId);
+export async function getDashboardStats(tenantId, siteId = null) {
+  const siteFilter = prismaTenantSiteWhere(tenantId, siteId);
 
   const [incidents, actions, nonConformities, overdueActions, incidentRows, actionRows] =
     await Promise.all([
       prisma.incident.count({ where: siteFilter }),
       prisma.action.count({ where: siteFilter }),
       prisma.nonConformity.count({ where: siteFilter }),
-      countActionsOverdue(siteId),
+      countActionsOverdue(tenantId, siteId),
       prisma.incident.findMany({
         where: siteFilter,
         select: {

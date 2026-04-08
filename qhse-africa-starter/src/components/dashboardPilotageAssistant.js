@@ -19,7 +19,7 @@ export function createDashboardPilotageAssistant(opts = {}) {
     <article class="content-card card-soft dashboard-pilotage-assistant__card">
       <div class="dashboard-pilotage-assistant__head">
         <div>
-          <div class="section-kicker">IA simulée</div>
+          <div class="section-kicker">Suggestions assistées</div>
           <h3 class="dashboard-pilotage-assistant__title">Assistant de pilotage QHSE</h3>
           <p class="dashboard-pilotage-assistant__lead">
             Recommandations limitées à 3 items, priorisation automatique et alertes de cohérence — vous gardez la main sur chaque décision.
@@ -28,7 +28,7 @@ export function createDashboardPilotageAssistant(opts = {}) {
         <div class="dashboard-pilotage-assistant__score-block" aria-label="Score global assisté">
           <span class="dashboard-pilotage-assistant__score-val">—</span>
           <span class="dashboard-pilotage-assistant__score-lbl">Score assisté</span>
-          <span class="dashboard-pilotage-assistant__score-sub">Risques · actions · documents · audits (démo)</span>
+          <span class="dashboard-pilotage-assistant__score-sub">Risques · actions · documents · audits (vue affichée)</span>
         </div>
       </div>
       <div class="dashboard-pilotage-assistant__synthesis">

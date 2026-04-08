@@ -132,6 +132,15 @@ function uniqStatus(rows, statusKey) {
   return [...s].sort((a, b) => a.localeCompare(b, 'fr'));
 }
 
+function uniqServices(rows) {
+  const s = new Set();
+  rows.forEach((r) => {
+    const sv = field(r, 'service').trim();
+    if (sv) s.add(sv);
+  });
+  return [...s].sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
 /** Sites + responsables (vue conformité mixte). */
 function uniqMixedSites(rows) {
   const s = new Set();
@@ -150,7 +159,7 @@ function uniqMixedSites(rows) {
 
 /**
  * @param {unknown[]} rows
- * @param {{ q: string; datePreset: string; severity: string; site: string; status: string; sort: string }} f
+ * @param {{ q: string; datePreset: string; severity: string; site: string; status: string; service: string; sort: string }} f
  * @param {'incident'|'nc'|'action'|'audit'|'mixed'} kind
  */
 function filterAndSort(rows, f, kind) {
@@ -179,6 +188,17 @@ function filterAndSort(rows, f, kind) {
 
   if (f.status && f.status !== 'all') {
     out = out.filter((r) => field(r, 'status') === f.status);
+  }
+  if (f.service && f.service !== 'all') {
+    out = out.filter((r) => {
+      const service = field(r, 'service');
+      if (service) return service === f.service;
+      return (
+        field(r, 'owner') === f.service ||
+        field(r, 'site') === f.service ||
+        field(r, 'siteId') === f.service
+      );
+    });
   }
 
   if (f.severity && f.severity !== 'all' && (kind === 'incident' || kind === 'mixed')) {
@@ -564,6 +584,10 @@ export function createKpiDetailDrawer(opts) {
   statusSel.className = 'control-select kpi-detail-select';
   statusSel.setAttribute('aria-label', 'Statut');
 
+  const serviceSel = document.createElement('select');
+  serviceSel.className = 'control-select kpi-detail-select';
+  serviceSel.setAttribute('aria-label', 'Service');
+
   const sortSel = document.createElement('select');
   sortSel.className = 'control-select kpi-detail-select';
   sortSel.setAttribute('aria-label', 'Tri');
@@ -579,7 +603,7 @@ export function createKpiDetailDrawer(opts) {
     sortSel.append(o);
   });
 
-  toolbar.append(search, dateSel, sevSel, siteSel, statusSel, sortSel);
+  toolbar.append(search, dateSel, sevSel, siteSel, statusSel, serviceSel, sortSel);
 
   const countEl = document.createElement('p');
   countEl.className = 'kpi-detail-count';
@@ -622,6 +646,7 @@ export function createKpiDetailDrawer(opts) {
     severity: 'all',
     site: 'all',
     status: 'all',
+    service: 'all',
     sort: 'date-desc'
   };
 
@@ -671,6 +696,18 @@ export function createKpiDetailDrawer(opts) {
       statusSel.append(o);
     });
 
+    serviceSel.innerHTML = '';
+    const sv0 = document.createElement('option');
+    sv0.value = 'all';
+    sv0.textContent = 'Tous services';
+    serviceSel.append(sv0);
+    uniqServices(baseRows).forEach((sv) => {
+      const o = document.createElement('option');
+      o.value = sv;
+      o.textContent = sv;
+      serviceSel.append(o);
+    });
+
     const sevOn = kind === 'incident' || kind === 'mixed';
     sevSel.disabled = !sevOn;
     sevSel.style.opacity = sevOn ? '' : '0.55';
@@ -686,6 +723,7 @@ export function createKpiDetailDrawer(opts) {
     state.severity = sevSel.value;
     state.site = siteSel.value;
     state.status = statusSel.value;
+    state.service = serviceSel.value;
     state.sort = sortSel.value;
 
     const filtered = filterAndSort(base, state, resolved.kind);
@@ -738,6 +776,7 @@ export function createKpiDetailDrawer(opts) {
     sevSel.value = 'all';
     siteSel.value = 'all';
     statusSel.value = 'all';
+    serviceSel.value = 'all';
     sortSel.value = 'date-desc';
     Object.assign(state, {
       q: '',
@@ -745,6 +784,7 @@ export function createKpiDetailDrawer(opts) {
       severity: 'all',
       site: 'all',
       status: 'all',
+      service: 'all',
       sort: 'date-desc'
     });
 
@@ -754,6 +794,7 @@ export function createKpiDetailDrawer(opts) {
       if (preset.severity != null) sevSel.value = String(preset.severity);
       if (preset.site != null) siteSel.value = String(preset.site);
       if (preset.status != null) statusSel.value = String(preset.status);
+      if (preset.service != null) serviceSel.value = String(preset.service);
       if (preset.sort != null) sortSel.value = String(preset.sort);
       Object.assign(state, {
         q: search.value,
@@ -761,6 +802,7 @@ export function createKpiDetailDrawer(opts) {
         severity: sevSel.value,
         site: siteSel.value,
         status: statusSel.value,
+        service: serviceSel.value,
         sort: sortSel.value
       });
     }
@@ -771,7 +813,7 @@ export function createKpiDetailDrawer(opts) {
     }
   }
 
-  [search, dateSel, sevSel, siteSel, statusSel, sortSel].forEach((el) => {
+  [search, dateSel, sevSel, siteSel, statusSel, serviceSel, sortSel].forEach((el) => {
     el.addEventListener('input', () => render());
     el.addEventListener('change', () => render());
   });

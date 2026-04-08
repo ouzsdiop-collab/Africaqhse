@@ -809,7 +809,7 @@ export function createDashboardLineChart(series, options = {}) {
   svg.setAttribute(
     'aria-label',
     options.ariaLabel ||
-      'Courbe du nombre d’incidents déclarés par mois sur les six derniers mois.'
+    'Courbe du nombre d’incidents déclarés par mois sur les six derniers mois.'
   );
 
   const gradId = `dlaf-${Math.random().toString(36).slice(2, 11)}`;
@@ -972,8 +972,8 @@ export function createDashboardLineChart(series, options = {}) {
   if (options.footText !== undefined && options.footText !== null) {
     foot.textContent = options.footText;
   } else {
-    const total = safe.reduce((a, p) => a + p.value, 0);
-    foot.textContent = total === 0 ? 'Aucune donnée sur cette période.' : '';
+  const total = safe.reduce((a, p) => a + p.value, 0);
+  foot.textContent = total === 0 ? 'Aucune donnée sur cette période.' : '';
   }
 
   const interpret = document.createElement('p');

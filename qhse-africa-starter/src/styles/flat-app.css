@@ -443,6 +443,7 @@ p,
 
 .shell-account-name,
 .shell-account-role,
+.shell-account-org,
 .shell-account-hint {
   font-weight: 400;
 }
@@ -458,6 +459,16 @@ p,
   letter-spacing: 0.04em;
   color: var(--color-text-tertiary);
   line-height: 1.2;
+}
+
+.shell-account-org {
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell-account-meta {
@@ -548,8 +559,10 @@ p,
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--page-stack-pad-top, 18px) var(--shell-content-pad-x) var(--page-stack-pad-bottom, 28px);
-  gap: var(--page-stack-gap, 1.2rem);
+  display: flex;
+  flex-direction: column;
+  padding: var(--page-stack-pad-top, 20px) var(--shell-content-pad-x) var(--page-stack-pad-bottom, 32px);
+  gap: var(--page-stack-gap, clamp(22px, 2.6vw, 36px));
   --page-content-max: 1460px;
 }
 
@@ -558,11 +571,31 @@ p,
   margin-inline: auto;
 }
 
+/* Stabilisation visuelle transversale (sans refonte): rythme plus régulier, moins de surcharge */
+.page-stack > .content-card,
+.page-stack > .card-soft {
+  padding: clamp(12px, 1.5vw, 18px);
+}
+
+.content-card-head {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.content-card > :where(h2, h3, .section-kicker):first-child {
+  margin-top: 0;
+}
+
+.content-card > :where(p, .ptw-mini, .iso-cell-muted, .metric-note) {
+  line-height: 1.6;
+}
+
 /* Cohérence inter-pages (Dashboard / Incidents / Audits / Performance) */
 .page-stack.dashboard-page,
 .page-stack.kpi-performance-page,
 .page-stack.audit-plus-page {
-  --page-stack-gap: 1.05rem;
+  --page-stack-gap: clamp(20px, 2.4vw, 32px);
 }
 
 .page-stack.dashboard-page .dashboard-section-head,
@@ -1064,7 +1097,7 @@ p,
 .card-soft:hover,
 .ds-card:hover {
   border-color: var(--color-border-secondary);
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
 }
 
 [data-theme='dark'] .content-card:hover,
@@ -1104,6 +1137,36 @@ p,
   letter-spacing: -0.02em;
   line-height: 1.28;
   color: var(--color-text-primary);
+}
+
+/* Pages qui accumulent de nombreux blocs: lisibilité des sections */
+.page-stack .two-column,
+.page-stack .ptw-columns,
+.page-stack .iso-secondary-zone {
+  row-gap: 12px;
+}
+
+/* Vue d'erreur route: alignée sur le design system (plus de styles inline disparates) */
+.qhse-render-error-card {
+  padding: 1.25rem;
+  max-width: 42rem;
+}
+
+.qhse-render-error-title {
+  margin: 0 0 10px;
+}
+
+.qhse-render-error-lead {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.qhse-render-error-detail {
+  margin: 0 0 16px;
+  font-size: 13px;
+  word-break: break-word;
+  opacity: 0.9;
 }
 
 /* —— KPI —— */

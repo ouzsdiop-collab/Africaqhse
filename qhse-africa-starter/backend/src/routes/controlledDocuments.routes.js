@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as controller from '../controllers/controlledDocuments.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
+import { controlledDocumentUploadLimiter } from '../middleware/apiRateLimit.middleware.js';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.get('/', requirePermission('controlled_documents', 'read'), controller.li
 
 router.post(
   '/',
+  controlledDocumentUploadLimiter,
   requirePermission('controlled_documents', 'write'),
   controller.uploadSingleControlledFile,
   controller.create

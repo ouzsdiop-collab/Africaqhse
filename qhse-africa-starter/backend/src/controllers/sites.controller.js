@@ -2,7 +2,7 @@ import * as sitesService from '../services/sites.service.js';
 
 export async function getAll(req, res, next) {
   try {
-    const items = await sitesService.findAllSites();
+    const items = await sitesService.findAllSites(req.qhseTenantId);
     res.json(items);
   } catch (err) {
     next(err);
@@ -15,7 +15,7 @@ export async function getById(req, res, next) {
     if (!id) {
       return res.status(400).json({ error: 'Identifiant requis' });
     }
-    const site = await sitesService.findSiteById(id);
+    const site = await sitesService.findSiteById(req.qhseTenantId, id);
     if (!site) {
       return res.status(404).json({ error: 'Site introuvable' });
     }
@@ -28,7 +28,7 @@ export async function getById(req, res, next) {
 export async function create(req, res, next) {
   try {
     const { name, code, address } = req.body || {};
-    const created = await sitesService.createSite({ name, code, address });
+    const created = await sitesService.createSite(req.qhseTenantId, { name, code, address });
     res.status(201).json(created);
   } catch (err) {
     if (err.statusCode === 400) {

@@ -4,11 +4,14 @@ import { getJwtSecret } from '../services/auth.service.js';
 import { isXUserIdAllowed } from '../lib/securityConfig.js';
 
 /**
- * 1) Authorization: Bearer <JWT> → charge l’utilisateur depuis la base (rôle à jour).
- * 2) Sinon X-User-Id si autorisé par la politique (désactivé par défaut en production).
- * - Bearer présent mais invalide → 401 (pas de repli silencieux sur X-User-Id).
+ * Charge l’utilisateur et le tenant actif (JWT : sub + tid).
+ * Rôle effectif = rôle d’adhésion (`UserTenant.role`) pour ce tenant.
+ * X-User-Id (démo) : première adhésion de l’utilisateur.
  */
 export async function attachRequestUser(req, res, next) {
+  req.qhseTenant = null;
+  req.qhseTenantId = null;
+
   const authHeader = req.get('authorization') || req.get('Authorization') || '';
   const bearerMatch = /^Bearer\s+(\S+)/i.exec(authHeader);
 
@@ -17,22 +20,41 @@ export async function attachRequestUser(req, res, next) {
     try {
       const payload = jwt.verify(token, getJwtSecret());
       const sub = typeof payload.sub === 'string' ? payload.sub.trim() : '';
-      if (!sub) {
-        return res.status(401).json({ error: 'Session invalide ou expirée' });
+      const tid = typeof payload.tid === 'string' ? payload.tid.trim() : '';
+      if (!sub || !tid) {
+        return res.status(401).json({
+          error: 'Session invalide — reconnectez-vous (contexte organisation requis).'
+        });
       }
-      const user = await prisma.user.findUnique({
-        where: { id: sub },
-        select: { id: true, name: true, email: true, role: true, defaultSiteId: true }
+
+      const membership = await prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: { userId: sub, tenantId: tid }
+        },
+        include: {
+          tenant: { select: { id: true, slug: true, name: true } },
+          user: {
+            select: { id: true, name: true, email: true }
+          }
+        }
       });
-      if (!user) {
-        return res.status(401).json({ error: 'Session invalide ou expirée' });
+
+      if (!membership?.user || !membership.tenant) {
+        return res.status(401).json({ error: 'Session invalide ou accès organisation révoqué.' });
       }
+
+      req.qhseTenant = {
+        id: membership.tenant.id,
+        slug: membership.tenant.slug,
+        name: membership.tenant.name
+      };
+      req.qhseTenantId = membership.tenantId;
       req.qhseUser = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: String(user.role ?? '').trim().toUpperCase(),
-        defaultSiteId: user.defaultSiteId ?? null
+        id: membership.user.id,
+        name: membership.user.name,
+        email: membership.user.email,
+        role: String(membership.role ?? '').trim().toUpperCase(),
+        defaultSiteId: membership.defaultSiteId ?? null
       };
       return next();
     } catch {
@@ -54,7 +76,7 @@ export async function attachRequestUser(req, res, next) {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, role: true, defaultSiteId: true }
+      select: { id: true, name: true, email: true, role: true }
     });
     if (!user) {
       req.qhseUser = null;
@@ -69,12 +91,31 @@ export async function attachRequestUser(req, res, next) {
       }
       return next();
     }
+
+    const membership = await prisma.userTenant.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'asc' },
+      include: { tenant: { select: { id: true, slug: true, name: true } } }
+    });
+    if (!membership || !membership.tenant) {
+      req.qhseUser = null;
+      return res.status(403).json({
+        error: 'Utilisateur sans organisation — exécutez le seed (tenant + adhésions).'
+      });
+    }
+
+    req.qhseTenant = {
+      id: membership.tenant.id,
+      slug: membership.tenant.slug,
+      name: membership.tenant.name
+    };
+    req.qhseTenantId = membership.tenantId;
     req.qhseUser = {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: String(user.role ?? '').trim().toUpperCase(),
-      defaultSiteId: user.defaultSiteId ?? null
+      role: String(membership.role ?? '').trim().toUpperCase(),
+      defaultSiteId: membership.defaultSiteId ?? null
     };
   } catch (err) {
     return next(err);

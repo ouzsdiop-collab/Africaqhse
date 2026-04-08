@@ -11,6 +11,10 @@ const CLASSIFICATIONS = new Set(['normal', 'sensible', 'critique']);
 
 const RENEW_DAYS = 30;
 
+function tid(tenantId) {
+  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+}
+
 /**
  * @param {Date | string | null | undefined} expiresAt
  * @returns {{ key: 'valide'|'a_renouveler'|'expire'|'sans_echeance', label: string, daysUntil: number | null }}
@@ -94,10 +98,13 @@ export function toPublicControlledDocument(doc) {
 }
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {{ siteId?: string, auditId?: string, classification?: string, type?: string }} filters
  */
-export async function listControlledDocuments(filters) {
-  const where = {};
+export async function listControlledDocuments(tenantId, filters) {
+  const t = tid(tenantId);
+  if (!t) return [];
+  const where = { tenantId: t };
   if (filters.siteId) where.siteId = filters.siteId;
   if (filters.auditId) where.auditId = filters.auditId;
   if (filters.classification) where.classification = filters.classification;
@@ -111,11 +118,23 @@ export async function listControlledDocuments(filters) {
 }
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {string} id
  */
-export async function getControlledDocumentById(id) {
-  const doc = await prisma.controlledDocument.findUnique({ where: { id } });
-  return doc;
+export async function getControlledDocumentById(tenantId, id) {
+  const t = tid(tenantId);
+  if (!t) return null;
+  return prisma.controlledDocument.findFirst({
+    where: { id, tenantId: t }
+  });
+}
+
+/**
+ * Accès par id seul — à n’utiliser qu’après contrôle d’accès (ex. jeton signé + cohérence tenant).
+ * @param {string} id
+ */
+export async function getControlledDocumentByIdUnscoped(id) {
+  return prisma.controlledDocument.findUnique({ where: { id } });
 }
 
 /**
@@ -133,10 +152,17 @@ export async function getControlledDocumentById(id) {
  *   riskRef?: string | null,
  *   complianceTag?: string | null,
  *   expiresAt?: Date | string | null,
- *   responsible?: string | null
+ *   responsible?: string | null,
+ *   tenantId?: string | null
  * }} meta
  */
 export async function createControlledDocument(buffer, meta) {
+  const tenantRowId = tid(meta.tenantId);
+  if (!tenantRowId) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
   const { relativePath, sizeBytes } = await saveControlledFile(buffer, {
     originalName: meta.name || 'document'
   });
@@ -153,6 +179,7 @@ export async function createControlledDocument(buffer, meta) {
 
   const row = await prisma.controlledDocument.create({
     data: {
+      tenantId: tenantRowId,
       name: String(meta.name || 'Sans titre').slice(0, 500),
       type: String(meta.type || 'other').slice(0, 120),
       path: relativePath,
@@ -174,6 +201,7 @@ export async function createControlledDocument(buffer, meta) {
 }
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {string} id
  * @param {{
  *   expiresAt?: Date | string | null,
@@ -182,7 +210,13 @@ export async function createControlledDocument(buffer, meta) {
  *   type?: string | null
  * }} patch
  */
-export async function updateControlledDocumentMeta(id, patch) {
+export async function updateControlledDocumentMeta(tenantId, id, patch) {
+  const existing = await getControlledDocumentById(tenantId, id);
+  if (!existing) {
+    const err = new Error('Document introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
   const data = {};
   if ('expiresAt' in patch) {
     if (patch.expiresAt == null || String(patch.expiresAt).trim() === '') {
@@ -211,17 +245,18 @@ export async function updateControlledDocumentMeta(id, patch) {
     throw err;
   }
   return prisma.controlledDocument.update({
-    where: { id },
+    where: { id: existing.id },
     data
   });
 }
 
 /**
  * Suppression fichier + ligne (erreurs fichier ignorées).
+ * @param {string | null | undefined} tenantId
  * @param {string} id
  */
-export async function deleteControlledDocumentRecord(id) {
-  const doc = await prisma.controlledDocument.findUnique({ where: { id } });
+export async function deleteControlledDocumentRecord(tenantId, id) {
+  const doc = await getControlledDocumentById(tenantId, id);
   if (!doc) return false;
   await deleteControlledFile(doc.path);
   await prisma.controlledDocument.delete({ where: { id } });
@@ -229,10 +264,11 @@ export async function deleteControlledDocumentRecord(id) {
 }
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {string} id
  */
-export async function readDocumentBufferForId(id) {
-  const doc = await prisma.controlledDocument.findUnique({ where: { id } });
+export async function readDocumentBufferForId(tenantId, id) {
+  const doc = await getControlledDocumentById(tenantId, id);
   if (!doc) {
     const err = new Error('Document introuvable');
     err.statusCode = 404;
@@ -240,6 +276,20 @@ export async function readDocumentBufferForId(id) {
   }
   const buf = await readControlledFileBuffer(doc.path);
   return { doc, buffer: buf };
+}
+
+/**
+ * Lecture fichier à partir d’une ligne déjà contrôlée (ex. jeton signé).
+ * @param {import('@prisma/client').ControlledDocument | null | undefined} doc
+ */
+export async function readDocumentBufferFromRow(doc) {
+  if (!doc?.path) {
+    const err = new Error('Document introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  const buffer = await readControlledFileBuffer(doc.path);
+  return { doc, buffer };
 }
 
 /**

@@ -127,15 +127,26 @@ async function main() {
     });
   }
 
+  const tenant = await prisma.tenant.upsert({
+    where: { slug: 'qhse-demo' },
+    create: { slug: 'qhse-demo', name: 'QHSE Africa (démo)' },
+    update: { name: 'QHSE Africa (démo)' }
+  });
+
+  await prisma.aiSuggestion.deleteMany({});
+  await prisma.controlledDocument.deleteMany({});
+  await prisma.importHistory.deleteMany({});
+  await prisma.auditLog.deleteMany({});
   await prisma.action.deleteMany({});
   await prisma.nonConformity.deleteMany({});
   await prisma.audit.deleteMany({});
   await prisma.incident.deleteMany({});
-  await prisma.user.updateMany({ data: { defaultSiteId: null } });
+  await prisma.userTenant.deleteMany({});
   await prisma.site.deleteMany({});
 
   const siteMine = await prisma.site.create({
     data: {
+      tenantId: tenant.id,
       name: 'Site minier — Zone Nord',
       code: 'MINE-N01',
       address: "Front d'exploitation aurifère — forage et extraction"
@@ -143,28 +154,40 @@ async function main() {
   });
   const siteLab = await prisma.site.create({
     data: {
+      tenantId: tenant.id,
       name: 'Laboratoire & traitement — Siège',
       code: 'LAB-S01',
       address: 'Traitement des échantillons et analyses minérales'
     }
   });
 
-  await prisma.user.updateMany({
-    where: { email: 'terrain@qhse.local' },
-    data: { defaultSiteId: siteMine.id }
-  });
-  await prisma.user.updateMany({
-    where: { email: 'hse@demo.local' },
-    data: { defaultSiteId: siteLab.id }
-  });
-  await prisma.user.updateMany({
-    where: { email: 'site@demo.local' },
-    data: { defaultSiteId: siteMine.id }
-  });
-  await prisma.user.updateMany({
-    where: { email: 'ops@demo.local' },
-    data: { defaultSiteId: siteMine.id }
-  });
+  const allDbUsers = await prisma.user.findMany({ select: { id: true, email: true, role: true } });
+  for (const u of allDbUsers) {
+    await prisma.userTenant.upsert({
+      where: { userId_tenantId: { userId: u.id, tenantId: tenant.id } },
+      create: {
+        userId: u.id,
+        tenantId: tenant.id,
+        role: u.role,
+        defaultSiteId: null
+      },
+      update: { role: u.role }
+    });
+  }
+
+  async function setMembershipDefaultSite(email, siteId) {
+    const u = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!u) return;
+    await prisma.userTenant.updateMany({
+      where: { userId: u.id, tenantId: tenant.id },
+      data: { defaultSiteId: siteId }
+    });
+  }
+
+  await setMembershipDefaultSite('terrain@qhse.local', siteMine.id);
+  await setMembershipDefaultSite('hse@demo.local', siteLab.id);
+  await setMembershipDefaultSite('site@demo.local', siteMine.id);
+  await setMembershipDefaultSite('ops@demo.local', siteMine.id);
 
   const konan = await prisma.user.findUnique({ where: { email: 'hse@demo.local' } });
   const traore = await prisma.user.findUnique({ where: { email: 'site@demo.local' } });
@@ -424,6 +447,7 @@ async function main() {
   for (const inc of incidentsData) {
     await prisma.incident.create({
       data: {
+        tenantId: tenant.id,
         ref: inc.ref,
         type: inc.type,
         site: inc.site,
@@ -584,6 +608,7 @@ async function main() {
     const createdAt = a.days < 0 ? daysFromNow(-a.days) : daysAgo(a.days);
     await prisma.audit.create({
       data: {
+        tenantId: tenant.id,
         ref: a.ref,
         site: a.site,
         siteId: a.siteId,
@@ -644,7 +669,7 @@ async function main() {
   ];
 
   for (const nc of ncRows) {
-    await prisma.nonConformity.create({ data: nc });
+    await prisma.nonConformity.create({ data: { ...nc, tenantId: tenant.id } });
   }
 
   const REF_CHUTE = 'INC-2026-004';
@@ -957,6 +982,7 @@ async function main() {
   for (const act of actionsData) {
     await prisma.action.create({
       data: {
+        tenantId: tenant.id,
         title: act.title,
         detail: act.detail,
         status: act.status,

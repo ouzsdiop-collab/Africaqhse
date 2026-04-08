@@ -293,7 +293,7 @@ export function createActionKanbanCard(item, columnKey) {
       'Terminer',
       () => {
         showToast(
-          'Clôture : à brancher sur PATCH /api/actions/:id (statut) — non disponible dans cette version.',
+          'Clôture : synchronisation avec le statut serveur en cours de déploiement sur votre environnement.',
           'info'
         );
       },

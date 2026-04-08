@@ -7,7 +7,7 @@ import {
   isIncidentLikelyOpen,
   isNcOpen,
   normalizeSiteId,
-  prismaSiteWhere
+  prismaTenantSiteWhere
 } from './kpiCore.service.js';
 
 const LIST_AUDITS = 6;
@@ -18,11 +18,16 @@ const RECENT_INCIDENT_SCAN = 400;
 
 /**
  * Synthèse consolidée pour pilotage QHSE / direction.
+ * @param {string | null | undefined} tenantId
  * @param {string | null} [siteId] — filtre strict ; null = groupe (comportement historique)
  */
-export async function getReportingSummary(siteId = null) {
+export async function getReportingSummary(tenantId, siteId = null) {
+  const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+  if (!tid) {
+    throw Object.assign(new Error('Tenant requis'), { statusCode: 400 });
+  }
   const sid = normalizeSiteId(siteId);
-  const siteWhere = prismaSiteWhere(siteId);
+  const siteWhere = prismaTenantSiteWhere(tenantId, siteId);
 
   const since30 = new Date();
   since30.setDate(since30.getDate() - 30);
@@ -49,9 +54,9 @@ export async function getReportingSummary(siteId = null) {
       }
     }),
     prisma.nonConformity.count({ where: siteWhere }),
-    countNonConformitiesOpenHeuristic(siteId),
+    countNonConformitiesOpenHeuristic(tenantId, siteId),
     prisma.action.count({ where: siteWhere }),
-    countActionsOverdue(siteId),
+    countActionsOverdue(tenantId, siteId),
     prisma.audit.count({ where: siteWhere }),
     prisma.audit.aggregate({
       where: siteWhere,
@@ -87,17 +92,16 @@ export async function getReportingSummary(siteId = null) {
     sid
       ? prisma.$queryRaw`
       SELECT title, detail, status, owner, dueDate, createdAt FROM actions
-      WHERE LOWER(status) LIKE '%retard%' AND siteId = ${sid}
+      WHERE tenantId = ${tid} AND LOWER(status) LIKE '%retard%' AND siteId = ${sid}
       ORDER BY COALESCE(dueDate, createdAt) ASC
       LIMIT ${LIST_ACTIONS}
     `
-      : prisma.$queryRawUnsafe(
-          `SELECT title, detail, status, owner, dueDate, createdAt FROM actions
-       WHERE LOWER(status) LIKE '%retard%'
-       ORDER BY COALESCE(dueDate, createdAt) ASC
-       LIMIT ?`,
-          LIST_ACTIONS
-        ),
+      : prisma.$queryRaw`
+      SELECT title, detail, status, owner, dueDate, createdAt FROM actions
+      WHERE tenantId = ${tid} AND LOWER(status) LIKE '%retard%'
+      ORDER BY COALESCE(dueDate, createdAt) ASC
+      LIMIT ${LIST_ACTIONS}
+    `,
     prisma.incident.findMany({
       where: siteWhere,
       select: {

@@ -19,8 +19,13 @@ const LIST_LIMIT = 150;
  * }} data
  */
 export async function createAnalysisSuccessRecord(data) {
+  const tenantId =
+    data.tenantId != null && String(data.tenantId).trim() !== ''
+      ? String(data.tenantId).trim()
+      : null;
   return prisma.importHistory.create({
     data: {
+      tenantId,
       fileName: data.fileName,
       fileType: data.fileType,
       detectedDocumentType: data.detectedDocumentType ?? null,
@@ -56,8 +61,13 @@ export async function createAnalysisSuccessRecord(data) {
  * }} data
  */
 export async function createAnalysisFailedRecord(data) {
+  const tenantId =
+    data.tenantId != null && String(data.tenantId).trim() !== ''
+      ? String(data.tenantId).trim()
+      : null;
   return prisma.importHistory.create({
     data: {
+      tenantId,
       fileName: data.fileName,
       fileType: data.fileType,
       detectedDocumentType: null,
@@ -88,12 +98,21 @@ export async function createAnalysisFailedRecord(data) {
  * @param {string} targetModuleAttempted
  */
 export async function applyConfirmResult(
+  tenantId,
   historyId,
   confirmResult,
   targetModuleAttempted
 ) {
   const id = String(historyId ?? '').trim();
   if (!id) return null;
+  const t =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : '';
+  if (!t) return null;
+  const belongs = await prisma.importHistory.findFirst({
+    where: { id, tenantId: t },
+    select: { id: true }
+  });
+  if (!belongs) return null;
   try {
     if (confirmResult.success) {
       return await prisma.importHistory.update({
@@ -130,20 +149,31 @@ export async function applyConfirmResult(
   }
 }
 
-export async function findAllImportHistory() {
+/**
+ * @param {string | null | undefined} tenantId
+ */
+export async function findAllImportHistory(tenantId) {
+  const t =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
+  const where = t ? { tenantId: t } : { tenantId: null };
   return prisma.importHistory.findMany({
+    where,
     orderBy: { createdAt: 'desc' },
     take: LIST_LIMIT
   });
 }
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {string} id
  */
-export async function findImportHistoryById(id) {
+export async function findImportHistoryById(tenantId, id) {
   const trimmed = String(id ?? '').trim();
   if (!trimmed) return null;
-  return prisma.importHistory.findUnique({
-    where: { id: trimmed }
+  const t =
+    tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
+  if (!t) return null;
+  return prisma.importHistory.findFirst({
+    where: { id: trimmed, tenantId: t }
   });
 }

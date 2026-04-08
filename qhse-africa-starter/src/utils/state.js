@@ -10,6 +10,7 @@ const allowedPages = [
   'audits',
   'sites',
   'products',
+  'habilitations',
   'imports',
   'analytics',
   'performance',

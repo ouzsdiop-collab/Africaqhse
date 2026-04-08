@@ -3,6 +3,49 @@
  * Complète sidebarV2 / topbarV2 (styles injectés) sans renommer les classes existantes.
  */
 
+/* —— Rythme vertical « SaaS » : pages rendues dans .qhse-page-slot —— */
+.main-shell .qhse-page-slot > .page-stack {
+  row-gap: var(--page-stack-row-gap, clamp(22px, 2.7vw, 38px));
+}
+
+.main-shell .qhse-page-slot .page-stack > .content-card + .content-card,
+.main-shell .qhse-page-slot .page-stack > .card-soft + .card-soft,
+.main-shell .qhse-page-slot .page-stack > .content-card + .card-soft,
+.main-shell .qhse-page-slot .page-stack > .card-soft + .content-card {
+  position: relative;
+}
+
+.main-shell .qhse-page-slot .page-stack > .content-card + .content-card::before,
+.main-shell .qhse-page-slot .page-stack > .card-soft + .card-soft::before,
+.main-shell .qhse-page-slot .page-stack > .content-card + .card-soft::before,
+.main-shell .qhse-page-slot .page-stack > .card-soft + .content-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-0.5 * var(--page-stack-row-gap, clamp(22px, 2.7vw, 38px)) - 1px);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-border-secondary, #334155) 55%, transparent) 12%,
+    color-mix(in srgb, var(--color-border-secondary, #334155) 42%, transparent) 50%,
+    color-mix(in srgb, var(--color-border-secondary, #334155) 55%, transparent) 88%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* Dashboard : sections pilot en pile — léger souffle supplémentaire */
+.page-stack.dashboard-page > .dashboard-pilot-block {
+  margin-block: 0;
+}
+
+.page-stack.dashboard-page > .dashboard-pilot-block + .dashboard-pilot-block {
+  padding-top: clamp(4px, 0.6vw, 10px);
+  border-top: 1px solid color-mix(in srgb, var(--color-border-secondary) 45%, transparent);
+}
+
 /* —— Zone principale : lien visuel avec la sidebar —— */
 .main-shell {
   background:

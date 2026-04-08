@@ -1,5 +1,5 @@
 /**
- * Configuration locale (démo) — accès renforcé par code.
+ * Configuration locale — accès renforcé par code.
  * Compatible futur branchement API : mêmes clés et formes d’objet.
  */
 
@@ -54,7 +54,7 @@ export const SENSITIVE_ACCESS_ACTION_META = [
   {
     key: 'security_zone',
     label: 'Zones « sécurité » (IA, analyses)',
-    hint: 'Lancement de simulations au Centre IA — désactivé par défaut (usage fréquent).'
+    hint: 'Lancement d’analyses / scénarios au Centre IA — désactivé par défaut (usage fréquent).'
   },
   {
     key: 'sensitive_mutation',

@@ -1,39 +1,74 @@
-# QHSE Control Africa — starter front
+# QHSE Control
 
-Ce zip est une **base de départ propre** pour ouvrir le projet dans Cursor sans repartir sur un HTML géant.
+Plateforme web de **pilotage QHSE** : incidents, risques, audits, non-conformités, actions correctives, documents contrôlés et indicateurs — pensée pour les **sites industriels**, les **équipes terrain** et le **management**.
 
-## Ce que contient ce starter
-- un `index.html` minimal
-- un shell front modulaire en JS natif
-- un menu simple et directement exploitable
-- des pages séparées par domaine métier
-- une base de **notifications**
-- une base de **journal des modifications**
-- une page **Centre IA** pour préparer les futures options IA
-- des styles centralisés dans un seul fichier pour la première phase
+## Fonctionnalités clés
 
-## Structure
-- `src/components` : composants du shell
-- `src/pages` : un module = une page
-- `src/data` : mocks temporaires
-- `src/utils` : état front léger
-- `src/styles` : styles globaux
+- Tableau de bord et indicateurs par site / organisation (multi-tenant)
+- Déclaration et suivi d’incidents, gestion des risques et du plan d’actions
+- Audits et non-conformités, assistances conformité et rapportage
+- Authentification sécurisée (JWT), rôles et **organisations multiples** par compte
+- Mode **exploration** sans compte pour prise en main et démonstration
 
-## Pourquoi cette structure
-Elle permet de :
-1. valider le produit avant de brancher le back
-2. éviter un monolithe HTML ingérable
-3. préparer un futur branchement backend module par module
-4. faciliter le travail dans Cursor
+## Démarrage rapide (démonstration locale)
 
-## Plan conseillé
-1. Valider le shell et la navigation
-2. Refaire le design si besoin, sans casser la structure
-3. Brancher d’abord `dashboard`, `incidents`, `risks`, `actions`
-4. Ajouter ensuite le vrai système auth / rôles / back
-5. Remplacer progressivement les mocks par l’API
+**Prérequis** : Node.js 20+
 
-## Pour lancer
-Ouvre simplement `index.html` dans ton navigateur pour une prévisualisation rapide.
+```bash
+npm install
+cd backend && npm install && cd ..
+```
 
-Pour une future phase plus propre, on pourra migrer cette base vers Vite ou un framework, mais pour cadrer le produit et travailler vite dans Cursor, cette base est suffisante.
+Base de données (PostgreSQL) et données d’exemple :
+
+```bash
+npm run db:docker --prefix backend
+```
+
+Attendez que Postgres soit prêt, puis migrations et seed :
+
+```bash
+npm run db:migrate:deploy --prefix backend
+npm run db:seed --prefix backend
+```
+
+En développement sans Docker, pointez `DATABASE_URL` vers une instance Postgres (voir `backend/.env.example`).
+
+Lancer l’API et le front (recommandé) :
+
+```bash
+npm run dev
+```
+
+- Interface : [http://localhost:5173](http://localhost:5173)  
+- API : [http://localhost:3001](http://localhost:3001)
+
+Après le seed, connectez-vous avec un compte du fichier `backend/prisma/seed.js` (ex. `qhse@qhse.local` avec le mot de passe défini dans le seed).
+
+## Structure du dépôt
+
+| Élément | Rôle |
+|--------|------|
+| `src/` | Application front (Vite, JS natif modulaire) |
+| `backend/` | API Express, Prisma, logique métier |
+| `public/` | Ressources statiques, PWA (`manifest.webmanifest`) |
+
+## Build production
+
+```bash
+npm run build
+npm run preview
+```
+
+Déployez le dossier `dist/` derrière un serveur web ; configurez l’URL de l’API (`window.__QHSE_API_BASE__` ou même origine avec reverse proxy). Côté API, exécutez `npx prisma migrate deploy` avant le démarrage sur une base Postgres de production — voir `DEPLOYMENT.md`.
+
+## Qualité
+
+- Lint : `npm run lint` (ESLint, `eslint.config.mjs`)
+- Tests front : `npm test` (Vitest)
+- Tests API : `npm test --prefix backend`
+- E2E : `npm run test:e2e` (Playwright — API + Vite via `npm run dev`)
+
+---
+
+*QHSE Control est une base produit évolutive — personnalisation marque, hébergement et intégrations sur mesure.*

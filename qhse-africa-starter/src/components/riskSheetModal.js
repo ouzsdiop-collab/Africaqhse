@@ -80,7 +80,7 @@ function defaultHistory(r) {
   return [
     {
       when: r.updatedAt || '—',
-      who: 'Système (maquette)',
+      who: 'Système',
       what: 'Dernière mise à jour affichée sur la fiche.'
     }
   ];
@@ -288,7 +288,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   assocBtn.style.fontSize = '11px';
   assocBtn.style.padding = '6px 10px';
   assocBtn.textContent = 'Associer un incident';
-  assocBtn.title = 'Ajoute une référence locale (mock) — à synchroniser avec le SI si besoin.';
+  assocBtn.title = 'Ajoute une référence locale — à synchroniser avec votre SI si besoin.';
   assocBtn.addEventListener('click', () => {
     const ref = window.prompt('Référence incident (ex. INC-204) :');
     if (!ref || !String(ref).trim()) return;

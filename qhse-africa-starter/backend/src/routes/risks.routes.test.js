@@ -12,8 +12,8 @@ function applyFilters(items, filters) {
 }
 
 vi.mock('../services/sites.service.js', () => ({
-  coalesceQuerySiteIdForList: vi.fn(async (siteId) => siteId ?? null),
-  assertSiteExistsOrNull: vi.fn(async (siteId) => siteId ?? null)
+  coalesceQuerySiteIdForList: vi.fn(async (_tenantId, rawSiteId) => rawSiteId ?? null),
+  assertSiteExistsOrNull: vi.fn(async (_tenantId, siteId) => siteId ?? null)
 }));
 
 vi.mock('../services/auditLog.service.js', () => ({
@@ -26,14 +26,14 @@ vi.mock('../services/riskAnalyze.service.js', () => ({
     category: String(description).includes('chute') ? 'Sécurité' : 'Autre',
     severity: 'moyenne',
     probability: 'moyenne',
-    suggestedActions: ['Action démo']
+    suggestedActions: ['Action suggérée (test)']
   }))
 }));
 
 vi.mock('../services/risks.service.js', () => ({
-  findAllRisks: vi.fn(async (filters = {}) => applyFilters(store, filters)),
-  findRiskById: vi.fn(async (id) => store.find((x) => x.id === id) || null),
-  getRiskStats: vi.fn(async () => {
+  findAllRisks: vi.fn(async (_tenantId, filters = {}) => applyFilters(store, filters)),
+  findRiskById: vi.fn(async (_tenantId, id) => store.find((x) => x.id === id) || null),
+  getRiskStats: vi.fn(async (_tenantId, _filters = {}) => {
     const byStatus = {};
     const byCategory = {};
     let critical = 0;
@@ -44,7 +44,7 @@ vi.mock('../services/risks.service.js', () => ({
     });
     return { total: store.length, critical, byStatus, byCategory };
   }),
-  createRisk: vi.fn(async (data) => {
+  createRisk: vi.fn(async (_tenantId, data) => {
     const row = {
       id: `risk_${store.length + 1}`,
       ref: `RSK-${100 + store.length + 1}`,
@@ -64,7 +64,7 @@ vi.mock('../services/risks.service.js', () => ({
     store.push(row);
     return row;
   }),
-  updateRiskById: vi.fn(async (id, patch) => {
+  updateRiskById: vi.fn(async (_tenantId, id, patch) => {
     const hit = store.find((x) => x.id === id);
     if (!hit) {
       const err = new Error('not found');
@@ -78,15 +78,16 @@ vi.mock('../services/risks.service.js', () => ({
     }
     return hit;
   }),
-  deleteRiskById: vi.fn(async (id) => {
+  deleteRiskById: vi.fn(async (_tenantId, id) => {
     const idx = store.findIndex((x) => x.id === id);
     if (idx < 0) {
       const err = new Error('not found');
       err.code = 'P2025';
       throw err;
     }
+    const removed = store[idx];
     store.splice(idx, 1);
-    return { deleted: true };
+    return { deleted: true, id: removed.id };
   })
 }));
 
@@ -165,7 +166,7 @@ describe('risks routes', () => {
     store.push({ id: 'x4', title: 'R4', status: 'open', gravity: 2, probability: 2, gp: 4 });
     const ok = await request(app).delete('/api/risks/x4');
     expect(ok.status).toBe(200);
-    expect(ok.body).toEqual({ deleted: true });
+    expect(ok.body).toMatchObject({ deleted: true });
     const ko = await request(app).delete('/api/risks/missing');
     expect(ko.status).toBe(404);
   });

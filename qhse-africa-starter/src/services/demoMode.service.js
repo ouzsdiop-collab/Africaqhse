@@ -1,5 +1,5 @@
 /**
- * Mode démo — présentation client sans dépendre du backend (données servies par qhseFetch).
+ * Mode exploration locale — données servies par interception qhseFetch lorsque le backend n’est pas utilisé.
  */
 
 import { resetDemoRuntime } from './demoModeRuntime.service.js';
@@ -8,8 +8,34 @@ const STORAGE_KEY = 'qhse-demo-mode-v1';
 /** Aligné sur notificationIntelligence.service.js — évite import circulaire. */
 const NOTIF_SYNTH_READ_KEY = 'qhse-notif-synthetic-read-v1';
 
+/**
+ * Le mode exploration (données locales hors API) est réservé aux builds non production.
+ * @returns {boolean}
+ */
+export function isDemoModeAllowed() {
+  try {
+    return Boolean(import.meta.env && import.meta.env.DEV);
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Désactive le stockage exploration en production et réinitialise l’état runtime associé.
+ */
+export function ensureProductionDemoModeOff() {
+  if (isDemoModeAllowed()) return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  resetDemoRuntime();
+}
+
 /** @returns {boolean} */
 export function isDemoMode() {
+  if (!isDemoModeAllowed()) return false;
   try {
     return localStorage.getItem(STORAGE_KEY) === '1';
   } catch {
@@ -19,6 +45,7 @@ export function isDemoMode() {
 
 /** @param {boolean} on */
 export function setDemoMode(on) {
+  if (!isDemoModeAllowed()) return;
   try {
     if (on) localStorage.setItem(STORAGE_KEY, '1');
     else localStorage.removeItem(STORAGE_KEY);
@@ -35,7 +62,7 @@ export function toggleDemoMode() {
 }
 
 /**
- * Réinitialise l’état local du scénario démo (patches Kanban, lectures notif, overlay actions).
+ * Réinitialise l’état local du scénario d’exploration (patches Kanban, lectures notif, overlay actions).
  */
 export function resetDemoPresentation() {
   resetDemoRuntime();

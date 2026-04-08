@@ -194,6 +194,6 @@ export function buildAuditIsoPdfHtml(data) {
   <p style="margin-top:28px;border-top:1px solid #ccc;padding-top:10px;font-size:10px">
     <strong>Signature / visa</strong> : ${esc(data.signerName || 'À compléter — responsable audit')}
   </p>
-  <p style="font-size:9px;color:#666;margin-top:8px">Document généré localement (démo) — ${esc(new Date().toLocaleString('fr-FR'))}</p>
+  <p style="font-size:9px;color:#666;margin-top:8px">Document généré localement — ${esc(new Date().toLocaleString('fr-FR'))}</p>
 </div>`;
 }

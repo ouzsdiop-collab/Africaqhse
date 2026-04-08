@@ -9,7 +9,7 @@ import { isDemoMode } from '../services/demoMode.service.js';
 import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
 
 /**
- * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (démo).
+ * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (session / dev).
  * @param {string} path — ex. `/api/actions` ou URL absolue
  * @param {RequestInit} [init]
  */

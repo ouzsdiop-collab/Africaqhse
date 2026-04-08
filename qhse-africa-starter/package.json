@@ -1,10 +1,11 @@
 {
   "name": "qhse-africa-starter",
   "private": true,
-  "description": "Front statique + backend dans /backend",
+  "description": "QHSE Control — plateforme de pilotage SST, qualité et conformité (front + API)",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint src e2e backend/src --max-warnings 500",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "build": "vite build",
@@ -19,7 +20,11 @@
     "db:generate": "npm run db:generate --prefix backend"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.52.0",
+    "eslint": "^10.2.0",
+    "globals": "^17.4.0",
+    "jsdom": "^29.0.2",
     "vite": "^6.2.0",
     "vitest": "^3.2.4"
   },

@@ -7,8 +7,8 @@ export async function getStats(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
-    const siteId = await coalesceQuerySiteIdForList(rawSiteId);
-    const data = await dashboardService.getDashboardStats(siteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const data = await dashboardService.getDashboardStats(req.qhseTenantId, siteId);
     res.json(data);
   } catch (err) {
     next(err);

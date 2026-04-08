@@ -17,7 +17,7 @@ const IMPORTED_PROOFS_STORAGE_KEY = 'qhse-iso-imported-proofs-v1';
  * @property {string[]} keyPoints
  * @property {string[]} gaps
  * @property {string} createdAt
- * @property {string} [validatedBy] — validateur terrain (démo locale)
+ * @property {string} [validatedBy] — validateur terrain (stockage local)
  */
 
 /** @typedef {'conforme' | 'partiel' | 'non_conforme'} ConformityStatus */
@@ -50,7 +50,7 @@ export const CONFORMITY_NORMS = [
   { id: 'iso45001', code: 'ISO 45001', title: 'Santé et sécurité au travail' }
 ];
 
-/** Documents maîtrisés — démo locale (échéances / responsable enrichis pour statuts conformité). */
+/** Documents maîtrisés — stockage local (échéances / responsable enrichis pour statuts conformité). */
 export const CONTROLLED_DOCUMENTS = [
   {
     name: 'Manuel intégré SMS',
@@ -119,7 +119,7 @@ export const DOCUMENT_ATTENTION = {
   ]
 };
 
-/** Audits / contrôles à mener — pilotage (démo). */
+/** Audits / contrôles à mener — pilotage (données locales). */
 export const AUDITS_TO_SCHEDULE = [
   { title: 'Audit interne ISO 45001 (Q2)', horizon: 'Avant le 15/04/2026', owner: 'Qualité site' },
   { title: 'Surveillance certification ISO 9001', horizon: 'Fenêtre juin 2026', owner: 'Direction' }

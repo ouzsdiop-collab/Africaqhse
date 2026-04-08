@@ -26,12 +26,60 @@ jobs:
       - name: Production build
         run: npm run build
 
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qhse_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qhse_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qhse_ci?schema=public
+      JWT_SECRET: ci-backend-jwt-secret-minimum-32-characters
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Prisma migrate + tests
+        run: npx prisma migrate deploy && npm test
+
   e2e:
-    needs: [frontend]
+    needs: [frontend, backend]
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qhse_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qhse_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      DATABASE_URL: file:./prisma/ci-e2e.db
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qhse_e2e?schema=public
       JWT_SECRET: ci-e2e-jwt-secret-minimum-32-characters
     defaults:
       run:
@@ -45,9 +93,9 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install front + Playwright
         run: npm ci && npx playwright install --with-deps chromium
-      - name: Backend — Prisma + seed
+      - name: Backend — Prisma migrate + seed
         working-directory: backend
-        run: npm ci && npx prisma db push --accept-data-loss && npm run db:seed
+        run: npm ci && npx prisma migrate deploy && npm run db:seed
       - name: E2E (API + Vite via Playwright webServer)
         run: npm run test:e2e
         env:

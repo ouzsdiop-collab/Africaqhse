@@ -1,16 +1,30 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 
+function tid(tenantId) {
+  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+}
+
 /**
+ * @param {string | null | undefined} tenantId
  * @param {string | null | undefined} incidentId
  * @returns {Promise<string | null>}
  */
-export async function assertIncidentExistsOrNull(incidentId) {
+export async function assertIncidentExistsOrNull(tenantId, incidentId) {
   if (incidentId == null || String(incidentId).trim() === '') {
     return null;
   }
+  const t = tid(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
   const id = String(incidentId).trim();
-  const row = await prisma.incident.findUnique({ where: { id }, select: { id: true } });
+  const row = await prisma.incident.findFirst({
+    where: { id, tenantId: t },
+    select: { id: true }
+  });
   if (!row) {
     const err = new Error('Incident lié introuvable');
     err.statusCode = 400;
@@ -20,10 +34,13 @@ export async function assertIncidentExistsOrNull(incidentId) {
 }
 
 /**
- * Référence suivante alignée sur la logique front (INC-xxx).
+ * @param {string | null | undefined} tenantId
  */
-export async function computeNextIncidentRef() {
+export async function computeNextIncidentRef(tenantId) {
+  const t = tid(tenantId);
+  if (!t) return 'INC-1';
   const rows = await prisma.incident.findMany({
+    where: { tenantId: t },
     select: { ref: true },
     orderBy: { createdAt: 'desc' },
     take: 3000
@@ -37,9 +54,12 @@ export async function computeNextIncidentRef() {
 }
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {{ siteId?: string | null, limit?: number }} [filters]
  */
-export async function findAllIncidents(filters = {}) {
+export async function findAllIncidents(tenantId, filters = {}) {
+  const t = tid(tenantId);
+  if (!t) return [];
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
@@ -52,16 +72,23 @@ export async function findAllIncidents(filters = {}) {
       : 300;
   const take = Math.min(raw, 500);
   return prisma.incident.findMany({
-    where: siteId ? { siteId } : undefined,
+    where: { tenantId: t, ...(siteId ? { siteId } : {}) },
     orderBy: { createdAt: 'desc' },
     take
   });
 }
 
-export async function createIncident(data) {
-  const siteId = await assertSiteExistsOrNull(data.siteId);
+export async function createIncident(tenantId, data) {
+  const t = tid(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
+  const siteId = await assertSiteExistsOrNull(t, data.siteId);
   return prisma.incident.create({
     data: {
+      tenantId: t,
       ref: data.ref,
       type: data.type,
       site: data.site,
@@ -81,6 +108,7 @@ export async function createIncident(data) {
 const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
 
 /**
+ * @param {string | null | undefined} tenantId
  * @param {string} ref
  * @param {{
  *   status?: string,
@@ -91,7 +119,13 @@ const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
  *   photosJson?: string | null
  * }} data
  */
-export async function updateIncidentByRef(ref, data) {
+export async function updateIncidentByRef(tenantId, ref, data) {
+  const t = tid(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
   const patch = {};
   if (data.status != null && String(data.status).trim() !== '') {
     patch.status = data.status;
@@ -126,7 +160,7 @@ export async function updateIncidentByRef(ref, data) {
     throw err;
   }
   return prisma.incident.update({
-    where: { ref },
+    where: { tenantId_ref: { tenantId: t, ref } },
     data: patch
   });
 }

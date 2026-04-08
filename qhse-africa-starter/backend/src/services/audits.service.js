@@ -1,10 +1,17 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 
+function tid(tenantId) {
+  return tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+}
+
 /**
+ * @param {string | null | undefined} tenantId
  * @param {{ siteId?: string | null, limit?: number }} [filters]
  */
-export async function findAllAudits(filters = {}) {
+export async function findAllAudits(tenantId, filters = {}) {
+  const t = tid(tenantId);
+  if (!t) return [];
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
@@ -17,16 +24,23 @@ export async function findAllAudits(filters = {}) {
       : 300;
   const take = Math.min(raw, 500);
   return prisma.audit.findMany({
-    where: siteId ? { siteId } : undefined,
+    where: { tenantId: t, ...(siteId ? { siteId } : {}) },
     orderBy: { createdAt: 'desc' },
     take
   });
 }
 
-export async function createAudit(data) {
-  const siteId = await assertSiteExistsOrNull(data.siteId);
+export async function createAudit(tenantId, data) {
+  const t = tid(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
+  const siteId = await assertSiteExistsOrNull(t, data.siteId);
   const scoreNum = Number(data.score);
   const row = {
+    tenantId: t,
     ref: data.ref,
     site: data.site,
     siteId,

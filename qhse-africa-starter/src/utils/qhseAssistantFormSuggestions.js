@@ -1,5 +1,5 @@
 /**
- * Suggestions déterministes (IA simulée) pour formulaires — à valider par l’utilisateur.
+ * Suggestions déterministes (assistant local) pour formulaires — à valider par l’utilisateur.
  */
 
 import { mockSuggestActionContent } from './mockActionSuggest.js';
@@ -81,7 +81,7 @@ export function buildActionDefaultsFromOverdueItem(item) {
 }
 
 /**
- * Préparation audit à venir (repères démo ou données métier).
+ * Préparation audit à venir (calendrier ou données métier).
  * @param {{ title?: string; horizon?: string; owner?: string }} audit
  */
 export function buildActionDefaultsFromAuditPrep(audit) {

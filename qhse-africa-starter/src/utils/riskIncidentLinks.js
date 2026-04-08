@@ -1,4 +1,4 @@
-import { risks as mockRisks } from '../data/mock.js';
+import { risks as seedRisks } from '../data/mock.js';
 
 const STORAGE_EXTRA = 'qhse-custom-risk-titles';
 
@@ -21,11 +21,11 @@ export function pushCustomRiskTitle(title) {
 }
 
 /**
- * Titres pour le sélecteur « lier à un risque » (mock + session).
+ * Titres pour le sélecteur « lier à un risque » (jeu initial + session).
  * @returns {string[]}
  */
 export function getRiskTitlesForSelect() {
-  const mock = mockRisks.map((r) => r.title).filter(Boolean);
+  const seedTitles = seedRisks.map((r) => r.title).filter(Boolean);
   let extra = [];
   try {
     extra = JSON.parse(sessionStorage.getItem(STORAGE_EXTRA) || '[]');
@@ -35,7 +35,7 @@ export function getRiskTitlesForSelect() {
   }
   const seen = new Set();
   const out = [];
-  for (const x of [...mock, ...extra]) {
+  for (const x of [...seedTitles, ...extra]) {
     if (x && !seen.has(x)) {
       seen.add(x);
       out.push(x);

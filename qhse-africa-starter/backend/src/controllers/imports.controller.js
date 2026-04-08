@@ -67,6 +67,7 @@ export async function preview(req, res, next) {
     let importHistoryId = null;
     try {
       const row = await importHistoryService.createAnalysisSuccessRecord({
+        tenantId: req.qhseTenantId,
         fileName: req.file.originalname,
         fileType: result.detectedType ?? 'unknown',
         detectedDocumentType: result.detectedDocumentType ?? null,
@@ -91,6 +92,7 @@ export async function preview(req, res, next) {
           req.file.mimetype
         );
         await importHistoryService.createAnalysisFailedRecord({
+          tenantId: req.qhseTenantId,
           fileName: req.file.originalname,
           fileType: kind,
           errorMessage:
@@ -139,6 +141,7 @@ export async function confirm(req, res, next) {
         : '';
 
     const result = await importConfirmService.confirmValidatedImport({
+      tenantId: req.qhseTenantId,
       targetModule,
       validatedData,
       role
@@ -146,6 +149,7 @@ export async function confirm(req, res, next) {
 
     try {
       await importHistoryService.applyConfirmResult(
+        req.qhseTenantId,
         importHistoryId || null,
         result,
         targetModule
@@ -193,7 +197,7 @@ export async function confirm(req, res, next) {
 
 export async function listHistory(req, res, next) {
   try {
-    const rows = await importHistoryService.findAllImportHistory();
+    const rows = await importHistoryService.findAllImportHistory(req.qhseTenantId);
     res.json(rows);
   } catch (err) {
     console.error('[imports] listHistory', err);
@@ -214,7 +218,7 @@ export async function getHistoryById(req, res, next) {
     if (!id) {
       return res.status(400).json({ error: 'Identifiant requis' });
     }
-    const row = await importHistoryService.findImportHistoryById(id);
+    const row = await importHistoryService.findImportHistoryById(req.qhseTenantId, id);
     if (!row) {
       return res.status(404).json({ error: 'Import introuvable' });
     }

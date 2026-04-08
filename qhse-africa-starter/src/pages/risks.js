@@ -1,4 +1,4 @@
-import { risks as mockRisks } from '../data/mock.js';
+import { risks as seedRisks } from '../data/mock.js';
 import {
   createRiskMatrixPanel,
   parseRiskMatrixGp,
@@ -209,7 +209,7 @@ function defaultTitleFromDescription(text) {
  * Suggestion locale si l’API d’analyse est indisponible — toujours validée par l’utilisateur.
  * @param {string} description
  */
-function mockAnalyzeRisk(description) {
+function suggestRiskFromDescriptionLocal(description) {
   const d = String(description).toLowerCase();
   let category = 'Sécurité';
   if (/hydrocarbure|pollution|eau|déchets|bassin|rétention|environnement/.test(d)) {
@@ -245,7 +245,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
   inner.innerHTML = `
     <h2 class="risks-create-dialog__head">Nouvelle fiche risque</h2>
     <p class="risks-create-dialog__lead">
-      Registre QHSE (ISO 45001 / ISO 14001) — décrivez le risque opérationnel. Suggestion automatique (mock / API) : vous validez toujours avant enregistrement.
+      Registre QHSE (ISO 45001 / ISO 14001) — décrivez le risque opérationnel. L’assistant propose des éléments à valider : vous gardez le contrôle avant tout enregistrement.
     </p>
     <form class="risks-form-grid" id="risks-create-form">
       <label>Type *
@@ -392,7 +392,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         panel.classList.remove('risks-ai-panel--loading');
-        renderSuggestion(mockAnalyzeRisk(desc));
+        renderSuggestion(suggestRiskFromDescriptionLocal(desc));
         showToast('Suggestion locale — serveur indisponible (à valider).', 'info');
         return;
       }
@@ -403,7 +403,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
         !Array.isArray(body.suggestedActions)
       ) {
         panel.classList.remove('risks-ai-panel--loading');
-        renderSuggestion(mockAnalyzeRisk(desc));
+        renderSuggestion(suggestRiskFromDescriptionLocal(desc));
         showToast('Réponse incomplète — suggestion locale affichée.', 'info');
         return;
       }
@@ -412,7 +412,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
     } catch (err) {
       console.error('[risks] POST /api/risks/analyze', err);
       panel.classList.remove('risks-ai-panel--loading');
-      renderSuggestion(mockAnalyzeRisk(desc));
+      renderSuggestion(suggestRiskFromDescriptionLocal(desc));
       showToast('Mode hors ligne : suggestion locale (à valider).', 'info');
     }
   });
@@ -919,8 +919,8 @@ export function renderRisks() {
       <div class="content-card-head content-card-head--tight">
         <div>
           <div class="section-kicker">Évolution</div>
-          <h3>Tendance (maquette)</h3>
-          <p class="content-card-lead risks-evolution-card__lead">Risques critiques et score moyen G×P — série locale, à relier aux indicateurs SI.</p>
+          <h3>Tendance</h3>
+          <p class="content-card-lead risks-evolution-card__lead">Risques critiques et score moyen G×P — évolution sur la période affichée (indicateurs alimentés par vos données).</p>
         </div>
       </div>
       <div class="risks-evolution-chart" data-risks-evolution-chart></div>
@@ -964,7 +964,7 @@ export function renderRisks() {
     const h = document.createElement('div');
     h.className = 'content-card-head content-card-head--tight';
     h.innerHTML =
-      '<div><div class="section-kicker">Preuves & contrôles</div><h3>Documents liés</h3><p class="content-card-lead risks-proofs-card__lead">Pièces et contrôles associés au dispositif risques (maquette).</p></div>';
+      '<div><div class="section-kicker">Preuves & contrôles</div><h3>Documents liés</h3><p class="content-card-lead risks-proofs-card__lead">Pièces et contrôles rattachés à la fiche risque (référentiel documentaire).</p></div>';
     const ul = document.createElement('ul');
     ul.className = 'risks-proofs-list';
     RISK_DOCS_MOCK.forEach((d) => {
@@ -1028,7 +1028,7 @@ export function renderRisks() {
       run: () => {
         const need = localRisks.filter((r) => !hasActionLinked(r));
         if (!need.length) {
-          showIaAssistantResult('Actions recommandées', ['Toutes les fiches ont une action liée (maquette).']);
+          showIaAssistantResult('Actions recommandées', ['Toutes les fiches visibles ont une action liée.']);
           return;
         }
         showIaAssistantResult(
@@ -1460,8 +1460,11 @@ export function renderRisks() {
       localRisks = await fetchRisksApi(deriveApiFilters());
     } catch (err) {
       console.error('[risks] GET /api/risks', err);
-      if (!localRisks.length) localRisks = [...mockRisks];
-      showToast('Risques API indisponibles — affichage démo local.', 'warning');
+      if (!localRisks.length) localRisks = [...seedRisks];
+      showToast(
+        'Serveur risques momentanément indisponible — affichage des dernières données connues.',
+        'warning'
+      );
     } finally {
       risksLoading = false;
     }

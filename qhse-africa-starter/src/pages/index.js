@@ -1,5 +1,5 @@
 import { getSessionUser } from '../data/sessionUser.js';
-import { canAccessNavPage } from '../utils/permissionsUi.js';
+import { canAccessNavPage, canResource } from '../utils/permissionsUi.js';
 
 /** @param {unknown} err */
 function buildRenderErrorView(err) {
@@ -7,23 +7,16 @@ function buildRenderErrorView(err) {
   const wrap = document.createElement('div');
   wrap.className = 'page-stack';
   const article = document.createElement('article');
-  article.className = 'content-card card-soft';
-  article.style.padding = '1.5rem';
-  article.style.maxWidth = '42rem';
+  article.className = 'content-card card-soft qhse-render-error-card';
   const h = document.createElement('h2');
-  h.style.margin = '0 0 10px';
+  h.className = 'qhse-render-error-title';
   h.textContent = 'Impossible d’afficher cette page';
   const p = document.createElement('p');
-  p.style.margin = '0 0 8px';
-  p.style.color = 'var(--text2)';
-  p.style.lineHeight = '1.5';
+  p.className = 'qhse-render-error-lead';
   p.textContent =
     'Une erreur technique a interrompu l’affichage. Ouvrez la console (F12) pour le détail.';
   const em = document.createElement('p');
-  em.style.margin = '0 0 16px';
-  em.style.fontSize = '13px';
-  em.style.wordBreak = 'break-word';
-  em.style.opacity = '0.9';
+  em.className = 'qhse-render-error-detail';
   em.textContent = err instanceof Error ? err.message : String(err);
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -90,6 +83,10 @@ async function importAndRenderPage(pageId, onAddLog) {
       const m = await import('./products.js');
       return m.renderProducts();
     }
+    case 'habilitations': {
+      const m = await import('./habilitations.js');
+      return m.renderHabilitations();
+    }
     case 'imports': {
       const m = await import('./imports.js');
       return m.renderImports();
@@ -113,6 +110,10 @@ async function importAndRenderPage(pageId, onAddLog) {
     case 'activity-log': {
       const m = await import('./activity-log.js');
       return m.renderActivityLog();
+    }
+    case 'audit-logs': {
+      const m = await import('./audit-logs.js');
+      return m.renderAuditLogsPage();
     }
     case 'settings': {
       const m = await import('./settings.js');
@@ -148,6 +149,10 @@ export function createPageRenderer({ currentPage, onAddLog }) {
     if (h && h !== 'dashboard') {
       window.location.hash = 'dashboard';
     }
+    targetPage = 'dashboard';
+  }
+  if (su && targetPage === 'audit-logs' && !canResource(su.role, 'audit_logs', 'read')) {
+    window.location.hash = 'dashboard';
     targetPage = 'dashboard';
   }
 

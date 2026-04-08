@@ -5,39 +5,59 @@ const publicSelect = {
   name: true,
   code: true,
   address: true,
-  createdAt: true
+  createdAt: true,
+  tenantId: true
 };
 
-export async function findAllSites() {
+/**
+ * @param {unknown} tenantId
+ */
+function normalizeTenantId(tenantId) {
+  if (tenantId == null || tenantId === '') return '';
+  return String(tenantId).trim();
+}
+
+export async function findAllSites(tenantId) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) return [];
   return prisma.site.findMany({
+    where: { tenantId: tid },
     orderBy: [{ name: 'asc' }],
     select: publicSelect,
     take: 200
   });
 }
 
-export async function findSiteById(id) {
-  if (!id || typeof id !== 'string') return null;
-  return prisma.site.findUnique({
-    where: { id: id.trim() },
+/**
+ * @param {unknown} tenantId
+ * @param {unknown} id
+ */
+export async function findSiteById(tenantId, id) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid || !id || typeof id !== 'string') return null;
+  return prisma.site.findFirst({
+    where: { id: id.trim(), tenantId: tid },
     select: publicSelect
   });
 }
 
 /**
- * @param {{ name: string, code?: string|null, address?: string|null }} data
- */
-/**
- * Valide un id de site pour liaison optionnelle (create / update).
+ * @param {unknown} tenantId
  * @param {unknown} siteId
  * @returns {Promise<string|null>}
  */
-export async function assertSiteExistsOrNull(siteId) {
+export async function assertSiteExistsOrNull(tenantId, siteId) {
   if (siteId === undefined || siteId === null || siteId === '') return null;
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
   const id = String(siteId).trim();
   if (!id) return null;
-  const row = await prisma.site.findUnique({
-    where: { id },
+  const row = await prisma.site.findFirst({
+    where: { id, tenantId: tid },
     select: { id: true }
   });
   if (!row) {
@@ -49,28 +69,39 @@ export async function assertSiteExistsOrNull(siteId) {
 }
 
 /**
- * Listes / stats avec ?siteId= : si l’identifiant n’existe pas en base (ex. seed régénéré,
- * session périmètre obsolète), ignorer le filtre plutôt que renvoyer des totaux à zéro.
+ * @param {unknown} tenantId
  * @param {string | null | undefined} siteId
  * @returns {Promise<string | null>}
  */
-export async function coalesceQuerySiteIdForList(siteId) {
+export async function coalesceQuerySiteIdForList(tenantId, siteId) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) return null;
   if (siteId == null) return null;
   const id = String(siteId).trim();
   if (!id) return null;
-  const row = await prisma.site.findUnique({
-    where: { id },
+  const row = await prisma.site.findFirst({
+    where: { id, tenantId: tid },
     select: { id: true }
   });
   if (row) return id;
   console.warn(
-    '[qhse-api] siteId de requête absent de la base — filtre ignoré (vue groupe). id=%s',
+    '[qhse-api] siteId de requête absent de ce tenant — filtre ignoré (vue groupe). id=%s',
     id
   );
   return null;
 }
 
-export async function createSite(data) {
+/**
+ * @param {unknown} tenantId
+ * @param {{ name: string, code?: string|null, address?: string|null }} data
+ */
+export async function createSite(tenantId, data) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation manquant');
+    err.statusCode = 400;
+    throw err;
+  }
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   if (!name) {
     const err = new Error('Le nom du site est requis');
@@ -88,6 +119,7 @@ export async function createSite(data) {
 
   return prisma.site.create({
     data: {
+      tenantId: tid,
       name,
       code,
       address
