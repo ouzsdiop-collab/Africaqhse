@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import * as controller from '../controllers/actions.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
+import { prismaRouteDebug } from '../middleware/prismaRouteDebug.middleware.js';
 
 const router = Router();
+router.use(prismaRouteDebug('actions'));
 
 /** Avant GET / pour ne pas intercepter « assign » comme id (non utilisé ici, bon réflexe). */
 router.patch(

@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import * as controller from '../controllers/incidents.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
+import { prismaRouteDebug } from '../middleware/prismaRouteDebug.middleware.js';
 
 const router = Router();
+router.use(prismaRouteDebug('incidents'));
 
 /** Liste des incidents (plus récent en premier) */
 router.get('/', requirePermission('incidents', 'read'), controller.getAll);

@@ -9,6 +9,7 @@ import { initSentryBackend, setupSentryExpressErrorHandler } from './sentryInit.
 import { httpRequestLog } from './middleware/httpRequestLog.middleware.js';
 import { setupGracefulShutdown } from './lib/gracefulShutdown.js';
 import { sendJsonError } from './lib/apiErrors.js';
+import { prisma } from './db.js';
 import healthRouter from './routes/health.routes.js';
 
 import incidentsRouter from './routes/incidents.routes.js';
@@ -151,7 +152,13 @@ app.use((err, req, res, _next) => {
   if (code === 'P2025') {
     return sendJsonError(res, 404, 'Enregistrement introuvable.', req, { code: 'NOT_FOUND' });
   }
-  console.error(err);
+  console.error('[express] unhandled error — message:', err && err.message);
+  console.error('[express] unhandled error — stack:', err && err.stack ? err.stack : '(no stack)');
+  if (err && typeof err === 'object') {
+    if ('code' in err) console.error('[express] unhandled error — code:', err.code);
+    if ('meta' in err) console.error('[express] unhandled error — meta:', err.meta);
+  }
+  console.error('[express] unhandled error — full object:', err);
   /** @type {Record<string, string>} */
   const expose =
     process.env.NODE_ENV !== 'production' && msg
@@ -210,14 +217,30 @@ export function startServer() {
   return server;
 }
 
-if (process.env.VITEST !== 'true') {
-  bootErrLine('hors tests — invocation startServer()');
+async function ensureDbThenListen() {
+  try {
+    console.log('[db] prisma.$connect()…');
+    await prisma.$connect();
+    console.log('DB CONNECTED');
+  } catch (err) {
+    console.error('DB ERROR — message:', err && err.message);
+    console.error('DB ERROR — stack:', err && err.stack ? err.stack : '(no stack)');
+    process.exit(1);
+  }
   try {
     startServer();
   } catch (err) {
     console.error('[boot] échec fatale startServer()', err);
     process.exit(1);
   }
+}
+
+if (process.env.VITEST !== 'true') {
+  bootErrLine('hors tests — prisma.$connect() puis startServer()');
+  ensureDbThenListen().catch((err) => {
+    console.error('[boot] ensureDbThenListen', err?.message, err?.stack);
+    process.exit(1);
+  });
 } else {
   bootErrLine('VITEST=true — startServer() non appelé (tests)');
 }
