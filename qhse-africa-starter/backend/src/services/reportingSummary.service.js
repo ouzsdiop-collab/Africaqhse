@@ -15,22 +15,80 @@ const LIST_NC = 8;
 const LIST_ACTIONS = 8;
 const LIST_CRITICAL_INCIDENTS = 6;
 const RECENT_INCIDENT_SCAN = 400;
+const DEFAULT_PERIOD_DAYS = 30;
+
+/**
+ * Réponse vide (même forme que getReportingSummary) — ex. hors auth / sans tenant en base.
+ */
+export function buildEmptyReportingSummary(siteIdNormalized = null) {
+  const generatedAt = new Date().toISOString();
+  return {
+    generatedAt,
+    siteId: siteIdNormalized,
+    counts: {
+      incidentsTotal: 0,
+      incidentsLast30Days: 0,
+      incidentsCriticalOpen: 0,
+      nonConformitiesTotal: 0,
+      nonConformitiesOpen: 0,
+      actionsTotal: 0,
+      actionsOverdue: 0,
+      auditsTotal: 0
+    },
+    kpis: {
+      auditScoreAvg: null,
+      auditScoreMin: null,
+      auditScoreMax: null
+    },
+    recentAudits: [],
+    openNonConformities: [],
+    overdueActions: [],
+    criticalIncidents: [],
+    priorityAlerts: [],
+    export: {
+      documentTitle: siteIdNormalized
+        ? 'Synthèse QHSE — périmètre site'
+        : 'Synthèse QHSE consolidée',
+      schemaVersion: 1,
+      sectionsOrder: [
+        'counts',
+        'kpis',
+        'priorityAlerts',
+        'criticalIncidents',
+        'overdueActions',
+        'openNonConformities',
+        'recentAudits'
+      ]
+    }
+  };
+}
 
 /**
  * Synthèse consolidée pour pilotage QHSE / direction.
  * @param {string | null | undefined} tenantId
  * @param {string | null} [siteId] — filtre strict ; null = groupe (comportement historique)
+ * @param {{ emptyIfNoTenant?: boolean, periodDays?: number }} [options]
  */
-export async function getReportingSummary(tenantId, siteId = null) {
+export async function getReportingSummary(tenantId, siteId = null, options = {}) {
+  const emptyIfNoTenant = options.emptyIfNoTenant === true;
+  const rawDays = Number(options.periodDays);
+  const periodDays =
+    Number.isFinite(rawDays) && rawDays > 0 && rawDays <= 366
+      ? Math.floor(rawDays)
+      : DEFAULT_PERIOD_DAYS;
+
   const tid = tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
   if (!tid) {
+    if (emptyIfNoTenant) {
+      return buildEmptyReportingSummary(normalizeSiteId(siteId));
+    }
     throw Object.assign(new Error('Tenant requis'), { statusCode: 400 });
   }
   const sid = normalizeSiteId(siteId);
   const siteWhere = prismaTenantSiteWhere(tenantId, siteId);
 
-  const since30 = new Date();
-  since30.setDate(since30.getDate() - 30);
+  const sincePeriod = new Date();
+  sincePeriod.setDate(sincePeriod.getDate() - periodDays);
 
   const [
     incidentsTotal,
@@ -50,7 +108,7 @@ export async function getReportingSummary(tenantId, siteId = null) {
     prisma.incident.count({
       where: {
         ...(siteWhere || {}),
-        createdAt: { gte: since30 }
+        createdAt: { gte: sincePeriod }
       }
     }),
     prisma.nonConformity.count({ where: siteWhere }),

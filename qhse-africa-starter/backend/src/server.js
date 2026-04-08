@@ -81,6 +81,7 @@ if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
 }
 
 app.use(attachRequestId);
+/* Pas de CSP Helmet sur l’API (évite tout blocage de politiques côté clients / proxies). */
 app.use(
   helmet({
     contentSecurityPolicy: false,

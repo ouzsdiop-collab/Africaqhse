@@ -17,7 +17,8 @@
     "dev:front:serve": "npx --yes serve . -l 8080 --cors",
     "start:api": "npm start --prefix backend",
     "db:push": "npm run db:push --prefix backend",
-    "db:generate": "npm run db:generate --prefix backend"
+    "db:generate": "npm run db:generate --prefix backend",
+    "git:acp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/git-acp.ps1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

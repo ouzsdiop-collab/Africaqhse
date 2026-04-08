@@ -6,6 +6,20 @@
 let warnedCorsProd = false;
 
 /**
+ * @param {string | undefined} value
+ * @returns {boolean | undefined} false / true si explicite, undefined si absent ou non reconnu
+ */
+function parseEnvBoolLoose(value) {
+  if (value === undefined || value === null) return undefined;
+  const s = String(value).trim();
+  if (s === '') return undefined;
+  const lower = s.toLowerCase();
+  if (['false', '0', 'no', 'off'].includes(lower)) return false;
+  if (['true', '1', 'yes', 'on'].includes(lower)) return true;
+  return undefined;
+}
+
+/**
  * @param {string} value
  */
 function normalizeOrigin(value) {
@@ -27,13 +41,14 @@ function buildCorsOriginList() {
 /**
  * Authentification obligatoire sur les routes protégées par requirePermission.
  * - REQUIRE_AUTH=true|1 → toujours exiger un utilisateur.
- * - REQUIRE_AUTH=false|0 → ne jamais exiger (dev / démo).
+ * - REQUIRE_AUTH=false|0|no|off (toute casse, trim) → ne jamais exiger, quel que soit NODE_ENV.
+ * - REQUIRE_AUTH=true|1|yes|on → toujours exiger.
  * - Sinon : si NODE_ENV=production → exiger ; sinon relâché (comportement historique).
  */
 export function isRequireAuthEnabled() {
-  const r = process.env.REQUIRE_AUTH;
-  if (r === 'false' || r === '0') return false;
-  if (r === 'true' || r === '1') return true;
+  const explicit = parseEnvBoolLoose(process.env.REQUIRE_AUTH);
+  if (explicit === false) return false;
+  if (explicit === true) return true;
   return process.env.NODE_ENV === 'production';
 }
 
@@ -44,9 +59,9 @@ export function isRequireAuthEnabled() {
  * - Sinon : autorisé seulement hors production.
  */
 export function isXUserIdAllowed() {
-  const a = process.env.ALLOW_X_USER_ID;
-  if (a === 'true' || a === '1') return true;
-  if (a === 'false' || a === '0') return false;
+  const explicit = parseEnvBoolLoose(process.env.ALLOW_X_USER_ID);
+  if (explicit === true) return true;
+  if (explicit === false) return false;
   return process.env.NODE_ENV !== 'production';
 }
 
