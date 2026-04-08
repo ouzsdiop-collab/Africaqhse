@@ -18,6 +18,11 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 ENV NODE_ENV=production
+# Logs immédiats sur stdout/stderr (utile hors TTY / agrégateurs)
+ENV NODE_NO_WARNINGS=1
+
 EXPOSE 3001
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["npm", "start"]
+# `node` direct : PID 1 = Node, signaux et logs Railway plus fiables qu’avec `npm start`.
+# Équivalent à `npm start` (même fichier d’entrée).
+CMD ["node", "src/server.js"]

@@ -41,12 +41,33 @@ import {
   isXUserIdAllowed
 } from './lib/securityConfig.js';
 
-registerBusinessEventListeners();
+/** Logs de démarrage sur stderr : souvent non bufferisés, visibles tout de suite sur Railway. */
+function bootErrLine(msg) {
+  console.error(`[boot] ${msg}`);
+}
 
-initSentryBackend();
+/* En ESM, ce code s’exécute après tous les imports ci-dessus (ordre de chargement du module). */
+bootErrLine(
+  `modules importés pid=${process.pid} NODE_ENV=${process.env.NODE_ENV ?? '(absent)'} VITEST=${process.env.VITEST ?? 'absent'}`
+);
+
+try {
+  bootErrLine('registerBusinessEventListeners()…');
+  registerBusinessEventListeners();
+  bootErrLine('initSentryBackend()…');
+  initSentryBackend();
+} catch (err) {
+  console.error('[boot] erreur fatale avant Express', err);
+  process.exit(1);
+}
 
 export const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
+
+bootErrLine(
+  `Express app créée — PORT=${PORT} (env brut PORT=${process.env.PORT === undefined ? 'undefined' : JSON.stringify(process.env.PORT)}) BIND_HOST=${BIND_HOST}`
+);
 
 app.disable('x-powered-by');
 
@@ -147,9 +168,11 @@ app.use((err, req, res, _next) => {
 });
 
 export function startServer() {
-  const host = process.env.BIND_HOST || '0.0.0.0';
-  const server = app.listen(PORT, host, () => {
-    console.log(`API QHSE Africa — écoute sur ${host}:${PORT}`);
+  bootErrLine(`startServer() — app.listen(${JSON.stringify(BIND_HOST)}, ${PORT})…`);
+
+  const server = app.listen(PORT, BIND_HOST, () => {
+    bootErrLine('callback listen — socket TCP ouvert, prêt à accepter les connexions');
+    console.log(`API QHSE Africa — écoute sur ${BIND_HOST}:${PORT}`);
     console.log(
       `Santé: GET /api/health · readiness DB: GET /api/health/ready`
     );
@@ -159,7 +182,11 @@ export function startServer() {
     if (!process.env.DATABASE_URL) {
       console.warn('[qhse-africa-api] DATABASE_URL manquant — voir .env / .env.example');
     }
-    startAutomationScheduler();
+    try {
+      startAutomationScheduler();
+    } catch (err) {
+      console.error('[boot] startAutomationScheduler erreur (non fatale)', err);
+    }
   });
 
   server.on('error', (err) => {
@@ -178,5 +205,13 @@ export function startServer() {
 }
 
 if (process.env.VITEST !== 'true') {
-  startServer();
+  bootErrLine('hors tests — invocation startServer()');
+  try {
+    startServer();
+  } catch (err) {
+    console.error('[boot] échec fatale startServer()', err);
+    process.exit(1);
+  }
+} else {
+  bootErrLine('VITEST=true — startServer() non appelé (tests)');
 }
