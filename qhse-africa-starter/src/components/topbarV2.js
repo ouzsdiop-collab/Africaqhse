@@ -69,6 +69,35 @@ function ensureTopbarV2Styles() {
   height: 100%;
   padding: 0 clamp(10px, 1vw, 16px);
 }
+.topbar-v2__nav-toggle {
+  display: none;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  margin-inline-end: 2px;
+  padding: 0;
+  border-radius: var(--border-radius-md, 10px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.topbar-v2__nav-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--palette-accent, #14b8a6) 40%, transparent);
+}
+.topbar-v2__nav-toggle svg {
+  display: block;
+}
+@media (max-width: 900px) {
+  [data-display-mode="expert"] .topbar-v2__nav-toggle {
+    display: inline-flex;
+  }
+}
 .topbar-v2__lead {
   flex: 0 1 42%;
   min-width: 0;
@@ -440,6 +469,11 @@ function ensureTopbarV2Styles() {
 [data-display-mode="terrain"] .display-mode-switch {
   border-color: color-mix(in srgb, var(--color-primary-border) 45%, var(--color-border));
 }
+@media (max-width: 900px) {
+  .topbar-v2 .display-mode-switch {
+    display: none !important;
+  }
+}
 @media (max-width: 1100px) {
   .topbar-v2__trailing {
     border-left: none;
@@ -645,7 +679,9 @@ export function createTopbar({
   sessionUser,
   unreadCount,
   onToggleNotifications,
-  onNavigate
+  onNavigate,
+  expertMobileNavOpen = false,
+  onExpertMobileNavToggle
 }) {
   ensureTopbarV2Styles();
 
@@ -661,6 +697,9 @@ export function createTopbar({
 
   header.innerHTML = `
     <div class="topbar-v2__inner">
+      <button type="button" class="topbar-v2__nav-toggle" data-tb2-nav-toggle aria-expanded="false" aria-controls="qhse-shell-sidebar" aria-label="Ouvrir le menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
       <div class="topbar-v2__lead">
         <p class="topbar-v2__page-title" data-tb2-page-title></p>
         <div class="topbar-v2__breadcrumb" data-tb2-breadcrumb></div>
@@ -719,6 +758,21 @@ export function createTopbar({
   syncDemoPill();
   window.addEventListener('qhse-demo-mode-changed', syncDemoPill);
   window.addEventListener('qhse-demo-reset', syncDemoPill);
+
+  const navToggle = header.querySelector('[data-tb2-nav-toggle]');
+  if (navToggle instanceof HTMLButtonElement) {
+    if (mode !== 'expert') {
+      navToggle.hidden = true;
+    } else {
+      navToggle.hidden = false;
+      const open = Boolean(expertMobileNavOpen);
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      navToggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+      navToggle.addEventListener('click', () => {
+        if (typeof onExpertMobileNavToggle === 'function') onExpertMobileNavToggle();
+      });
+    }
+  }
 
   const titleEl = header.querySelector('[data-tb2-page-title]');
   if (titleEl) {

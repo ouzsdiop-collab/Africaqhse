@@ -12,6 +12,7 @@ import {
   updatePermitStatus
 } from '../services/ptw.service.js';
 import { getLinksFor, linkModules } from '../services/moduleLinks.service.js';
+import { saveElementAsPdf } from '../utils/html2pdfExport.js';
 
 const PTW_TYPES = [
   'travail en hauteur',
@@ -648,8 +649,6 @@ export function renderPermits() {
     pdfBtn.textContent = 'Export PDF';
     pdfBtn.addEventListener('click', async () => {
       try {
-        const mod = await import('html2pdf.js');
-        const html2pdf = mod.default || mod;
         const wrap = document.createElement('div');
         wrap.innerHTML = `
           <h2>PTW ${it.id}</h2>
@@ -664,7 +663,24 @@ export function renderPermits() {
             signatures.length ? signatures.map((s) => `${s.name} (${s.role})`).join(', ') : 'Aucune'
           }</p>
         `;
-        await html2pdf().from(wrap).set({ margin: 10, filename: `PTW-${it.id}.pdf` }).save();
+        Object.assign(wrap.style, {
+          position: 'fixed',
+          left: '-9999px',
+          top: '0',
+          width: '190mm',
+          padding: '14px 16px',
+          background: '#ffffff',
+          color: '#0f172a',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          fontSize: '11px',
+          lineHeight: '1.45'
+        });
+        document.body.append(wrap);
+        try {
+          await saveElementAsPdf(wrap, `PTW-${it.id}.pdf`, { margin: [10, 12, 12, 12] });
+        } finally {
+          wrap.remove();
+        }
         showToast('PDF PTW généré.', 'success');
       } catch {
         showToast('Export PDF indisponible.', 'error');

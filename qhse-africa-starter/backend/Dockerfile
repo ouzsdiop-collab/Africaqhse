@@ -4,13 +4,15 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl libstdc++
 
+# 1) Métadonnées npm
+# 2) Schéma Prisma AVANT `npm ci` : le script postinstall exécute `prisma generate`
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
+
 RUN npm ci
 
-COPY prisma ./prisma
+# 3) Reste de l’application (le client Prisma est déjà généré)
 COPY scripts ./scripts
-RUN npx prisma generate
-
 COPY src ./src
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

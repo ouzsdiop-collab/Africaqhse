@@ -4,6 +4,7 @@
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { saveElementAsPdf } from '../utils/html2pdfExport.js';
 import { HABILITATIONS_STATUS_LABEL } from '../data/habilitationsDemo.js';
 
 const CSV_COLS = [
@@ -133,8 +134,6 @@ export function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, r
  * }} opts
  */
 export async function downloadHabilitationsPdf(opts) {
-  const mod = await import('html2pdf.js');
-  const html2pdf = mod.default || mod;
   const html = buildHabilitationsPdfHtml(opts);
   const host = document.createElement('div');
   host.className = 'hab-pdf-host-hidden';
@@ -154,16 +153,11 @@ export async function downloadHabilitationsPdf(opts) {
 
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
   try {
-    await html2pdf()
-      .set({
-        margin: [10, 10, 10, 10],
-        filename: `${safeName}.pdf`,
-        image: { type: 'jpeg', quality: 0.92 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0f172a' },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-      })
-      .from(host)
-      .save();
+    await saveElementAsPdf(host, `${safeName}.pdf`, {
+      margin: [10, 10, 10, 10],
+      html2canvas: { backgroundColor: '#0f172a' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    });
   } finally {
     host.remove();
   }
@@ -201,8 +195,6 @@ export function buildConformitePdfHtml({ filtersText, kpis, bySite }) {
 }
 
 export async function downloadHabilitationsConformitePdf({ filtersText, kpis, bySite, filename }) {
-  const mod = await import('html2pdf.js');
-  const html2pdf = mod.default || mod;
   const host = document.createElement('div');
   host.innerHTML = buildConformitePdfHtml({ filtersText, kpis, bySite });
   Object.assign(host.style, {
@@ -219,16 +211,11 @@ export async function downloadHabilitationsConformitePdf({ filtersText, kpis, by
   document.body.append(host);
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
   try {
-    await html2pdf()
-      .set({
-        margin: [10, 10, 10, 10],
-        filename: `${safeName}.pdf`,
-        image: { type: 'jpeg', quality: 0.92 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0f172a' },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      })
-      .from(host)
-      .save();
+    await saveElementAsPdf(host, `${safeName}.pdf`, {
+      margin: [10, 10, 10, 10],
+      html2canvas: { backgroundColor: '#0f172a' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    });
   } finally {
     host.remove();
   }

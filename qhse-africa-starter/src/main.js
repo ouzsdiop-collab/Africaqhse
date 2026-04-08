@@ -1,7 +1,7 @@
 import './components/isoProofsManager.js';
 import './components/isoCopilotConformiteModule.js';
 import { initQhseSentry, captureQhseException } from './instrumentSentry.js';
-import { initDisplayMode } from './utils/displayMode.js';
+import { initDisplayMode, subscribeDisplayModeViewport } from './utils/displayMode.js';
 import { createSidebar } from './components/sidebarV2.js';
 import { createTopbar } from './components/topbarV2.js';
 import { createNotificationsPanel } from './components/notifications.js';
@@ -226,6 +226,7 @@ function renderApp() {
 
   try {
     const terrainMode = getDisplayMode() === 'terrain';
+    const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
     if (terrainMode) {
       if (!TERRAIN_ALLOWED_PAGE_IDS.has(appState.currentPage)) {
@@ -249,10 +250,17 @@ function renderApp() {
     const sidebar = createSidebar({
       currentPage: appState.currentPage,
       onNavigate: (pageId) => {
+        if (expertMode) appState.expertMobileNavOpen = false;
         setCurrentPage(pageId);
         window.location.hash = pageId;
         renderApp();
       },
+      onExpertMobileDrawerClose: expertMode
+        ? () => {
+            appState.expertMobileNavOpen = false;
+            renderApp();
+          }
+        : undefined,
       onSiteChange: (siteId, label) => {
         setActiveSiteContext(siteId, label);
         activityLogStore.add({
@@ -290,11 +298,19 @@ function renderApp() {
       unreadCount: countUnreadPresentation(
         buildPresentationFeed(notificationsStore.all(), { role: getSessionUser()?.role })
       ),
+      expertMobileNavOpen: expertMode && appState.expertMobileNavOpen,
+      onExpertMobileNavToggle: expertMode
+        ? () => {
+            appState.expertMobileNavOpen = !appState.expertMobileNavOpen;
+            renderApp();
+          }
+        : undefined,
       onToggleNotifications: () => {
         appState.notificationsOpen = !appState.notificationsOpen;
         renderApp();
       },
       onNavigate: (pageId) => {
+        if (expertMode) appState.expertMobileNavOpen = false;
         setCurrentPage(pageId);
         window.location.hash = pageId;
         renderApp();
@@ -304,6 +320,7 @@ function renderApp() {
     const pageRenderer = createPageRenderer({
       currentPage: appState.currentPage,
       onNavigate: (pageId) => {
+        if (expertMode) appState.expertMobileNavOpen = false;
         setCurrentPage(pageId);
         window.location.hash = pageId;
         renderApp();
@@ -348,6 +365,24 @@ function renderApp() {
       });
       shell.append(mobileNav);
     }
+
+    if (expertMode) {
+      if (appState.expertMobileNavOpen) shell.classList.add('app-shell--nav-open');
+      else shell.classList.remove('app-shell--nav-open');
+      const backdrop = document.createElement('button');
+      backdrop.type = 'button';
+      backdrop.className = 'app-shell__nav-backdrop';
+      backdrop.setAttribute('aria-label', 'Fermer le menu');
+      if (!appState.expertMobileNavOpen) backdrop.hidden = true;
+      backdrop.addEventListener('click', () => {
+        appState.expertMobileNavOpen = false;
+        renderApp();
+      });
+      shell.append(backdrop);
+    } else {
+      appState.expertMobileNavOpen = false;
+    }
+
     app.append(shell);
     syncDocumentTitle(appState.currentPage);
     void refreshShellNavBadges(sidebar).catch((err) => {
@@ -373,10 +408,30 @@ function sleep(ms) {
   });
 }
 
+let expertMobileNavEscapeRegistered = false;
+function ensureExpertMobileNavEscape() {
+  if (expertMobileNavEscapeRegistered) return;
+  expertMobileNavEscapeRegistered = true;
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (getDisplayMode() !== 'expert') return;
+    if (!appState.expertMobileNavOpen) return;
+    appState.expertMobileNavOpen = false;
+    renderApp();
+  });
+}
+
 async function boot() {
   try {
     await initQhseSentry();
     initDisplayMode();
+    subscribeDisplayModeViewport(() => {
+      try {
+        renderApp();
+      } catch (e) {
+        console.error('[QHSE] viewport display mode', e);
+      }
+    });
     if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
       showFatalShell(
         'Application non chargée (fichier local)',
@@ -385,6 +440,7 @@ async function boot() {
       return;
     }
     initRouting();
+    ensureExpertMobileNavEscape();
     registerPwaServiceWorker();
     try {
       await Promise.race([restoreSessionFromToken(), sleep(10000)]);
@@ -441,6 +497,7 @@ window.addEventListener('unhandledrejection', (event) => {
 window.addEventListener('hashchange', () => {
   const hash = window.location.hash.replace('#', '');
   if (!hash) return;
+  if (getDisplayMode() === 'expert') appState.expertMobileNavOpen = false;
   setCurrentPage(hash);
   try {
     renderApp();

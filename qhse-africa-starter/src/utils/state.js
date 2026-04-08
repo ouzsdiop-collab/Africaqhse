@@ -25,7 +25,9 @@ export const appState = {
   currentSite: 'Vue groupe (tous sites)',
   /** Id Prisma du site actif ; null = vue groupe (pas de filtre API) */
   activeSiteId: null,
-  notificationsOpen: false
+  notificationsOpen: false,
+  /** Mode Complet uniquement — menu latéral en tiroir sur mobile */
+  expertMobileNavOpen: false
 };
 
 export function setCurrentPage(page) {

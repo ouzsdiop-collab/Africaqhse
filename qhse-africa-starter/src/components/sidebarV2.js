@@ -71,6 +71,27 @@ function ensureSidebarV2Styles() {
   flex-direction: column;
   gap: var(--space-1);
 }
+.sidebar-v2__drawer-close {
+  display: none;
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-subtle) 80%, transparent);
+  color: var(--color-text);
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-v2__drawer-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-border) 45%, transparent);
+}
 .sidebar-v2__brand-title {
   font-family: 'Inter', var(--font-body);
   font-size: 15px;
@@ -683,7 +704,8 @@ export function createSidebar({
   currentPage,
   onNavigate,
   onSiteChange,
-  onSessionUserChange
+  onSessionUserChange,
+  onExpertMobileDrawerClose
 }) {
   ensureSidebarV2Styles();
   const terrainMode = getDisplayMode() === 'terrain';
@@ -691,6 +713,7 @@ export function createSidebar({
 
   const aside = document.createElement('aside');
   aside.className = 'sidebar-v2';
+  aside.id = 'qhse-shell-sidebar';
 
   aside.innerHTML = `
     <div class="sidebar-v2__brand">
@@ -721,6 +744,17 @@ export function createSidebar({
       </p>
     </div>
   `;
+
+  if (typeof onExpertMobileDrawerClose === 'function') {
+    const brand = aside.querySelector('.sidebar-v2__brand');
+    const closeDrawer = document.createElement('button');
+    closeDrawer.type = 'button';
+    closeDrawer.className = 'sidebar-v2__drawer-close';
+    closeDrawer.setAttribute('aria-label', 'Fermer le menu');
+    closeDrawer.textContent = '×';
+    closeDrawer.addEventListener('click', () => onExpertMobileDrawerClose());
+    brand?.append(closeDrawer);
+  }
 
   const select = document.createElement('select');
   select.className = 'control-select context-select shell-context-select';

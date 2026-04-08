@@ -2,6 +2,8 @@
  * Extensions premium module Audits (terrain, PDF ISO client, workflow) — sans backend dédié.
  */
 
+import { saveElementAsPdf } from '../utils/html2pdfExport.js';
+
 const STYLE_ID = 'qhse-audit-premium-saas-styles';
 
 const CSS = `
@@ -102,8 +104,6 @@ export function createAuditTerrainWorkflowStrip(pageRoot, opts = {}) {
 }
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
-  const mod = await import('html2pdf.js');
-  const html2pdf = mod.default || mod;
   const host = document.createElement('div');
   host.style.position = 'fixed';
   host.style.left = '-9999px';
@@ -113,16 +113,10 @@ export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
   document.body.append(host);
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w-]+/g, '_');
   try {
-    await html2pdf()
-      .set({
-        margin: [12, 12, 12, 12],
-        filename: `${safeName}.pdf`,
-        image: { type: 'jpeg', quality: 0.92 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      })
-      .from(host)
-      .save();
+    await saveElementAsPdf(host, `${safeName}.pdf`, {
+      margin: [12, 12, 12, 12],
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    });
   } finally {
     host.remove();
   }

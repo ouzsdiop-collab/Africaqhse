@@ -1056,10 +1056,10 @@ export function renderAudits() {
         signerName: su?.name || 'Responsable audit'
       });
       await downloadAuditIsoPdfFromHtml(html, `audit-iso-${LAST_AUDIT.ref}`);
-      showToast('PDF ISO complet généré (local, html2pdf).', 'info');
+      showToast('PDF ISO complet généré (export local).', 'info');
       activityLogStore.add({
         module: 'audits',
-        action: 'Export PDF ISO complet (html2pdf)',
+        action: 'Export PDF ISO complet',
         detail: LAST_AUDIT.ref,
         user: su?.name || 'Utilisateur'
       });
@@ -1247,7 +1247,7 @@ export function renderAudits() {
   heroPdfIso.type = 'button';
   heroPdfIso.className = 'btn btn-secondary';
   heroPdfIso.textContent = 'PDF ISO (complet)';
-  heroPdfIso.title = 'Checklist, preuves, NC, actions, signature — html2pdf';
+      heroPdfIso.title = 'Checklist, preuves, NC, actions, signature — export PDF';
   heroPdfIso.addEventListener('click', () => {
     void generateAuditIsoClientPdf();
   });
