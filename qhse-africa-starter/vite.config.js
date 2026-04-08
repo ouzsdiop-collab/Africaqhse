@@ -1,5 +1,9 @@
 import { defineConfig, loadEnv } from 'vite';
-import { buildContentSecurityPolicy, cspForHtmlMetaAttribute } from './csp.mjs';
+import {
+  buildContentSecurityPolicy,
+  cspForHtmlMetaAttribute,
+  DEFAULT_PROD_API_ORIGINS
+} from './csp.mjs';
 
 /**
  * Injecte la CSP uniquement en build (évite de casser le HMR / eval Vite en dev).
@@ -33,7 +37,10 @@ function connectOriginsFromEnv(env) {
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const policy = buildContentSecurityPolicy(connectOriginsFromEnv(env));
+  /* Toujours autoriser l’API prod dans la meta CSP, même si seul window.__QHSE_API_BASE__
+     est utilisé à l’exécution ou si VITE_API_BASE n’est pas chargé dans l’environnement du build. */
+  const apiConnectOrigins = [...DEFAULT_PROD_API_ORIGINS, ...connectOriginsFromEnv(env)];
+  const policy = buildContentSecurityPolicy(apiConnectOrigins);
 
   return {
     root: '.',

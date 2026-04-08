@@ -1,8 +1,8 @@
 /**
  * Politique CSP pour le front (build / `vite preview` / balise meta injectée).
  *
- * Build : `vite.config.js` appelle `buildContentSecurityPolicy()` avec l’origine de
- * `VITE_API_BASE` pour que `connect-src` corresponde exactement à l’URL d’API du bundle.
+ * Build : `vite.config.js` fusionne `DEFAULT_PROD_API_ORIGINS` et l’origine dérivée de
+ * `VITE_API_BASE` puis appelle `buildContentSecurityPolicy()` pour la meta injectée.
  *
  * Si une **en-tête HTTP** `Content-Security-Policy` est aussi envoyée par l’hébergeur
  * (Railway, CDN…), les deux politiques s’appliquent **en même temps** : chaque requête
@@ -12,13 +12,13 @@
  * - Pas d’`unsafe-eval` en prod (bundles Vite = modules).
  */
 
-/** API prod connue ; complétée au build par l’origine de VITE_API_BASE (dédoublonnée). */
-const DEFAULT_PROD_API_ORIGINS = ['https://africaqhse-production.up.railway.app'];
+/** API prod par défaut (CSP + repli si `VITE_API_BASE` absent au build). Exportée pour Vite. */
+export const DEFAULT_PROD_API_ORIGINS = ['https://africaqhse-production.up.railway.app'];
 
 /**
- * @param {string[]} [extraConnectOrigins] — origines complètes (https://host), ex. depuis VITE_API_BASE
+ * @param {string[]} [apiConnectOrigins] — origines https complètes (API + éventuellement Sentry ailleurs)
  */
-export function buildContentSecurityPolicy(extraConnectOrigins = []) {
+export function buildContentSecurityPolicy(apiConnectOrigins = []) {
   const seen = new Set();
   const parts = ["'self'"];
   const add = (o) => {
@@ -27,8 +27,7 @@ export function buildContentSecurityPolicy(extraConnectOrigins = []) {
     seen.add(s);
     parts.push(s);
   };
-  for (const o of DEFAULT_PROD_API_ORIGINS) add(o);
-  for (const o of extraConnectOrigins) {
+  for (const o of apiConnectOrigins) {
     if (o) add(o);
   }
   add('https://*.ingest.sentry.io');
@@ -52,8 +51,8 @@ export function buildContentSecurityPolicy(extraConnectOrigins = []) {
   ].join('; ');
 }
 
-/** Politique par défaut (sans VITE_API_BASE) — tests / import ponctuel. */
-export const CONTENT_SECURITY_POLICY = buildContentSecurityPolicy();
+/** Politique par défaut — inclut l’API prod déclarée ci-dessus. */
+export const CONTENT_SECURITY_POLICY = buildContentSecurityPolicy(DEFAULT_PROD_API_ORIGINS);
 
 /** Pour attribut HTML meta content */
 export function cspForHtmlMetaAttribute(policy = CONTENT_SECURITY_POLICY) {

@@ -9,6 +9,8 @@ on:
 jobs:
   frontend:
     runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE: https://africaqhse-production.up.railway.app
     defaults:
       run:
         working-directory: .
