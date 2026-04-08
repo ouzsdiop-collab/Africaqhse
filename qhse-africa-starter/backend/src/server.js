@@ -58,7 +58,9 @@ app.use(attachRequestId);
 app.use(
   helmet({
     contentSecurityPolicy: false,
-    crossOriginResourcePolicy: { policy: 'cross-origin' }
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: false,
+    crossOriginEmbedderPolicy: false
   })
 );
 app.use(cors(getCorsMiddlewareOptions()));

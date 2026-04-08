@@ -6,6 +6,13 @@
 let warnedCorsProd = false;
 
 /**
+ * @param {string} value
+ */
+function normalizeOrigin(value) {
+  return String(value).trim().replace(/\/+$/, '');
+}
+
+/**
  * Authentification obligatoire sur les routes protégées par requirePermission.
  * - REQUIRE_AUTH=true|1 → toujours exiger un utilisateur.
  * - REQUIRE_AUTH=false|0 → ne jamais exiger (dev / démo).
@@ -39,20 +46,26 @@ export function getCorsMiddlewareOptions() {
   const list = raw
     ? raw
         .split(',')
-        .map((s) => s.trim())
+        .map((s) => normalizeOrigin(s))
         .filter(Boolean)
     : [];
 
   return {
     origin(origin, callback) {
       if (list.length === 0) {
-        if (process.env.NODE_ENV === 'production' && !warnedCorsProd) {
+        if (process.env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+        if (!warnedCorsProd) {
           warnedCorsProd = true;
           console.warn(
-            '[security] CORS_ORIGINS non défini — toutes origines autorisées. Définissez CORS_ORIGINS en production (ex. https://app.example.com).'
+            '[security] CORS_ORIGINS non défini en production — origine navigateur refusée.'
           );
         }
-        return callback(null, true);
+        if (!origin) {
+          return callback(null, true);
+        }
+        return callback(new Error(`Origine non autorisée par CORS : ${origin}`));
       }
       if (list.includes('*')) {
         return callback(null, true);
@@ -60,7 +73,7 @@ export function getCorsMiddlewareOptions() {
       if (!origin) {
         return callback(null, true);
       }
-      if (list.includes(origin)) {
+      if (list.includes(normalizeOrigin(origin))) {
         return callback(null, true);
       }
       return callback(new Error(`Origine non autorisée par CORS : ${origin}`));
