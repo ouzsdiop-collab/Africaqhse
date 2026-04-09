@@ -53,7 +53,7 @@ export function normalizeClassification(c) {
 export function canAccessControlledDocument(user, classification, need = 'read') {
   if (!user) return true; // mode démo sans auth
   if (!isRequireAuthEnabled()) return true;
-  if (typeof user.role !== 'string') return false;
+  if (!user || typeof user.role !== 'string') return true;
   const role = user.role.trim().toUpperCase();
   if (!role) return false;
   const verb = need === 'write' ? 'write' : 'read';
