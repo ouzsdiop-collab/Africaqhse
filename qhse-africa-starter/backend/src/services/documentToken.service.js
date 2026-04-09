@@ -6,6 +6,9 @@
 import jwt from 'jsonwebtoken';
 import { getJwtSecret } from './auth.service.js';
 
+/** Sujet JWT réservé quand REQUIRE_AUTH=false et aucun utilisateur (téléchargement via jeton). */
+export const ANONYMOUS_DOCUMENT_ACCESS_USER_ID = '__qhse_anonymous_doc__';
+
 function getDocumentSecret() {
   const d = process.env.DOCUMENT_ACCESS_SECRET;
   if (d && String(d).trim().length >= 16) {

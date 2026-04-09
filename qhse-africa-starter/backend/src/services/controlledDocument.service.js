@@ -5,6 +5,7 @@
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 import { can } from '../lib/permissions.js';
+import { isRequireAuthEnabled } from '../lib/securityConfig.js';
 import { readControlledFileBuffer, saveControlledFile, deleteControlledFile } from './documentStorage.service.js';
 import { addWatermarkToPdf } from './documentWatermark.service.js';
 
@@ -50,6 +51,7 @@ export function normalizeClassification(c) {
  * @param {'read' | 'write'} need
  */
 export function canAccessControlledDocument(user, classification, need = 'read') {
+  if (!isRequireAuthEnabled()) return true;
   if (!user || typeof user.role !== 'string') return false;
   const role = user.role.trim().toUpperCase();
   if (!role) return false;
