@@ -1,4 +1,3 @@
-import { risks as seedRisks } from '../data/mock.js';
 import {
   createRiskMatrixPanel,
   parseRiskMatrixGp,
@@ -1460,10 +1459,10 @@ export function renderRisks() {
       localRisks = await fetchRisksApi(deriveApiFilters());
     } catch (err) {
       console.error('[risks] GET /api/risks', err);
-      if (!localRisks.length) localRisks = [...seedRisks];
+      localRisks = [];
       showToast(
-        'Serveur risques momentanément indisponible — affichage des dernières données connues.',
-        'warning'
+        'Impossible de charger le registre des risques depuis le serveur.',
+        'error'
       );
     } finally {
       risksLoading = false;
