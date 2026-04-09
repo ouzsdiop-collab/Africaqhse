@@ -90,7 +90,7 @@ export async function streamByToken(req, res, next) {
     const { buffer } = await controlledDocumentService.readDocumentBufferFromRow(doc);
     await writeAuditLog({
       tenantId: doc.tenantId ?? v.tenantId,
-      userId: anonDev ? null : qhseUser.id,
+      userId: anonDev ? null : (qhseUser?.id ?? null),
       resource: 'controlled_document',
       resourceId: doc.id,
       action: 'controlled_document_download',
