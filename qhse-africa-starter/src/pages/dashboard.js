@@ -1415,6 +1415,7 @@ export function renderDashboard() {
       });
     }
 
+    const monthly = buildIncidentMonthlySeries(incidents);
     const trendDelta =
       monthly.length >= 2 ? monthly[monthly.length - 1].value - monthly[0].value : 0;
     const iaMsgs = [
