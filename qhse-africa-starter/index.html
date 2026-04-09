@@ -2,6 +2,7 @@
 <html lang="fr" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
+    <script src="/theme-boot.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
     <meta
@@ -34,6 +35,14 @@
     <style>
       *, *::before, *::after {
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      }
+      html[data-theme='light'] #qhse-boot-placeholder {
+        background: #f4f6fa !important;
+        color: #0f172a !important;
+      }
+      html[data-theme='light'] #qhse-boot-placeholder code {
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
       }
     </style>
   </head>

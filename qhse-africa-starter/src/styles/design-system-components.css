@@ -368,3 +368,33 @@ body {
   border-color: var(--ds-ai-border);
   background: color-mix(in srgb, var(--color-primary-bg) 65%, transparent);
 }
+
+/* —— Mode clair : surfaces lisibles (tokens design + teal marque) —— */
+[data-theme='light'] .control-textarea {
+  background: var(--color-background-primary, #fff);
+}
+
+[data-theme='light'] .control-textarea:focus {
+  border-color: var(--color-primary-border);
+}
+
+[data-theme='light'] .ds-empty-state {
+  background: color-mix(in srgb, var(--color-background-secondary) 92%, var(--palette-accent, #14b8a6) 5%);
+}
+
+[data-theme='light'] .table-shell tbody tr:hover td {
+  background: color-mix(in srgb, var(--palette-accent, #14b8a6) 7%, var(--color-background-primary));
+}
+
+[data-theme='light'] .line-chart {
+  background: var(--color-background-secondary);
+}
+
+[data-theme='light'] .ds-modal-overlay {
+  background: rgba(15, 23, 42, 0.48);
+}
+
+[data-theme='light'] .app-toast {
+  background: color-mix(in srgb, var(--color-background-primary) 94%, var(--color-text-primary) 6%);
+  border-color: var(--color-border-secondary);
+}

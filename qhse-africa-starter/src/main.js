@@ -23,8 +23,10 @@ import { getDisplayMode } from './utils/displayMode.js';
 import { TERRAIN_ALLOWED_PAGE_IDS, TERRAIN_BOTTOM_NAV_ITEMS } from './utils/terrainModePages.js';
 import { syncTerrainIncidentQueue } from './services/terrainOffline.service.js';
 import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
+import { initTheme } from './utils/theme.js';
 
 ensureProductionDemoModeOff();
+initTheme();
 
 const MOBILE_STYLE_ID = 'qhse-terrain-mobile-shell';
 

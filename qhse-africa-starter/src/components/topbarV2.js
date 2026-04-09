@@ -11,8 +11,12 @@ import { showToast } from './toast.js';
 import { isDemoMode } from '../services/demoMode.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { getActiveTenant } from '../data/sessionUser.js';
+import { getTheme, toggleTheme, THEME_CHANGED_EVENT } from '../utils/theme.js';
 
 const STYLE_ID = 'qhse-topbar-v2-styles';
+
+const THEME_ICON_SUN = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
+const THEME_ICON_MOON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
 const DASHBOARD_INTENT_LAST_KEY = 'qhse.dashboard.intent.last';
 
 function readDashboardIntentLast() {
@@ -416,6 +420,35 @@ function ensureTopbarV2Styles() {
   border-color: var(--color-border);
   color: var(--color-primary-text);
 }
+.topbar-v2__theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.topbar-v2__theme:hover {
+  background: var(--color-subtle);
+  border-color: var(--color-border);
+  color: var(--color-primary-text);
+}
+.topbar-v2__theme-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.topbar-v2__theme-icon svg {
+  display: block;
+}
 .topbar-v2__profile-btn {
   display: inline-flex;
   align-items: center;
@@ -730,6 +763,9 @@ export function createTopbar({
           </button>
           <span class="topbar-v2__notif-badge${safeUnread ? ' topbar-v2__notif-badge--visible' : ''}" ${safeUnread ? '' : 'hidden'} data-notif-badge>${badgeLabel}</span>
         </span>
+        <button type="button" class="topbar-v2__theme" data-theme-toggle title="Thème clair" aria-label="Activer le thème clair">
+          <span class="topbar-v2__theme-icon" aria-hidden="true"></span>
+        </button>
         <div class="topbar-v2__quick-wrap">
           <button type="button" class="topbar-v2__quick topbar-quick-add" aria-expanded="false" aria-haspopup="true" aria-controls="topbar-quick-menu" id="topbar-quick-btn">Créer</button>
           <ul class="topbar-v2__quick-menu" id="topbar-quick-menu" role="menu" aria-labelledby="topbar-quick-btn" hidden></ul>
@@ -960,6 +996,29 @@ export function createTopbar({
       if (typeof onNavigate === 'function') onNavigate('ai-center');
       else navigateByHash('ai-center');
     });
+  }
+
+  const themeBtn = header.querySelector('[data-theme-toggle]');
+  const themeIconHost = themeBtn?.querySelector('.topbar-v2__theme-icon');
+  function syncThemeToggleUi() {
+    if (!themeBtn || !themeIconHost) return;
+    const t = getTheme();
+    if (t === 'dark') {
+      themeBtn.title = 'Activer le thème clair';
+      themeBtn.setAttribute('aria-label', 'Activer le thème clair');
+      themeIconHost.innerHTML = THEME_ICON_SUN;
+    } else {
+      themeBtn.title = 'Activer le thème sombre';
+      themeBtn.setAttribute('aria-label', 'Activer le thème sombre');
+      themeIconHost.innerHTML = THEME_ICON_MOON;
+    }
+  }
+  if (themeBtn && themeIconHost) {
+    syncThemeToggleUi();
+    themeBtn.addEventListener('click', () => {
+      toggleTheme();
+    });
+    window.addEventListener(THEME_CHANGED_EVENT, syncThemeToggleUi);
   }
 
   const quickBtn = header.querySelector('.topbar-quick-add');
