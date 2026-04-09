@@ -16,43 +16,35 @@ const RECENT_INCIDENT_SCAN = 400;
 const DEFAULT_PERIOD_DAYS = 30;
 
 /**
- * Filtre synthèse : sans tenant explicite → pas de clause `tenantId` (inclut NULL et données legacy).
- * Évite tout `tenantId: null` Prisma qui ne couvrirait pas les lignes à ancien identifiant.
- * @param {string | null | undefined} tenantId
+ * V1 mono-tenant : aucun filtre `tenantId` (les lignes ont tenantId null en base).
+ * Filtre optionnel par site uniquement.
  * @param {string | null} siteId
- * @returns {Record<string, unknown>}
+ * @returns {Record<string, never> | { siteId: string }}
  */
-function reportingSummaryWhere(tenantId, siteId) {
-  const tid =
-    tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+function reportingSummaryWhere(siteId) {
   const sid = normalizeSiteId(siteId);
-  if (!tid) {
-    return sid ? { siteId: sid } : {};
-  }
-  return sid ? { tenantId: tid, siteId: sid } : { tenantId: tid };
+  return sid ? { siteId: sid } : {};
 }
 
 /**
- * @param {string | null | undefined} tenantId
  * @param {string | null} siteId
  */
-async function countActionsOverdueForReporting(tenantId, siteId) {
-  const w = reportingSummaryWhere(tenantId, siteId);
+async function countActionsOverdueForReporting(siteId) {
+  const w = reportingSummaryWhere(siteId);
   const rows = await prisma.action.findMany({
-    where: w,
+    ...(Object.keys(w).length ? { where: w } : {}),
     select: { status: true, dueDate: true }
   });
   return rows.filter(isActionOverdueDashboardRow).length;
 }
 
 /**
- * @param {string | null | undefined} tenantId
  * @param {string | null} siteId
  */
-async function countNonConformitiesOpenForReporting(tenantId, siteId) {
-  const w = reportingSummaryWhere(tenantId, siteId);
+async function countNonConformitiesOpenForReporting(siteId) {
+  const w = reportingSummaryWhere(siteId);
   const rows = await prisma.nonConformity.findMany({
-    where: w,
+    ...(Object.keys(w).length ? { where: w } : {}),
     select: { status: true }
   });
   return rows.filter((r) => isNcOpen(r.status)).length;
@@ -123,7 +115,8 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
     return buildEmptyReportingSummary(normalizeSiteId(siteId));
   }
   const sid = normalizeSiteId(siteId);
-  const siteWhere = reportingSummaryWhere(tenantId, siteId);
+  const siteWhere = reportingSummaryWhere(siteId);
+  const hasSiteFilter = Object.keys(siteWhere).length > 0;
 
   const sincePeriod = new Date();
   sincePeriod.setDate(sincePeriod.getDate() - periodDays);
@@ -142,26 +135,25 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
     overdueActionsRows,
     recentIncidents
   ] = await Promise.all([
-    prisma.incident.count({ where: siteWhere }),
+    prisma.incident.count(hasSiteFilter ? { where: siteWhere } : {}),
     prisma.incident.count({
-      where: {
-        ...(siteWhere || {}),
-        createdAt: { gte: sincePeriod }
-      }
+      where: hasSiteFilter
+        ? { ...siteWhere, createdAt: { gte: sincePeriod } }
+        : { createdAt: { gte: sincePeriod } }
     }),
-    prisma.nonConformity.count({ where: siteWhere }),
-    countNonConformitiesOpenForReporting(tenantId, siteId),
-    prisma.action.count({ where: siteWhere }),
-    countActionsOverdueForReporting(tenantId, siteId),
-    prisma.audit.count({ where: siteWhere }),
+    prisma.nonConformity.count(hasSiteFilter ? { where: siteWhere } : {}),
+    countNonConformitiesOpenForReporting(siteId),
+    prisma.action.count(hasSiteFilter ? { where: siteWhere } : {}),
+    countActionsOverdueForReporting(siteId),
+    prisma.audit.count(hasSiteFilter ? { where: siteWhere } : {}),
     prisma.audit.aggregate({
-      where: siteWhere,
+      ...(hasSiteFilter ? { where: siteWhere } : {}),
       _avg: { score: true },
       _max: { score: true },
       _min: { score: true }
     }),
     prisma.audit.findMany({
-      where: siteWhere,
+      ...(hasSiteFilter ? { where: siteWhere } : {}),
       select: {
         ref: true,
         site: true,
@@ -173,7 +165,7 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
       take: LIST_AUDITS
     }),
     prisma.nonConformity.findMany({
-      where: siteWhere,
+      ...(hasSiteFilter ? { where: siteWhere } : {}),
       select: {
         id: true,
         title: true,
@@ -187,7 +179,7 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
     }),
     prisma.action
       .findMany({
-        where: siteWhere,
+        ...(hasSiteFilter ? { where: siteWhere } : {}),
         select: {
           title: true,
           detail: true,
@@ -209,7 +201,7 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
           .slice(0, LIST_ACTIONS)
       ),
     prisma.incident.findMany({
-      where: siteWhere,
+      ...(hasSiteFilter ? { where: siteWhere } : {}),
       select: {
         ref: true,
         type: true,
