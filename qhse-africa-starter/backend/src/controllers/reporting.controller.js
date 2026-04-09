@@ -1,4 +1,3 @@
-import { isRequireAuthEnabled } from '../lib/securityConfig.js';
 import * as reportingSummaryService from '../services/reportingSummary.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
 import { assertQuerySiteAllowed } from '../lib/siteScope.service.js';
@@ -19,19 +18,12 @@ function parsePeriodDaysQuery(req) {
 /** GET /api/reports/summary — synthèse consolidée (permissions : reports:read). */
 export async function getSummary(req, res, next) {
   try {
-    const tenantId = req.qhseTenantId;
     const rawSiteId = parseSiteIdQuery(req);
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
-    const siteId = await coalesceQuerySiteIdForList(tenantId, rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(null, rawSiteId);
     const periodDays = parsePeriodDaysQuery(req);
 
-    const emptyIfNoTenant =
-      (tenantId == null || tenantId === '') &&
-      !req.qhseUser &&
-      !isRequireAuthEnabled();
-
-    const data = await reportingSummaryService.getReportingSummary(tenantId, siteId, {
-      emptyIfNoTenant,
+    const data = await reportingSummaryService.getReportingSummary(null, siteId, {
       ...(periodDays !== undefined ? { periodDays } : {})
     });
     res.json(data);
