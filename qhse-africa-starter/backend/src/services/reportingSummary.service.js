@@ -1,14 +1,11 @@
 import { prisma } from '../db.js';
 import {
   buildPriorityAlerts,
-  countActionsOverdue,
-  countNonConformitiesOpenHeuristic,
   includesInsensitive,
   isActionOverdueDashboardRow,
   isIncidentLikelyOpen,
   isNcOpen,
-  normalizeSiteId,
-  prismaTenantSiteWhere
+  normalizeSiteId
 } from './kpiCore.service.js';
 
 const LIST_AUDITS = 6;
@@ -17,6 +14,49 @@ const LIST_ACTIONS = 8;
 const LIST_CRITICAL_INCIDENTS = 6;
 const RECENT_INCIDENT_SCAN = 400;
 const DEFAULT_PERIOD_DAYS = 30;
+
+/**
+ * Filtre synthèse : sans tenant explicite → pas de clause `tenantId` (inclut NULL et données legacy).
+ * Évite tout `tenantId: null` Prisma qui ne couvrirait pas les lignes à ancien identifiant.
+ * @param {string | null | undefined} tenantId
+ * @param {string | null} siteId
+ * @returns {Record<string, unknown>}
+ */
+function reportingSummaryWhere(tenantId, siteId) {
+  const tid =
+    tenantId == null || tenantId === '' ? '' : String(tenantId).trim();
+  const sid = normalizeSiteId(siteId);
+  if (!tid) {
+    return sid ? { siteId: sid } : {};
+  }
+  return sid ? { tenantId: tid, siteId: sid } : { tenantId: tid };
+}
+
+/**
+ * @param {string | null | undefined} tenantId
+ * @param {string | null} siteId
+ */
+async function countActionsOverdueForReporting(tenantId, siteId) {
+  const w = reportingSummaryWhere(tenantId, siteId);
+  const rows = await prisma.action.findMany({
+    where: w,
+    select: { status: true, dueDate: true }
+  });
+  return rows.filter(isActionOverdueDashboardRow).length;
+}
+
+/**
+ * @param {string | null | undefined} tenantId
+ * @param {string | null} siteId
+ */
+async function countNonConformitiesOpenForReporting(tenantId, siteId) {
+  const w = reportingSummaryWhere(tenantId, siteId);
+  const rows = await prisma.nonConformity.findMany({
+    where: w,
+    select: { status: true }
+  });
+  return rows.filter((r) => isNcOpen(r.status)).length;
+}
 
 /**
  * Réponse vide (même forme que getReportingSummary) — ex. hors auth / sans tenant en base.
@@ -83,7 +123,7 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
     return buildEmptyReportingSummary(normalizeSiteId(siteId));
   }
   const sid = normalizeSiteId(siteId);
-  const siteWhere = prismaTenantSiteWhere(tenantId, siteId);
+  const siteWhere = reportingSummaryWhere(tenantId, siteId);
 
   const sincePeriod = new Date();
   sincePeriod.setDate(sincePeriod.getDate() - periodDays);
@@ -110,9 +150,9 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
       }
     }),
     prisma.nonConformity.count({ where: siteWhere }),
-    countNonConformitiesOpenHeuristic(tenantId, siteId),
+    countNonConformitiesOpenForReporting(tenantId, siteId),
     prisma.action.count({ where: siteWhere }),
-    countActionsOverdue(tenantId, siteId),
+    countActionsOverdueForReporting(tenantId, siteId),
     prisma.audit.count({ where: siteWhere }),
     prisma.audit.aggregate({
       where: siteWhere,
@@ -145,43 +185,29 @@ export async function getReportingSummary(tenantId, siteId = null, options = {})
       orderBy: { createdAt: 'desc' },
       take: 500
     }),
-    !tid
-      ? prisma.action
-          .findMany({
-            where: siteWhere,
-            select: {
-              title: true,
-              detail: true,
-              status: true,
-              owner: true,
-              dueDate: true,
-              createdAt: true
-            },
-            take: 800
-          })
-          .then((rows) =>
-            rows
-              .filter(isActionOverdueDashboardRow)
-              .sort(
-                (a, b) =>
-                  (a.dueDate ? new Date(a.dueDate).getTime() : a.createdAt.getTime()) -
-                  (b.dueDate ? new Date(b.dueDate).getTime() : b.createdAt.getTime())
-              )
-              .slice(0, LIST_ACTIONS)
+    prisma.action
+      .findMany({
+        where: siteWhere,
+        select: {
+          title: true,
+          detail: true,
+          status: true,
+          owner: true,
+          dueDate: true,
+          createdAt: true
+        },
+        take: 800
+      })
+      .then((rows) =>
+        rows
+          .filter(isActionOverdueDashboardRow)
+          .sort(
+            (a, b) =>
+              (a.dueDate ? new Date(a.dueDate).getTime() : a.createdAt.getTime()) -
+              (b.dueDate ? new Date(b.dueDate).getTime() : b.createdAt.getTime())
           )
-      : sid
-        ? prisma.$queryRaw`
-      SELECT title, detail, status, owner, dueDate, createdAt FROM actions
-      WHERE tenantId = ${tid} AND LOWER(status) LIKE '%retard%' AND siteId = ${sid}
-      ORDER BY COALESCE(dueDate, createdAt) ASC
-      LIMIT ${LIST_ACTIONS}
-    `
-        : prisma.$queryRaw`
-      SELECT title, detail, status, owner, dueDate, createdAt FROM actions
-      WHERE tenantId = ${tid} AND LOWER(status) LIKE '%retard%'
-      ORDER BY COALESCE(dueDate, createdAt) ASC
-      LIMIT ${LIST_ACTIONS}
-    `,
+          .slice(0, LIST_ACTIONS)
+      ),
     prisma.incident.findMany({
       where: siteWhere,
       select: {
