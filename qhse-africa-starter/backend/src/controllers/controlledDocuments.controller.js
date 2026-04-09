@@ -76,7 +76,7 @@ export async function streamByToken(req, res, next) {
       }
       qhseUser = {
         id: user.id,
-        role: String(user.role ?? '').trim().toUpperCase()
+        role: String(user?.role ?? '').trim().toUpperCase()
       };
     }
     if (doc.tenantId) {
@@ -118,7 +118,7 @@ export async function streamByToken(req, res, next) {
 export async function list(req, res, next) {
   try {
     const u = req.qhseUser;
-    if (!can(u.role, 'controlled_documents', 'read')) {
+    if (u && !can(u.role, 'controlled_documents', 'read')) {
       return res.status(403).json({ error: 'Permission refusée.' });
     }
     const filters = controlledDocumentService.parseListFilters(req.query || {});
@@ -146,7 +146,7 @@ export async function list(req, res, next) {
 export async function create(req, res, next) {
   try {
     const u = req.qhseUser;
-    if (!can(u.role, 'controlled_documents', 'write')) {
+    if (u && !can(u.role, 'controlled_documents', 'write')) {
       return res.status(403).json({ error: 'Permission refusée.' });
     }
     if (!req.file?.buffer) {
@@ -207,7 +207,7 @@ export async function create(req, res, next) {
 export async function patchMeta(req, res, next) {
   try {
     const u = req.qhseUser;
-    if (!can(u.role, 'controlled_documents', 'write')) {
+    if (u && !can(u.role, 'controlled_documents', 'write')) {
       return res.status(403).json({ error: 'Permission refusée.' });
     }
     const doc = await controlledDocumentService.getControlledDocumentById(req.qhseTenantId, req.params.id);
