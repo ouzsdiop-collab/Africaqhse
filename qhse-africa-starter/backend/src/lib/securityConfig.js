@@ -1,4 +1,4 @@
-/export function getCorsMiddlewareOptions() {
+export function getCorsMiddlewareOptions() {
   return {
     origin: true,
     credentials: true,
