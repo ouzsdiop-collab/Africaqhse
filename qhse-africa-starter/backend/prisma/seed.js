@@ -8,7 +8,7 @@ const DEMO_PASSWORD = 'Demo2026!';
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
-/** Dates dynamiques depuis l’exécution du seed (spec utilisateur). */
+/** Dates dynamiques depuis l’exécution du seed. */
 function daysAgo(n) {
   const d = new Date(Date.now() - n * MS_DAY);
   d.setHours(10, 30, 0, 0);
@@ -22,8 +22,8 @@ function daysFromNow(n) {
 }
 
 /**
- * Pas de modèle Risk dans schema.prisma : les 12 risques sont sérialisés en checklist
- * (champs point + conforme) sur l’audit SST AUD-2026-107 — voir commentaire en fin de seed.
+ * Points de contrôle risques (checklist) sur l’audit SST AUD-2026-107.
+ * Les risques structurés sont aussi créés dans la table `risks` (modèle Prisma).
  */
 function riskChecklistEntries() {
   return [
@@ -93,23 +93,19 @@ function riskChecklistEntries() {
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
 
-  const existingUsers = [
+  /** 8 comptes — rôles limités à ceux listés (permissions V1). */
+  const seedUsers = [
     { name: 'Admin Système', email: 'admin@qhse.local', role: 'ADMIN' },
     { name: 'Responsable QHSE', email: 'qhse@qhse.local', role: 'QHSE' },
     { name: 'Direction Site', email: 'direction@qhse.local', role: 'DIRECTION' },
     { name: 'Assistant Qualité', email: 'assistant@qhse.local', role: 'ASSISTANT' },
-    { name: 'Chef de chantier', email: 'terrain@qhse.local', role: 'TERRAIN' }
+    { name: 'Chef de chantier', email: 'terrain@qhse.local', role: 'TERRAIN' },
+    { name: 'Ingénieur extraction', email: 'extraction@qhse.local', role: 'QHSE' },
+    { name: 'Coordonnateur forage', email: 'forage@qhse.local', role: 'TERRAIN' },
+    { name: 'Superviseur concassage', email: 'concassage@qhse.local', role: 'ASSISTANT' }
   ];
 
-  const extraDemoUsers = [
-    { name: 'Konan Adjoua', email: 'hse@demo.local', role: 'HSE_MANAGER' },
-    { name: 'Traoré Bakary', email: 'site@demo.local', role: 'SITE_MANAGER' },
-    { name: 'Bamba Koffi', email: 'ops@demo.local', role: 'OPERATOR' }
-  ];
-
-  const allUsers = [...existingUsers, ...extraDemoUsers];
-
-  for (const u of allUsers) {
+  for (const u of seedUsers) {
     const email = u.email.toLowerCase();
     await prisma.user.upsert({
       where: { email },
@@ -135,41 +131,156 @@ async function main() {
   await prisma.nonConformity.deleteMany({});
   await prisma.audit.deleteMany({});
   await prisma.incident.deleteMany({});
+  await prisma.risk.deleteMany({});
   await prisma.site.deleteMany({});
 
-  const siteMine = await prisma.site.create({
+  const siteNord = await prisma.site.create({
     data: {
       tenantId: null,
-      name: 'Site minier — Zone Nord',
+      name: 'Mine à ciel ouvert — Zone Nord',
       code: 'MINE-N01',
-      address: "Front d'exploitation aurifère — forage et extraction"
+      address: "Front d'exploitation aurifère — forage, extraction et transport stériles"
     }
   });
-  const siteLab = await prisma.site.create({
+  const siteSud = await prisma.site.create({
     data: {
       tenantId: null,
-      name: 'Laboratoire & traitement — Siège',
-      code: 'LAB-S01',
-      address: 'Traitement des échantillons et analyses minérales'
+      name: 'Fosse Sud — concassage & lixiviation',
+      code: 'MINE-S02',
+      address: 'Unité de traitement du minerai, bassins et atelier lixiviation'
     }
   });
 
-  const konan = await prisma.user.findUnique({ where: { email: 'hse@demo.local' } });
-  const traore = await prisma.user.findUnique({ where: { email: 'site@demo.local' } });
-  const bamba = await prisma.user.findUnique({ where: { email: 'ops@demo.local' } });
   const qhse = await prisma.user.findUnique({ where: { email: 'qhse@qhse.local' } });
   const direction = await prisma.user.findUnique({ where: { email: 'direction@qhse.local' } });
   const assistant = await prisma.user.findUnique({ where: { email: 'assistant@qhse.local' } });
+  const terrain = await prisma.user.findUnique({ where: { email: 'terrain@qhse.local' } });
+  const extraction = await prisma.user.findUnique({ where: { email: 'extraction@qhse.local' } });
+  const forage = await prisma.user.findUnique({ where: { email: 'forage@qhse.local' } });
+  const concassage = await prisma.user.findUnique({ where: { email: 'concassage@qhse.local' } });
 
   const M = 'MINE-N01';
-  const L = 'LAB-S01';
+  const S = 'MINE-S02';
 
+  /** 8 risques enregistrés (probability × gravity = gp), secteur minier. */
+  const risksSeed = [
+    {
+      ref: 'RSK-2026-01',
+      title: 'Collision engins lourds — zone extraction',
+      description: 'Croisement tombereaux / engins de forage, visibilité réduite poussière.',
+      category: 'Sécurité',
+      probability: 4,
+      gravity: 5,
+      status: 'open',
+      owner: qhse?.name ?? 'QHSE',
+      siteId: siteNord.id
+    },
+    {
+      ref: 'RSK-2026-02',
+      title: 'Exposition silice — concassage',
+      description: 'Poussières cristallines, postes fixes et rondes maintenance.',
+      category: 'Santé',
+      probability: 4,
+      gravity: 4,
+      status: 'open',
+      owner: extraction?.name ?? 'QHSE',
+      siteId: siteSud.id
+    },
+    {
+      ref: 'RSK-2026-03',
+      title: 'Déversement solution cyanurée',
+      description: 'Cuves, pompes et canalisations salle lixiviation.',
+      category: 'Environnement',
+      probability: 2,
+      gravity: 5,
+      status: 'open',
+      owner: qhse?.name ?? 'QHSE',
+      siteId: siteSud.id
+    },
+    {
+      ref: 'RSK-2026-04',
+      title: 'Tir de mines — projectile ou mégot',
+      description: 'Campagnes de minage, respect périmètre et procédure artificier.',
+      category: 'Sécurité',
+      probability: 2,
+      gravity: 5,
+      status: 'mitigation',
+      owner: forage?.name ?? 'Forage',
+      siteId: siteNord.id
+    },
+    {
+      ref: 'RSK-2026-05',
+      title: 'Chute hauteur — plateformes forage',
+      description: 'Garde-corps, harnais, conditions météo.',
+      category: 'Sécurité',
+      probability: 3,
+      gravity: 4,
+      status: 'open',
+      owner: terrain?.name ?? 'Terrain',
+      siteId: siteNord.id
+    },
+    {
+      ref: 'RSK-2026-06',
+      title: 'Glissement de talus / stériles',
+      description: 'Saison des pluies, surveillance géotechnique.',
+      category: 'Sécurité',
+      probability: 3,
+      gravity: 3,
+      status: 'open',
+      owner: direction?.name ?? 'Direction',
+      siteId: siteNord.id
+    },
+    {
+      ref: 'RSK-2026-07',
+      title: 'Incendie dépôt hydrocarbures',
+      description: 'Stockage gasoil et lubrifiants zone engins.',
+      category: 'Sécurité',
+      probability: 2,
+      gravity: 4,
+      status: 'open',
+      owner: concassage?.name ?? 'Assistant',
+      siteId: siteSud.id
+    },
+    {
+      ref: 'RSK-2026-08',
+      title: 'Bruit et vibrations — concassage',
+      description: 'Exposition des opérateurs et riverains internes.',
+      category: 'Santé',
+      probability: 4,
+      gravity: 3,
+      status: 'open',
+      owner: assistant?.name ?? 'Assistant',
+      siteId: siteSud.id
+    }
+  ];
+
+  for (const r of risksSeed) {
+    const gp = r.probability * r.gravity;
+    await prisma.risk.create({
+      data: {
+        tenantId: null,
+        ref: r.ref,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        gravity: r.gravity,
+        severity: r.gravity,
+        probability: r.probability,
+        gp,
+        status: r.status,
+        owner: r.owner,
+        siteId: r.siteId
+      }
+    });
+  }
+
+  /** 20 incidents — sévérités : critique, moyen, faible. */
   const incidentsData = [
     {
       ref: 'INC-2026-001',
       type: 'Engin / circulation',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'critique',
       status: 'Investigation',
       days: 18,
@@ -180,7 +291,7 @@ async function main() {
       ref: 'INC-2026-002',
       type: 'Accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'critique',
       status: 'En cours',
       days: 35,
@@ -190,8 +301,8 @@ async function main() {
     {
       ref: 'INC-2026-003',
       type: 'Environnement',
-      site: L,
-      siteId: siteLab.id,
+      site: S,
+      siteId: siteSud.id,
       severity: 'critique',
       status: 'Clôturé',
       days: 52,
@@ -202,7 +313,7 @@ async function main() {
       ref: 'INC-2026-004',
       type: 'Accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'critique',
       status: 'Clôturé',
       days: 78,
@@ -213,7 +324,7 @@ async function main() {
       ref: 'INC-2026-005',
       type: 'Engin / circulation',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'critique',
       status: 'Clôturé',
       days: 112,
@@ -224,7 +335,7 @@ async function main() {
       ref: 'INC-2026-006',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'Nouveau',
       days: 8,
@@ -235,7 +346,7 @@ async function main() {
       ref: 'INC-2026-007',
       type: 'Accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'En cours',
       days: 14,
@@ -246,7 +357,7 @@ async function main() {
       ref: 'INC-2026-008',
       type: 'Environnement',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'En cours',
       days: 22,
@@ -257,7 +368,7 @@ async function main() {
       ref: 'INC-2026-009',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'Investigation',
       days: 41,
@@ -268,7 +379,7 @@ async function main() {
       ref: 'INC-2026-010',
       type: 'Accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'Clôturé',
       days: 55,
@@ -279,7 +390,7 @@ async function main() {
       ref: 'INC-2026-011',
       type: 'Environnement',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'Clôturé',
       days: 63,
@@ -289,8 +400,8 @@ async function main() {
     {
       ref: 'INC-2026-012',
       type: 'Accident',
-      site: L,
-      siteId: siteLab.id,
+      site: S,
+      siteId: siteSud.id,
       severity: 'moyen',
       status: 'Clôturé',
       days: 71,
@@ -300,8 +411,8 @@ async function main() {
     {
       ref: 'INC-2026-013',
       type: 'Quasi-accident',
-      site: L,
-      siteId: siteLab.id,
+      site: S,
+      siteId: siteSud.id,
       severity: 'moyen',
       status: 'Clôturé',
       days: 88,
@@ -312,7 +423,7 @@ async function main() {
       ref: 'INC-2026-014',
       type: 'Environnement',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'Clôturé',
       days: 95,
@@ -323,7 +434,7 @@ async function main() {
       ref: 'INC-2026-015',
       type: 'Accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'moyen',
       status: 'Clôturé',
       days: 108,
@@ -334,7 +445,7 @@ async function main() {
       ref: 'INC-2026-016',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'faible',
       status: 'Clôturé',
       days: 32,
@@ -344,8 +455,8 @@ async function main() {
     {
       ref: 'INC-2026-017',
       type: 'Autre',
-      site: L,
-      siteId: siteLab.id,
+      site: S,
+      siteId: siteSud.id,
       severity: 'faible',
       status: 'Clôturé',
       days: 48,
@@ -356,7 +467,7 @@ async function main() {
       ref: 'INC-2026-018',
       type: 'Environnement',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'faible',
       status: 'En cours',
       days: 59,
@@ -367,7 +478,7 @@ async function main() {
       ref: 'INC-2026-019',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       severity: 'faible',
       status: 'Clôturé',
       days: 75,
@@ -377,35 +488,13 @@ async function main() {
     {
       ref: 'INC-2026-020',
       type: 'Autre',
-      site: L,
-      siteId: siteLab.id,
+      site: S,
+      siteId: siteSud.id,
       severity: 'faible',
       status: 'En cours',
       days: 90,
       description:
         "Réactif chimique stocké hors zone réglementaire. Détecté lors d'audit interne. Remise en conformité planifiée."
-    },
-    {
-      ref: 'INC-2026-021',
-      type: 'Quasi-accident',
-      site: M,
-      siteId: siteMine.id,
-      severity: 'faible',
-      status: 'Clôturé',
-      days: 130,
-      description:
-        'Alerte fumée déclenchée par poussière de minerai dans la salle de contrôle. Fausse alarme confirmée.'
-    },
-    {
-      ref: 'INC-2026-022',
-      type: 'Environnement',
-      site: M,
-      siteId: siteMine.id,
-      severity: 'faible',
-      status: 'Clôturé',
-      days: 155,
-      description:
-        "Fuite mineure d'huile de transmission sur engin en stationnement. Détectée lors de la ronde quotidienne. Réparée sous 24 h."
     }
   ];
 
@@ -429,7 +518,7 @@ async function main() {
     {
       ref: 'AUD-2026-101',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 61,
       status: 'Terminé',
       days: 45,
@@ -449,7 +538,7 @@ async function main() {
     {
       ref: 'AUD-2026-102',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 74,
       status: 'Terminé',
       days: 62,
@@ -464,7 +553,7 @@ async function main() {
     {
       ref: 'AUD-2026-103',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 82,
       status: 'Terminé',
       days: 78,
@@ -478,8 +567,8 @@ async function main() {
     },
     {
       ref: 'AUD-2026-104',
-      site: L,
-      siteId: siteLab.id,
+      site: S,
+      siteId: siteSud.id,
       score: 88,
       status: 'Terminé',
       days: 91,
@@ -494,7 +583,7 @@ async function main() {
     {
       ref: 'AUD-2026-105',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 79,
       status: 'Terminé',
       days: 110,
@@ -509,14 +598,14 @@ async function main() {
     {
       ref: 'AUD-2026-106',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 71,
       status: 'Terminé',
       days: 130,
       checklist: [
         {
           point:
-            'Audit conformité légale — cadre minier national pays hôte (Externe). Constat : 3 non-conformités réglementaires identifiées, plan d’actions correctives requis dans les 60 jours. (Intitulé adapté : pas de référence pays dans le libellé démo.)',
+            'Audit conformité légale — cadre minier national pays hôte (Externe). Constat : 3 non-conformités réglementaires identifiées, plan d’actions correctives requis dans les 60 jours.',
           conforme: false
         }
       ]
@@ -524,7 +613,7 @@ async function main() {
     {
       ref: 'AUD-2026-107',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 68,
       status: 'Terminé',
       days: 155,
@@ -540,7 +629,7 @@ async function main() {
     {
       ref: 'AUD-2026-108',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 0,
       status: 'Planifié',
       days: -18,
@@ -555,7 +644,7 @@ async function main() {
     {
       ref: 'AUD-2026-109',
       site: M,
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       score: 0,
       status: 'Planifié',
       days: -35,
@@ -585,6 +674,9 @@ async function main() {
     });
   }
 
+  const auditByRef = async (ref) =>
+    prisma.audit.findFirst({ where: { ref, tenantId: null }, select: { id: true } });
+
   const ncRows = [
     {
       title: 'Registre expositions chimiques non tenu à jour',
@@ -592,15 +684,15 @@ async function main() {
         'Référentiel : ISO 45001 — Article 10.2.\nCriticité : majeure.\nStatut métier : En cours.\nLié audit : AUD-2026-103 (ISO 14001 — déchets / effluents).',
       status: 'open',
       auditRef: 'AUD-2026-103',
-      siteId: siteLab.id
+      siteId: siteSud.id
     },
     {
       title: 'Périmètre sécurité tirs non conforme distances réglementaires',
       detail:
-        'Référentiel : code minier national — Article 87 (réf. démo, sans juridiction nommée).\nCriticité : majeure.\nStatut métier : En cours.',
+        'Référentiel : code minier national — Article 87 (réf. démo).\nCriticité : majeure.\nStatut métier : En cours.',
       status: 'open',
       auditRef: 'AUD-2026-105',
-      siteId: siteMine.id
+      siteId: siteNord.id
     },
     {
       title: 'Formation PRAP non dispensée — 8 agents manutention',
@@ -608,33 +700,44 @@ async function main() {
         'Référentiel : ISO 45001 — Article 7.2.\nCriticité : mineure.\nStatut métier : En cours.\nLié audit : AUD-2026-107 (SST).',
       status: 'open',
       auditRef: 'AUD-2026-107',
-      siteId: siteMine.id
+      siteId: siteNord.id
     },
     {
       title: 'Plan urgence cyanure non validé par autorité compétente',
       detail: 'Référentiel : réglementation nationale mines.\nCriticité : majeure.\nClôturé après validation obtenue.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-104',
-      siteId: siteLab.id
+      siteId: siteSud.id
     },
     {
       title: 'Absence affichage consignes sécurité atelier mécanique',
       detail: 'Référentiel : ISO 45001 — Article 7.4.\nCriticité : mineure.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-107',
-      siteId: siteMine.id
+      siteId: siteNord.id
     },
     {
       title: 'Registre déchets dangereux incomplet — T3 2025',
       detail: 'Référentiel : ISO 14001 — Article 8.1.\nCriticité : mineure.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-103',
-      siteId: siteMine.id
+      siteId: siteNord.id
     }
   ];
 
   for (const nc of ncRows) {
-    await prisma.nonConformity.create({ data: { ...nc, tenantId: null } });
+    const aud = await auditByRef(nc.auditRef);
+    await prisma.nonConformity.create({
+      data: {
+        tenantId: null,
+        title: nc.title,
+        detail: nc.detail,
+        status: nc.status,
+        auditRef: nc.auditRef,
+        auditId: aud?.id ?? null,
+        siteId: nc.siteId
+      }
+    });
   }
 
   const REF_CHUTE = 'INC-2026-004';
@@ -646,100 +749,100 @@ async function main() {
       title: 'Installer garde-corps plateforme forage P3',
       detail: `[Priorité critique]\nLié incident : ${REF_CHUTE} (chute en hauteur).`,
       status: 'En retard — priorité critique',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysAgo(12),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 20
     },
     {
       title: 'Former 100% conducteurs engins — conduite défensive session rattrapage',
       detail: '[Priorité haute]',
       status: 'En retard',
-      owner: traore?.name ?? 'Traoré Bakary',
-      assigneeId: traore?.id,
+      owner: forage?.name ?? 'Forage',
+      assigneeId: forage?.id,
       dueDate: daysAgo(8),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 25
     },
     {
       title: 'Remplacer vannes cyanure vétustes — lixiviation',
       detail: `[Priorité critique]\nLié incident : ${REF_CYANURE} (fuite dosage cyanure).`,
       status: 'En retard — priorité critique',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysAgo(5),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 55
     },
     {
       title: 'Réaliser audit sécurité complet zone explosifs',
       detail: '[Priorité haute]\nSuite campagne minage et investigation raté de tir.',
       status: 'En retard',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysAgo(3),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 42
     },
     {
       title: 'Mettre à jour registre des expositions chimiques',
       detail: '[Priorité haute]\nAlignement NC registre expositions.',
       status: 'En retard',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysAgo(7),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 50
     },
     {
       title: 'Renouveler dotation EPI — 12 agents zone forage',
       detail: '[Priorité moyenne]',
       status: 'En retard',
-      owner: bamba?.name ?? 'Bamba Koffi',
-      assigneeId: bamba?.id,
+      owner: concassage?.name ?? 'Assistant',
+      assigneeId: concassage?.id,
       dueDate: daysAgo(10),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 30
     },
     {
       title: 'Corriger signalisation croisement zone chargement',
       detail: `[Priorité haute]\nLié incident : ${REF_QUASI_COLL} (quasi-collision VL / dumper).`,
       status: 'En retard',
-      owner: bamba?.name ?? 'Bamba Koffi',
-      assigneeId: bamba?.id,
+      owner: concassage?.name ?? 'Assistant',
+      assigneeId: concassage?.id,
       dueDate: daysAgo(4),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 9
     },
     {
       title: 'Compléter registre déchets dangereux T4 2025',
       detail: '[Priorité moyenne]\nSuite audit ISO 14001.',
       status: 'En retard',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysAgo(2),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 78
     },
     {
       title: 'Installer système détection gaz H2S laboratoire',
       detail: '[Priorité haute]',
       status: 'En cours',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysFromNow(15),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 5
     },
     {
       title: 'Réviser plan urgence cyanure avec toutes les équipes',
       detail: '[Priorité haute]',
       status: 'En cours',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysFromNow(21),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 4
     },
     {
@@ -749,7 +852,7 @@ async function main() {
       owner: direction?.name ?? 'Direction Site',
       assigneeId: direction?.id,
       dueDate: daysFromNow(30),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 3
     },
     {
@@ -759,27 +862,27 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(18),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 2
     },
     {
       title: 'Contrôle géotechnique talus zone stérile nord',
       detail: '[Priorité haute]',
       status: 'En cours',
-      owner: traore?.name ?? 'Traoré Bakary',
-      assigneeId: traore?.id,
+      owner: forage?.name ?? 'Forage',
+      assigneeId: forage?.id,
       dueDate: daysFromNow(12),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 96
     },
     {
       title: 'Renouveler permis de travail espace confiné — 6 agents',
       detail: '[Priorité haute]',
       status: 'En cours',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysFromNow(25),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 40
     },
     {
@@ -789,7 +892,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysFromNow(10),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 1
     },
     {
@@ -799,37 +902,37 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(35),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 8
     },
     {
       title: 'Vérifier état tuyauteries lixiviation — inspection visuelle',
       detail: '[Priorité haute]',
       status: 'En cours',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysFromNow(8),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 52
     },
     {
       title: 'Sensibilisation équipes — gestion déchets et tri sélectif',
       detail: '[Priorité faible]',
       status: 'À lancer',
-      owner: traore?.name ?? 'Traoré Bakary',
-      assigneeId: traore?.id,
+      owner: forage?.name ?? 'Forage',
+      assigneeId: forage?.id,
       dueDate: daysFromNow(20),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 59
     },
     {
       title: 'Tester kit anti-pollution — exercice simulation déversement',
       detail: '[Priorité haute]',
       status: 'À lancer',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysFromNow(28),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 6
     },
     {
@@ -839,7 +942,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysFromNow(40),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 10
     },
     {
@@ -849,7 +952,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(45),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 12
     },
     {
@@ -859,27 +962,27 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(42),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 7
     },
     {
       title: 'Réparer vanne dosage cyanure — lixiviation',
       detail: '[Clôturée — succès]',
       status: 'Terminée',
-      owner: konan?.name ?? 'Konan Adjoua',
-      assigneeId: konan?.id,
+      owner: extraction?.name ?? 'QHSE',
+      assigneeId: extraction?.id,
       dueDate: daysAgo(45),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 52
     },
     {
       title: 'Équiper plateforme forage P1 et P2 en garde-corps',
       detail: '[Clôturée — succès]',
       status: 'Terminée',
-      owner: traore?.name ?? 'Traoré Bakary',
-      assigneeId: traore?.id,
+      owner: forage?.name ?? 'Forage',
+      assigneeId: forage?.id,
       dueDate: daysAgo(62),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 80
     },
     {
@@ -889,27 +992,27 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(70),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 75
     },
     {
       title: 'Installer tapis anti-dérapants vestiaires et accès',
       detail: '[Clôturée — succès]',
       status: 'Terminée',
-      owner: bamba?.name ?? 'Bamba Koffi',
-      assigneeId: bamba?.id,
+      owner: concassage?.name ?? 'Assistant',
+      assigneeId: concassage?.id,
       dueDate: daysAgo(28),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 33
     },
     {
       title: 'Remplacer câble électrique défectueux atelier mécanique',
       detail: '[Clôturée — succès]',
       status: 'Terminée',
-      owner: bamba?.name ?? 'Bamba Koffi',
-      assigneeId: bamba?.id,
+      owner: concassage?.name ?? 'Assistant',
+      assigneeId: concassage?.id,
       dueDate: daysAgo(80),
-      siteId: siteLab.id,
+      siteId: siteSud.id,
       daysCreated: 89
     },
     {
@@ -919,7 +1022,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(95),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 112
     },
     {
@@ -929,17 +1032,17 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysAgo(110),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 115
     },
     {
       title: 'Formation conduite sécurisée — 8 conducteurs tombereau',
       detail: '[Clôturée — succès]',
       status: 'Terminée',
-      owner: traore?.name ?? 'Traoré Bakary',
-      assigneeId: traore?.id,
+      owner: forage?.name ?? 'Forage',
+      assigneeId: forage?.id,
       dueDate: daysAgo(120),
-      siteId: siteMine.id,
+      siteId: siteNord.id,
       daysCreated: 125
     }
   ];
@@ -961,10 +1064,10 @@ async function main() {
   }
 
   console.log(
-    '[seed] 2 sites, 8 users, 22 incidents, 12 risques (checklist audit AUD-2026-107), 30 actions, 9 audits, 6 NC créés — seed prêt à exécuter.'
+    '[seed] 2 sites miniers, 8 utilisateurs (ADMIN/QHSE/DIRECTION/ASSISTANT/TERRAIN), 20 incidents, 8 risques (table risks), 30 actions, 9 audits, 6 NC.'
   );
   console.log(
-    '[seed] Adaptations : pas de champ description sur Site → texte métier dans address ; pas de linkedIncidentId → lien par ref dans Action.detail ; score audits planifiés = 0 (Int requis) ; NC ouvertes : statut Prisma « open » + détail « En cours » (notifications).'
+    '[seed] Ordre de purge : relations puis risks avant sites (FK). tenantId null partout (mono-tenant).'
   );
   console.log('[seed] Mot de passe démo (tous les comptes) :', DEMO_PASSWORD);
   console.log('[seed] Commande : npm run db:seed (dans backend/)');
