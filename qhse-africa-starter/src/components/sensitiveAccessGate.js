@@ -53,7 +53,7 @@ const MODAL_CSS = `
   color:var(--color-text-primary);
 }
 .qhse-sensitive-access-desc{
-  margin:10px 0 0;font-size:13px;line-height:1.55;color:var(--color-text-secondary,#475569);
+  margin:10px 0 0;font-size:13px;line-height:1.55;color:var(--color-text-secondary,#334155);
 }
 .qhse-sensitive-access-strict{
   margin:12px 0 0;padding:10px 12px;border-radius:12px;

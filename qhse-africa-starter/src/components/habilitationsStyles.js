@@ -351,8 +351,8 @@ const CSS = `
 .hab-table tbody tr:hover{
   background:color-mix(in srgb,var(--palette-accent,#14b8a6) 7%,var(--color-background-primary));
 }
-.hab-table tbody tr.hab-tr--critical{background:color-mix(in srgb,#ef4444 7%,transparent)}
-.hab-table tbody tr.hab-tr--warn{background:color-mix(in srgb,#f97316 6%,transparent)}
+.hab-table tbody tr.hab-tr--critical{background:var(--surface-tint-row-danger)}
+.hab-table tbody tr.hab-tr--warn{background:var(--surface-tint-row-warning)}
 .hab-table th{
   font-size:10px;
   font-weight:800;
@@ -362,7 +362,7 @@ const CSS = `
 }
 .hab-status-cell{display:inline-flex;align-items:center;gap:6px}
 .hab-alert-ic{font-size:14px;line-height:1}
-.hab-chip .hab-chip-ic{font-size:11px;margin-right:4px;opacity:.9}
+.hab-chip .hab-chip-ic{font-size:11px;margin-right:4px;opacity:1}
 .hab-row-btn{
   border:none;background:none;
   color:var(--color-text-info);
@@ -394,12 +394,33 @@ const CSS = `
   border:1px solid var(--color-border-tertiary);
   font-size:10px;font-weight:700;text-transform:uppercase;
 }
-.hab-chip--valide{color:#86efac;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.12)}
-.hab-chip--expire-bientot{color:#fdba74;border-color:rgba(251,146,60,.44);background:rgba(251,146,60,.12)}
-.hab-chip--expiree{color:#fecaca;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.12)}
-.hab-chip--en-attente{color:#7dd3fc;border-color:rgba(56,189,248,.45);background:rgba(56,189,248,.12)}
-.hab-chip--suspendue{color:#d1d5db;border-color:rgba(148,163,184,.45);background:rgba(148,163,184,.14)}
-.hab-chip--incomplete{color:#e5e7eb;border-color:rgba(148,163,184,.45);background:rgba(148,163,184,.16)}
+/* Pastilles statut : mêmes couleurs que le design system (tokens + design-tokens) */
+.hab-chip--valide{
+  color:var(--surface-success-ink);
+  border-color:var(--surface-success-line);
+  background:var(--surface-success);
+}
+.hab-chip--expire-bientot{
+  color:var(--surface-warning-ink);
+  border-color:var(--surface-warning-line);
+  background:var(--surface-warning);
+}
+.hab-chip--expiree{
+  color:var(--surface-danger-ink);
+  border-color:var(--surface-danger-line);
+  background:var(--surface-danger);
+}
+.hab-chip--en-attente{
+  color:var(--surface-info-ink);
+  border-color:var(--surface-info-line);
+  background:var(--surface-info);
+}
+.hab-chip--suspendue,
+.hab-chip--incomplete{
+  color:var(--color-text-secondary);
+  border-color:var(--color-border-secondary);
+  background:var(--surface-neutral-muted);
+}
 .hab-profile{display:grid;gap:8px}
 .hab-profile-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .hab-profile-item{padding:8px;border:1px solid var(--color-border-tertiary);border-radius:10px;background:var(--color-background-secondary);font-size:12px}
@@ -415,9 +436,9 @@ const CSS = `
   display:flex;align-items:center;gap:8px;color:var(--color-text-primary);padding-bottom:8px;
   border-bottom:1px solid color-mix(in srgb,var(--color-border-tertiary) 85%,transparent);
 }
-.hab-alert-section__title--crit{color:#fecaca}
-.hab-alert-section__title--urg{color:#fdba74}
-.hab-alert-section__title--std{color:#93c5fd}
+.hab-alert-section__title--crit{color:var(--color-text-danger)}
+.hab-alert-section__title--urg{color:var(--color-text-warning)}
+.hab-alert-section__title--std{color:var(--color-primary-text)}
 .hab-alert{
   padding:13px 14px;border-radius:12px;
   border:1px solid var(--color-border-tertiary);

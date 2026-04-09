@@ -930,6 +930,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
       )}</span>`;
 
       const assistCell = document.createElement('span');
+      assistCell.className = 'iso-req-action-cell';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn btn-secondary iso-analyze-btn';

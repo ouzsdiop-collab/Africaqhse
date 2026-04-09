@@ -3,6 +3,9 @@
  * Pont vers --text, --bg-main, etc. pour compatibilité avec le code existant.
  *
  * Palette produit : accent teal #14B8A6 · teal foncé #0F766E · success / warning / danger inchangés
+ *
+ * Surfaces douces : --surface-{danger|warning|success|info} (+ -ink / -line) = même pastel que tokens.css.
+ * Teintes de ligne : --surface-tint-row-danger | --surface-tint-row-warning.
  */
 :root {
   --font-sans: ui-sans-serif, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -23,9 +26,12 @@
   --color-background-info: var(--color-primary-bg);
 
   --color-text-primary: #0f172a;
-  /* Secondaire / tertiaire assombris (~WCAG AA sur fond clair) */
+  /* Hiérarchie texte unique (clair) : même échelle sur toutes les pages */
   --color-text-secondary: #334155;
-  --color-text-tertiary: #475569;
+  /* Un seul « gris UI » pour labels / méta (aligné avec tokens.css --color-text-muted) */
+  --color-text-tertiary: #64748b;
+  --color-text-muted: var(--color-text-tertiary);
+  --color-text: var(--color-text-primary);
   --color-text-info: var(--color-primary-text);
   --color-text-success: #15803d;
   --color-text-warning: #9a3412;
@@ -59,6 +65,28 @@
   --radius-md: var(--border-radius-md);
   --radius-lg: var(--border-radius-lg);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
+
+  /**
+   * Surfaces sémantiques douces (rouge / orange / vert / info) — même recette partout.
+   * Pointent sur tokens.css (--color-*-bg / text / border), thème sombre inclus.
+   */
+  --surface-danger: var(--color-danger-bg);
+  --surface-danger-ink: var(--color-danger-text);
+  --surface-danger-line: var(--color-danger-border);
+  --surface-warning: var(--color-warning-bg);
+  --surface-warning-ink: var(--color-warning-text);
+  --surface-warning-line: var(--color-warning-border);
+  --surface-success: var(--color-success-bg);
+  --surface-success-ink: var(--color-success-text);
+  --surface-success-line: var(--color-success-border);
+  --surface-info: var(--color-info-bg);
+  --surface-info-ink: var(--color-info-text);
+  --surface-info-line: var(--color-info-border);
+  /* Neutre : petits blocs gris sans multiplier les hex */
+  --surface-neutral-muted: color-mix(in srgb, var(--color-text-tertiary) 9%, var(--color-background-primary));
+  /* Lignes de tableau « chaudes » */
+  --surface-tint-row-danger: color-mix(in srgb, var(--palette-danger) 8%, var(--color-background-primary));
+  --surface-tint-row-warning: color-mix(in srgb, var(--palette-warning) 7%, var(--color-background-primary));
 
   /* Hiérarchie pages (clair) */
   --type-page-title-size: clamp(1.6rem, 3vw, 2.05rem);
@@ -143,6 +171,8 @@
   --color-text-secondary: #e2e8f0;
   /* Tertiaire relevé pour lisibilité sur #0b1220 / #111827 */
   --color-text-tertiary: #cbd5e1;
+  --color-text-muted: var(--color-text-tertiary);
+  --color-text: var(--color-text-primary);
   --color-text-info: var(--color-primary-text);
   --color-text-success: #4ade80;
   --color-text-warning: #fcd34d;
@@ -157,6 +187,10 @@
   --color-border-info: var(--color-primary-border);
 
   --shadow-card: 0 4px 28px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+
+  --surface-neutral-muted: color-mix(in srgb, var(--color-text-tertiary) 14%, var(--color-background-primary));
+  --surface-tint-row-danger: color-mix(in srgb, var(--palette-danger) 14%, var(--color-background-primary));
+  --surface-tint-row-warning: color-mix(in srgb, var(--palette-warning) 12%, var(--color-background-primary));
 
   --ds-surface-0: var(--color-background-secondary);
   --ds-surface-1: var(--color-background-primary);
@@ -200,6 +234,8 @@
     --color-text-primary: #f8fafc;
     --color-text-secondary: #e2e8f0;
     --color-text-tertiary: #cbd5e1;
+    --color-text-muted: var(--color-text-tertiary);
+    --color-text: var(--color-text-primary);
     --color-text-info: var(--color-primary-text);
     --color-text-success: #4ade80;
     --color-text-warning: #fcd34d;
@@ -214,6 +250,10 @@
     --color-border-info: var(--color-primary-border);
 
     --shadow-card: 0 4px 28px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+
+    --surface-neutral-muted: color-mix(in srgb, var(--color-text-tertiary) 14%, var(--color-background-primary));
+    --surface-tint-row-danger: color-mix(in srgb, var(--palette-danger) 14%, var(--color-background-primary));
+    --surface-tint-row-warning: color-mix(in srgb, var(--palette-warning) 12%, var(--color-background-primary));
 
     --ds-surface-0: var(--color-background-secondary);
     --ds-surface-1: var(--color-background-primary);

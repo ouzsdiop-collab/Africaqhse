@@ -16,6 +16,109 @@ function isNcOpen(row) {
   return true;
 }
 
+function prefersChartMotionReduced() {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
+function easeOutCubic(t) {
+  return 1 - (1 - t) ** 3;
+}
+
+/**
+ * Entrée « premium » : tracé de la courbe, fondu de l’aire, points en cascade, quadrillage.
+ * @param {SVGSVGElement} svg
+ */
+function initCeoAuditTrendAnimations(svg) {
+  if (!svg || prefersChartMotionReduced()) return;
+
+  const line = svg.querySelector('.dashboard-ceo-hero__prime-line');
+  const area = svg.querySelector('.dashboard-ceo-hero__prime-area');
+  const dots = [...svg.querySelectorAll('.dashboard-ceo-hero__prime-dot')];
+  const grids = [...svg.querySelectorAll('.dashboard-ceo-hero__prime-grid')];
+  const target = svg.querySelector('.dashboard-ceo-hero__prime-target-line');
+  const targetLabel = svg.querySelector('.dashboard-ceo-hero__prime-target-label');
+
+  const pathLen =
+    line && typeof line.getTotalLength === 'function' ? line.getTotalLength() : 0;
+  if (pathLen < 1) {
+    if (area) area.setAttribute('opacity', '1');
+    grids.forEach((g) => g.setAttribute('opacity', '1'));
+    if (target) target.setAttribute('opacity', '1');
+    if (targetLabel) targetLabel.setAttribute('opacity', '1');
+    dots.forEach((d) => {
+      d.setAttribute('r', '5');
+      d.setAttribute('opacity', '1');
+    });
+    return;
+  }
+
+  if (line) {
+    line.style.strokeDasharray = String(pathLen);
+    line.style.strokeDashoffset = String(pathLen);
+  }
+  if (area) {
+    area.setAttribute('opacity', '0');
+  }
+  grids.forEach((g) => g.setAttribute('opacity', '0'));
+  if (target) target.setAttribute('opacity', '0');
+  if (targetLabel) targetLabel.setAttribute('opacity', '0');
+  dots.forEach((d) => {
+    d.setAttribute('r', '0');
+    d.setAttribute('opacity', '0');
+  });
+
+  const tLine = 780;
+  const tArea = 520;
+  const t0 = performance.now();
+
+  function frame(now) {
+    const elapsed = now - t0;
+    const tLineP = Math.min(1, elapsed / tLine);
+    const eLine = easeOutCubic(tLineP);
+
+    if (line) {
+      line.style.strokeDashoffset = String(pathLen * (1 - eLine));
+    }
+
+    const tAreaP = Math.min(1, Math.max(0, elapsed - 120) / tArea);
+    if (area) {
+      area.setAttribute('opacity', String(0.08 + 0.92 * easeOutCubic(tAreaP)));
+    }
+
+    const tGrid = Math.min(1, elapsed / 340);
+    const eg = easeOutCubic(tGrid);
+    grids.forEach((g) => g.setAttribute('opacity', String(0.35 + 0.65 * eg)));
+
+    const tTgt = Math.min(1, Math.max(0, elapsed - 200) / 420);
+    const eTgt = easeOutCubic(tTgt);
+    if (target) target.setAttribute('opacity', String(0.5 + 0.5 * eTgt));
+    if (targetLabel) targetLabel.setAttribute('opacity', String(0.65 + 0.35 * eTgt));
+
+    dots.forEach((d, i) => {
+      const start = 320 + i * 72;
+      const td = Math.min(1, Math.max(0, elapsed - start) / 340);
+      const ed = easeOutCubic(td);
+      d.setAttribute('r', String(4.8 * ed));
+      d.setAttribute('opacity', String(ed));
+    });
+
+    if (elapsed < tLine + 520) {
+      requestAnimationFrame(frame);
+    } else {
+      if (line) {
+        line.style.strokeDasharray = '';
+        line.style.strokeDashoffset = '';
+      }
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
 function buildCeoScoreArc(score, tone) {
   const w = 200;
   const h = 112;
@@ -61,7 +164,7 @@ function buildCeoScoreArc(score, tone) {
 /**
  * Tendance scores d’audit (moyenne mensuelle 0–100) — axe fixe, pas de doublon avec la courbe incidents.
  * @param {{ label: string; value: number }[]} series
- * @param {string} gradId id unique pour le dégradé (évite collisions dans le DOM)
+ * @param {string} gradId id unique pour les définitions SVG (dégradés / filtres)
  */
 function buildCeoAuditTrendSvg(series, gradId) {
   const safe =
@@ -113,7 +216,48 @@ function buildCeoAuditTrendSvg(series, gradId) {
       : 'Aucun score d’audit renseigné sur les six derniers mois.'
   );
 
+  const strokeGradId = `${gradId}-stroke`;
+  const filterGlowId = `${gradId}-glow`;
+
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+  const filterGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+  filterGlow.setAttribute('id', filterGlowId);
+  filterGlow.setAttribute('x', '-40%');
+  filterGlow.setAttribute('y', '-40%');
+  filterGlow.setAttribute('width', '180%');
+  filterGlow.setAttribute('height', '180%');
+  const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+  blur.setAttribute('stdDeviation', '1.35');
+  blur.setAttribute('result', 'b');
+  const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+  const mn1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+  mn1.setAttribute('in', 'b');
+  const mn2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+  mn2.setAttribute('in', 'SourceGraphic');
+  merge.append(mn1, mn2);
+  filterGlow.append(blur, merge);
+  defs.append(filterGlow);
+
+  const strokeGrad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  strokeGrad.setAttribute('id', strokeGradId);
+  strokeGrad.setAttribute('gradientUnits', 'userSpaceOnUse');
+  strokeGrad.setAttribute('x1', String(padL));
+  strokeGrad.setAttribute('y1', String(padT));
+  strokeGrad.setAttribute('x2', String(w - padR));
+  strokeGrad.setAttribute('y2', String(padT));
+  const s0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  s0.setAttribute('offset', '0%');
+  s0.setAttribute('stop-color', '#a78bfa');
+  const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  s1.setAttribute('offset', '45%');
+  s1.setAttribute('stop-color', '#818cf8');
+  const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  s2.setAttribute('offset', '100%');
+  s2.setAttribute('stop-color', '#2dd4bf');
+  strokeGrad.append(s0, s1, s2);
+  defs.append(strokeGrad);
+
   const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
   grad.setAttribute('id', gradId);
   grad.setAttribute('x1', '0');
@@ -122,47 +266,55 @@ function buildCeoAuditTrendSvg(series, gradId) {
   grad.setAttribute('y2', '1');
   const g0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
   g0.setAttribute('offset', '0%');
-  g0.setAttribute('stop-color', 'rgba(139,92,246,.32)');
+  g0.setAttribute('stop-color', 'rgba(167,139,250,.42)');
   const g1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  g1.setAttribute('offset', '55%');
-  g1.setAttribute('stop-color', 'rgba(20,184,166,.12)');
+  g1.setAttribute('offset', '38%');
+  g1.setAttribute('stop-color', 'rgba(56,189,248,.2)');
   const g2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  g2.setAttribute('offset', '100%');
-  g2.setAttribute('stop-color', 'rgba(15,23,42,0)');
-  grad.append(g0, g1, g2);
+  g2.setAttribute('offset', '72%');
+  g2.setAttribute('stop-color', 'rgba(20,184,166,.1)');
+  const g3 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  g3.setAttribute('offset', '100%');
+  g3.setAttribute('stop-color', 'rgba(15,23,42,0)');
+  grad.append(g0, g1, g2, g3);
   defs.append(grad);
   svg.append(defs);
 
   [80, 50].forEach((pct) => {
     const yy = yAt(pct);
     const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    grid.setAttribute('class', 'dashboard-ceo-hero__prime-grid');
     grid.setAttribute('x1', String(padL));
     grid.setAttribute('y1', String(yy));
     grid.setAttribute('x2', String(w - padR));
     grid.setAttribute('y2', String(yy));
-    grid.setAttribute('stroke', 'rgba(148,163,184,.12)');
-    grid.setAttribute('stroke-dasharray', '4 6');
+    grid.setAttribute('stroke', 'rgba(148,163,184,.16)');
+    grid.setAttribute('stroke-dasharray', '3 7');
     svg.append(grid);
   });
 
   const targetY = yAt(80);
   const target = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  target.setAttribute('class', 'dashboard-ceo-hero__prime-target-line');
   target.setAttribute('x1', String(padL));
   target.setAttribute('y1', String(targetY));
   target.setAttribute('x2', String(w - padR));
   target.setAttribute('y2', String(targetY));
-  target.setAttribute('stroke', 'rgba(52,211,153,.35)');
-  target.setAttribute('stroke-width', '1.25');
-  target.setAttribute('stroke-dasharray', '6 4');
+  target.setAttribute('stroke', 'rgba(52,211,153,.55)');
+  target.setAttribute('stroke-width', '1.5');
+  target.setAttribute('stroke-dasharray', '7 5');
+  target.setAttribute('stroke-linecap', 'round');
   svg.append(target);
 
   const tgtLab = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  tgtLab.setAttribute('class', 'dashboard-ceo-hero__prime-target-label');
   tgtLab.setAttribute('x', String(w - padR - 4));
-  tgtLab.setAttribute('y', String(targetY - 4));
+  tgtLab.setAttribute('y', String(targetY - 5));
   tgtLab.setAttribute('text-anchor', 'end');
-  tgtLab.setAttribute('fill', 'rgba(148,163,184,.65)');
+  tgtLab.setAttribute('fill', 'rgba(52,211,153,.78)');
   tgtLab.setAttribute('font-size', '9');
-  tgtLab.setAttribute('font-weight', '700');
+  tgtLab.setAttribute('font-weight', '800');
+  tgtLab.setAttribute('letter-spacing', '0.04em');
   tgtLab.textContent = 'Cible 80 %';
   svg.append(tgtLab);
 
@@ -174,10 +326,11 @@ function buildCeoAuditTrendSvg(series, gradId) {
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   line.setAttribute('d', lineD);
   line.setAttribute('fill', 'none');
-  line.setAttribute('stroke', 'rgba(167,139,250,.95)');
-  line.setAttribute('stroke-width', '2.5');
+  line.setAttribute('stroke', `url(#${strokeGradId})`);
+  line.setAttribute('stroke-width', '3');
   line.setAttribute('stroke-linecap', 'round');
   line.setAttribute('stroke-linejoin', 'round');
+  line.setAttribute('filter', `url(#${filterGlowId})`);
   line.setAttribute('class', 'dashboard-ceo-hero__prime-line');
 
   svg.append(area, line);
@@ -189,9 +342,9 @@ function buildCeoAuditTrendSvg(series, gradId) {
     dot.setAttribute('cx', String(x));
     dot.setAttribute('cy', String(y));
     dot.setAttribute('r', '5');
-    dot.setAttribute('fill', 'rgba(15,23,42,.95)');
-    dot.setAttribute('stroke', 'rgba(192,132,252,.95)');
-    dot.setAttribute('stroke-width', '2');
+    dot.setAttribute('fill', 'rgba(15,23,42,.96)');
+    dot.setAttribute('stroke', value >= 80 ? 'rgba(52,211,153,.95)' : value >= 60 ? 'rgba(251,191,36,.95)' : 'rgba(248,113,113,.92)');
+    dot.setAttribute('stroke-width', '2.25');
     dot.setAttribute('class', 'dashboard-ceo-hero__prime-dot');
     dot.setAttribute('data-audit-point', '1');
     dot.setAttribute('data-label', label);
@@ -411,6 +564,9 @@ export function createDashboardCeoHero(siteName, opts = {}) {
           });
         });
         primeSurface.append(trendSvg);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => initCeoAuditTrendAnimations(trendSvg));
+        });
       }
     }
     if (primeLabels) {

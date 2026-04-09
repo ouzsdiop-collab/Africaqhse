@@ -513,10 +513,13 @@ function numToLevel(n) {
 }
 
 function mapApiRiskToUi(row) {
-  const g = Number(row?.gravity ?? row?.severity ?? row?.level ?? 3) || 3;
-  const p = Number(row?.probability ?? 3) || 3;
-  const meta = row?.gp != null && String(row.gp).trim() ? String(row.gp).trim() : `G${g} × P${p}`;
-  const tier = riskTierFromGp(Math.max(1, Math.min(5, g)), Math.max(1, Math.min(5, p)));
+  const gRaw = Number(row?.gravity ?? row?.severity ?? row?.level ?? 3);
+  const pRaw = Number(row?.probability ?? 3);
+  const g = Number.isFinite(gRaw) && gRaw > 0 ? Math.max(1, Math.min(5, Math.round(gRaw))) : 3;
+  const p = Number.isFinite(pRaw) && pRaw > 0 ? Math.max(1, Math.min(5, Math.round(pRaw))) : 3;
+  /* Ne pas utiliser row.gp (produit G×P, ex. 15) comme meta : le parseur attend « G3 × P5 ». */
+  const meta = `G${g} × P${p}`;
+  const tier = riskTierFromGp(g, p);
   const statusLabel = row?.status ? String(row.status) : riskLevelLabelFromTier(tier);
   return {
     id: row?.id || null,

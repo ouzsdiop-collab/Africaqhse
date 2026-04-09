@@ -120,9 +120,9 @@ html[data-theme='light'] .sidebar-v2__item--active {
   color: var(--color-text, #0f172a);
 }
 
-/* ── Zone de contenu : léger contraste avec le body ── */
+/* ── Zone de contenu : canvas légèrement plus structuré que les cartes ── */
 html[data-theme='light'] .main-shell {
-  background: linear-gradient(180deg, #f8fafc 0%, var(--color-background-secondary, #f4f6fa) 100%);
+  background: linear-gradient(180deg, #e8edf4 0%, #f1f5f9 45%, #eef2f7 100%);
 }
 
 html[data-theme='light'] .page-stack {
@@ -146,4 +146,134 @@ html[data-theme='light'] .topbar-v2__theme:hover {
   background: #f1f5f9;
   border-color: rgba(15, 23, 42, 0.22);
   color: var(--color-primary-text, #0f766e);
+}
+
+/* ═══ Mode clair — relief, séparation des modules, graphiques moins « plats » ═══ */
+
+html[data-theme='light'] {
+  --shadow-card:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 8px 28px rgba(15, 23, 42, 0.08);
+  --ds-chart-grid: rgba(15, 23, 42, 0.11);
+  --page-stack-gap: 1.85rem;
+}
+
+html[data-theme='light'] .page-stack {
+  gap: var(--page-stack-gap);
+}
+
+html[data-theme='light'] .topbar-v2 {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.045);
+}
+
+html[data-theme='light'] .sidebar-v2 {
+  border-right: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.05);
+}
+
+/* Cartes : bordure nette + ombre légère (se détache du canvas) */
+html[data-theme='light'] .content-card,
+html[data-theme='light'] .card-soft,
+html[data-theme='light'] .ds-card {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-card);
+}
+
+html[data-theme='light'] .card-soft {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+html[data-theme='light'] .hero:not(.dashboard-ceo-hero) {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+html[data-theme='light'] .content-card .content-card-head:not(:last-child) {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+html[data-theme='light'] .section-kicker {
+  color: var(--palette-primary, #0f766e);
+  opacity: 1;
+}
+
+html[data-theme='light'] .content-card-lead,
+html[data-theme='light'] .page-intro__desc {
+  color: var(--color-text-tertiary, #64748b);
+}
+
+html[data-theme='light'] .metric-card {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+/* Barres empilées (mix) : piste visible, segments un peu « volumineux » */
+html[data-theme='light'] .dashboard-mix-bar {
+  height: 20px;
+  background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
+  border: 1px solid rgba(15, 23, 42, 0.11);
+  box-shadow: inset 0 2px 5px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme='light'] .dashboard-mix-seg {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+html[data-theme='light'] .dashboard-mix-legend {
+  color: var(--color-text-secondary, #334155);
+  font-weight: 600;
+}
+
+html[data-theme='light'] .dashboard-chart-interpret,
+html[data-theme='light'] .dashboard-chart-foot {
+  color: var(--color-text-tertiary, #64748b);
+}
+
+/* Barres analytics (clés) */
+html[data-theme='light'] .analytics-key-bars-track {
+  background: linear-gradient(180deg, #f1f5f9, #e8edf3);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.07);
+}
+
+/* Courbes : quadrillage lisible, ligne principale plus présente sur fond blanc */
+html[data-theme='light'] .dashboard-line-chart-svg {
+  filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.06));
+}
+
+html[data-theme='light'] .dashboard-line-chart-grid,
+html[data-theme='light'] .dashboard-line-chart-grid--base {
+  stroke: rgba(15, 23, 42, 0.11) !important;
+}
+
+html[data-theme='light'] .dashboard-line-chart-grid--mid {
+  stroke: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light']
+  .dashboard-line-chart-wrap:not(.dashboard-line-chart-wrap--theme-incidents):not(.dashboard-line-chart-wrap--theme-audits)
+  .dashboard-line-chart-line {
+  stroke: #0f766e;
+  stroke-width: 2.35;
+  filter: drop-shadow(0 1px 4px rgba(15, 118, 110, 0.22));
+}
+
+html[data-theme='light']
+  .dashboard-line-chart-wrap:not(.dashboard-line-chart-wrap--theme-incidents):not(.dashboard-line-chart-wrap--theme-audits)
+  .dashboard-line-chart-dot {
+  fill: #ffffff !important;
+  stroke-width: 2.25;
+}
+
+html[data-theme='light'] .dashboard-line-chart-wrap--analytics .dashboard-line-chart-grid--base {
+  stroke: rgba(15, 23, 42, 0.1) !important;
+}
+
+html[data-theme='light'] .kpi-multi-line-wrap .dashboard-line-chart-grid--base {
+  stroke: rgba(15, 23, 42, 0.1) !important;
 }

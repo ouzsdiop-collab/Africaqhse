@@ -11,6 +11,7 @@ import { getApiBase } from '../config.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import {
   buildIncidentMonthlySeries,
+  buildNcMajorMinorMonthlySeries,
   buildAuditScoreSeriesFromAudits,
   buildTopIncidentTypes,
   classifyActionsForMix,
@@ -1041,15 +1042,15 @@ export function renderDashboard() {
     <header class="dashboard-decision-charts-head">
       <div class="section-kicker">Synthèse exécutive</div>
       <h3>Vue décisionnelle</h3>
-      <p class="dashboard-decision-charts-lead">Tendance incidents, typologie des événements et scores d’audit — cliquez sur un graphique pour ouvrir le module lié.</p>
+      <p class="dashboard-decision-charts-lead">Volume des non-conformités (prioritaires vs autres), typologie des signalements et scores d’audit — cliquez sur un graphique pour ouvrir le module lié.</p>
     </header>
     <div class="dashboard-decision-charts-grid">
       <div class="dashboard-decision-chart-panel">
         <div class="dashboard-decision-chart-panel__meta">
-          <span class="dashboard-decision-chart-panel__tag">Tendance</span>
-          <span class="dashboard-decision-chart-panel__title">Incidents déclarés (6 mois)</span>
+          <span class="dashboard-decision-chart-panel__tag">Conformité</span>
+          <span class="dashboard-decision-chart-panel__title">Non-conformités créées — prioritaires vs autres (6 mois)</span>
         </div>
-        <div class="dashboard-decision-chart-panel__canvas"><canvas data-dc-inc></canvas></div>
+        <div class="dashboard-decision-chart-panel__canvas"><canvas data-dc-nc-stack></canvas></div>
       </div>
       <div class="dashboard-decision-chart-panel">
         <div class="dashboard-decision-chart-panel__meta">
@@ -1117,8 +1118,8 @@ export function renderDashboard() {
   bandActivity.className = 'dashboard-band dashboard-band--activity-foot';
   bandActivity.append(activitySection);
 
-  /** @type {{ inc: Chart|null; risk: Chart|null; score: Chart|null }} */
-  const decisionCharts = { inc: null, risk: null, score: null };
+  /** @type {{ ncStack: Chart|null; risk: Chart|null; score: Chart|null }} */
+  const decisionCharts = { ncStack: null, risk: null, score: null };
   const iaList = iaBlock.querySelector('[data-dc-ia]');
   const prioList = priorityBlock.querySelector('[data-dc-prio]');
 
@@ -1157,43 +1158,60 @@ export function renderDashboard() {
       });
     });
 
-    const incCtx = decisionChartCard.querySelector('[data-dc-inc]');
+    const ncStackCtx = decisionChartCard.querySelector('[data-dc-nc-stack]');
     const riskCtx = decisionChartCard.querySelector('[data-dc-risk]');
     const scoreCtx = decisionChartCard.querySelector('[data-dc-score]');
-    const monthly = buildIncidentMonthlySeries(incidents).slice(-6);
+    const ncSeries = buildNcMajorMinorMonthlySeries(ncs, 6);
     const riskTypes = buildTopIncidentTypes(incidents).slice(0, 5);
     const auditScores = trimTrailingZeroAuditScores(buildAuditScoreSeriesFromAudits(audits).slice(-6));
     const sliceBorder = 'rgba(15, 23, 42, 0.94)';
-    if (decisionCharts.inc) decisionCharts.inc.destroy();
+    if (decisionCharts.ncStack) decisionCharts.ncStack.destroy();
     if (decisionCharts.risk) decisionCharts.risk.destroy();
     if (decisionCharts.score) decisionCharts.score.destroy();
-    if (incCtx instanceof HTMLCanvasElement) {
-      decisionCharts.inc = new Chart(incCtx, {
-        type: 'line',
+    if (ncStackCtx instanceof HTMLCanvasElement) {
+      const ncLabels = ncSeries.labels;
+      const ncMajor = ncSeries.major;
+      const ncMinor = ncSeries.minor;
+      decisionCharts.ncStack = new Chart(ncStackCtx, {
+        type: 'bar',
         data: {
-          labels: monthly.map((m) => m.label),
+          labels: ncLabels,
           datasets: [
             {
-              label: 'Incidents',
-              data: monthly.map((m) => m.value),
-              borderColor: '#fb923c',
+              label: 'Autres NC',
+              data: ncMinor,
+              stack: 'nc',
               backgroundColor: (ctx) => {
                 const c = ctx.chart.ctx;
-                const g = c.createLinearGradient(0, 0, 0, ctx.chart.height || 180);
-                g.addColorStop(0, 'rgba(251, 146, 60, 0.28)');
-                g.addColorStop(1, 'rgba(251, 146, 60, 0)');
+                const h = ctx.chart.height || 160;
+                const g = c.createLinearGradient(0, 0, 0, h);
+                g.addColorStop(0, 'rgba(99, 102, 241, 0.55)');
+                g.addColorStop(1, 'rgba(129, 140, 248, 0.88)');
                 return g;
               },
-              tension: 0.38,
-              fill: true,
-              borderWidth: 2.5,
-              pointRadius: 3,
-              pointHoverRadius: 5,
-              pointBackgroundColor: '#0f172a',
-              pointBorderColor: '#fb923c',
-              pointBorderWidth: 2,
-              pointHoverBorderWidth: 2,
-              pointHoverBackgroundColor: '#fb923c'
+              borderColor: 'rgba(255, 255, 255, 0.35)',
+              borderWidth: 0,
+              borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 10, bottomRight: 10 },
+              borderSkipped: false,
+              maxBarThickness: 36
+            },
+            {
+              label: 'NC prioritaires',
+              data: ncMajor,
+              stack: 'nc',
+              backgroundColor: (ctx) => {
+                const c = ctx.chart.ctx;
+                const h = ctx.chart.height || 160;
+                const g = c.createLinearGradient(0, 0, 0, h);
+                g.addColorStop(0, 'rgba(252, 165, 165, 0.95)');
+                g.addColorStop(1, 'rgba(220, 38, 38, 0.92)');
+                return g;
+              },
+              borderColor: 'rgba(255, 255, 255, 0.4)',
+              borderWidth: 0,
+              borderRadius: { topLeft: 10, topRight: 10, bottomLeft: 0, bottomRight: 0 },
+              borderSkipped: false,
+              maxBarThickness: 36
             }
           ]
         },
@@ -1201,11 +1219,24 @@ export function renderDashboard() {
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
-          animation: { duration: 560, easing: 'easeOutQuart' },
-          layout: { padding: { top: 6, bottom: 4 } },
+          animation: { duration: 620, easing: 'easeOutQuart' },
+          layout: { padding: { top: 8, bottom: 4 } },
           font: DC_CHART_FONT,
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'end',
+              labels: {
+                color: DC_TICK,
+                boxWidth: 10,
+                boxHeight: 10,
+                padding: 12,
+                usePointStyle: true,
+                pointStyle: 'rectRounded',
+                font: DC_CHART_FONT
+              }
+            },
             tooltip: {
               backgroundColor: 'rgba(15, 23, 42, 0.96)',
               titleColor: '#f1f5f9',
@@ -1216,18 +1247,30 @@ export function renderDashboard() {
               cornerRadius: 10,
               callbacks: {
                 title: (ctx) => `Période : ${ctx?.[0]?.label || 'N/A'}`,
-                label: (ctx) => `Incidents déclarés : ${ctx.parsed.y}`
+                footer: (items) => {
+                  if (!items?.length) return '';
+                  let sum = 0;
+                  items.forEach((it) => {
+                    sum += Number(it.parsed.y) || 0;
+                  });
+                  return `Total NC : ${sum}`;
+                },
+                label: (ctx) => {
+                  const v = ctx.parsed.y ?? 0;
+                  return `${ctx.dataset.label} : ${v}`;
+                }
               }
             }
           },
           scales: {
             x: {
+              stacked: true,
               grid: { display: false },
               ticks: { color: DC_TICK, font: DC_CHART_FONT, maxRotation: 0, autoSkipPadding: 8 }
             },
             y: {
+              stacked: true,
               beginAtZero: true,
-              suggestedMax: 6,
               grid: { color: DC_GRID, drawBorder: false },
               ticks: { color: DC_TICK, font: DC_CHART_FONT, precision: 0 }
             }
@@ -1236,10 +1279,18 @@ export function renderDashboard() {
             if (e?.native?.target) e.native.target.style.cursor = elements?.length ? 'pointer' : 'default';
           },
           onClick: (_evt, elements) => {
-            const idx = elements?.[0]?.index;
-            const period = idx != null ? monthly[idx]?.label : null;
-            pushDashboardIntent({ source: 'dashboard', chart: 'incidents_trend', period });
-            window.location.hash = 'incidents';
+            const el = elements?.[0];
+            const idx = el?.index;
+            const period = idx != null ? ncLabels[idx] : null;
+            const tier =
+              el?.datasetIndex === 1 ? 'prioritaire' : el?.datasetIndex === 0 ? 'autre' : null;
+            pushDashboardIntent({
+              source: 'dashboard',
+              chart: 'nc_major_minor_trend',
+              period,
+              tier
+            });
+            window.location.hash = 'audits';
           }
         }
       });

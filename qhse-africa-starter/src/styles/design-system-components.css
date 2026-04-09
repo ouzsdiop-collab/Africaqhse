@@ -383,7 +383,10 @@ body {
 }
 
 [data-theme='light'] .line-chart {
-  background: var(--color-background-secondary);
+  background: linear-gradient(180deg, #ffffff, #f1f5f9);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 [data-theme='light'] .ds-modal-overlay {
@@ -392,5 +395,48 @@ body {
 
 [data-theme='light'] .app-toast {
   background: color-mix(in srgb, var(--color-background-primary) 94%, var(--color-text-primary) 6%);
+  border-color: var(--color-border-secondary);
+}
+
+/* —— Blocs tonaux unifiés (même pastel rouge / orange / vert que partout — voir design-tokens --surface-*) —— */
+.ds-tone {
+  border-radius: var(--border-radius-lg, 12px);
+  padding: var(--ds-space-3, 12px) var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-border-subtle);
+  line-height: 1.45;
+  font-size: var(--ds-text-sm, 13px);
+}
+.ds-tone__label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  opacity: 0.92;
+}
+.ds-tone--danger {
+  background: var(--surface-danger);
+  color: var(--surface-danger-ink);
+  border-color: color-mix(in srgb, var(--surface-danger-line) 50%, transparent);
+}
+.ds-tone--warning {
+  background: var(--surface-warning);
+  color: var(--surface-warning-ink);
+  border-color: color-mix(in srgb, var(--surface-warning-line) 50%, transparent);
+}
+.ds-tone--success {
+  background: var(--surface-success);
+  color: var(--surface-success-ink);
+  border-color: color-mix(in srgb, var(--surface-success-line) 50%, transparent);
+}
+.ds-tone--info {
+  background: var(--surface-info);
+  color: var(--surface-info-ink);
+  border-color: color-mix(in srgb, var(--surface-info-line) 45%, transparent);
+}
+.ds-tone--neutral {
+  background: var(--surface-neutral-muted);
+  color: var(--color-text-secondary);
   border-color: var(--color-border-secondary);
 }

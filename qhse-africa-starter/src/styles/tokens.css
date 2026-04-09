@@ -32,6 +32,7 @@
   --color-border: #cbd5e1;
   --color-text: #0f172a;
   --color-text-secondary: #334155;
+  /* Même gris « méta » que design-tokens.css --color-text-tertiary (surchargé au chargement suivant) */
   --color-text-muted: #64748b;
 
   /* ——— Spacing ——— */
