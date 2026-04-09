@@ -30,7 +30,7 @@ body {
 
 .btn-secondary:hover {
   background: var(--ds-surface-2);
-  border-color: rgba(148, 163, 184, 0.32);
+  border-color: var(--ds-border-strong);
 }
 
 .btn-danger {
@@ -57,21 +57,25 @@ body {
   padding: var(--ds-space-3) var(--ds-space-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--ds-border-default);
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--color-background-primary);
   color: var(--text);
   font-size: var(--ds-text-md);
   font-family: inherit;
   line-height: var(--ds-leading-body);
 }
 
+[data-theme='dark'] .control-textarea {
+  background: color-mix(in srgb, #0f172a 42%, var(--color-background-primary));
+}
+
 .control-textarea::placeholder {
-  color: var(--text3);
-  opacity: 0.75;
+  color: var(--color-text-secondary);
+  opacity: 0.88;
 }
 
 .control-textarea:focus {
   outline: none;
-  border-color: rgba(82, 148, 247, 0.55);
+  border-color: var(--color-primary-border);
   box-shadow: var(--ds-shadow-focus);
 }
 
@@ -370,14 +374,6 @@ body {
 }
 
 /* —— Mode clair : surfaces lisibles (tokens design + teal marque) —— */
-[data-theme='light'] .control-textarea {
-  background: var(--color-background-primary, #fff);
-}
-
-[data-theme='light'] .control-textarea:focus {
-  border-color: var(--color-primary-border);
-}
-
 [data-theme='light'] .ds-empty-state {
   background: color-mix(in srgb, var(--color-background-secondary) 92%, var(--palette-accent, #14b8a6) 5%);
 }

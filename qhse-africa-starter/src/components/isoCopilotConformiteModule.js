@@ -234,10 +234,27 @@ function createCopilotBlock() {
   return host;
 }
 
+const MO_OPTS = { childList: true, subtree: true };
+
+const mo = new MutationObserver(() => tryMount());
+
+function resumeIsoCopilotObserve() {
+  mo.observe(document.documentElement, MO_OPTS);
+}
+
+function pauseIsoCopilotObserve() {
+  mo.disconnect();
+}
+
 function refreshMountedBlocks() {
-  document.querySelectorAll('[data-iso-copilot-conformite-mounted]').forEach((host) => {
-    if (host instanceof HTMLElement) renderInsightsInto(host);
-  });
+  pauseIsoCopilotObserve();
+  try {
+    document.querySelectorAll('[data-iso-copilot-conformite-mounted]').forEach((host) => {
+      if (host instanceof HTMLElement) renderInsightsInto(host);
+    });
+  } finally {
+    resumeIsoCopilotObserve();
+  }
 }
 
 function tryMount() {
@@ -247,12 +264,16 @@ function tryMount() {
     refreshMountedBlocks();
     return;
   }
-  const block = createCopilotBlock();
-  ar.insertAdjacentElement('afterend', block);
+  pauseIsoCopilotObserve();
+  try {
+    const block = createCopilotBlock();
+    ar.insertAdjacentElement('afterend', block);
+  } finally {
+    resumeIsoCopilotObserve();
+  }
 }
 
-const mo = new MutationObserver(() => tryMount());
-mo.observe(document.documentElement, { childList: true, subtree: true });
+resumeIsoCopilotObserve();
 tryMount();
 
 document.addEventListener('visibilitychange', () => {

@@ -67,6 +67,8 @@ if (process.env.VITEST !== 'true') {
 }
 
 export const app = express();
+app.set('trust proxy', 1);
+
 const PORT = Number(process.env.PORT) || 3001;
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 
@@ -75,10 +77,6 @@ bootErrLine(
 );
 
 app.disable('x-powered-by');
-
-if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
-  app.set('trust proxy', 1);
-}
 
 app.use(attachRequestId);
 /* Pas de CSP Helmet sur l’API (évite tout blocage de politiques côté clients / proxies). */

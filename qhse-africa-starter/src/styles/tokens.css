@@ -29,10 +29,10 @@
   /* ——— Neutres (clair) ——— */
   --color-surface: #ffffff;
   --color-subtle: #f8fafc;
-  --color-border: #e2e8f0;
+  --color-border: #cbd5e1;
   --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
 
   /* ——— Spacing ——— */
   --space-1: 4px;
@@ -96,10 +96,10 @@
   /* ——— Neutres (sombre) ——— */
   --color-surface: #111827;
   --color-subtle: #0b1220;
-  --color-border: rgba(148, 163, 184, 0.12);
-  --color-text: #f1f5f9;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
+  --color-border: rgba(186, 200, 220, 0.2);
+  --color-text: #f8fafc;
+  --color-text-secondary: #e2e8f0;
+  --color-text-muted: #cbd5e1;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);

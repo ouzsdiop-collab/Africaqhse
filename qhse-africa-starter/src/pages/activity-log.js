@@ -13,6 +13,10 @@ import {
 import { createActivityLogSummary } from '../components/activityLogSummary.js';
 import { createActivityLogRow } from '../components/activityLogRow.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { getSessionUser } from '../data/sessionUser.js';
+import { canResource } from '../utils/permissionsUi.js';
+import { consumeJournalServerTabIntent } from '../utils/state.js';
+import { createAuditLogsServerPanel } from './audit-logs.js';
 
 const LS_SCHEDULE = 'qhse-activity-log-schedule';
 const LS_SCOPE = 'qhse-activity-log-export-scope';
@@ -104,7 +108,10 @@ h1{font-size:16px;margin:0 0 12px}table{width:100%;border-collapse:collapse}th,t
   }
 }
 
-export function renderActivityLog() {
+/**
+ * @param {{ initialTab?: 'session' | 'server' }} [opts]
+ */
+export function renderActivityLog(opts = {}) {
   ensureActivityLogStyles();
 
   const page = document.createElement('section');
@@ -113,8 +120,52 @@ export function renderActivityLog() {
     page.classList.add('activity-log-page--audit-view');
   }
 
+  const su = getSessionUser();
+  const canServerTab = Boolean(su && canResource(su.role, 'audit_logs', 'read'));
+
+  let openServer =
+    opts.initialTab === 'server' || consumeJournalServerTabIntent();
+  const rawHash = window.location.hash.replace(/^#/, '');
+  if (rawHash === 'audit-logs') {
+    openServer = true;
+    try {
+      const base = `${window.location.pathname}${window.location.search}`;
+      history.replaceState(null, '', `${base}#activity-log`);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (openServer && !canServerTab) openServer = false;
+
+  const tabsRow = document.createElement('div');
+  tabsRow.className = 'activity-log-journal-tabs';
+  tabsRow.setAttribute('role', 'tablist');
+  tabsRow.setAttribute('aria-label', 'Source du journal');
+
+  const btnSession = document.createElement('button');
+  btnSession.type = 'button';
+  btnSession.className = 'activity-log-journal-tab';
+  btnSession.setAttribute('role', 'tab');
+  btnSession.setAttribute('aria-selected', openServer ? 'false' : 'true');
+  btnSession.setAttribute('id', 'activity-log-tab-session');
+  btnSession.textContent = 'Session navigateur';
+
+  const btnServer = document.createElement('button');
+  btnServer.type = 'button';
+  btnServer.className = 'activity-log-journal-tab';
+  btnServer.setAttribute('role', 'tab');
+  btnServer.setAttribute('aria-selected', openServer ? 'true' : 'false');
+  btnServer.setAttribute('id', 'activity-log-tab-server');
+  btnServer.textContent = 'Journal serveur (API)';
+  btnServer.hidden = !canServerTab;
+
+  tabsRow.append(btnSession, btnServer);
+
   const card = document.createElement('article');
   card.className = 'content-card card-soft';
+  card.setAttribute('role', 'tabpanel');
+  card.setAttribute('aria-labelledby', 'activity-log-tab-session');
+  card.hidden = openServer;
 
   const certStrip = document.createElement('div');
   certStrip.className = 'activity-log-cert-strip';
@@ -135,7 +186,7 @@ export function renderActivityLog() {
       <div class="section-kicker">Traçabilité</div>
       <h3>Journal des modifications</h3>
       <p class="content-card-lead">
-        Traçabilité ISO : synthèse, filtres et exports sur la piste locale — prête pour branchement serveur sans changer la structure des lignes.
+        Piste d’activité de cette session (navigateur) : synthèse, filtres et exports. Les événements enregistrés côté API sont dans l’onglet « Journal serveur ».
       </p>
     </div>
   `;
@@ -284,7 +335,28 @@ export function renderActivityLog() {
     tableMount,
     extensionSlot
   );
-  page.append(card);
+
+  const serverPanel = createAuditLogsServerPanel();
+  serverPanel.setAttribute('role', 'tabpanel');
+  serverPanel.setAttribute('aria-labelledby', 'activity-log-tab-server');
+  serverPanel.hidden = !openServer;
+
+  function setJournalTab(server) {
+    const showServer = server && canServerTab;
+    card.hidden = showServer;
+    serverPanel.hidden = !showServer;
+    btnSession.setAttribute('aria-selected', showServer ? 'false' : 'true');
+    btnServer.setAttribute('aria-selected', showServer ? 'true' : 'false');
+    btnSession.classList.toggle('activity-log-journal-tab--active', !showServer);
+    btnServer.classList.toggle('activity-log-journal-tab--active', showServer);
+  }
+
+  btnSession.addEventListener('click', () => setJournalTab(false));
+  btnServer.addEventListener('click', () => setJournalTab(true));
+
+  setJournalTab(openServer);
+
+  page.append(tabsRow, card, serverPanel);
 
   const userSel = filtersEl.querySelector('[data-filter="user"]');
   const kindSel = filtersEl.querySelector('[data-filter="kind"]');

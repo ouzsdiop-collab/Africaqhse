@@ -31,32 +31,36 @@ function previewJson(v) {
   }
 }
 
-export function renderAuditLogsPage() {
+/**
+ * Panneau « journal serveur » (API) — intégré dans la page Journal unifiée.
+ * @returns {HTMLElement} article.content-card ou équivalent
+ */
+export function createAuditLogsServerPanel() {
   ensureAuditLogsApiStyles();
   const su = getSessionUser();
+  const wrap = document.createElement('div');
+  wrap.className = 'audit-logs-api-page';
+
   if (!su || !canResource(su.role, 'audit_logs', 'read')) {
-    const wrap = document.createElement('section');
-    wrap.className = 'page-stack audit-logs-api-page';
-    wrap.innerHTML = `
-      <article class="content-card card-soft">
-        <h2 class="page-title-like">Journal serveur</h2>
-        <p class="dashboard-muted-lead">Votre profil ne permet pas d’accéder aux journaux d’audit serveur.</p>
-      </article>`;
+    const card = document.createElement('article');
+    card.className = 'content-card card-soft';
+    card.innerHTML = `
+      <h3 class="page-title-like" style="margin-top:0">Journal serveur (API)</h3>
+      <p class="dashboard-muted-lead">Votre profil ne permet pas d’accéder aux entrées d’audit enregistrées côté serveur.</p>
+      <p class="dashboard-muted-lead" style="margin-top:8px">Utilisez l’onglet « Session navigateur » pour la piste d’activité locale.</p>`;
+    wrap.append(card);
     return wrap;
   }
-
-  const page = document.createElement('section');
-  page.className = 'page-stack audit-logs-api-page';
 
   const card = document.createElement('article');
   card.className = 'content-card card-soft';
 
   const head = document.createElement('header');
   head.innerHTML = `
-    <p class="settings-section__kicker">Pilotage · conformité</p>
-    <h2 class="page-title-like">Journal serveur</h2>
+    <p class="settings-section__kicker">Traçabilité · API</p>
+    <h3 class="page-title-like">Journal serveur (API)</h3>
     <p class="dashboard-muted-lead">
-      Entrées persistées côté API (créations sensibles, imports, documents, etc.). Distinct du journal d’activité navigateur.
+      Entrées persistées par l’API (actions sensibles, imports, documents, etc.). Complète la piste « session navigateur ».
     </p>`;
 
   const toolbar = document.createElement('div');
@@ -101,9 +105,7 @@ export function renderAuditLogsPage() {
   /** @param {Record<string, unknown>} row */
   function buildRow(row, admin) {
     const tr = document.createElement('tr');
-    const created = row.createdAt
-      ? escapeHtml(String(row.createdAt))
-      : '—';
+    const created = row.createdAt ? escapeHtml(String(row.createdAt)) : '—';
     const tenantCell = admin
       ? `<td>${escapeHtml(row.tenantId != null ? String(row.tenantId) : '—')}</td>`
       : '';
@@ -152,8 +154,7 @@ export function renderAuditLogsPage() {
       }
 
       if (!items.length && !append) {
-        tableHost.innerHTML =
-          '<p class="dashboard-muted-lead">Aucune entrée pour le moment.</p>';
+        tableHost.innerHTML = '<p class="dashboard-muted-lead">Aucune entrée pour le moment.</p>';
         loadMore.hidden = true;
         statusEl.textContent = '0 entrée.';
         return;
@@ -209,9 +210,9 @@ export function renderAuditLogsPage() {
 
   toolbar.append(statusEl);
   card.append(head, toolbar, tableHost, loadMore);
-  page.append(card);
+  wrap.append(card);
 
   void fetchPage(false);
 
-  return page;
+  return wrap;
 }

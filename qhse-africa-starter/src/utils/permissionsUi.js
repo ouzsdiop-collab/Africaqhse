@@ -87,7 +87,6 @@ const TERRAIN_NAV_EXPERT_PAGES = new Set([
   'analytics',
   'performance',
   'activity-log',
-  'audit-logs',
   'audits',
   'incidents',
   'permits',

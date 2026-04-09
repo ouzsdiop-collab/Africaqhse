@@ -165,6 +165,32 @@ const CSS = `
   .activity-log-toolbar--split{flex-direction:column;align-items:stretch}
   .activity-log-audit-view-btn{width:100%;justify-content:center}
 }
+
+.activity-log-journal-tabs{
+  display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;
+}
+.activity-log-journal-tab{
+  appearance:none;margin:0;padding:10px 16px;border-radius:999px;
+  border:1px solid var(--color-border-tertiary, rgba(148,163,184,.22));
+  background:var(--color-background-primary, #fff);
+  color:var(--color-text-secondary, #334155);
+  font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease;
+}
+.activity-log-journal-tab:hover{
+  border-color:color-mix(in srgb, var(--palette-accent, #14b8a6) 35%, var(--color-border-secondary));
+  color:var(--color-text-primary, #0f172a);
+}
+.activity-log-journal-tab--active{
+  border-color:color-mix(in srgb, var(--palette-accent, #14b8a6) 45%, transparent);
+  background:color-mix(in srgb, var(--palette-accent, #14b8a6) 10%, var(--color-background-primary));
+  color:var(--color-primary-text, #0f766e);
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset;
+}
+.activity-log-journal-tab:focus-visible{
+  outline:2px solid color-mix(in srgb, var(--palette-accent, #14b8a6) 50%, transparent);
+  outline-offset:2px;
+}
 `;
 
 export function ensureActivityLogStyles() {

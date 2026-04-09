@@ -1947,7 +1947,7 @@ export function renderIso(onAddLog) {
       isRefreshingPilotage = false;
       if (refreshPilotageQueued) {
         refreshPilotageQueued = false;
-        queueMicrotask(refreshPilotage);
+        setTimeout(refreshPilotage, 200);
       }
     }
   }

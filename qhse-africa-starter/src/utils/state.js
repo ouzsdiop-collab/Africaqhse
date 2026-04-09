@@ -21,6 +21,8 @@ const allowedPages = [
 
 export const appState = {
   currentPage: 'dashboard',
+  /** Après navigation `#audit-logs` ou équivalent : ouvrir l’onglet API sur la page Journal. */
+  journalServerTabOnce: false,
   /** Libellé affiché (topbar, contexte) */
   currentSite: 'Vue groupe (tous sites)',
   /** Id Prisma du site actif ; null = vue groupe (pas de filtre API) */
@@ -31,9 +33,20 @@ export const appState = {
 };
 
 export function setCurrentPage(page) {
-  if (allowedPages.includes(page)) {
-    appState.currentPage = page;
+  if (page === 'audit-logs') {
+    appState.journalServerTabOnce = true;
   }
+  const id = page === 'audit-logs' ? 'activity-log' : page;
+  if (allowedPages.includes(id)) {
+    appState.currentPage = id;
+  }
+}
+
+/** @returns {boolean} */
+export function consumeJournalServerTabIntent() {
+  const v = appState.journalServerTabOnce;
+  appState.journalServerTabOnce = false;
+  return v;
 }
 
 /**

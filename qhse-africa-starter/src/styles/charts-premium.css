@@ -48,8 +48,8 @@
   font-size: 9.5px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  fill: var(--color-text-tertiary, var(--text3));
-  opacity: 0.88;
+  fill: var(--color-text-secondary);
+  opacity: 1;
   pointer-events: none;
 }
 
@@ -60,7 +60,7 @@
 }
 
 .dashboard-line-chart-line--dim {
-  opacity: 0.38;
+  opacity: 0.52;
 }
 
 .dashboard-line-chart-area {
@@ -135,7 +135,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-tertiary, var(--text3));
+  color: var(--color-text-secondary);
   margin: 0 0 2px;
 }
 
@@ -307,7 +307,7 @@
 }
 
 .dashboard-line-chart-wrap--hovering .dashboard-line-chart-values span {
-  opacity: 0.42;
+  opacity: 0.62;
 }
 
 .dashboard-line-chart-wrap--hovering .dashboard-line-chart-value-cell--active {
@@ -321,7 +321,7 @@
 }
 
 .dashboard-line-chart-wrap--hovering .dashboard-line-chart-labels span {
-  opacity: 0.45;
+  opacity: 0.65;
 }
 
 .dashboard-line-chart-wrap--hovering .dashboard-line-chart-label-cell--active {

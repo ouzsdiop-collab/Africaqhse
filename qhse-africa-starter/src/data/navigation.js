@@ -11,14 +11,7 @@ export const navigationGroups = [
       { id: 'dashboard', label: 'Dashboard', icon: '◫' },
       { id: 'analytics', label: 'Analytics / Synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
-      { id: 'activity-log', label: 'Journal', icon: '≣' },
-      {
-        id: 'audit-logs',
-        label: 'Journal serveur',
-        icon: '≡',
-        resource: 'audit_logs',
-        verb: 'read'
-      }
+      { id: 'activity-log', label: 'Journal', icon: '≣' }
     ]
   },
   {
@@ -154,15 +147,9 @@ export const pageTopbarById = {
   'activity-log': {
     title: 'Journal',
     kicker: 'Pilotage',
-    subtitle: 'Historique des changements et traçabilité opérationnelle.',
-    cta: { label: 'Audits', pageId: 'audits' }
-  },
-  'audit-logs': {
-    title: 'Journal serveur',
-    kicker: 'Pilotage',
     subtitle:
-      'Traçabilité des actions sensibles enregistrées par l’API (multi-tenant, conservation serveur).',
-    cta: { label: 'Journal', pageId: 'activity-log' }
+      'Traçabilité : piste session navigateur (filtres, exports) et journal serveur (API) dans un seul écran.',
+    cta: { label: 'Audits', pageId: 'audits' }
   },
   settings: {
     title: 'Paramètres & configuration',

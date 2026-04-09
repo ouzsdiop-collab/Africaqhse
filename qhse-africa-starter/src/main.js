@@ -24,6 +24,7 @@ import { TERRAIN_ALLOWED_PAGE_IDS, TERRAIN_BOTTOM_NAV_ITEMS } from './utils/terr
 import { syncTerrainIncidentQueue } from './services/terrainOffline.service.js';
 import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
+import './styles/dashboard-contrast-fixes.css';
 
 ensureProductionDemoModeOff();
 initTheme();

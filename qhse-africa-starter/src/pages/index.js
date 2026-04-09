@@ -1,5 +1,5 @@
 import { getSessionUser } from '../data/sessionUser.js';
-import { canAccessNavPage, canResource } from '../utils/permissionsUi.js';
+import { canAccessNavPage } from '../utils/permissionsUi.js';
 
 /** @param {unknown} err */
 function buildRenderErrorView(err) {
@@ -112,8 +112,8 @@ async function importAndRenderPage(pageId, onAddLog) {
       return m.renderActivityLog();
     }
     case 'audit-logs': {
-      const m = await import('./audit-logs.js');
-      return m.renderAuditLogsPage();
+      const m = await import('./activity-log.js');
+      return m.renderActivityLog({ initialTab: 'server' });
     }
     case 'settings': {
       const m = await import('./settings.js');
@@ -151,11 +151,6 @@ export function createPageRenderer({ currentPage, onAddLog }) {
     }
     targetPage = 'dashboard';
   }
-  if (su && targetPage === 'audit-logs' && !canResource(su.role, 'audit_logs', 'read')) {
-    window.location.hash = 'dashboard';
-    targetPage = 'dashboard';
-  }
-
   slot.replaceChildren(createRouteLoadingView());
 
   void importAndRenderPage(targetPage, onAddLog)
