@@ -1920,20 +1920,36 @@ export function renderIso(onAddLog) {
     }
   }
 
+  let isRefreshingPilotage = false;
+  let refreshPilotageQueued = false;
+
   function refreshPilotage() {
-    updateGlobalSnapshot(globalSnapshotEl, computeComplianceSummary());
-    updateHeroQuickStats();
-    updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
-    renderNormsGrid();
-    refreshPrioritiesCockpit();
-    refreshCopilot();
-    tableCtx.refreshTable();
-    docsSection.renderAttention();
-    proofStripBundle.refresh();
-    docStateSummary.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
-    registryDocImpact.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
-    docTableSection.refresh();
-    paintIsoMixCharts();
+    if (isRefreshingPilotage) {
+      refreshPilotageQueued = true;
+      return;
+    }
+    isRefreshingPilotage = true;
+    try {
+      updateGlobalSnapshot(globalSnapshotEl, computeComplianceSummary());
+      updateHeroQuickStats();
+      updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
+      renderNormsGrid();
+      refreshPrioritiesCockpit();
+      refreshCopilot();
+      tableCtx.refreshTable();
+      docsSection.renderAttention();
+      proofStripBundle.refresh();
+      docStateSummary.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
+      registryDocImpact.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
+      docTableSection.refresh();
+      paintIsoMixCharts();
+    } finally {
+      isRefreshingPilotage = false;
+      if (refreshPilotageQueued) {
+        refreshPilotageQueued = false;
+        queueMicrotask(refreshPilotage);
+      }
+    }
   }
 
   pilotageCtx.refreshPilotage = refreshPilotage;
