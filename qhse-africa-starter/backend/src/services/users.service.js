@@ -8,7 +8,9 @@ const userPublicSelect = {
   name: true,
   email: true,
   role: true,
-  createdAt: true
+  createdAt: true,
+  onboardingCompleted: true,
+  onboardingStep: true
 };
 
 /** `_tenantId` est ignoré (V1 mono-tenant). */
@@ -59,7 +61,13 @@ export async function createUser(_tenantId, { name, email, role, password }) {
 /**
  * @param {string | null | undefined} _tenantId
  * @param {string} userId
- * @param {{ name?: string, role?: string, password?: string }} patch
+ * @param {{
+ *   name?: string,
+ *   role?: string,
+ *   password?: string,
+ *   onboardingCompleted?: boolean,
+ *   onboardingStep?: number
+ * }} patch
  */
 export async function updateUserInTenant(_tenantId, userId, patch) {
   const uid = String(userId ?? '').trim();
@@ -83,7 +91,22 @@ export async function updateUserInTenant(_tenantId, userId, patch) {
   const password =
     patch.password != null && String(patch.password).length > 0 ? String(patch.password) : null;
 
-  if (!name && !role && !password) {
+  const hasOnboardingCompleted = typeof patch.onboardingCompleted === 'boolean';
+  let onboardingStepUpdate = null;
+  if (patch.onboardingStep !== undefined && patch.onboardingStep !== null) {
+    const s = Math.floor(Number(patch.onboardingStep));
+    if (Number.isFinite(s)) {
+      onboardingStepUpdate = Math.max(0, Math.min(5, s));
+    }
+  }
+
+  if (
+    !name &&
+    !role &&
+    !password &&
+    !hasOnboardingCompleted &&
+    onboardingStepUpdate === null
+  ) {
     const err = new Error('Aucun champ à mettre à jour');
     err.statusCode = 400;
     throw err;
@@ -101,8 +124,37 @@ export async function updateUserInTenant(_tenantId, userId, patch) {
     }
     userData.passwordHash = await bcrypt.hash(password, 10);
   }
+  if (hasOnboardingCompleted) userData.onboardingCompleted = patch.onboardingCompleted;
+  if (onboardingStepUpdate !== null) userData.onboardingStep = onboardingStepUpdate;
 
   await prisma.user.update({ where: { id: uid }, data: userData });
+  return findUserById(null, uid);
+}
+
+/**
+ * Met à jour uniquement l’étape d’onboarding (0–5).
+ * @param {string | null | undefined} _tenantId
+ * @param {string} userId
+ * @param {number} step
+ */
+export async function updateOnboardingStep(_tenantId, userId, step) {
+  const uid = String(userId ?? '').trim();
+  if (!uid) {
+    const err = new Error('Requête invalide');
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = await prisma.user.findUnique({ where: { id: uid } });
+  if (!existing) {
+    const err = new Error('Utilisateur introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  const s = Math.max(0, Math.min(5, Math.floor(Number(step) || 0)));
+  await prisma.user.update({
+    where: { id: uid },
+    data: { onboardingStep: s }
+  });
   return findUserById(null, uid);
 }
 

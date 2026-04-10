@@ -1,11 +1,36 @@
 import * as automationService from './services/automation.service.js';
+import { cleanupExpiredRefreshTokens } from './services/auth.service.js';
 import { recordSchedulerRun } from './controllers/automation.controller.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Planification optionnelle : exécute les jobs à intervalle régulier (ex. hebdomadaire).
  * Variables : AUTOMATION_SCHEDULER=true, AUTOMATION_INTERVAL_MS (défaut 7 jours).
  */
 export function startAutomationScheduler() {
+  void cleanupExpiredRefreshTokens()
+    .then(({ deleted }) => {
+      if (deleted > 0) {
+        console.log(`[auth] refresh_tokens expirés purgés au démarrage : ${deleted}`);
+      }
+    })
+    .catch((err) => {
+      console.error('[auth] purge refresh_tokens au démarrage', err);
+    });
+
+  setInterval(() => {
+    void cleanupExpiredRefreshTokens()
+      .then(({ deleted }) => {
+        if (deleted > 0) {
+          console.log(`[auth] refresh_tokens expirés purgés (planifié) : ${deleted}`);
+        }
+      })
+      .catch((err) => {
+        console.error('[auth] purge refresh_tokens planifiée', err);
+      });
+  }, DAY_MS);
+
   const on =
     process.env.AUTOMATION_SCHEDULER === 'true' ||
     process.env.AUTOMATION_SCHEDULER === '1';

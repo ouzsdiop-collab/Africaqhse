@@ -43,3 +43,37 @@ export async function createAudit(tenantId, data) {
   }
   return prisma.audit.create({ data: row });
 }
+
+/**
+ * @param {string | null | undefined} tenantId
+ * @param {string} id
+ * @param {unknown} score
+ */
+export async function updateAuditScore(tenantId, id, score) {
+  const tf = prismaTenantFilter(tenantId);
+  const auditId = String(id ?? '').trim();
+  if (!auditId) {
+    const err = new Error('Audit introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  const scoreNum = Number(score);
+  if (!Number.isFinite(scoreNum)) {
+    const err = new Error('Score invalide');
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = await prisma.audit.findFirst({
+    where: { id: auditId, ...tf },
+    select: { id: true }
+  });
+  if (!existing) {
+    const err = new Error('Audit introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  return prisma.audit.update({
+    where: { id: auditId },
+    data: { score: Math.round(scoreNum) }
+  });
+}

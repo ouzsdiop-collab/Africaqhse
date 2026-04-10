@@ -1,5 +1,12 @@
+import cron from 'node-cron';
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
+import { getEmailNotificationPrefs } from '../lib/emailNotificationPrefs.js';
+import {
+  isSmtpConfigured,
+  sendWeeklyQhseSummary,
+  fetchPilotageRecipientEmails
+} from './email.service.js';
 
 const LIST_SAMPLE = 8;
 
@@ -498,4 +505,79 @@ export async function buildPeriodicReport(opts) {
   }
 
   return getPeriodicReport({ period, start, end, siteId, assigneeId, tenantId });
+}
+
+/**
+ * Semaine civile précédente (lundi 00:00 → dimanche 23:59:59, fuseau local serveur).
+ * @param {Date} [now]
+ */
+export function getPreviousWeekLocalBounds(now = new Date()) {
+  const ref = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+  const day = ref.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  const thisMonday = new Date(ref);
+  thisMonday.setDate(ref.getDate() - daysSinceMonday);
+  thisMonday.setHours(0, 0, 0, 0);
+  const prevMonday = new Date(thisMonday);
+  prevMonday.setDate(thisMonday.getDate() - 7);
+  const prevSunday = new Date(prevMonday);
+  prevSunday.setDate(prevMonday.getDate() + 6);
+  prevSunday.setHours(23, 59, 59, 999);
+  return { start: prevMonday, end: prevSunday };
+}
+
+/**
+ * Synthèse HTML semaine précédente (appelée par le cron lundi 8h).
+ * @returns {Promise<{ sent: number, skipped?: boolean, detail: string[] }>}
+ */
+export async function runScheduledWeeklyQhseEmail() {
+  const detail = [];
+  if (!getEmailNotificationPrefs().weeklySummary) {
+    detail.push('Résumé hebdomadaire désactivé (préférences).');
+    return { sent: 0, skipped: true, detail };
+  }
+  if (!isSmtpConfigured()) {
+    detail.push('SMTP non configuré.');
+    return { sent: 0, skipped: true, detail };
+  }
+  const { start, end } = getPreviousWeekLocalBounds();
+  const report = await getPeriodicReport({
+    period: 'custom',
+    start,
+    end,
+    siteId: null,
+    assigneeId: null,
+    tenantId: null
+  });
+  const recipients = await fetchPilotageRecipientEmails();
+  const emails = recipients.map((r) => r.email);
+  if (!emails.length) {
+    detail.push('Aucun destinataire (rôles pilotage avec e-mail).');
+    return { sent: 0, skipped: true, detail };
+  }
+  await sendWeeklyQhseSummary(
+    { meta: report.meta, summary: report.summary },
+    emails
+  );
+  detail.push(`${emails.length} e-mail(s) de synthèse envoyé(s).`);
+  return { sent: emails.length, detail };
+}
+
+/**
+ * Cron : chaque lundi 8h (fuseau CRON_TZ, TZ ou Africa/Abidjan par défaut).
+ */
+export function scheduleWeeklyEmailReport() {
+  if (process.env.VITEST === 'true') return;
+  const tz = process.env.CRON_TZ || process.env.TZ || 'Africa/Abidjan';
+  cron.schedule(
+    '0 8 * * 1',
+    () => {
+      void runScheduledWeeklyQhseEmail().then(
+        (r) => console.log('[weekly-email]', JSON.stringify(r)),
+        (e) => console.error('[weekly-email]', e)
+      );
+    },
+    { timezone: tz }
+  );
+  console.log(`[weekly-email] planifié — lundis 8h (${tz})`);
 }

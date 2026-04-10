@@ -47,52 +47,58 @@ export function deriveDashboardStatsFromLists(incidents, actions, ncs) {
 }
 
 /**
- * Aligne les compteurs API avec les listes chargées (même filtre site).
+ * Les compteurs `/api/dashboard/stats` sont désormais calculés côté serveur (count / groupBy).
+ * On ne réécrit plus les scalaires à partir des listes paginées du client.
+ *
+ * @param {object | null | undefined} apiStats
+ * @param {object[]} _incidents
+ * @param {object[]} _actions
+ * @param {object[]} _ncs
  */
 export function reconcileDashboardStatsWithLists(apiStats, incidents, actions, ncs) {
-  const base = apiStats && typeof apiStats === 'object' ? { ...apiStats } : {};
-  const d = deriveDashboardStatsFromLists(incidents, actions, ncs);
-  const out = {
-    incidents: asDashboardCount(base.incidents),
-    actions: asDashboardCount(base.actions),
-    overdueActions: asDashboardCount(base.overdueActions),
-    nonConformities: asDashboardCount(base.nonConformities),
-    criticalIncidents: Array.isArray(base.criticalIncidents) ? base.criticalIncidents : [],
-    overdueActionItems: Array.isArray(base.overdueActionItems) ? base.overdueActionItems : []
-  };
-
-  const apiScalarsDead =
-    out.incidents === 0 &&
-    out.actions === 0 &&
-    out.overdueActions === 0 &&
-    out.nonConformities === 0;
-  const listsSignal =
-    d.incidents > 0 ||
-    d.actions > 0 ||
-    d.overdueActions > 0 ||
-    d.nonConformities > 0 ||
-    d.criticalIncidents.length > 0;
-
-  if (apiScalarsDead && listsSignal) {
+  if (!apiStats || typeof apiStats !== 'object') {
     return {
-      incidents: d.incidents,
-      actions: d.actions,
-      overdueActions: d.overdueActions,
-      nonConformities: d.nonConformities,
-      criticalIncidents: d.criticalIncidents,
-      overdueActionItems: d.overdueActionItems
+      incidents: 0,
+      actions: 0,
+      overdueActions: 0,
+      nonConformities: 0,
+      criticalIncidents: [],
+      overdueActionItems: []
     };
   }
+  const s = apiStats.stats && typeof apiStats.stats === 'object' ? apiStats.stats : null;
+  const fromApi = {
+    ...apiStats,
+    incidents: asDashboardCount(s?.incidents?.total ?? apiStats.incidents),
+    actions: asDashboardCount(s?.actions?.total ?? apiStats.actions),
+    overdueActions: asDashboardCount(s?.actions?.overdue ?? apiStats.overdueActions),
+    nonConformities: asDashboardCount(apiStats.nonConformities),
+    criticalIncidents: Array.isArray(apiStats.criticalIncidents) ? apiStats.criticalIncidents : [],
+    overdueActionItems: Array.isArray(apiStats.overdueActionItems) ? apiStats.overdueActionItems : []
+  };
 
-  out.incidents = Math.max(out.incidents, d.incidents);
-  out.actions = Math.max(out.actions, d.actions);
-  out.overdueActions = Math.max(out.overdueActions, d.overdueActions);
-  out.nonConformities = Math.max(out.nonConformities, d.nonConformities);
-  if (!out.criticalIncidents.length && d.criticalIncidents.length) {
-    out.criticalIncidents = d.criticalIncidents;
+  const serverLooksAuthoritative =
+    Boolean(s) &&
+    (asDashboardCount(s.incidents?.total) > 0 ||
+      asDashboardCount(s.actions?.total) > 0 ||
+      asDashboardCount(s.risks?.total) > 0 ||
+      asDashboardCount(s.audits?.total) > 0);
+
+  const apiScalarsDead =
+    fromApi.incidents === 0 &&
+    fromApi.actions === 0 &&
+    fromApi.overdueActions === 0 &&
+    fromApi.nonConformities === 0;
+  const inc = Array.isArray(incidents) ? incidents : [];
+  const act = Array.isArray(actions) ? actions : [];
+  const ncList = Array.isArray(ncs) ? ncs : [];
+  const listsSignal =
+    inc.length > 0 || act.length > 0 || ncList.some((r) => isNcOpen(r));
+
+  if (!serverLooksAuthoritative && apiScalarsDead && listsSignal) {
+    const d = deriveDashboardStatsFromLists(incidents, actions, ncs);
+    return { ...fromApi, ...d, stats: fromApi.stats };
   }
-  if (!out.overdueActionItems.length && d.overdueActionItems.length) {
-    out.overdueActionItems = d.overdueActionItems;
-  }
-  return out;
+
+  return fromApi;
 }

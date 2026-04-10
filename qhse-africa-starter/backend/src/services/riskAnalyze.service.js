@@ -1,7 +1,13 @@
 /**
- * Analyse V1 — règles par mots-clés (pas d’appel modèle externe).
+ * Analyse risque — règles par mots-clés + enrichissement OpenAI optionnel
+ * (AI_ALLOW_EXTERNAL=true + OPENAI_API_KEY, voir aiProvider.service.js).
  * Sortie en français, lisible pour le formulaire terrain.
  */
+
+import { requestJsonCompletion, isExternalAiEnabled } from './aiProvider.service.js';
+
+const LEVEL_VALUES = new Set(['élevée', 'moyenne', 'faible']);
+const CATEGORY_VALUES = new Set(['Sécurité', 'Environnement', 'Qualité', 'Autre']);
 
 const CATEGORY_RULES = [
   {
@@ -28,7 +34,18 @@ const CATEGORY_RULES = [
       /\btranch[eé]e\b/,
       /\beffondrement\b/,
       /\bgaz\b.*\btoxique\b/,
-      /\bintoxication\b/
+      /\bintoxication\b/,
+      /\bespace[\s-]?confin[eé]\b/,
+      /\bconfined\b/,
+      /\blevage\b/,
+      /\bgrue\b/,
+      /\bpalan\b/,
+      /\barc[\s-]?(flash|électrique)\b/,
+      /\bcontact[\s-]?direct\b.*\bcourant\b/,
+      /\bmanutention\b.*\blourde?\b/,
+      /\bpsychosocial\b/,
+      /\bharc[eè]lement\b/,
+      /\bstress\b.*\bcharge\b/
     ]
   },
   {
@@ -50,7 +67,9 @@ const CATEGORY_RULES = [
       /\bpoussi[eè]re\b/,
       /\bemission\b/,
       /\b[eé]missions?\b/,
-      /\bbiodiversit/
+      /\bbiodiversit/,
+      /\bstockage[\s-]?non[\s-]?conforme\b/,
+      /\bcontamination\b.*\b(crois[eé]e|croisee)\b/
     ]
   },
   {
@@ -83,6 +102,75 @@ const PROB_HIGH =
 const PROB_LOW =
   /\b(rare|exceptionnel|exceptionnelle|improbable|peu[\s-]?fr[eé]quent|occasionnel)\b/;
 
+/**
+ * Pistes causes / impacts (règles — à recouper sur le terrain).
+ * @param {string} category
+ * @param {string} severity
+ * @param {string} probability
+ * @param {string} t — texte normalisé
+ */
+function inferCausesImpacts(category, severity, probability, t) {
+  const high = severity === 'élevée' || probability === 'élevée';
+  /** @type {string[]} */
+  const causeBits = [];
+  /** @type {string[]} */
+  const impactBits = [];
+
+  if (/\bchute\b|hauteur|échafaud|echafaud/.test(t)) {
+    causeBits.push('conditions d’accès / garde-corps / ancrages à vérifier');
+    impactBits.push('blessures, arrêts, enquête SST');
+  }
+  if (/\bengin|vh[eé]cule|manutention|levage|grue/.test(t)) {
+    causeBits.push('coactivité, visibilité, signalisation, stabilité des sols');
+    impactBits.push('chocs, renversements, dommages matériels');
+  }
+  if (/\bfeu|incendie|explosion|arc/.test(t)) {
+    causeBits.push('sources d’ignition, ATEX, moyens de secours');
+    impactBits.push('blessés graves, arrêt d’exploitation, impacts environnementaux');
+  }
+  if (/\bconfine|espace\s+restreint/.test(t)) {
+    causeBits.push('atmosphère, ventilation, consignation, équipe de secours');
+    impactBits.push('intoxication, asphyxie, intervention d’urgence');
+  }
+  if (/\bdeverse|fuite|hydrocarbure|rétention|retention/.test(t)) {
+    causeBits.push('étanchéité, surstockage, maintenance des équipements');
+    impactBits.push('pollution sols/eaux, sanctions, coûts de traitement');
+  }
+  if (/\bnon[\s-]?conform|qualit[eé]|tra[cç]abilit/.test(t)) {
+    causeBits.push('écarts procédure, formation, contrôles insuffisants');
+    impactBits.push('non-conformité client / réglementaire, rappel éventuel');
+  }
+  if (/\bpsychosocial|stress|harcel/.test(t)) {
+    causeBits.push('charge de travail, organisation, climat social');
+    impactBits.push('absentéisme, turnover, plaintes');
+  }
+
+  if (!causeBits.length) {
+    if (category === 'Sécurité') {
+      causeBits.push('facteurs humains, matériels et organisationnels à préciser en revue');
+      impactBits.push(
+        high ? 'blessures potentielles graves, arrêt d’activité' : 'incidents de gravité variable'
+      );
+    } else if (category === 'Environnement') {
+      causeBits.push('défaillance technique ou dérive de pratiques de stockage / transfert');
+      impactBits.push('atteinte environnementale, obligations de déclaration selon gravité');
+    } else if (category === 'Qualité') {
+      causeBits.push('dérive process ou contrôle insuffisant sur le périmètre concerné');
+      impactBits.push('non-conformité produit ou service, réclamation');
+    } else {
+      causeBits.push('contexte site et causes à structurer avec les parties prenantes');
+      impactBits.push('impacts à dimensionner selon activité');
+    }
+  } else if (!impactBits.length) {
+    impactBits.push(high ? 'impacts potentiellement majeurs pour QHSE et exploitation' : 'impacts à confirmer selon criticité');
+  }
+
+  return {
+    causes: causeBits.slice(0, 3).join(' ; ') + ' — à valider en équipe.',
+    impacts: impactBits.slice(0, 3).join(' ; ') + ' — à adapter au site.'
+  };
+}
+
 /** @param {string} text */
 function normalizeForMatch(text) {
   return String(text)
@@ -93,7 +181,7 @@ function normalizeForMatch(text) {
 
 /**
  * @param {string} description
- * @returns {{ category: string, severity: string, probability: string, suggestedActions: string[] }}
+ * @returns {{ category: string, severity: string, probability: string, suggestedActions: string[], causes: string, impacts: string }}
  */
 export function analyzeRiskDescription(description) {
   const t = normalizeForMatch(description);
@@ -115,12 +203,15 @@ export function analyzeRiskDescription(description) {
   else if (PROB_LOW.test(t)) probability = 'faible';
 
   const suggestedActions = buildSuggestedActions(category, severity, probability);
+  const { causes, impacts } = inferCausesImpacts(category, severity, probability, t);
 
   return {
     category,
     severity,
     probability,
-    suggestedActions
+    suggestedActions,
+    causes,
+    impacts
   };
 }
 
@@ -159,4 +250,93 @@ function buildSuggestedActions(category, severity, probability) {
   base.push('Valider manuellement les mesures avant enregistrement définitif.');
 
   return base.slice(0, 5);
+}
+
+/**
+ * @param {Record<string, unknown>} parsed
+ * @param {{ category: string, severity: string, probability: string, suggestedActions: string[], causes: string, impacts: string }} local
+ */
+function mergeLlmRiskAnalysis(parsed, local) {
+  const catRaw = typeof parsed.category === 'string' ? parsed.category.trim() : '';
+  const category = CATEGORY_VALUES.has(catRaw) ? catRaw : local.category;
+
+  const sevRaw = typeof parsed.severity === 'string' ? parsed.severity.trim() : '';
+  const severity = LEVEL_VALUES.has(sevRaw) ? sevRaw : local.severity;
+
+  const probRaw = typeof parsed.probability === 'string' ? parsed.probability.trim() : '';
+  const probability = LEVEL_VALUES.has(probRaw) ? probRaw : local.probability;
+
+  let suggestedActions = local.suggestedActions;
+  if (Array.isArray(parsed.suggestedActions)) {
+    const lines = parsed.suggestedActions
+      .map((x) => String(x ?? '').trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    if (lines.length) suggestedActions = lines;
+  }
+
+  const causes =
+    typeof parsed.causes === 'string' && parsed.causes.trim()
+      ? parsed.causes.trim().slice(0, 2000)
+      : local.causes;
+  const impacts =
+    typeof parsed.impacts === 'string' && parsed.impacts.trim()
+      ? parsed.impacts.trim().slice(0, 2000)
+      : local.impacts;
+
+  return { category, severity, probability, suggestedActions, causes, impacts };
+}
+
+/**
+ * Analyse avec règles puis, si activé, passage par le modèle distant (JSON strict).
+ * @param {string} description
+ * @returns {Promise<{
+ *   category: string,
+ *   severity: string,
+ *   probability: string,
+ *   suggestedActions: string[],
+ *   causes: string,
+ *   impacts: string,
+ *   provider: 'openai' | 'rules',
+ *   llmError?: string
+ * }>}
+ */
+export async function analyzeRiskDescriptionAsync(description) {
+  const local = analyzeRiskDescription(description);
+
+  if (!isExternalAiEnabled()) {
+    return { ...local, provider: 'rules' };
+  }
+
+  const excerpt = String(description).trim().slice(0, 7500);
+  const sys = `Tu es un expert QHSE (ISO 45001, 14001, 9001). On te donne la description d'un risque opérationnel en français.
+Réponds uniquement par un objet JSON (pas de markdown) avec exactement ces clés :
+- "category" : une parmi "Sécurité", "Environnement", "Qualité", "Autre"
+- "severity" : une parmi "élevée", "moyenne", "faible" (gravité potentielle)
+- "probability" : une parmi "élevée", "moyenne", "faible"
+- "suggestedActions" : tableau de 3 à 5 chaînes, mesures concrètes et réalisables
+- "causes" : une chaîne, pistes de causes (à valider en équipe)
+- "impacts" : une chaîne, impacts possibles (à adapter au site)
+Reste factuel, sans inventer de chiffres ni de noms propres non présents dans le texte.`;
+
+  const ext = await requestJsonCompletion({
+    system: sys,
+    user: excerpt
+  });
+
+  if (!ext.rawText) {
+    return {
+      ...local,
+      provider: 'rules',
+      ...(ext.error ? { llmError: ext.error.slice(0, 500) } : {})
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(ext.rawText);
+    const merged = mergeLlmRiskAnalysis(parsed, local);
+    return { ...merged, provider: 'openai' };
+  } catch {
+    return { ...local, provider: 'rules', llmError: 'Réponse LLM non JSON' };
+  }
 }

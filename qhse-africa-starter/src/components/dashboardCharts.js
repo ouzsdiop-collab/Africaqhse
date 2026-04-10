@@ -2,7 +2,20 @@
  * Graphiques dashboard — SVG / barres CSS, données injectées (pas de lib externe).
  */
 
+import { Chart, registerables } from 'chart.js';
 import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
+
+let qhseDashboardChartJsReady = false;
+
+/**
+ * Enregistre Chart.js pour les graphiques canvas du dashboard (idempotent).
+ * @param {object} [_stats] — réservé (pré-calculs futurs).
+ */
+export function initDashboardCharts(_stats) {
+  if (qhseDashboardChartJsReady) return;
+  Chart.register(...registerables);
+  qhseDashboardChartJsReady = true;
+}
 
 function formatChartAxisValue(v) {
   if (!Number.isFinite(v)) return '—';

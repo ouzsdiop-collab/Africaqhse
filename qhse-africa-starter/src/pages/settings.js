@@ -259,6 +259,22 @@ export function renderSettings() {
   ensureSettingsPageStyles();
   ensureQhsePilotageStyles();
 
+  async function readFailedApiResponse(res) {
+    try {
+      const j = await res.json();
+      const body = j && typeof j === 'object' ? j : {};
+      const message =
+        typeof body.error === 'string' && body.error.trim() ? body.error.trim() : '';
+      return { body, message };
+    } catch {
+      return { body: {}, message: '' };
+    }
+  }
+
+  const sessionUserEarly = getSessionUser();
+  const isAdminUser =
+    String(sessionUserEarly?.role || '').toUpperCase() === 'ADMIN';
+
   const page = document.createElement('section');
   page.className = 'page-stack settings-page settings-page--hq';
 
@@ -296,11 +312,15 @@ export function renderSettings() {
     { id: 'settings-anchor-org', label: 'Organisation' },
     { id: 'settings-anchor-alerts', label: 'Alertes' },
     { id: 'settings-anchor-notif', label: 'Notifications' },
+    ...(isAdminUser
+      ? [{ id: 'settings-anchor-email-notif', label: 'Notifications email' }]
+      : []),
     { id: 'settings-anchor-exports', label: 'Exports' },
     { id: 'settings-anchor-security-access', label: 'Sécurité & accès' },
     { id: 'settings-anchor-ref', label: 'Référentiels' },
     { id: 'settings-anchor-ia', label: 'IA' },
-    { id: 'settings-anchor-cycle', label: 'Maîtrise' }
+    { id: 'settings-anchor-cycle', label: 'Maîtrise' },
+    { id: 'settings-anchor-help', label: 'Aide & support' }
   ];
   tocSpec.forEach(({ id, label }) => {
     const b = document.createElement('button');
@@ -634,6 +654,155 @@ export function renderSettings() {
     buildNotifRow('Digest quotidien (e-mail)', 'digest', 'toggle'),
     buildNotifRow('Notifications push navigateur', 'push', 'toggle')
   );
+
+  /** @type {HTMLElement | null} */
+  let secEmail = null;
+  if (isAdminUser) {
+    secEmail = document.createElement('section');
+    secEmail.className = 'settings-section';
+    secEmail.id = 'settings-anchor-email-notif';
+    secEmail.innerHTML = `
+    <header class="settings-section__head">
+      <p class="settings-section__kicker">C2 · Courriel serveur</p>
+      <h4 class="settings-section__title">Notifications email</h4>
+      <p class="settings-section__lead">
+        Configuration SMTP via les variables d’environnement du backend (<code>backend/.env</code>).
+        Les secrets ne sont jamais renvoyés au navigateur. Les interrupteurs ci-dessous pilotent l’envoi côté API (mémoire processus jusqu’à redémarrage).
+      </p>
+    </header>
+    <div class="content-card card-soft" style="padding:16px;margin-bottom:16px">
+      <p class="settings-alert-meta" data-email-status>Chargement du statut SMTP…</p>
+      <div class="settings-grid-2" style="margin-top:12px">
+        <label class="field">
+          <span>SMTP_HOST</span>
+          <input type="text" class="control-input" readonly placeholder="défini dans .env (non affiché)" data-email-ph />
+        </label>
+        <label class="field">
+          <span>SMTP_PORT</span>
+          <input type="text" class="control-input" readonly value="587" data-email-port-hint />
+        </label>
+        <label class="field">
+          <span>SMTP_USER</span>
+          <input type="text" class="control-input" readonly placeholder="fourni par votre hébergeur mail" />
+        </label>
+        <label class="field">
+          <span>SMTP_PASS</span>
+          <input type="password" class="control-input" readonly placeholder="jamais exposé au client" />
+        </label>
+        <label class="field">
+          <span>SMTP_FROM / EMAIL_FROM</span>
+          <input type="text" class="control-input" readonly placeholder="AfricaQHSE &lt;noreply@…&gt;" data-email-from-masked />
+        </label>
+        <label class="field">
+          <span>Resend (optionnel)</span>
+          <input type="text" class="control-input" readonly placeholder="Clé API : uniquement si vous branchez Resend côté serveur" data-email-resend-note />
+        </label>
+      </div>
+      <p class="settings-demo-hint" style="margin-top:12px">
+        Avec <strong>Resend</strong>, utilisez en général l’hôte SMTP <code>smtp.resend.com</code>, port <code>465</code> ou <code>587</code>, et les identifiants fournis par le tableau de bord Resend.
+      </p>
+      <div class="settings-actions-bar" style="margin-top:12px">
+        <button type="button" class="btn btn-primary" data-email-test>Envoyer email test</button>
+      </div>
+    </div>
+    <div class="settings-prefs-grid" data-email-toggles></div>
+  `;
+    const emailStatusEl = secEmail.querySelector('[data-email-status]');
+    const fromMaskedEl = secEmail.querySelector('[data-email-from-masked]');
+    const togglesHost = secEmail.querySelector('[data-email-toggles]');
+    /** @type {{ criticalIncidents?: boolean, actionOverdue?: boolean, auditScheduled?: boolean, weeklySummary?: boolean }} */
+    let emailPrefs = {};
+
+    function mkEmailToggle(label, key) {
+      const row = document.createElement('div');
+      row.className = 'settings-pref-row';
+      const span = document.createElement('span');
+      span.textContent = label;
+      row.append(span);
+      const sw = document.createElement('button');
+      sw.type = 'button';
+      sw.className = 'settings-switch';
+      sw.setAttribute('role', 'switch');
+      const on = () => !!emailPrefs[key];
+      const sync = () => {
+        sw.setAttribute('aria-checked', on() ? 'true' : 'false');
+        sw.setAttribute('aria-label', `${label} — ${on() ? 'activé' : 'désactivé'}`);
+      };
+      sync();
+      sw.addEventListener('click', async () => {
+        const next = !on();
+        try {
+          const r = await qhseFetch('/api/settings/email-notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [key]: next })
+          });
+          if (!r.ok) {
+            const { message } = await readFailedApiResponse(r);
+            showToast(message || 'Mise à jour impossible.', 'error');
+            return;
+          }
+          const j = await r.json().catch(() => ({}));
+          if (j.prefs && typeof j.prefs === 'object') emailPrefs = { ...j.prefs };
+          sync();
+          showToast('Préférence enregistrée.', 'info');
+        } catch {
+          showToast('Erreur réseau.', 'error');
+        }
+      });
+      row.append(sw);
+      return row;
+    }
+
+    async function refreshEmailPanel() {
+      try {
+        const r = await qhseFetch('/api/settings/email-notifications');
+        if (!r.ok) {
+          if (emailStatusEl) {
+            emailStatusEl.textContent =
+              'Impossible de charger le statut (vérifiez la connexion et le rôle ADMIN).';
+          }
+          return;
+        }
+        const j = await r.json();
+        if (emailStatusEl) {
+          emailStatusEl.textContent = j.smtpConfigured
+            ? `SMTP prêt · expéditeur : ${j.fromMasked || '(masqué)'}`
+            : 'SMTP non configuré : renseignez SMTP_HOST et SMTP_FROM (ou EMAIL_FROM) sur le serveur.';
+        }
+        if (fromMaskedEl && j.fromMasked) fromMaskedEl.value = String(j.fromMasked);
+        if (j.prefs && typeof j.prefs === 'object') {
+          emailPrefs = { ...j.prefs };
+          if (togglesHost) {
+            togglesHost.replaceChildren(
+              mkEmailToggle('Alertes incidents critiques', 'criticalIncidents'),
+              mkEmailToggle('Rappels actions en retard', 'actionOverdue'),
+              mkEmailToggle('Convocations audit planifié', 'auditScheduled'),
+              mkEmailToggle('Résumé hebdomadaire (lundi 8h)', 'weeklySummary')
+            );
+          }
+        }
+      } catch {
+        if (emailStatusEl) emailStatusEl.textContent = 'Erreur lors du chargement.';
+      }
+    }
+
+    secEmail.querySelector('[data-email-test]')?.addEventListener('click', async () => {
+      try {
+        const r = await qhseFetch('/api/settings/email-test', { method: 'POST' });
+        if (!r.ok) {
+          const { message } = await readFailedApiResponse(r);
+          showToast(message || `Échec (HTTP ${r.status}).`, 'error');
+          return;
+        }
+        showToast('E-mail de test envoyé. Vérifiez votre boîte (et les spams).', 'success');
+      } catch {
+        showToast('Envoi test impossible.', 'error');
+      }
+    });
+
+    void refreshEmailPanel();
+  }
 
   /* —— Exports PDF —— */
   let exportPdf = loadJson(LS_EXPORT, {
@@ -1365,18 +1534,6 @@ export function renderSettings() {
 
   const USER_ROLE_OPTIONS = ['ADMIN', 'QHSE', 'DIRECTION', 'ASSISTANT', 'TERRAIN'];
 
-  async function readFailedApiResponse(res) {
-    try {
-      const j = await res.json();
-      const body = j && typeof j === 'object' ? j : {};
-      const message =
-        typeof body.error === 'string' && body.error.trim() ? body.error.trim() : '';
-      return { body, message };
-    } catch {
-      return { body: {}, message: '' };
-    }
-  }
-
   function roleSelectOptions(currentRole) {
     const cur = String(currentRole || '').toUpperCase();
     const base = [...USER_ROLE_OPTIONS];
@@ -1599,7 +1756,51 @@ export function renderSettings() {
 
   void loadUsers();
 
-  page.append(hero, ...(secDemo ? [secDemo] : []), secA, secB, secC, secD, secH, secE, secF, secG, secUsers);
+  const secHelp = document.createElement('section');
+  secHelp.className = 'settings-section';
+  secHelp.id = 'settings-anchor-help';
+  secHelp.setAttribute('aria-labelledby', 'settings-help-title');
+  secHelp.innerHTML = `
+    <header class="settings-section__head">
+      <p class="settings-section__kicker">Aide &amp; support</p>
+      <h4 class="settings-section__title" id="settings-help-title">Documentation utilisateur</h4>
+      <p class="settings-section__lead">
+        Téléchargez le guide PDF pour la prise en main des modules (dashboard, incidents, risques, audits, mode terrain, etc.).
+      </p>
+    </header>
+    <div class="content-card card-soft">
+      <p class="settings-demo-hint" style="margin:0">
+        <a href="/guide-utilisateur-africaqhse.pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Télécharger le guide utilisateur (PDF)</a>
+      </p>
+    </div>
+  `;
+
+  const replayBtn = document.createElement('button');
+  replayBtn.type = 'button';
+  replayBtn.textContent = 'Revoir le guide de demarrage';
+  replayBtn.className = 'btn btn-ghost btn-sm';
+  replayBtn.style.marginTop = '8px';
+  replayBtn.addEventListener('click', () => {
+    localStorage.removeItem('qhse_onboarding_done_v1');
+    import('../components/onboardingWizard.js').then((m) => m.showOnboardingWizard());
+  });
+  secHelp.querySelector('.content-card.card-soft')?.append(replayBtn);
+
+  page.append(
+    hero,
+    ...(secDemo ? [secDemo] : []),
+    secA,
+    secB,
+    secC,
+    ...(secEmail ? [secEmail] : []),
+    secD,
+    secH,
+    secE,
+    secF,
+    secG,
+    secUsers,
+    secHelp
+  );
   try {
     const focus = sessionStorage.getItem('qhse_settings_focus');
     if (focus) {

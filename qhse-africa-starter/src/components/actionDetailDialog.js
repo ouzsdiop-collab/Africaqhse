@@ -63,13 +63,14 @@ const PRIO_LABELS = {
 export function createActionDetailDialog(opts = {}) {
   const dlg = document.createElement('dialog');
   dlg.className = 'action-detail-dialog action-detail-dialog--pilotage';
+  dlg.setAttribute('aria-labelledby', 'action-detail-dialog-title');
 
   const inner = document.createElement('div');
   inner.className = 'action-detail-dialog__inner';
 
   inner.innerHTML = `
     <div class="action-detail-dialog__head">
-      <h2 class="action-detail-dialog__title" data-ad-title></h2>
+      <h2 class="action-detail-dialog__title" id="action-detail-dialog-title" data-ad-title></h2>
       <button type="button" class="btn btn-secondary action-detail-dialog__close" aria-label="Fermer">Fermer</button>
     </div>
     <div class="action-detail-dialog__badges" data-ad-badges></div>
@@ -360,6 +361,9 @@ export function createActionDetailDialog(opts = {}) {
       fillCommentsHistory(currentActionId);
 
       dlg.showModal();
+      requestAnimationFrame(() => {
+        inner.querySelector('.action-detail-dialog__close')?.focus?.();
+      });
     }
   };
 }

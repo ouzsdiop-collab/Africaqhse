@@ -3,6 +3,7 @@ import { ensureSensitiveAccess } from '../components/sensitiveAccessGate.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { createAuditIsoNormBarsChart } from '../components/dashboardCharts.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
 import { appState } from '../utils/state.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
@@ -12,7 +13,7 @@ import { ensureAuditPlusStyles } from '../components/auditPlusStyles.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { createAuditFieldMode } from '../components/auditFieldMode.js';
 import { fetchUsers } from '../services/users.service.js';
-import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
+import { readImportDraft } from '../utils/importDraft.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
 import {
   ensureAuditPremiumSaaSStyles,
@@ -34,6 +35,8 @@ import {
 import { createAuditDocumentComplianceStrip } from '../components/auditDocumentComplianceStrip.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { linkModules } from '../services/moduleLinks.service.js';
+import { createAuditImportDraftSection, openAuditDialog } from '../components/auditFormDialog.js';
+import { openAuditResult } from '../components/auditResultPanel.js';
 
 const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
 
@@ -378,6 +381,7 @@ function buildAuditKpiStripItems() {
 
 const PLANNED_AUDITS = [
   {
+    id: 'AUD-P-021',
     ref: 'AUD-P-021',
     site: 'Site principal',
     auditeur: 'M. Diallo',
@@ -385,6 +389,7 @@ const PLANNED_AUDITS = [
     statut: 'à venir'
   },
   {
+    id: 'AUD-P-022',
     ref: 'AUD-P-022',
     site: 'Site sud',
     auditeur: 'Équipe qualité',
@@ -392,6 +397,7 @@ const PLANNED_AUDITS = [
     statut: 'en cours'
   },
   {
+    id: 'AUD-P-019',
     ref: 'AUD-P-019',
     site: 'Site principal',
     auditeur: 'Cabinet externe',
@@ -520,105 +526,6 @@ async function loadLatestAuditRow() {
 async function loadLatestAuditRef() {
   const { ok, row, status } = await loadLatestAuditRow();
   return { ok, ref: row?.ref ?? null, status, row };
-}
-
-/**
- * Brouillon issu de l’import (phase 3) — création API uniquement après validation utilisateur.
- * @param {Record<string, unknown>} prefill
- */
-function createAuditImportDraftSection(prefill, canAuditWrite, su) {
-  const card = document.createElement('article');
-  card.className = 'content-card card-soft';
-  card.style.marginBottom = '14px';
-  card.innerHTML = `
-    <div class="content-card-head">
-      <div>
-        <div class="section-kicker">Import documentaire</div>
-        <h3>Brouillon audit — à valider</h3>
-        <p class="content-card-lead" style="margin:0;max-width:56ch;font-size:13px">Données proposées depuis l’import ; rien n’est créé tant vous n’enregistrez pas.</p>
-      </div>
-    </div>
-    <div class="form-grid" style="gap:12px">
-      <label class="field"><span>Référence</span><input type="text" class="control-input audit-draft-ref" autocomplete="off" /></label>
-      <label class="field"><span>Site</span><input type="text" class="control-input audit-draft-site" autocomplete="off" /></label>
-      <label class="field"><span>Score (0–100)</span><input type="number" min="0" max="100" class="control-input audit-draft-score" /></label>
-      <label class="field field-full"><span>Statut</span><input type="text" class="control-input audit-draft-status" placeholder="ex. terminé, en cours" autocomplete="off" /></label>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center">
-      <button type="button" class="btn btn-primary audit-draft-save">Créer l’audit</button>
-      <button type="button" class="text-button audit-draft-dismiss" style="font-weight:700">Ignorer le brouillon</button>
-    </div>
-  `;
-  const refIn = card.querySelector('.audit-draft-ref');
-  const siteIn = card.querySelector('.audit-draft-site');
-  const scoreIn = card.querySelector('.audit-draft-score');
-  const statusIn = card.querySelector('.audit-draft-status');
-  refIn.value = prefill.ref != null ? String(prefill.ref) : '';
-  siteIn.value = prefill.site != null ? String(prefill.site) : '';
-  scoreIn.value =
-    prefill.score != null && prefill.score !== ''
-      ? String(prefill.score)
-      : '';
-  statusIn.value = prefill.status != null ? String(prefill.status) : 'en cours';
-
-  const saveBtn = card.querySelector('.audit-draft-save');
-  const dismissBtn = card.querySelector('.audit-draft-dismiss');
-  if (!canAuditWrite && su) {
-    saveBtn.disabled = true;
-    saveBtn.title = 'Création réservée';
-  }
-  saveBtn.addEventListener('click', async () => {
-    const ref = refIn.value.trim();
-    const site = siteIn.value.trim();
-    const status = statusIn.value.trim() || 'en cours';
-    const score = parseInt(scoreIn.value, 10);
-    if (!ref || !site || Number.isNaN(score)) {
-      showToast('Référence, site et score valides requis', 'error');
-      return;
-    }
-    saveBtn.disabled = true;
-    try {
-      const res = await qhseFetch('/api/audits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ref,
-          site,
-          score,
-          status,
-          checklist: Array.isArray(prefill.checklist) ? prefill.checklist : undefined,
-          ...(appState.activeSiteId ? { siteId: appState.activeSiteId } : {})
-        })
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showToast(
-          typeof body.error === 'string' ? body.error : 'Erreur création',
-          'error'
-        );
-        return;
-      }
-      showToast(`Audit ${ref} enregistré.`, 'info');
-      clearImportDraft();
-      card.remove();
-      activityLogStore.add({
-        module: 'audits',
-        action: 'Audit créé depuis import documentaire',
-        detail: ref,
-        user: 'Utilisateur'
-      });
-    } catch (e) {
-      console.error(e);
-      showToast('Erreur serveur', 'error');
-    } finally {
-      saveBtn.disabled = !canAuditWrite && !!su;
-    }
-  });
-  dismissBtn.addEventListener('click', () => {
-    clearImportDraft();
-    card.remove();
-  });
-  return card;
 }
 
 function statutBadgeClass(statut) {
@@ -910,7 +817,21 @@ function createPlanningTable() {
   const wrap = document.createElement('div');
   wrap.className = 'audit-plan-table-wrap';
   const table = document.createElement('div');
-  table.className = 'audit-plan-table';
+  table.className = 'audit-plan-table audit-plan-table--with-pdf';
+
+  if (!document.getElementById('audit-plan-pdf-grid-style')) {
+    const st = document.createElement('style');
+    st.id = 'audit-plan-pdf-grid-style';
+    st.textContent = `
+      .audit-plan-table--with-pdf .audit-plan-head,
+      .audit-plan-table--with-pdf .audit-plan-row {
+        grid-template-columns: minmax(88px,0.75fr) minmax(100px,1fr) minmax(88px,0.72fr) minmax(78px,0.65fr) minmax(88px,0.75fr) auto !important;
+        align-items: center;
+      }
+      .audit-plan-pdf-btn { font-size: 11px; padding: 6px 10px; white-space: nowrap; }
+    `;
+    document.head.append(st);
+  }
 
   const head = document.createElement('div');
   head.className = 'audit-plan-head';
@@ -920,6 +841,7 @@ function createPlanningTable() {
     <span>Auditeur</span>
     <span>Date</span>
     <span>Statut</span>
+    <span>Rapport</span>
   `;
   table.append(head);
 
@@ -937,6 +859,38 @@ function createPlanningTable() {
       <span data-label="Date">${escapeHtml(row.date)}</span>
       <span data-label="Statut"><span class="badge ${stClass}">${escapeHtml(row.statut)}</span></span>
     `;
+    const pdfWrap = document.createElement('span');
+    pdfWrap.setAttribute('data-label', 'Rapport');
+    const pdfBtn = document.createElement('button');
+    pdfBtn.type = 'button';
+    pdfBtn.className = 'btn btn-secondary audit-plan-pdf-btn';
+    pdfBtn.textContent = '📄 Télécharger PDF';
+    pdfBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const auditId = row.id || row.ref;
+      try {
+        const res = await qhseFetch(`/api/audits/${encodeURIComponent(auditId)}/pdf`);
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(typeof j?.error === 'string' ? j.error : `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit-${row.ref}.pdf`;
+        a.rel = 'noopener';
+        document.body.append(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast(`PDF « ${row.ref} » téléchargé.`, 'success');
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Téléchargement PDF impossible', 'error');
+      }
+    });
+    pdfWrap.append(pdfBtn);
+    line.append(pdfWrap);
     const goPilotage = () => {
       document
         .getElementById('audit-cockpit-tier-critical')
@@ -1253,10 +1207,43 @@ export function renderAudits() {
   });
   if (!canReportRead && su) heroPdfIso.style.display = 'none';
 
+  const heroCreateAudit = document.createElement('button');
+  heroCreateAudit.type = 'button';
+  heroCreateAudit.className = 'btn btn-secondary';
+  heroCreateAudit.textContent = 'Créer un audit';
+  heroCreateAudit.addEventListener('click', () => {
+    openAuditDialog(null, { canAuditWrite, su, onSave: () => {} });
+  });
+  if (!canAuditWrite && su) heroCreateAudit.style.display = 'none';
+
   const scoreHost = heroCard.querySelector('.audit-premium-header__score');
   const scoreDeltaEl = document.createElement('span');
   scoreDeltaEl.className = 'audit-score-delta';
   scoreHost?.append(scoreDeltaEl);
+  if (scoreHost) {
+    scoreHost.style.cursor = 'pointer';
+    scoreHost.setAttribute('role', 'button');
+    scoreHost.setAttribute('tabindex', '0');
+    scoreHost.setAttribute('title', 'Synthèse détaillée (dialog)');
+    const openResult = () => {
+      const cur = Math.min(100, Math.max(0, Math.round(LAST_AUDIT.score + scoreAdjust)));
+      openAuditResult(
+        { ...LAST_AUDIT, score: cur },
+        {
+          onEdit: () => {
+            showToast('Édition : utilisez le pilotage et le mode terrain sur cette page.', 'info');
+          }
+        }
+      );
+    };
+    scoreHost.addEventListener('click', openResult);
+    scoreHost.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openResult();
+      }
+    });
+  }
 
   updateScoreUi = () => {
     const base = LAST_AUDIT.score;
@@ -1274,7 +1261,7 @@ export function renderAudits() {
   };
   updateScoreUi();
 
-  heroCtasHost?.append(heroLaunch, heroTerrain, heroPdf, heroPdfIso);
+  heroCtasHost?.append(heroLaunch, heroTerrain, heroCreateAudit, heroPdf, heroPdfIso);
   attachModeDirectionButton(page, heroCtasHost);
 
   const notifCard = createAuditIntelligentNotificationsCard({
@@ -1394,7 +1381,31 @@ export function renderAudits() {
       });
     });
   });
-  exportActionsHost?.append(exportConstatsBtn, exportPlanBtn, exportExcelBtn);
+  const exportAuditsXlsxBtn = document.createElement('button');
+  exportAuditsXlsxBtn.type = 'button';
+  exportAuditsXlsxBtn.className = 'btn btn-secondary btn-sm';
+  exportAuditsXlsxBtn.textContent = 'Export Excel';
+  exportAuditsXlsxBtn.addEventListener('click', async () => {
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/export/audits'));
+      if (!res.ok) {
+        showToast('Export impossible', 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audits-export.xlsx';
+      document.body.append(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast('Erreur réseau', 'error');
+    }
+  });
+  exportActionsHost?.append(exportConstatsBtn, exportPlanBtn, exportExcelBtn, exportAuditsXlsxBtn);
 
   const auditTrendCard = document.createElement('article');
   auditTrendCard.className = 'content-card card-soft audit-cockpit-chart-card audit-premium-chart-card';

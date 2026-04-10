@@ -1,3 +1,4 @@
+import './utils/networkStatus.js';
 import './components/isoProofsManager.js';
 import './components/isoCopilotConformiteModule.js';
 import { initQhseSentry, captureQhseException } from './instrumentSentry.js';
@@ -5,7 +6,9 @@ import { initDisplayMode, subscribeDisplayModeViewport } from './utils/displayMo
 import { createSidebar } from './components/sidebarV2.js';
 import { createTopbar } from './components/topbarV2.js';
 import { createNotificationsPanel } from './components/notifications.js';
-import { createPageRenderer, createLoginView } from './pages/index.js';
+import { createLoginView } from './pages/loginV2.js';
+import { showOnboardingWizard, shouldShowOnboarding } from './components/onboardingWizard.js';
+import { canAccessNavPage } from './utils/permissionsUi.js';
 import { activityLogStore } from './data/activityLog.js';
 import { notificationsStore, loadNotificationsFromApi } from './data/notifications.js';
 import { refreshDocComplianceNotifications } from './services/documentRegistry.service.js';
@@ -21,13 +24,20 @@ import { qhseFetch } from './utils/qhseFetch.js';
 import { withSiteQuery } from './utils/siteFilter.js';
 import { getDisplayMode } from './utils/displayMode.js';
 import { TERRAIN_ALLOWED_PAGE_IDS, TERRAIN_BOTTOM_NAV_ITEMS } from './utils/terrainModePages.js';
-import { syncTerrainIncidentQueue } from './services/terrainOffline.service.js';
+import { getTerrainQueueState, syncTerrainIncidentQueue } from './services/terrainOffline.service.js';
+import { showToast } from './components/toast.js';
 import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
 
 ensureProductionDemoModeOff();
 initTheme();
+
+function scheduleProductOnboardingTour() {
+  if (!getSessionUser() || appState.currentPage === 'login') return;
+  if (!shouldShowOnboarding()) return;
+  setTimeout(() => showOnboardingWizard(), 800);
+}
 
 const MOBILE_STYLE_ID = 'qhse-terrain-mobile-shell';
 
@@ -79,6 +89,63 @@ const SW_DEBUG_STORAGE_KEY = 'qhse_sw_debug';
 
 let swClientHooksInstalled = false;
 let swLoadHandlerRegistered = false;
+
+/**
+ * Enregistre le background sync terrain (retry quand le réseau revient).
+ * Fallback : les handlers `online` + boot appellent déjà `syncTerrainIncidentQueue`.
+ */
+async function registerTerrainBackgroundSync() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg.sync || typeof reg.sync.register !== 'function') return;
+    const st = await getTerrainQueueState();
+    const pendingIncidentsOrAudits = (st.pendingIncidents || 0) + (st.pendingAudits || 0);
+    if (pendingIncidentsOrAudits > 0) {
+      await reg.sync.register('terrain-incident-sync');
+    }
+    if ((st.pendingRisks || 0) > 0) {
+      await reg.sync.register('terrain-risk-sync');
+    }
+  } catch {
+    /* SyncManager refusé / navigateur ancien — pas bloquant */
+  }
+}
+
+function installTerrainSyncClientBridge() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'SW_SYNC_INCIDENTS') {
+      import('./services/terrainOffline.service.js').then((m) => m.syncTerrainIncidentQueue());
+    }
+    if (event.data?.type === 'SW_SYNC_RISKS') {
+      import('./services/terrainOffline.service.js').then((m) => m.syncTerrainRiskQueue());
+    }
+  });
+}
+
+installTerrainSyncClientBridge();
+
+/**
+ * Mise à jour SW : toast avec bouton « Recharger » (persistant).
+ * @param {ServiceWorkerRegistration} reg
+ */
+function showSwUpdateToast(reg) {
+  showToast(
+    '🔄 Mise à jour disponible',
+    'info',
+    {
+      label: 'Recharger',
+      swUpdateBanner: true,
+      persistent: true,
+      action: () => {
+        sessionStorage.setItem(SW_UPDATE_SESSION_KEY, '1');
+        reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+        window.location.reload();
+      }
+    }
+  );
+}
 
 function swDebugLog(...args) {
   const on =
@@ -136,30 +203,27 @@ function registerPwaServiceWorker() {
           installing: Boolean(reg.installing)
         });
 
-        const pingWaiting = () => {
-          if (reg.waiting && navigator.serviceWorker.controller) {
-            swDebugLog('ping waiting → SKIP_WAITING');
-            sessionStorage.setItem(SW_UPDATE_SESSION_KEY, '1');
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-        };
+        const terrainQ = await getTerrainQueueState();
+        if ((terrainQ.pendingTotal || 0) > 0) {
+          void registerTerrainBackgroundSync();
+        }
 
-        pingWaiting();
+        if (reg.waiting && navigator.serviceWorker.controller) {
+          showSwUpdateToast(reg);
+        }
 
         reg.addEventListener('updatefound', () => {
-          if (!navigator.serviceWorker.controller) {
-            swDebugLog('updatefound (première installation, pas de reload auto)');
-            return;
-          }
-          sessionStorage.setItem(SW_UPDATE_SESSION_KEY, '1');
-          swDebugLog('updatefound → marqué pour reload au prochain controllerchange');
           const nw = reg.installing;
           if (!nw) return;
           nw.addEventListener('statechange', () => {
             swDebugLog('installing statechange', nw.state);
-            if (nw.state === 'installed' && reg.waiting) {
-              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            if (nw.state !== 'installed' || !reg.waiting) return;
+            if (!navigator.serviceWorker.controller) {
+              swDebugLog('updatefound (première installation, pas de toast)');
+              return;
             }
+            swDebugLog('updatefound → toast mise à jour');
+            showSwUpdateToast(reg);
           });
         });
       } catch {
@@ -283,7 +347,190 @@ function logBootEvent() {
   });
 }
 
-const APP_BRAND_TITLE = 'QHSE Control/** @param {string} pageId */';
+const APP_BRAND_TITLE = 'QHSE Control';
+
+/**
+ * Charge le module de page à la demande (code-splitting).
+ * @param {string} pageId
+ * @returns {Promise<object | null>}
+ */
+async function loadPage(pageId) {
+  const map = {
+    dashboard: () => import('./pages/dashboard.js'),
+    incidents: () => import('./pages/incidents.js'),
+    audits: () => import('./pages/audits.js'),
+    iso: () => import('./pages/iso.js'),
+    analytics: () => import('./pages/analytics.js'),
+    risks: () => import('./pages/risks.js'),
+    actions: () => import('./pages/actions.js'),
+    settings: () => import('./pages/settings.js'),
+    habilitations: () => import('./pages/habilitations.js'),
+    'terrain-mode': () => import('./pages/terrain-mode.js'),
+    permits: () => import('./pages/permits.js'),
+    products: () => import('./pages/products.js'),
+    imports: () => import('./pages/imports.js'),
+    sites: () => import('./pages/sites.js'),
+    performance: () => import('./pages/performance.js'),
+    'ai-center': () => import('./pages/ai-center.js'),
+    'activity-log': () => import('./pages/activity-log.js'),
+    'audit-logs': () => import('./pages/activity-log.js')
+  };
+  const loader = map[pageId];
+  if (!loader) return null;
+  const mod = await loader();
+  return mod.default || mod;
+}
+
+/** @param {unknown} err */
+function buildRenderErrorView(err) {
+  console.error('[QHSE] Rendu page', err);
+  const wrap = document.createElement('div');
+  wrap.className = 'page-stack';
+  const article = document.createElement('article');
+  article.className = 'content-card card-soft qhse-render-error-card';
+  const h = document.createElement('h2');
+  h.className = 'qhse-render-error-title';
+  h.textContent = 'Impossible d’afficher cette page';
+  const p = document.createElement('p');
+  p.className = 'qhse-render-error-lead';
+  p.textContent =
+    'Une erreur technique a interrompu l’affichage. Ouvrez la console (F12) pour le détail.';
+  const em = document.createElement('p');
+  em.className = 'qhse-render-error-detail';
+  em.textContent = err instanceof Error ? err.message : String(err);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-primary';
+  btn.textContent = 'Retour tableau de bord';
+  btn.addEventListener('click', () => {
+    window.location.hash = 'dashboard';
+  });
+  article.append(h, p, em, btn);
+  wrap.append(article);
+  return wrap;
+}
+
+const ROUTE_LOADING_STYLE_ID = 'qhse-route-loading-keyframes';
+
+function ensureRouteLoadingStyles() {
+  if (document.getElementById(ROUTE_LOADING_STYLE_ID)) return;
+  const el = document.createElement('style');
+  el.id = ROUTE_LOADING_STYLE_ID;
+  el.textContent = `@keyframes qhse-route-spin{to{transform:rotate(360deg)}}.qhse-route-loading--spinner{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;min-height:180px}.qhse-route-loading__spinner{width:40px;height:40px;border:3px solid var(--color-border-secondary,#334155);border-top-color:var(--app-accent,#14b8a6);border-radius:50%;animation:qhse-route-spin .75s linear infinite}`;
+  document.head.append(el);
+}
+
+function createRouteLoadingView() {
+  ensureRouteLoadingStyles();
+  const wrap = document.createElement('div');
+  wrap.className = 'qhse-route-loading content-card card-soft qhse-route-loading--spinner';
+  wrap.setAttribute('role', 'status');
+  wrap.setAttribute('aria-live', 'polite');
+  wrap.setAttribute('aria-busy', 'true');
+  const spinner = document.createElement('div');
+  spinner.className = 'qhse-route-loading__spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+  const p = document.createElement('p');
+  p.className = 'qhse-route-loading__text';
+  p.textContent = 'Chargement de la page…';
+  wrap.append(spinner, p);
+  return wrap;
+}
+
+/**
+ * @param {string} targetPage
+ * @param {object} mod
+ * @param {(entry: unknown) => void} onAddLog
+ * @returns {Promise<HTMLElement>}
+ */
+async function renderPageRootFromModule(targetPage, mod, onAddLog) {
+  switch (targetPage) {
+    case 'terrain-mode':
+      return mod.renderTerrainMode();
+    case 'incidents':
+      return mod.renderIncidents(onAddLog);
+    case 'risks':
+      return mod.renderRisks();
+    case 'actions':
+      return mod.renderActions();
+    case 'permits':
+      return mod.renderPermits();
+    case 'iso':
+      return mod.renderIso(onAddLog);
+    case 'audits':
+      return mod.renderAudits();
+    case 'products':
+      return mod.renderProducts();
+    case 'habilitations':
+      return mod.renderHabilitations();
+    case 'imports':
+      return mod.renderImports();
+    case 'sites':
+      return mod.renderSites();
+    case 'analytics':
+      return mod.renderAnalytics();
+    case 'performance':
+      return mod.renderPerformance();
+    case 'ai-center':
+      return mod.renderAiCenter(onAddLog);
+    case 'activity-log':
+      return mod.renderActivityLog();
+    case 'audit-logs':
+      return mod.renderActivityLog({ initialTab: 'server' });
+    case 'settings':
+      return mod.renderSettings();
+    case 'dashboard':
+    default:
+      return mod.renderDashboard();
+  }
+}
+
+/**
+ * @param {{ currentPage: string; onAddLog: (entry: unknown) => void }} opts
+ * @returns {HTMLElement}
+ */
+function createPageRenderer(opts) {
+  const { currentPage, onAddLog } = opts;
+  if (currentPage === 'login') {
+    return document.createElement('div');
+  }
+
+  const host = document.createElement('div');
+  host.className = 'page-stack qhse-page-host';
+  const slot = document.createElement('div');
+  slot.className = 'qhse-page-slot';
+  host.append(slot);
+
+  let targetPage = currentPage;
+  const su = getSessionUser();
+  if (su && !canAccessNavPage(su.role, currentPage)) {
+    const h = window.location.hash.replace(/^#/, '');
+    if (h && h !== 'dashboard') {
+      window.location.hash = 'dashboard';
+    }
+    targetPage = 'dashboard';
+  }
+  slot.replaceChildren(createRouteLoadingView());
+
+  void (async () => {
+    try {
+      let mod = await loadPage(targetPage);
+      if (!mod) {
+        const dash = await import('./pages/dashboard.js');
+        mod = dash.default || dash;
+        targetPage = 'dashboard';
+      }
+      const root = await renderPageRootFromModule(targetPage, mod, onAddLog);
+      if (!slot.isConnected) return;
+      slot.replaceChildren(root);
+    } catch (err) {
+      if (!slot.isConnected) return;
+      slot.replaceChildren(buildRenderErrorView(err));
+    }
+  })();
+
+  return host;
+}
 
 function syncDocumentTitle(pageId) {
   if (pageId === 'login') {
@@ -331,7 +578,10 @@ function renderApp() {
       syncDocumentTitle('login');
       app.append(
         createLoginView({
-          onSuccess: () => renderApp()
+          onSuccess: async () => {
+            renderApp();
+            scheduleProductOnboardingTour();
+          }
         })
       );
       return;
@@ -430,7 +680,9 @@ function renderApp() {
 
     attachPageIntro(pageRenderer, appState.currentPage);
 
-    content.append(topbar, pageRenderer);
+    content.append(topbar);
+
+    content.append(pageRenderer);
 
     if (appState.notificationsOpen) {
       content.append(
@@ -478,6 +730,7 @@ function renderApp() {
 
     app.append(shell);
     syncDocumentTitle(appState.currentPage);
+
     void refreshShellNavBadges(sidebar).catch((err) => {
       console.error('[QHSE] refreshShellNavBadges', err);
     });
@@ -542,7 +795,9 @@ async function boot() {
     }
     logBootEvent();
     renderApp();
+    scheduleProductOnboardingTour();
     if (navigator.onLine !== false) {
+      void registerTerrainBackgroundSync();
       void syncTerrainIncidentQueue().catch(() => {});
     }
     Promise.all([
@@ -587,6 +842,21 @@ window.addEventListener('unhandledrejection', (event) => {
   showFatalShell('Erreur asynchrone au démarrage', msg);
 });
 
+window.addEventListener('qhse-navigate', (e) => {
+  const page = e.detail?.page;
+  if (!page || typeof setCurrentPage !== 'function') return;
+  if (getDisplayMode() === 'expert') appState.expertMobileNavOpen = false;
+  setCurrentPage(page);
+  window.location.hash = page;
+  try {
+    renderApp();
+  } catch (err) {
+    console.error('[QHSE] qhse-navigate renderApp', err);
+    captureQhseException(err, { phase: 'qhse-navigate' });
+    showFatalShell('Erreur de navigation', String(err?.message || err));
+  }
+});
+
 window.addEventListener('hashchange', () => {
   const hash = window.location.hash.replace('#', '');
   if (!hash) return;
@@ -602,5 +872,39 @@ window.addEventListener('hashchange', () => {
 });
 
 window.addEventListener('online', () => {
+  void registerTerrainBackgroundSync();
   void syncTerrainIncidentQueue().catch(() => {});
 });
+window.addEventListener('online', () => {
+  import('./services/terrainOffline.service.js')
+    .then(m => m.syncAllTerrainQueues())
+    .catch(() => {});
+});
+
+navigator.serviceWorker?.addEventListener('message', (event) => {
+  if (event.data?.type === 'SW_SYNC_INCIDENTS') {
+    import('./services/terrainOffline.service.js')
+      .then(m => m.syncTerrainIncidentQueue()).catch(() => {});
+  }
+  if (event.data?.type === 'SW_SYNC_RISKS') {
+    import('./services/terrainOffline.service.js')
+      .then(m => m.syncTerrainRiskQueue()).catch(() => {});
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistration('/sw.js').then(reg => {
+    if (!reg) return;
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          if (typeof showToast === 'function') {
+            showToast('Mise a jour disponible — rechargez la page', 'info');
+          }
+        }
+      });
+    });
+  });
+}

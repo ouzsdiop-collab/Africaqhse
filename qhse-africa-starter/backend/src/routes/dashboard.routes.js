@@ -7,6 +7,7 @@ const router = Router();
 const dashRead = requirePermission('dashboard', 'read');
 
 router.get('/', dashRead, controller.getStats);
+/** Synthèse KPI — même handler que `/` (compteurs serveur fiables + `stats` détaillé). */
 router.get('/stats', dashRead, controller.getStats);
 
 export default router;

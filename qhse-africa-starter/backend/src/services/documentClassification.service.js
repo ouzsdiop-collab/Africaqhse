@@ -1,3 +1,5 @@
+import { PDFParse } from 'pdf-parse';
+
 /**
  * Pré-analyse métier légère (mots-clés / pondération) — extensible sans IA lourde.
  * Types : audit | incident | fds | iso | unknown
@@ -324,4 +326,175 @@ function cellToClassString(v) {
   if (v === null || v === undefined) return '';
   if (v instanceof Date) return v.toISOString();
   return String(v);
+}
+
+const MAX_FDS_PARSE_CHARS = 500_000;
+
+/**
+ * Normalise le texte extrait du PDF pour l’analyse regex.
+ * @param {string} s
+ */
+function normalizeFdsText(s) {
+  return String(s || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Déduplique en conservant l’ordre.
+ * @param {string[]} arr
+ */
+function uniqStrings(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const x of arr) {
+    const k = String(x).trim();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(k);
+  }
+  return out;
+}
+
+/**
+ * Extraction heuristique FDS / SDS (sections 1, 3, 8 — multilingue FR/EN).
+ * Le rendu PDF varie : résultats à toujours faire valider par un humain.
+ *
+ * @param {Buffer} pdfBuffer
+ * @returns {Promise<{
+ *   productName: string,
+ *   supplier: string,
+ *   casNumber: string | null,
+ *   ceNumber: string | null,
+ *   hStatements: string[],
+ *   pStatements: string[],
+ *   ghs: string[],
+ *   vlep: string | null,
+ *   storageClass: string | null
+ * }>}
+ */
+export async function parseFdsDocument(pdfBuffer) {
+  if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer)) {
+    const err = new Error('Buffer PDF requis');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const parser = new PDFParse({ data: pdfBuffer });
+  let rawText = '';
+  try {
+    const textResult = await parser.getText();
+    rawText = textResult?.text || '';
+  } finally {
+    try {
+      await parser.destroy();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  let text = normalizeFdsText(rawText);
+  if (text.length > MAX_FDS_PARSE_CHARS) {
+    text = text.slice(0, MAX_FDS_PARSE_CHARS);
+  }
+
+  /** @type {string | null} */
+  let productName = '';
+  const namePatterns = [
+    /(?:nom\s*(?:commercial|du\s*produit)|d[eé]nomination\s*(?:commerciale)?|product\s*(?:identifier|name)|commercial\s*name|trade\s*name)\s*[:\s]+([^\n]{2,200})/i,
+    /(?:section\s*1[^\n]*identification[^\n]*\n+)([^\n]{2,200})/i
+  ];
+  for (const re of namePatterns) {
+    const m = text.match(re);
+    if (m && m[1]) {
+      productName = m[1].replace(/\s+/g, ' ').trim().replace(/^[;:,.\s]+/, '');
+      if (productName.length >= 2) break;
+    }
+  }
+  if (!productName) {
+    const firstLine = text.split('\n').map((l) => l.trim()).find((l) => l.length > 3 && l.length < 180);
+    productName = firstLine || 'Produit (FDS)';
+  }
+
+  let supplier = '';
+  const supPatterns = [
+    /(?:supplier|company\s*name|manufacturer|fabricant|fournisseur|r[eé]f[eé]rent|details\s*of\s*the\s*supplier)\s*[:\s]+([^\n]{2,220})/i,
+    /(?:nom\s*de\s*l['’]entreprise|soci[eé]t[eé])\s*[:\s]+([^\n]{2,220})/i
+  ];
+  for (const re of supPatterns) {
+    const m = text.match(re);
+    if (m && m[1]) {
+      supplier = m[1].replace(/\s+/g, ' ').trim();
+      if (supplier.length >= 2) break;
+    }
+  }
+
+  const casMatches = text.match(/\b\d{2,7}-\d{2}-\d\b/g);
+  /** @type {string | null} */
+  const casNumber = casMatches && casMatches.length ? casMatches[0] : null;
+
+  const ceMatches = text.match(
+    /\b\d{3}-\d{3}-\d\b|\b\d{3}-\d{4}-\d\b|\bEC\s*(?:no\.?|n[o°]\s*)?\s*:?\s*\d{3}-\d{3}-\d\b/gi
+  );
+  let ceNumber = null;
+  if (ceMatches && ceMatches.length) {
+    const raw = ceMatches[0];
+    const norm = raw.replace(/^EC\s*(?:no\.?|n[o°]\s*)?\s*:?\s*/i, '').trim();
+    ceNumber = /\d{3}-\d{3,4}-\d/.test(norm) ? norm : null;
+  }
+
+  const hRaw = text.match(/\bH\d{3}(?:[a-z]{1,3}\d?)?\b/gi) || [];
+  const hStatements = uniqStrings(hRaw.map((x) => x.toUpperCase()));
+
+  const pRaw = text.match(/\bP\d{3,4}[a-z]?\b/gi) || [];
+  const pStatements = uniqStrings(pRaw.map((x) => x.toUpperCase()));
+
+  const ghsSet = new Set();
+  const ghsWord = text.match(/\bGHS\s*0?([1-9])\b/gi) || [];
+  for (const w of ghsWord) {
+    const d = w.match(/0?([1-9])/i);
+    if (d) ghsSet.add(`GHS0${d[1]}`);
+  }
+  const pictoLine = text.match(/\b(?:GHS|SGH)\s*0?([1-9])\b/gi) || [];
+  for (const w of pictoLine) {
+    const d = w.match(/0?([1-9])/i);
+    if (d) ghsSet.add(`GHS0${d[1]}`);
+  }
+  const ghs = [...ghsSet].sort();
+
+  let vlep = null;
+  const vleBlock =
+    text.match(
+      /[^\n]{0,40}(?:VLEP?|VME|TLV|STEL|valeur\s*limite\s*d['’]?exposition|exposure\s*limit|occupational\s*exposure)[^\n]{0,220}/gi
+    ) || [];
+  if (vleBlock.length) {
+    vlep = vleBlock
+      .slice(0, 3)
+      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .join(' · ')
+      .slice(0, 600);
+  }
+
+  let storageClass = null;
+  const st =
+    text.match(
+      /(?:classe\s*de\s*stockage|storage\s*class|LGK|StorCat|classe\s*de\s*conservation)\s*[:\s]+([^\n]{1,120})/i
+    ) ||
+    text.match(/\b(?:classe|class)\s+([0-9]{1,2}[a-z]?)\s*(?:de\s*stockage)?/i);
+  if (st && st[1]) storageClass = st[1].replace(/\s+/g, ' ').trim().slice(0, 120);
+
+  return {
+    productName,
+    supplier,
+    casNumber,
+    ceNumber,
+    hStatements,
+    pStatements,
+    ghs,
+    vlep,
+    storageClass
+  };
 }

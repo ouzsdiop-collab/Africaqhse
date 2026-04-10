@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './lib/swagger.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -26,9 +28,13 @@ import sitesRouter from './routes/sites.routes.js';
 import authRouter from './routes/auth.routes.js';
 import automationRouter from './routes/automation.routes.js';
 import complianceAssistRouter from './routes/complianceAssist.routes.js';
-import aiSuggestionRouter from './routes/aiSuggestion.routes.js';
+import aiSuggestionRouter, { mistralAiRouter } from './routes/aiSuggestion.routes.js';
 import controlledDocumentsRouter from './routes/controlledDocuments.routes.js';
 import auditLogsRouter from './routes/auditLogs.routes.js';
+import habilitationsRouter from './routes/habilitations.routes.js';
+import settingsRouter from './routes/settings.routes.js';
+import excelExportRouter from './routes/excelExport.routes.js';
+import fdsParserRouter from './routes/fdsParser.routes.js';
 import { attachRequestUser } from './middleware/requestUser.middleware.js';
 import { attachRequestId } from './middleware/requestId.middleware.js';
 import {
@@ -37,6 +43,7 @@ import {
 } from './middleware/apiRateLimit.middleware.js';
 import { registerBusinessEventListeners } from './bootstrap/registerBusinessEventListeners.js';
 import { startAutomationScheduler } from './automationScheduler.js';
+import { scheduleWeeklyEmailReport } from './services/periodicReporting.service.js';
 import {
   isRequireAuthEnabled,
   isXUserIdAllowed
@@ -55,6 +62,8 @@ bootErrLine(
 try {
   bootErrLine('registerBusinessEventListeners()…');
   registerBusinessEventListeners();
+  bootErrLine('scheduleWeeklyEmailReport()…');
+  scheduleWeeklyEmailReport();
   bootErrLine('initSentryBackend()…');
   initSentryBackend();
 } catch (err) {
@@ -114,8 +123,28 @@ app.use('/api/sites', sitesRouter);
 app.use('/api/automation', automationRouter);
 app.use('/api/compliance', complianceAssistRouter);
 app.use('/api/ai-suggestions', aiSuggestionRouter);
+app.use('/api/ai', mistralAiRouter);
 app.use('/api/controlled-documents', controlledDocumentsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/habilitations', habilitationsRouter);
+app.use('/api/settings', settingsRouter);
+app.use('/api/export', excelExportRouter);
+app.use('/api/fds', fdsParserRouter);
+
+// Swagger UI — desactive en production si besoin
+if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
+  app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customSiteTitle: 'AfricaQHSE API Docs',
+      customCss:
+        '.swagger-ui .topbar { background-color: #0f172a; } .swagger-ui .topbar-wrapper img { display: none; } .swagger-ui .topbar-wrapper::before { content: "AfricaQHSE API"; color: #3b82f6; font-size: 18px; font-weight: bold; }',
+      swaggerOptions: { persistAuthorization: true }
+    })
+  );
+  app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
+}
 
 setupSentryExpressErrorHandler(app);
 

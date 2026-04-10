@@ -62,6 +62,20 @@ export async function create(req, res, next) {
       action: 'create',
       metadata: { ref: payload.ref, score: payload.score }
     });
+    const participantEmails = Array.isArray(req.body?.participantEmails)
+      ? req.body.participantEmails
+      : null;
+    void emitBusinessEvent('audit.scheduled', {
+      tenantId: req.qhseTenantId,
+      auditId: payload.id,
+      ref: payload.ref,
+      site: payload.site,
+      siteId: payload.siteId ?? null,
+      status: payload.status,
+      score: payload.score,
+      userId: auditUserIdFromRequest(req),
+      participantEmails
+    });
     res.status(201).json({
       ...payload,
       autoReportDelivery: {

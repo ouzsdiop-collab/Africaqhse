@@ -1,5 +1,7 @@
 import { prisma } from '../db.js';
 import { isSmtpConfigured, sendMailText } from './email.service.js';
+import { emitBusinessEvent } from './businessEvents.service.js';
+import { getEmailNotificationPrefs } from '../lib/emailNotificationPrefs.js';
 import { buildPeriodicReport } from './periodicReporting.service.js';
 import { MONO_ORG } from './auth.service.js';
 
@@ -63,6 +65,10 @@ async function fetchWeeklyRecipientEmails() {
  */
 export async function runWeeklySummaryEmail() {
   const detail = [];
+  if (!getEmailNotificationPrefs().weeklySummary) {
+    detail.push('Synthèse hebdomadaire désactivée (préférences notifications).');
+    return { sent: 0, skipped: 0, detail };
+  }
   if (!isSmtpConfigured()) {
     detail.push('SMTP non configuré — e-mail non envoyé.');
     return { sent: 0, skipped: 0, detail };
@@ -100,6 +106,10 @@ export async function runOverdueActionReminders() {
     detail.push('SMTP non configuré — relances non envoyées.');
     return { emailsSent: 0, assignees: 0, detail };
   }
+  if (!getEmailNotificationPrefs().actionOverdue) {
+    detail.push('Relances actions en retard désactivées (préférences notifications).');
+    return { emailsSent: 0, assignees: 0, detail };
+  }
 
   const actions = await prisma.action.findMany({
     where: { assigneeId: { not: null } },
@@ -126,30 +136,26 @@ export async function runOverdueActionReminders() {
   for (const { user, items } of byAssignee.values()) {
     const email = String(user.email ?? '').trim();
     if (!email) continue;
-
-    const lines = [
-      `Bonjour ${user.name || ''},`,
-      '',
-      `[${MONO_ORG.name}] Vous avez ${items.length} action(s) signalée(s) en retard :`,
-      ''
-    ];
-    items.forEach((act, i) => {
-      const due = act.dueDate
-        ? new Date(act.dueDate).toLocaleDateString('fr-FR')
-        : 'sans échéance';
-      lines.push(`${i + 1}. ${act.title} — échéance ${due} — statut « ${act.status} »`);
-    });
-    lines.push('', '—', 'Message automatique — merci de mettre à jour le plan d’actions.');
-
-    await sendMailText({
-      to: [email],
-      subject: `[QHSE] ${MONO_ORG.name} — relance : ${items.length} action(s) en retard`,
-      text: lines.join('\n')
-    });
-    emailsSent += 1;
+    for (const act of items) {
+      void emitBusinessEvent('action.overdue', {
+        tenantId: '',
+        actionId: act.id,
+        action: {
+          id: act.id,
+          title: act.title,
+          status: act.status,
+          dueDate: act.dueDate,
+          siteId: act.siteId ?? null
+        },
+        assignee: { id: user.id, email: user.email, name: user.name }
+      });
+      emailsSent += 1;
+    }
   }
 
-  detail.push(`${emailsSent} e-mail(s) de relance pour ${byAssignee.size} responsable(s).`);
+  detail.push(
+    `${emailsSent} événement(s) action.overdue émis (${byAssignee.size} responsable(s)) — e-mails via listeners.`
+  );
   return { emailsSent, assignees: byAssignee.size, detail };
 }
 

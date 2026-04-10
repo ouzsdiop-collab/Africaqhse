@@ -2,7 +2,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 
-const JWT_EXPIRES = '7d';
+const JWT_EXPIRES = '1h';
+
+const REFRESH_EXPIRES = '30d';
 
 /** Réponse API / contexte — pas de table `tenants` en V1. */
 export const MONO_ORG = Object.freeze({
@@ -42,6 +44,42 @@ export function issueAccessToken(user) {
     getJwtSecret(),
     { expiresIn: JWT_EXPIRES }
   );
+}
+
+export function issueRefreshToken(user) {
+  return jwt.sign(
+    { sub: user.id, type: 'refresh' },
+    getJwtSecret(),
+    { expiresIn: REFRESH_EXPIRES }
+  );
+}
+
+export function verifyRefreshToken(token) {
+  try {
+    const payload = jwt.verify(token, getJwtSecret());
+    if (payload.type !== 'refresh') return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Déconnexion : avec refresh JWT stateless, rien à révoquer côté serveur.
+ */
+export async function revokeRefreshToken(_token) {
+  /* no-op */
+}
+
+/**
+ * Purge des refresh tokens persistés (legacy DB) — tâche planifiée.
+ * @returns {Promise<{ deleted: number }>}
+ */
+export async function cleanupExpiredRefreshTokens() {
+  const result = await prisma.refreshToken.deleteMany({
+    where: { expiresAt: { lt: new Date() } }
+  });
+  return { deleted: result.count };
 }
 
 /**

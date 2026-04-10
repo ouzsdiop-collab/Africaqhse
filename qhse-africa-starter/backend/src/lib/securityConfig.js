@@ -9,8 +9,27 @@ function envFalsy(name) {
 }
 
 export function getCorsMiddlewareOptions() {
+  const raw = process.env.ALLOWED_ORIGINS || '';
+  const whitelist = raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  const devDefaults = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  const origins = whitelist.length > 0 ? whitelist : devDefaults;
+
+  if (process.env.NODE_ENV === 'production' && whitelist.length === 0) {
+    throw new Error(
+      '[CORS] ALLOWED_ORIGINS est vide en production — definissez-la dans les variables Railway.'
+    );
+  }
+
   return {
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (origins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS : origine non autorisee — ${origin}`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Request-Id']
@@ -29,5 +48,6 @@ export function isRequireAuthEnabled() {
 }
 
 export function isXUserIdAllowed() {
+  if (process.env.NODE_ENV === 'production') return false;
   return true;
 }

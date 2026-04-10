@@ -94,6 +94,49 @@ const SCENARIOS = {
       ]
     }
   ]),
+  espace_confiné: buildScenario('SIM-2026-SST-04', 'Intervention espace confiné — cuve maintenance', [
+    {
+      id: 'resume',
+      title: 'Résumé incident',
+      items: [
+        'Opération d’inspection planifiée sur cuve intermédiaire — accès par trappe étanche.',
+        'Mesure portable O₂ : lecture limite basse au fond de cuve ; équipe a interrompu et évacué sans blessé.',
+        'Consignation partielle en place ; ventilation mécanique non branchée au moment du constat.'
+      ]
+    },
+    {
+      id: 'gravite',
+      title: 'Gravité / criticité',
+      items: [
+        'Scénario à fort potentiel létal (asphyxie / atmosphère toxique) même si l’événement s’est arrêté à un quasi-accident.',
+        'Exigence renforcée : permis espace confiné, analyse atmosphère continue, binôme et moyens de secours.'
+      ]
+    },
+    {
+      id: 'actions',
+      title: 'Suggestions d’actions',
+      items: [
+        'Bloquer l’accès jusqu’à analyse de cause sur la procédure d’entrée et le contrôle ventilation.',
+        'Refaire point de mesure avec appareils étalonnés ; journaliser les seuils et la durée d’exposition.',
+        'Recyclage / sensibilisation équipes sur arrêt immédiat en cas de lecture douteuse.'
+      ]
+    },
+    {
+      id: 'analyse',
+      title: 'Analyse simple',
+      items: [
+        'Facteurs techniques : absence de ventilation effective, possible siphonnage ou purge incomplète avant ouverture.',
+        'Facteurs organisationnels : pression calendrier maintenance vs temps de préparation sécurisée.'
+      ]
+    },
+    {
+      id: 'direction',
+      title: 'Synthèse direction',
+      items: [
+        'Message : quasi-accident SST majeur évité — renforcement des contrôles avant toute reprise d’intervention en espace confiné ; revue des permis sur 30 j.'
+      ]
+    }
+  ]),
   nc_audit: buildScenario('SIM-2026-ISO-03', 'Non-conformité mineure — traçabilité déchets', [
     {
       id: 'resume',

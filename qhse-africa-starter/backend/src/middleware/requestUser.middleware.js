@@ -47,6 +47,7 @@ export async function attachRequestUser(req, res, next) {
     }
   }
 
+  /* X-User-Id ignoré si isXUserIdAllowed() est false (ex. production), même si l’en-tête est envoyé. */
   if (!isXUserIdAllowed()) {
     req.qhseUser = null;
     return next();

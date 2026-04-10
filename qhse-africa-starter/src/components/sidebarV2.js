@@ -177,6 +177,8 @@ function ensureSidebarV2Styles() {
   background: transparent;
   cursor: pointer;
   position: relative;
+  text-decoration: none;
+  box-sizing: border-box;
   transition:
     background 220ms cubic-bezier(0.4, 0, 0.2, 1),
     color 220ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -645,6 +647,93 @@ function ensureSidebarV2Styles() {
   width: 4px;
   height: 4px;
 }
+.sidebar-v2__terrain-dock {
+  display: none;
+}
+@media (max-width: 1024px) {
+  [data-display-mode='terrain'] .terrain-bottom-nav {
+    display: none !important;
+  }
+  [data-display-mode='terrain'] .app-shell .main-shell {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+  [data-display-mode='terrain'] aside.sidebar-v2#qhse-shell-sidebar {
+    display: flex !important;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0;
+    max-height: none;
+    height: auto;
+    flex-direction: column;
+    flex-shrink: 0;
+    align-self: stretch;
+    z-index: 2100;
+    padding: 0;
+    margin: 0;
+    border-right: none;
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 28px color-mix(in srgb, var(--color-text) 12%, transparent);
+    background: var(--color-surface);
+  }
+  [data-display-mode='terrain'] .sidebar-v2__brand,
+  [data-display-mode='terrain'] .sidebar-v2__nav,
+  [data-display-mode='terrain'] .sidebar-v2__footer {
+    display: none !important;
+  }
+  [data-display-mode='terrain'] .sidebar-v2__terrain-dock {
+    display: flex !important;
+    width: 100%;
+    justify-content: space-around;
+    align-items: stretch;
+    gap: 4px;
+    padding: 8px 6px calc(10px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
+  }
+  .sidebar-v2__terrain-dock__btn {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 52px;
+    padding: 6px 4px;
+    margin: 0;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sidebar-v2__terrain-dock__btn--active {
+    color: var(--color-primary-text);
+    background: color-mix(in srgb, var(--color-primary-bg) 88%, var(--color-surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary-border) 40%, transparent);
+  }
+  .sidebar-v2__terrain-dock__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+  }
+  .sidebar-v2__terrain-dock__icon .shell-nav-svg {
+    width: 22px;
+    height: 22px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .sidebar-v2__item,
   .sidebar-v2__item::before,
@@ -714,6 +803,7 @@ export function createSidebar({
   aside.id = 'qhse-shell-sidebar';
 
   aside.innerHTML = `
+    <nav class="sidebar-v2__terrain-dock" aria-label="Navigation terrain mobile"></nav>
     <div class="sidebar-v2__brand">
       <div class="sidebar-v2__brand-mark" aria-hidden="true">${SHIELD_LOGO_SVG}</div>
       <div class="sidebar-v2__brand-text">
@@ -721,7 +811,7 @@ export function createSidebar({
         <span class="sidebar-v2__brand-badge" title="Exploration sans compte : données d’illustration">Essai</span>
       </div>
     </div>
-    <nav class="sidebar-v2__nav" aria-label="Navigation principale"></nav>
+    <nav class="sidebar-v2__nav" role="navigation" aria-label="Menu principal"></nav>
     <div class="sidebar-v2__footer sidebar-v2__footer--compact">
       <div class="sidebar-v2__footer-identity">
         <span class="visually-hidden">Compte et périmètre</span>
@@ -742,6 +832,35 @@ export function createSidebar({
       </p>
     </div>
   `;
+
+  const terrainDock = aside.querySelector('.sidebar-v2__terrain-dock');
+  if (terrainDock && terrainMode) {
+    const dockSpec = [
+      { id: 'terrain-mode', label: 'Accueil', iconId: 'dashboard' },
+      { id: 'incidents', label: 'Incident', iconId: 'incidents' },
+      { id: 'risks', label: 'Risque', iconId: 'risks' },
+      { id: 'settings', label: 'Profil', iconId: 'settings' }
+    ];
+    terrainDock.textContent = '';
+    dockSpec.forEach((spec) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className =
+        'sidebar-v2__terrain-dock__btn' +
+        (currentPage === spec.id ? ' sidebar-v2__terrain-dock__btn--active' : '');
+      btn.setAttribute('aria-label', spec.label);
+      if (currentPage === spec.id) btn.setAttribute('aria-current', 'page');
+      btn.title = spec.label;
+      const iconWrap = document.createElement('span');
+      iconWrap.className = 'sidebar-v2__terrain-dock__icon';
+      iconWrap.innerHTML = navIconFor(spec.iconId);
+      const lab = document.createElement('span');
+      lab.textContent = spec.label;
+      btn.append(iconWrap, lab);
+      btn.addEventListener('click', () => onNavigate(spec.id));
+      terrainDock.append(btn);
+    });
+  }
 
   if (typeof onExpertMobileDrawerClose === 'function') {
     const brand = aside.querySelector('.sidebar-v2__brand');
@@ -1005,11 +1124,12 @@ export function createSidebar({
       ) {
         return;
       }
-      const button = document.createElement('button');
-      button.type = 'button';
+      const link = document.createElement('a');
+      link.href = `#${item.id}`;
       const isActive = currentPage === item.id;
-      button.className = `sidebar-v2__item${isActive ? ' sidebar-v2__item--active' : ''}`;
-      button.setAttribute('aria-current', isActive ? 'page' : 'false');
+      link.className = `sidebar-v2__item${isActive ? ' sidebar-v2__item--active' : ''}`;
+      if (isActive) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
 
       const iconWrap = document.createElement('span');
       iconWrap.className = 'sidebar-v2__item-icon';
@@ -1019,7 +1139,7 @@ export function createSidebar({
       text.className = 'sidebar-v2__item-text';
       text.textContent = item.label;
 
-      button.dataset.navTip = item.label;
+      link.dataset.navTip = item.label;
 
       if (item.id === 'incidents' || item.id === 'actions') {
         const badge = document.createElement('span');
@@ -1028,12 +1148,15 @@ export function createSidebar({
         badge.hidden = true;
         badge.setAttribute('aria-hidden', 'true');
         navBadgeEls.set(item.id, badge);
-        button.append(iconWrap, text, badge);
+        link.append(iconWrap, text, badge);
       } else {
-        button.append(iconWrap, text);
+        link.append(iconWrap, text);
       }
-      button.addEventListener('click', () => onNavigate(item.id));
-      list.append(button);
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        onNavigate(item.id);
+      });
+      list.append(link);
     });
 
     if (!list.childElementCount) return;
@@ -1071,7 +1194,12 @@ export function createSidebar({
       btn.setAttribute('aria-label', spec.label);
       btn.title = spec.label;
       btn.dataset.navTip = spec.label;
-      if (currentPage === spec.pageId) btn.classList.add('sidebar-v2__footer-shortcut--active');
+      if (currentPage === spec.pageId) {
+        btn.classList.add('sidebar-v2__footer-shortcut--active');
+        btn.setAttribute('aria-current', 'page');
+      } else {
+        btn.removeAttribute('aria-current');
+      }
       const iconWrap = document.createElement('span');
       iconWrap.className = 'sidebar-v2__footer-shortcut-icon';
       iconWrap.innerHTML = navIconFor(spec.iconId);

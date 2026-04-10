@@ -1,4 +1,4 @@
-import { analyzeRiskDescription } from '../services/riskAnalyze.service.js';
+import { analyzeRiskDescriptionAsync } from '../services/riskAnalyze.service.js';
 import * as risksService from '../services/risks.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
 import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
@@ -220,16 +220,23 @@ export async function analyze(req, res, next) {
         error: 'Champ « description » requis (texte non vide, max. 8000 caractères).'
       });
     }
-    const result = analyzeRiskDescription(description);
+    const result = await analyzeRiskDescriptionAsync(description);
+    const responseBody = { ...result };
+    const llmErr = responseBody.llmError;
+    delete responseBody.llmError;
     void writeAuditLog({
       tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'risks',
       resourceId: 'analyze',
-      action: 'assist_rules',
-      metadata: { length: description.length }
+      action: 'assist_analyze',
+      metadata: {
+        length: description.length,
+        provider: result.provider,
+        ...(llmErr ? { llmError: String(llmErr).slice(0, 200) } : {})
+      }
     });
-    res.json(result);
+    res.json(responseBody);
   } catch (err) {
     next(err);
   }

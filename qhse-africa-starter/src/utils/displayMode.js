@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'qhse-display-mode';
 
 /** Aligné sur les breakpoints shell mobile (flat-app, topbar). */
-export const VIEWPORT_TERRAIN_ONLY_MQ = '(max-width: 900px)';
+export const VIEWPORT_TERRAIN_ONLY_MQ = '(max-width: 1024px)';
 
 function rootEl() {
   return document.documentElement;

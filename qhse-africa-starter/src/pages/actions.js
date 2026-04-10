@@ -9,6 +9,7 @@ import { showToast } from '../components/toast.js';
 import { activityLogStore } from '../data/activityLog.js';
 import { fetchUsers } from '../services/users.service.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
 import { getSessionUserId, getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
@@ -19,6 +20,8 @@ import {
   normalizeRiskTitleKey
 } from '../utils/actionPilotageMock.js';
 import { getRiskTitlesForSelect } from '../utils/riskIncidentLinks.js';
+import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
+import { isOnline } from '../utils/networkStatus.js';
 
 const COLUMN_META = {
   todo: { label: 'À lancer', hint: 'Non démarré — prioriser le cadrage' },
@@ -38,6 +41,27 @@ const COLUMN_EMPTY_COPY = {
   doing: 'Aucune action suivie en cours.',
   done: 'Aucune action terminée ne correspond aux filtres.'
 };
+
+const ACTIONS_LIST_CACHE_KEY = 'qhse.cache.actions.list.v1';
+
+function readActionsListCache() {
+  try {
+    const raw = localStorage.getItem(ACTIONS_LIST_CACHE_KEY);
+    if (!raw) return null;
+    const j = JSON.parse(raw);
+    return Array.isArray(j?.rows) ? j.rows : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveActionsListCache(rows) {
+  try {
+    localStorage.setItem(ACTIONS_LIST_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
+  } catch {
+    /* ignore */
+  }
+}
 
 function normalizedUserRole(role) {
   return String(role ?? '').trim().toUpperCase();
@@ -306,6 +330,31 @@ function buildKanbanBoard(actionColumns, opts = {}) {
   return board;
 }
 
+const ACTIONS_SKELETON_COLUMN_KEYS = ['overdue', 'todo', 'doing'];
+
+function buildActionsKanbanSkeletonBoard() {
+  const board = document.createElement('div');
+  board.className = 'kanban-board kanban-board--pilotage kanban-board--pilotage-premium';
+  ACTIONS_SKELETON_COLUMN_KEYS.forEach((key) => {
+    const meta = COLUMN_META[key];
+    const column = document.createElement('section');
+    column.className = `kanban-column kanban-column--pilotage kanban-column--pilotage-premium kanban-column--${key}`;
+    const head = document.createElement('div');
+    head.className = 'kanban-column-head';
+    const h4 = document.createElement('h4');
+    h4.className = 'kanban-column-title';
+    h4.textContent = `${meta.label} (…)`;
+    h4.title = meta.hint;
+    const hintEl = document.createElement('p');
+    hintEl.className = 'kanban-column-hint';
+    hintEl.textContent = meta.hint;
+    head.append(h4, hintEl);
+    column.append(head, createSkeletonCard(3), createSkeletonCard(3));
+    board.append(column);
+  });
+  return board;
+}
+
 function buildFilterToolbar(users, refs, opts = {}) {
   const { terrainOnly = false, onTogglePrevention } = opts;
   const wrap = document.createElement('div');
@@ -403,7 +452,35 @@ function buildFilterToolbar(users, refs, opts = {}) {
   g5.append(prevBtn);
   refs.preventionBtn = prevBtn;
 
-  wrap.append(g2, g3, g4, g5);
+  const gExp = document.createElement('div');
+  gExp.className = 'actions-filter-group';
+  const exportBtnAct = document.createElement('button');
+  exportBtnAct.type = 'button';
+  exportBtnAct.textContent = 'Export Excel';
+  exportBtnAct.className = 'btn btn-secondary btn-sm';
+  exportBtnAct.addEventListener('click', async () => {
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/export/actions'));
+      if (!res.ok) {
+        showToast('Export impossible', 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'actions-export.xlsx';
+      document.body.append(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast('Erreur réseau', 'error');
+    }
+  });
+  gExp.append(exportBtnAct);
+
+  wrap.append(g2, g3, g4, g5, gExp);
 
   refs.view = selView;
   refs.status = selStatus;
@@ -418,6 +495,23 @@ export function renderActions() {
 
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--actions-premium';
+
+  if (!isOnline()) {
+    const banner = document.createElement('div');
+    banner.style.cssText =
+      'background:#f59e0b22;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#f59e0b;font-size:13px;font-weight:600';
+    banner.textContent = 'Mode hors connexion — affichage des dernieres donnees en cache';
+    page.prepend(banner);
+  }
+
+  const offlineCacheBanner = document.createElement('p');
+  offlineCacheBanner.className = 'content-card card-soft qhse-offline-cache-banner';
+  offlineCacheBanner.dataset.qhseOfflineCacheBanner = '';
+  offlineCacheBanner.hidden = true;
+  offlineCacheBanner.setAttribute('role', 'status');
+  offlineCacheBanner.style.cssText =
+    'margin:0 0 14px;padding:12px 16px;font-weight:600;font-size:14px;border:1px solid var(--color-border-info, #38bdf8);';
+  offlineCacheBanner.textContent = '📡 Mode hors connexion — données en cache';
 
   const managerHost = document.createElement('div');
   managerHost.className = 'actions-manager-reading-host';
@@ -459,6 +553,7 @@ export function renderActions() {
   filterHost.after(boardHost);
 
   let cachedRows = [];
+  let actionsFirstLoadPending = true;
   let usersList = [];
   const filterRefs = { view: null, status: null, priority: null, preventionBtn: null };
   let filterView = isTerrainSessionRole(getSessionUser()?.role) ? 'mine' : 'all';
@@ -696,6 +791,14 @@ export function renderActions() {
         }
       ])
     );
+    if (actionsFirstLoadPending) {
+      boardHost.replaceChildren(buildActionsKanbanSkeletonBoard());
+      return;
+    }
+    if (cachedRows.length === 0) {
+      boardHost.replaceChildren(createEmptyState('✓', 'Aucune action en cours', ''));
+      return;
+    }
     boardHost.replaceChildren(
       buildKanbanBoard(actionColumns, {
         onColumnDrop: (id, targetKey) => {
@@ -705,9 +808,18 @@ export function renderActions() {
     );
   }
 
-  refreshUi(EMPTY_COLUMNS);
+  refreshWithFilters();
 
   loadActionsFromApi = async function loadActionsFromApi() {
+    if (!isOnline()) {
+      offlineCacheBanner.hidden = false;
+      const cached = readActionsListCache();
+      cachedRows = cached?.length ? cached : [];
+      if (actionsFirstLoadPending) actionsFirstLoadPending = false;
+      refreshWithFilters();
+      return;
+    }
+    offlineCacheBanner.hidden = true;
     try {
       if (filterView === 'mine' && !getSessionUserId()) {
         showToast(
@@ -719,7 +831,6 @@ export function renderActions() {
           sel && sel.options.length === 1 && sel.options[0]?.value === 'mine';
         if (terrainToolbarOnly) {
           cachedRows = [];
-          refreshWithFilters();
           return;
         }
         if (sel) sel.value = 'all';
@@ -745,11 +856,19 @@ export function renderActions() {
       }
       const data = await res.json();
       cachedRows = Array.isArray(data) ? data : [];
-      refreshWithFilters();
+      saveActionsListCache(cachedRows);
     } catch (err) {
       console.error('[actions] GET /api/actions', err);
-      showToast('Erreur serveur', 'error');
-      cachedRows = [];
+      const fallback = readActionsListCache();
+      if (fallback?.length) {
+        offlineCacheBanner.hidden = false;
+        cachedRows = fallback;
+      } else {
+        showToast('Erreur serveur', 'error');
+        cachedRows = [];
+      }
+    } finally {
+      if (actionsFirstLoadPending) actionsFirstLoadPending = false;
       refreshWithFilters();
     }
   }
@@ -860,6 +979,7 @@ export function renderActions() {
   });
 
   page.append(
+    offlineCacheBanner,
     createSimpleModeGuide({
       title: 'Plan d’actions — par où commencer ?',
       hint: 'Les filtres avancés sont réduits : gardez « Responsable » et « Statut » pour cadrer votre liste.',

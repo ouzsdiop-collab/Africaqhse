@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { assertIncidentExistsOrNull } from './incidents.service.js';
+import { isActionOverdueDashboardRow } from './kpiCore.service.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 const assigneeSelect = {
@@ -99,6 +100,22 @@ export async function findAllActions(tenantId, filters = {}) {
       incident: { select: { id: true, ref: true } }
     }
   });
+}
+
+/**
+ * Actions en retard (même règle que le dashboard ; `Date.now()` peut être mockée en test).
+ * @param {string | null | undefined} tenantId
+ * @param {{ assigneeId?: string|null, unassigned?: boolean, siteId?: string|null, limit?: number }} [filters]
+ */
+export async function findOverdueActions(tenantId, filters = {}) {
+  const cap =
+    typeof filters.limit === 'number' &&
+    Number.isFinite(filters.limit) &&
+    filters.limit >= 1
+      ? Math.min(Math.floor(filters.limit), 500)
+      : 500;
+  const rows = await findAllActions(tenantId, { ...filters, limit: cap });
+  return rows.filter(isActionOverdueDashboardRow);
 }
 
 export async function createAction(tenantId, data) {

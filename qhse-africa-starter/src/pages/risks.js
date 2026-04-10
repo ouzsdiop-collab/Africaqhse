@@ -10,19 +10,21 @@ import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { showToast } from '../components/toast.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
-import { pushCustomRiskTitle } from '../utils/riskIncidentLinks.js';
 import { getMergedIncidentsForRisk } from '../utils/riskMockIncidentLinks.js';
 import { createRiskManagerReadingCard } from '../components/riskManagerReading.js';
 import { activityLogStore } from '../data/activityLog.js';
 import { appState } from '../utils/state.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
-import {
-  suggestRiskCausesImpacts,
-  buildActionDefaultsFromCriticalRisk
-} from '../utils/qhseAssistantFormSuggestions.js';
+import { buildActionDefaultsFromCriticalRisk } from '../utils/qhseAssistantFormSuggestions.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createPermit } from '../services/ptw.service.js';
 import { linkModules } from '../services/moduleLinks.service.js';
+import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
+import { isOnline } from '../utils/networkStatus.js';
+
+export { openRiskCreateDialog } from '../components/riskFormDialog.js';
+export { openRiskDialog } from '../components/riskSheetModal.js';
+export { openRiskDetail } from '../components/riskDetailPanel.js';
 
 const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
 
@@ -37,16 +39,6 @@ function consumeDashboardIntent() {
     return null;
   }
 }
-
-const CATEGORY_OPTIONS = ['Sécurité', 'Environnement', 'Qualité'];
-const LEVEL_OPTIONS = [
-  { value: 'élevée', label: 'Élevée' },
-  { value: 'moyenne', label: 'Moyenne' },
-  { value: 'faible', label: 'Faible' }
-];
-
-const RISK_AI_DISCLAIMER =
-  'Suggestions basées sur analyse automatique — à vérifier avant toute décision.';
 
 /** Série locale pour graphique évolution (hors API). */
 const RISK_EVOLUTION_SERIES = [
@@ -186,318 +178,6 @@ function sortRisksByPriority(list) {
   });
 }
 
-/** @param {string} severity @param {string} probability */
-function levelsToRegisterMeta(severity, probability) {
-  const gMap = { élevée: 5, moyenne: 3, faible: 2 };
-  const pMap = { élevée: 4, moyenne: 3, faible: 2 };
-  const G = gMap[severity] ?? 3;
-  const P = pMap[probability] ?? 3;
-  const tier = riskTierFromGp(G, P);
-  const status = riskLevelLabelFromTier(tier);
-  const tone = tier >= 5 ? 'red' : tier >= 3 ? 'amber' : 'blue';
-  return { meta: `G${G} × P${P}`, tone, status };
-}
-
-function defaultTitleFromDescription(text) {
-  const t = text.trim().replace(/\s+/g, ' ');
-  if (!t) return 'Nouveau risque';
-  return t.length <= 72 ? t : `${t.slice(0, 69)}…`;
-}
-
-/**
- * Suggestion locale si l’API d’analyse est indisponible — toujours validée par l’utilisateur.
- * @param {string} description
- */
-function suggestRiskFromDescriptionLocal(description) {
-  const d = String(description).toLowerCase();
-  let category = 'Sécurité';
-  if (/hydrocarbure|pollution|eau|déchets|bassin|rétention|environnement/.test(d)) {
-    category = 'Environnement';
-  } else if (/qualité|non-conform|procédure|lot|conditionnement|contrôle/.test(d)) {
-    category = 'Qualité';
-  }
-  return {
-    category,
-    severity: 'moyenne',
-    probability: 'moyenne',
-    suggestedActions: [
-      'Consigner la mesure de maîtrise dans le registre après validation terrain.',
-      'Vérifier la cohérence avec les exigences ISO 45001 / 14001 applicables au site.'
-    ],
-    causes: 'À préciser après observation (suggestion automatique — non contractuelle).',
-    impacts: 'À évaluer selon le contexte opérationnel local (suggestion automatique).'
-  };
-}
-
-/**
- * @param {object} opts
- * @param {(data: { title: string, detail: string, status: string, tone: string, meta: string }) => void} opts.onSaved — liste locale (pas d’API persistance)
- * @param {{ title?: string, description?: string, category?: string }} [opts.defaults]
- */
-export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
-  const dialog = document.createElement('dialog');
-  dialog.className = 'risks-create-dialog';
-
-  const inner = document.createElement('div');
-  inner.className = 'risks-create-dialog__inner';
-
-  inner.innerHTML = `
-    <h2 class="risks-create-dialog__head">Nouvelle fiche risque</h2>
-    <p class="risks-create-dialog__lead">
-      Registre QHSE (ISO 45001 / ISO 14001) — décrivez le risque opérationnel. L’assistant propose des éléments à valider : vous gardez le contrôle avant tout enregistrement.
-    </p>
-    <form class="risks-form-grid" id="risks-create-form">
-      <label>Type *
-        <select name="category" required>${CATEGORY_OPTIONS.map(
-          (c) => `<option value="${c}">${c}</option>`
-        ).join('')}</select>
-      </label>
-      <label>Libellé court
-        <input type="text" name="title" autocomplete="off" maxlength="240" placeholder="Ex. Chute hauteur zone concassage" />
-      </label>
-      <label>Description du risque *
-        <textarea name="description" required placeholder="Contexte, exposition, situation terrain…"></textarea>
-      </label>
-      <div class="risks-form-actions-row">
-        <button type="button" class="btn btn-secondary" data-action="analyze">Suggestion automatique (causes / impacts / G·P)</button>
-        <button type="button" class="btn btn-secondary" data-action="assistant-causes">Causes &amp; impacts (assistant local)</button>
-      </div>
-      <div class="risks-ai-panel" id="risks-ai-panel" hidden>
-        <p class="risks-ai-panel__disclaimer" id="risks-ai-disclaimer"></p>
-        <div class="risks-ai-panel__kv" id="risks-ai-kv"></div>
-        <ul class="risks-ai-panel__list" id="risks-ai-actions"></ul>
-        <div class="risks-ai-panel__actions">
-          <button type="button" class="btn btn-primary" data-action="apply-suggestions">Copier dans le formulaire (validation requise)</button>
-          <button type="button" class="btn btn-secondary" data-action="ignore-suggestions">Masquer</button>
-        </div>
-      </div>
-      <label>Gravité estimée
-        <select name="severity">${LEVEL_OPTIONS.map(
-          (o) => `<option value="${o.value}">${o.label}</option>`
-        ).join('')}</select>
-      </label>
-      <label>Probabilité estimée
-        <select name="probability">${LEVEL_OPTIONS.map(
-          (o) => `<option value="${o.value}">${o.label}</option>`
-        ).join('')}</select>
-      </label>
-      <label>Actions recommandées (modifiable)
-        <textarea name="actions" placeholder="Une mesure par ligne (vous pouvez compléter ou supprimer)."></textarea>
-      </label>
-      <label class="risks-form-confirm-row">
-        <input type="checkbox" name="confirm_review" value="1" />
-        <span>Je confirme avoir relu les champs et suggestions avant validation</span>
-      </label>
-      <div class="risks-form-actions-row" style="margin-top:18px">
-        <button type="submit" class="btn btn-primary">Valider et ajouter au registre (local)</button>
-        <button type="button" class="btn btn-secondary" data-action="close">Annuler</button>
-      </div>
-    </form>
-  `;
-
-  dialog.append(inner);
-  document.body.append(dialog);
-
-  const form = inner.querySelector('#risks-create-form');
-  const d = defaults;
-  if (d.title != null && String(d.title).trim()) {
-    form.querySelector('[name="title"]').value = String(d.title).trim();
-  }
-  if (d.description != null && String(d.description).trim()) {
-    form.querySelector('[name="description"]').value = String(d.description).trim();
-  }
-  if (d.category && CATEGORY_OPTIONS.includes(d.category)) {
-    form.querySelector('[name="category"]').value = d.category;
-  }
-  const panel = inner.querySelector('#risks-ai-panel');
-  const disclaimerEl = inner.querySelector('#risks-ai-disclaimer');
-  const kvHost = inner.querySelector('#risks-ai-kv');
-  const actionsList = inner.querySelector('#risks-ai-actions');
-
-  /** @type {{ category: string, severity: string, probability: string, suggestedActions: string[], causes?: string, impacts?: string } | null} */
-  let pendingSuggestion = null;
-
-  function hidePanel() {
-    panel.hidden = true;
-    panel.classList.remove('risks-ai-panel--loading');
-    pendingSuggestion = null;
-    if (disclaimerEl) disclaimerEl.textContent = RISK_AI_DISCLAIMER;
-    kvHost.replaceChildren();
-    actionsList.replaceChildren();
-  }
-
-  function renderSuggestion(data) {
-    pendingSuggestion = data;
-    if (disclaimerEl) disclaimerEl.textContent = RISK_AI_DISCLAIMER;
-    const sevOk = LEVEL_OPTIONS.some((o) => o.value === data.severity);
-    const probOk = LEVEL_OPTIONS.some((o) => o.value === data.probability);
-    const metaReg = levelsToRegisterMeta(
-      sevOk ? data.severity : 'moyenne',
-      probOk ? data.probability : 'moyenne'
-    );
-    const extraCauses =
-      data.causes != null
-        ? `<div><span>Causes (suggestion)</span><strong>${escapeHtml(String(data.causes))}</strong></div>`
-        : '';
-    const extraImpacts =
-      data.impacts != null
-        ? `<div><span>Impacts (suggestion)</span><strong>${escapeHtml(String(data.impacts))}</strong></div>`
-        : '';
-    kvHost.innerHTML = `
-      <div><span>Type suggéré</span><strong>${escapeHtml(data.category)}</strong></div>
-      <div><span>Gravité (suggestion)</span><strong>${escapeHtml(levelLabel(data.severity))}</strong></div>
-      <div><span>Probabilité (suggestion)</span><strong>${escapeHtml(levelLabel(data.probability))}</strong></div>
-      <div><span>Criticité indicielle</span><strong>${escapeHtml(metaReg.status)} · ${escapeHtml(metaReg.meta)}</strong></div>
-      ${extraCauses}${extraImpacts}
-    `;
-    actionsList.replaceChildren();
-    (data.suggestedActions || []).forEach((line) => {
-      const li = document.createElement('li');
-      li.textContent = line;
-      actionsList.append(li);
-    });
-    panel.hidden = false;
-  }
-
-  inner.querySelector('[data-action="assistant-causes"]')?.addEventListener('click', () => {
-    const cat = form.category.value;
-    const titleEl = form.querySelector('[name="title"]');
-    const title = titleEl?.value?.trim() || 'Risque';
-    const desc = form.description.value.trim();
-    const { causes, impacts } = suggestRiskCausesImpacts(cat, title, desc);
-    const block = `\n\n— Causes (assistant local) —\n${causes}\n\n— Impacts (assistant local) —\n${impacts}`;
-    form.description.value = desc ? `${desc}${block}` : block.trim();
-    showToast('Causes et impacts ajoutés dans la description — relisez avant validation.', 'info');
-  });
-
-  inner.querySelector('[data-action="analyze"]').addEventListener('click', async () => {
-    const desc = form.description.value.trim();
-    if (!desc) {
-      showToast('Saisissez une description pour lancer l’analyse.', 'info');
-      form.description.focus();
-      return;
-    }
-    panel.hidden = false;
-    panel.classList.add('risks-ai-panel--loading');
-    if (disclaimerEl) disclaimerEl.textContent = 'Analyse en cours…';
-    kvHost.replaceChildren();
-    actionsList.replaceChildren();
-    try {
-      const res = await qhseFetch('/api/risks/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: desc })
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        panel.classList.remove('risks-ai-panel--loading');
-        renderSuggestion(suggestRiskFromDescriptionLocal(desc));
-        showToast('Suggestion locale — serveur indisponible (à valider).', 'info');
-        return;
-      }
-      if (
-        !body.category ||
-        !body.severity ||
-        !body.probability ||
-        !Array.isArray(body.suggestedActions)
-      ) {
-        panel.classList.remove('risks-ai-panel--loading');
-        renderSuggestion(suggestRiskFromDescriptionLocal(desc));
-        showToast('Réponse incomplète — suggestion locale affichée.', 'info');
-        return;
-      }
-      panel.classList.remove('risks-ai-panel--loading');
-      renderSuggestion(body);
-    } catch (err) {
-      console.error('[risks] POST /api/risks/analyze', err);
-      panel.classList.remove('risks-ai-panel--loading');
-      renderSuggestion(suggestRiskFromDescriptionLocal(desc));
-      showToast('Mode hors ligne : suggestion locale (à valider).', 'info');
-    }
-  });
-
-  inner.querySelector('[data-action="apply-suggestions"]').addEventListener('click', () => {
-    if (!pendingSuggestion) {
-      showToast('Lancez d’abord une analyse.', 'info');
-      return;
-    }
-    const { category, severity, probability, suggestedActions } = pendingSuggestion;
-    form.category.value = CATEGORY_OPTIONS.includes(category) ? category : 'Sécurité';
-    form.severity.value = LEVEL_OPTIONS.some((o) => o.value === severity) ? severity : 'moyenne';
-    form.probability.value = LEVEL_OPTIONS.some((o) => o.value === probability)
-      ? probability
-      : 'moyenne';
-    form.actions.value = suggestedActions.join('\n');
-    showToast('Suggestions copiées dans le formulaire — contrôle humain obligatoire avant validation.', 'info');
-  });
-
-  inner.querySelector('[data-action="ignore-suggestions"]').addEventListener('click', () => {
-    hidePanel();
-  });
-
-  inner.querySelector('[data-action="close"]').addEventListener('click', () => {
-    dialog.close();
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!form.confirm_review.checked) {
-      showToast('Cochez la confirmation de relecture pour enregistrer la fiche.', 'info');
-      return;
-    }
-    const description = form.description.value.trim();
-    if (!description) {
-      showToast('La description est obligatoire.', 'info');
-      return;
-    }
-    let title = form.title.value.trim();
-    if (!title) title = defaultTitleFromDescription(description);
-
-    const severity = form.severity.value;
-    const probability = form.probability.value;
-    const actionsText = form.actions.value.trim();
-    const cat = form.category.value;
-    let detail = description;
-    if (cat) detail = `${description}\n\n(Type : ${cat})`;
-    if (actionsText.length > 0) {
-      detail = `${detail}\n\n— Mesures envisagées —\n${actionsText}`;
-    }
-
-    const { meta, tone, status } = levelsToRegisterMeta(severity, probability);
-    const rowData = {
-      title,
-      type: cat,
-      detail,
-      status,
-      tone,
-      meta,
-      responsible: 'À désigner',
-      actionLinked: null,
-      pilotageState: 'actif',
-      updatedAt: new Date().toISOString().slice(0, 10),
-      trend: 'stable'
-    };
-    pushCustomRiskTitle(title);
-    try {
-      await Promise.resolve(onSaved?.(rowData));
-      dialog.close();
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Création du risque impossible.', 'error');
-    }
-  });
-
-  dialog.addEventListener('close', () => {
-    dialog.remove();
-  });
-
-  dialog.showModal();
-}
-
-function levelLabel(v) {
-  const o = LEVEL_OPTIONS.find((x) => x.value === v);
-  return o ? o.label : v;
-}
-
 function levelToNum(v) {
   const s = String(v || '').toLowerCase();
   if (s.includes('élev') || s.includes('elev') || s === '5' || s === '4') return 5;
@@ -537,6 +217,57 @@ function mapApiRiskToUi(row) {
   };
 }
 
+function attachRiskMistralMitigationSection(inner, risk) {
+  inner.querySelectorAll('[data-qhse-mistral-risk]').forEach((el) => el.remove());
+  const host = document.createElement('div');
+  host.setAttribute('data-qhse-mistral-risk', '1');
+  host.style.marginTop = '12px';
+
+  const aiBtn = document.createElement('button');
+  aiBtn.type = 'button';
+  aiBtn.textContent = 'Suggestions de prevention IA';
+  aiBtn.className = 'btn btn-primary btn-sm';
+  aiBtn.style.marginTop = '12px';
+
+  let aiLoading = false;
+  aiBtn.addEventListener('click', async () => {
+    if (aiLoading) return;
+    aiLoading = true;
+    aiBtn.textContent = 'Analyse en cours...';
+    aiBtn.disabled = true;
+    const gp = parseRiskMatrixGp(risk.meta);
+    const payload = {
+      title: risk.title,
+      category: risk.type || '',
+      probability: gp?.p ?? 'N/A',
+      severity: gp?.g ?? 'N/A',
+      description: String(risk.detail || '').trim() || 'Non precise'
+    };
+    try {
+      const res = await qhseFetch('/api/ai/risk-mitigation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('api');
+      const { suggestion } = await res.json();
+      const box = document.createElement('div');
+      box.style.cssText =
+        'margin-top:12px;padding:16px;background:var(--surface-2,#eff6ff);border-left:3px solid var(--color-primary,#3b82f6);border-radius:8px;font-size:13px;line-height:1.6;color:var(--text-primary,#1e293b);white-space:pre-wrap';
+      box.textContent = suggestion;
+      aiBtn.parentNode.insertBefore(box, aiBtn.nextSibling);
+      aiBtn.style.display = 'none';
+    } catch {
+      aiBtn.textContent = 'Erreur — Reessayer';
+      aiBtn.disabled = false;
+      aiLoading = false;
+    }
+  });
+
+  host.append(aiBtn);
+  inner.append(host);
+}
+
 async function fetchRisksApi(filters = {}) {
   const qs = new URLSearchParams();
   qs.set('limit', '500');
@@ -549,11 +280,49 @@ async function fetchRisksApi(filters = {}) {
   return Array.isArray(list) ? list.map(mapApiRiskToUi) : [];
 }
 
+const RISKS_LIST_CACHE_KEY = 'qhse.cache.risks.list.v1';
+
+function readRisksListCache() {
+  try {
+    const raw = localStorage.getItem(RISKS_LIST_CACHE_KEY);
+    if (!raw) return null;
+    const j = JSON.parse(raw);
+    return Array.isArray(j?.rows) ? j.rows : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveRisksListCache(rows) {
+  try {
+    localStorage.setItem(RISKS_LIST_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function renderRisks() {
   ensureQhsePilotageStyles();
 
   const page = document.createElement('section');
   page.className = 'page-stack risks-page risks-page--premium';
+
+  if (!isOnline()) {
+    const banner = document.createElement('div');
+    banner.style.cssText =
+      'background:#f59e0b22;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#f59e0b;font-size:13px;font-weight:600';
+    banner.textContent = 'Mode hors connexion — affichage des dernieres donnees en cache';
+    page.prepend(banner);
+  }
+
+  const offlineCacheBanner = document.createElement('p');
+  offlineCacheBanner.className = 'content-card card-soft qhse-offline-cache-banner';
+  offlineCacheBanner.dataset.qhseOfflineCacheBanner = '';
+  offlineCacheBanner.hidden = true;
+  offlineCacheBanner.setAttribute('role', 'status');
+  offlineCacheBanner.style.cssText =
+    'margin:0 0 14px;padding:12px 16px;font-weight:600;font-size:14px;border:1px solid var(--color-border-info, #38bdf8);';
+  offlineCacheBanner.textContent = '📡 Mode hors connexion — données en cache';
 
   let localRisks = [];
   let risksLoading = true;
@@ -562,6 +331,10 @@ export function renderRisks() {
   let incidentRowsRaw = [];
 
   async function refreshIncidentLinks() {
+    if (!isOnline()) {
+      incidentRowsRaw = [];
+      return;
+    }
     try {
       const res = await qhseFetch(withSiteQuery('/api/incidents?limit=500'));
       if (res.ok) {
@@ -1297,7 +1070,10 @@ export function renderRisks() {
       const td = document.createElement('td');
       td.colSpan = 6;
       td.className = 'risks-page__list-empty-td';
-      td.textContent = 'Chargement des risques...';
+      const stack = document.createElement('div');
+      stack.className = 'risks-register-skeleton-stack';
+      for (let i = 0; i < 4; i++) stack.append(createSkeletonCard(4));
+      td.append(stack);
       tr.append(td);
       listStack.append(tr);
       return;
@@ -1334,17 +1110,25 @@ export function renderRisks() {
       const td = document.createElement('td');
       td.colSpan = 6;
       td.className = 'risks-page__list-empty-td';
+      if (localRisks.length === 0) {
+        const es = createEmptyState(
+          '△',
+          'Registre des risques vide',
+          'Ajoutez votre premier risque'
+        );
+        es.classList.add('risks-register-empty-state');
+        td.append(es);
+        tr.append(td);
+        listStack.append(tr);
+        return;
+      }
       const wrap = document.createElement('div');
       wrap.className = 'risks-page__list-empty';
       const t = document.createElement('p');
       t.className = 'risks-page__list-empty-title';
       const s = document.createElement('p');
       s.className = 'risks-page__list-empty-sub';
-      if (localRisks.length === 0) {
-        t.textContent = 'Aucune fiche dans le registre';
-        s.textContent =
-          'Ajoutez un risque pour alimenter le portefeuille et la matrice G×P.';
-      } else if (tierFilter != null && matrixFilter != null) {
+      if (tierFilter != null && matrixFilter != null) {
         t.textContent = 'Aucun résultat pour cette combinaison de filtres';
         s.textContent =
           'Élargissez le palier ou réinitialisez le filtre matrice via « Tout afficher ».';
@@ -1376,7 +1160,8 @@ export function renderRisks() {
         onCreatePreventiveAction: (title) => {
           void openPreventiveActionFromRisks(title);
         },
-        onCreatePtwFromRisk: (title) => createPtwFromRisk(title)
+        onCreatePtwFromRisk: (title) => createPtwFromRisk(title),
+        onSheetBodyReady: (innerEl, riskRow) => attachRiskMistralMitigationSection(innerEl, riskRow)
       });
       const tr = frag.firstElementChild;
       const tdAction = tr?.querySelector('.risk-register-table-row__action');
@@ -1456,17 +1241,45 @@ export function renderRisks() {
   }
 
   async function refreshAll() {
+    if (!isOnline()) {
+      offlineCacheBanner.hidden = false;
+      risksLoading = false;
+      const cached = readRisksListCache();
+      localRisks = cached?.length ? cached : [];
+      await refreshIncidentLinks();
+      renderManagerReading();
+      renderPilot();
+      renderPriority();
+      renderEvolution();
+      renderProofs();
+      renderInsights();
+      renderAnalysis();
+      syncTierPills();
+      updateMatrixStatusLine();
+      updateActiveFiltersBar();
+      matrixPanel.setRisks(localRisks);
+      renderList();
+      return;
+    }
+    offlineCacheBanner.hidden = true;
     try {
       risksLoading = true;
       renderList();
       localRisks = await fetchRisksApi(deriveApiFilters());
+      saveRisksListCache(localRisks);
     } catch (err) {
       console.error('[risks] GET /api/risks', err);
-      localRisks = [];
-      showToast(
-        'Impossible de charger le registre des risques depuis le serveur.',
-        'error'
-      );
+      const fallback = readRisksListCache();
+      if (fallback?.length) {
+        offlineCacheBanner.hidden = false;
+        localRisks = fallback;
+      } else {
+        localRisks = [];
+        showToast(
+          'Impossible de charger le registre des risques depuis le serveur.',
+          'error'
+        );
+      }
     } finally {
       risksLoading = false;
     }
@@ -1493,6 +1306,104 @@ export function renderRisks() {
   }
 
   void refreshAll();
+
+  function openFdsDialog() {
+    const dialog = document.createElement('dialog');
+    dialog.style.cssText =
+      'background:var(--surface-1, #ffffff);color:var(--text-primary, #1e293b);border:1px solid var(--border-color, #e2e8f0);border-radius:12px;padding:24px;max-width:500px;width:100%';
+    dialog.innerHTML = `
+    <h3 style="margin:0 0 16px;font-size:16px">Analyser une Fiche de Donnees de Securite</h3>
+    <p style="font-size:13px;color:var(--text-secondary,#64748b);margin-bottom:16px">
+      Uploadez un PDF de FDS pour extraire automatiquement les risques chimiques
+      et les EPI requis.
+    </p>
+    <input type="file" id="fds-upload" accept="application/pdf"
+      style="margin-bottom:16px;color:var(--text-primary,#1e293b)">
+    <div id="fds-result" style="display:none;border-radius:8px;
+      padding:16px;margin-bottom:16px;font-size:13px;line-height:1.6"></div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap">
+      <button type="button" id="fds-cancel" class="btn btn-ghost btn-sm">Annuler</button>
+      <button type="button" id="fds-analyze" class="btn btn-primary btn-sm">Analyser</button>
+      <button type="button" id="fds-create" class="btn btn-success btn-sm" style="display:none">
+        Ajouter au registre des risques
+      </button>
+    </div>`;
+
+    dialog.querySelector('#fds-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#fds-analyze').addEventListener('click', async () => {
+      const file = dialog.querySelector('#fds-upload').files[0];
+      if (!file) return;
+      const analyzeBtn = dialog.querySelector('#fds-analyze');
+      analyzeBtn.textContent = 'Analyse en cours...';
+      analyzeBtn.disabled = true;
+      try {
+        const formData = new FormData();
+        formData.append('fds', file);
+        const res = await qhseFetch('/api/fds/analyze', { method: 'POST', body: formData });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : 'analyse');
+        const parsedData = body;
+        const resultZone = dialog.querySelector('#fds-result');
+        resultZone.style.display = 'block';
+        resultZone.style.background = 'var(--surface-2, #f8fafc)';
+        resultZone.style.border = '1px solid var(--border-color, #e2e8f0)';
+        resultZone.style.color = 'var(--text-primary, #1e293b)';
+        resultZone.innerHTML = `
+        <strong>${escapeHtml(parsedData.productName)}</strong>
+        ${parsedData.casNumber ? `<span style="color:var(--text-muted,#64748b)"> — CAS ${escapeHtml(String(parsedData.casNumber))}</span>` : ''}
+        <br><br>
+        <strong>Dangers detectes :</strong><br>
+        ${
+          parsedData.dangerLabelsFound?.length
+            ? parsedData.dangerLabelsFound
+                .map(
+                  (d) =>
+                    `<span style="background:#ef444420;color:#ef4444;border-radius:4px;padding:2px 8px;margin:2px;display:inline-block">${escapeHtml(d)}</span>`
+                )
+                .join('')
+            : '<span style="color:#10b981">Aucun danger specifique detecte</span>'
+        }
+        <br><br>
+        <strong>EPI requis :</strong><br>
+        ${
+          parsedData.episRequired?.length
+            ? parsedData.episRequired.map((e) => `• ${escapeHtml(e)}`).join('<br>')
+            : 'A determiner'
+        }
+        <br><br>
+        <strong>Cotation automatique :</strong> P=${escapeHtml(String(parsedData.probability))} × G=${escapeHtml(String(parsedData.severity))} = GP ${escapeHtml(String(parsedData.probability * parsedData.severity))}`;
+        dialog.querySelector('#fds-create').style.display = 'inline-block';
+        analyzeBtn.style.display = 'none';
+      } catch {
+        analyzeBtn.textContent = 'Erreur — Reessayer';
+        analyzeBtn.disabled = false;
+      }
+    });
+
+    dialog.querySelector('#fds-create').addEventListener('click', async () => {
+      const createBtn = dialog.querySelector('#fds-create');
+      createBtn.textContent = 'Creation en cours...';
+      createBtn.disabled = true;
+      try {
+        const file = dialog.querySelector('#fds-upload').files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('fds', file);
+        const res = await qhseFetch('/api/fds/analyze-and-create', { method: 'POST', body: formData });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : 'create');
+        dialog.close();
+        window.location.reload();
+      } catch {
+        createBtn.textContent = 'Erreur — Reessayer';
+        createBtn.disabled = false;
+      }
+    });
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    dialog.addEventListener('close', () => dialog.remove());
+  }
 
   const register = document.createElement('article');
   register.className = 'content-card card-soft risks-page__panel risks-page__panel--register';
@@ -1561,6 +1472,39 @@ export function renderRisks() {
     });
   });
 
+  const fdsBtn = document.createElement('button');
+  fdsBtn.type = 'button';
+  fdsBtn.textContent = 'Analyser une FDS';
+  fdsBtn.className = 'btn btn-secondary btn-sm';
+  fdsBtn.addEventListener('click', () => openFdsDialog());
+  register.querySelector('.risks-page__panel-actions')?.append(fdsBtn);
+
+  const exportBtnRisks = document.createElement('button');
+  exportBtnRisks.type = 'button';
+  exportBtnRisks.textContent = 'Export Excel';
+  exportBtnRisks.className = 'btn btn-secondary btn-sm';
+  exportBtnRisks.addEventListener('click', async () => {
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/export/risks'));
+      if (!res.ok) {
+        showToast('Export impossible', 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'risques-export.xlsx';
+      document.body.append(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast('Erreur réseau', 'error');
+    }
+  });
+  register.querySelector('.risks-page__panel-actions')?.append(exportBtnRisks);
+
   const matrixSection = document.createElement('section');
   matrixSection.className = 'risks-page__matrix-section risks-page__matrix-section--hero';
   matrixSection.append(matrixCard);
@@ -1577,6 +1521,7 @@ export function renderRisks() {
   secondaryDetails.append(secondarySum, secondaryBody);
 
   page.append(
+    offlineCacheBanner,
     createSimpleModeGuide({
       title: 'Risques — prioriser avant la matrice',
       hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',

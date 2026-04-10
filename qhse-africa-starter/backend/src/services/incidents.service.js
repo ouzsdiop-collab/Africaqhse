@@ -167,3 +167,39 @@ export async function updateIncidentByRef(tenantId, ref, data) {
     data: patch
   });
 }
+
+/**
+ * @param {string | null | undefined} tenantId
+ * @param {string} ref
+ */
+export async function deleteIncident(tenantId, ref) {
+  const t = normalizeTenantId(tenantId);
+  const refStr = String(ref ?? '').trim();
+  if (!refStr) {
+    const err = new Error('Référence incident requise');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (t) {
+    return prisma.incident.delete({
+      where: { tenantId_ref: { tenantId: t, ref: refStr } }
+    });
+  }
+
+  const matches = await prisma.incident.findMany({
+    where: { ref: refStr },
+    select: { id: true },
+    take: 2
+  });
+  if (matches.length === 0) {
+    const err = new Error('Incident introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  if (matches.length > 1) {
+    const err = new Error('Référence incident ambiguë — contactez l’administrateur.');
+    err.statusCode = 409;
+    throw err;
+  }
+  return prisma.incident.delete({ where: { id: matches[0].id } });
+}

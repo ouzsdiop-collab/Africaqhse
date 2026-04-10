@@ -5,7 +5,12 @@
 
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
-import { requestJsonCompletion, isExternalAiEnabled } from './aiProvider.service.js';
+import {
+  callAiProvider,
+  requestJsonCompletion,
+  isExternalAiEnabled,
+  resolveAiProvider
+} from './aiProvider.service.js';
 
 export const AI_SUGGESTION_STATUS = {
   PENDING: 'pending_review',
@@ -92,7 +97,7 @@ export async function generateSuggestion(opts) {
     const user = JSON.stringify({ type: typeKey, context });
     const ext = await requestJsonCompletion({ system: sys, user });
     providerMeta = {
-      mode: 'openai',
+      mode: ext.provider || resolveAiProvider(),
       externalAttempted: true,
       error: ext.error ?? null
     };
@@ -179,7 +184,11 @@ export async function analyzeDocument(opts) {
         'Assistant QHSE. JSON uniquement : summary, confidence (0-1), items[{label,value}], warnings[], proposedPatch. Pas de données personnelles dans la sortie.',
       user: excerpt.slice(0, 8000)
     });
-    providerMeta = { mode: 'openai', externalAttempted: true, error: ext.error ?? null };
+    providerMeta = {
+      mode: ext.provider || resolveAiProvider(),
+      externalAttempted: true,
+      error: ext.error ?? null
+    };
     if (ext.rawText) {
       try {
         const parsed = JSON.parse(ext.rawText);
@@ -291,6 +300,322 @@ export async function proposeActions(opts) {
   return row;
 }
 
+function clamp01(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0.5;
+  return Math.min(1, Math.max(0, x));
+}
+
+function parseJsonObjectFromLlm(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const t = raw.trim();
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(t.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+function mockRootCausesForIncident(inc) {
+  const ref = inc?.ref || '—';
+  return [
+    {
+      cause: `Manque de barrières / signalisation adaptée au contexte (${ref})`,
+      category: 'materiel',
+      confidence: 0.68
+    },
+    {
+      cause: 'Formation / habilitation non actualisée ou non vérifiée sur le poste',
+      category: 'humain',
+      confidence: 0.61
+    },
+    {
+      cause: 'Procédure existante mais non appliquée ou non adaptée au chantier',
+      category: 'organisation',
+      confidence: 0.74
+    },
+    {
+      cause: 'Communication insuffisante entre équipes (brief, permis, coordination)',
+      category: 'organisation',
+      confidence: 0.55
+    },
+    {
+      cause: 'Maintenance / contrôle périodique incomplet sur l’équipement ou zone concernée',
+      category: 'mixte',
+      confidence: 0.52
+    }
+  ];
+}
+
+function mockCorrectiveActions(inc, _risks) {
+  const ref = inc?.ref || 'INC';
+  const sev = String(inc?.severity || '').toLowerCase();
+  const crit = sev.includes('crit');
+  return [
+    {
+      title: `Sécurisation immédiate — ${ref}`,
+      description:
+        'Isoler la zone, vérifier EPI, consigner les énergies si applicable, informer encadrement et QHSE.',
+      delayDays: 1,
+      ownerRole: 'Chef de site',
+      confidence: crit ? 0.88 : 0.76
+    },
+    {
+      title: `Analyse causes et mise à jour du plan de maîtrise — ${ref}`,
+      description:
+        'Compléter l’analyse (5M), rattacher aux risques du registre, proposer mesures préventives et indicateurs de suivi.',
+      delayDays: 7,
+      ownerRole: 'Responsable QHSE',
+      confidence: 0.71
+    },
+    {
+      title: 'Communication et retour d’expérience terrain',
+      description:
+        'Partager les enseignements (toolbox, flash sécurité), mettre à jour TBM / consignes locales.',
+      delayDays: 14,
+      ownerRole: 'Encadrement',
+      confidence: 0.64
+    }
+  ];
+}
+
+function mockRiskAssessment(risk) {
+  const g = Number(risk?.gravity) || 3;
+  const p = Number(risk?.probability) || 3;
+  const gp = Math.min(25, g * p);
+  return {
+    suggestedGp: gp,
+    suggestedSeverity: Math.min(5, Math.max(1, g)),
+    suggestedProbability: Math.min(5, Math.max(1, p)),
+    justification: `Évaluation heuristique : gravité ${g}, probabilité ${p} — GP indicatif ${gp} (à valider avec le registre).`,
+    confidence: 0.58
+  };
+}
+
+/**
+ * @param {string} rawText
+ * @returns {{ rootCauses: Array<{ cause: string, category: string, confidence: number }> }}
+ */
+function parseRootCausesResponse(rawText) {
+  const obj = parseJsonObjectFromLlm(rawText);
+  const arr = obj?.rootCauses ?? obj?.causes ?? obj?.items;
+  if (!Array.isArray(arr)) return { rootCauses: [] };
+  const rootCauses = arr
+    .map((x) => ({
+      cause: String(x?.cause ?? x?.label ?? '').slice(0, 500),
+      category: String(x?.category ?? 'mixte').toLowerCase(),
+      confidence: clamp01(x?.confidence)
+    }))
+    .filter((x) => x.cause.length > 0)
+    .slice(0, 8);
+  return { rootCauses };
+}
+
+function parseActionsResponse(rawText) {
+  const obj = parseJsonObjectFromLlm(rawText);
+  const arr = obj?.actions ?? obj?.correctiveActions;
+  if (!Array.isArray(arr)) return { actions: [] };
+  const actions = arr
+    .map((x) => ({
+      title: String(x?.title ?? '').slice(0, 240),
+      description: String(x?.description ?? x?.detail ?? '').slice(0, 4000),
+      delayDays: Math.min(365, Math.max(0, Math.floor(Number(x?.delayDays) || 7))),
+      ownerRole: String(x?.ownerRole ?? x?.responsibleType ?? 'QHSE').slice(0, 120),
+      confidence: clamp01(x?.confidence)
+    }))
+    .filter((x) => x.title.length > 0)
+    .slice(0, 6);
+  return { actions };
+}
+
+function parseRiskLevelResponse(rawText) {
+  const obj = parseJsonObjectFromLlm(rawText);
+  if (!obj || typeof obj !== 'object') return null;
+  return {
+    suggestedGp: Math.min(25, Math.max(1, Math.round(Number(obj.suggestedGp ?? obj.gp) || 1))),
+    suggestedSeverity: Math.min(5, Math.max(1, Math.round(Number(obj.suggestedSeverity) || 1))),
+    suggestedProbability: Math.min(5, Math.max(1, Math.round(Number(obj.suggestedProbability) || 1))),
+    justification: String(obj.justification ?? obj.rationale ?? '').slice(0, 2000),
+    confidence: clamp01(obj.confidence)
+  };
+}
+
+/**
+ * @param {{ incidentId: string, tenantId?: string | null }} opts
+ */
+export async function suggestRootCauses(opts) {
+  const { incidentId, tenantId } = opts;
+  const tf = prismaTenantFilter(tenantId);
+  const incident = await prisma.incident.findFirst({
+    where: { id: incidentId, ...tf },
+    select: {
+      id: true,
+      ref: true,
+      type: true,
+      site: true,
+      severity: true,
+      status: true,
+      description: true,
+      causes: true,
+      causeCategory: true,
+      location: true
+    }
+  });
+  if (!incident) {
+    const err = new Error('Incident introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const systemPrompt = `Tu es un expert QHSE (ISO 45001 / SST) avec expérience terrain mines et industrie lourde.
+Tu reçois un incident sous forme JSON. Propose exactement 5 causes racines probables (méthode 5M / Ishikawa), en français.
+Réponds UNIQUEMENT par un JSON objet valide avec la clé "rootCauses" : tableau de 5 éléments.
+Chaque élément : { "cause": string (court, factuel), "category": "humain" | "materiel" | "organisation" | "mixte", "confidence": nombre entre 0 et 1 }.
+Sans texte hors JSON.`;
+
+  const userMessage = JSON.stringify({ incident });
+  const res = await callAiProvider(systemPrompt, userMessage, 900);
+  let rootCauses = [];
+  if (res.rawText) {
+    rootCauses = parseRootCausesResponse(res.rawText).rootCauses;
+  }
+  if (rootCauses.length < 3) {
+    rootCauses = mockRootCausesForIncident(incident);
+  }
+
+  return {
+    incidentId: incident.id,
+    ref: incident.ref,
+    provider: res.provider,
+    error: res.error ?? null,
+    rootCauses
+  };
+}
+
+/**
+ * @param {{ incidentId: string, tenantId?: string | null }} opts
+ */
+export async function suggestCorrectiveActions(opts) {
+  const { incidentId, tenantId } = opts;
+  const tf = prismaTenantFilter(tenantId);
+  const incident = await prisma.incident.findFirst({
+    where: { id: incidentId, ...tf },
+    select: {
+      id: true,
+      ref: true,
+      type: true,
+      site: true,
+      severity: true,
+      status: true,
+      description: true,
+      location: true,
+      causeCategory: true
+    }
+  });
+  if (!incident) {
+    const err = new Error('Incident introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const existingRisks = await prisma.risk.findMany({
+    where: { ...tf },
+    take: 15,
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true,
+      ref: true,
+      title: true,
+      category: true,
+      severity: true,
+      probability: true,
+      gravity: true,
+      gp: true,
+      status: true
+    }
+  });
+
+  const systemPrompt = `Tu es un responsable QHSE senior. On te donne un incident et un extrait du registre des risques.
+Propose exactement 3 actions correctives prioritaires, réalisables, en français.
+Réponds UNIQUEMENT par un JSON objet avec la clé "actions" : tableau de 3 éléments.
+Chaque élément : { "title": string, "description": string, "delayDays": entier (jours calendaires), "ownerRole": string (ex. "Chef de site", "Responsable QHSE", "Maintenance"), "confidence": nombre 0-1 }.
+Sans markdown ni texte hors JSON.`;
+
+  const userMessage = JSON.stringify({ incident, existingRisks });
+  const res = await callAiProvider(systemPrompt, userMessage, 900);
+  let actions = [];
+  if (res.rawText) {
+    actions = parseActionsResponse(res.rawText).actions;
+  }
+  if (actions.length < 2) {
+    actions = mockCorrectiveActions(incident, existingRisks).slice(0, 3);
+  } else {
+    actions = actions.slice(0, 3);
+  }
+
+  return {
+    incidentId: incident.id,
+    ref: incident.ref,
+    provider: res.provider,
+    error: res.error ?? null,
+    actions
+  };
+}
+
+/**
+ * @param {{ riskId: string, tenantId?: string | null }} opts
+ */
+export async function assessRiskLevel(opts) {
+  const { riskId, tenantId } = opts;
+  const tf = prismaTenantFilter(tenantId);
+  const risk = await prisma.risk.findFirst({
+    where: { id: riskId, ...tf },
+    select: {
+      id: true,
+      ref: true,
+      title: true,
+      description: true,
+      category: true,
+      gravity: true,
+      severity: true,
+      probability: true,
+      gp: true,
+      status: true,
+      owner: true
+    }
+  });
+  if (!risk) {
+    const err = new Error('Risque introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const systemPrompt = `Tu es un analyste risques QHSE. Tu reçois une fiche risque (JSON).
+Calcule une grille type gravité × probabilité (échelle 1-5 chacune) et un niveau GP = gravité × probabilité (max 25).
+Réponds UNIQUEMENT par un JSON objet :
+{ "suggestedGp": entier 1-25, "suggestedSeverity": entier 1-5 (gravité), "suggestedProbability": entier 1-5, "justification": string court en français, "confidence": 0-1 }.
+Cohérence : suggestedGp doit être proche de suggestedSeverity * suggestedProbability.`;
+
+  const userMessage = JSON.stringify({ risk });
+  const res = await callAiProvider(systemPrompt, userMessage, 600);
+  let assessment = res.rawText ? parseRiskLevelResponse(res.rawText) : null;
+  if (!assessment || !assessment.justification) {
+    assessment = mockRiskAssessment(risk);
+  }
+
+  return {
+    riskId: risk.id,
+    ref: risk.ref,
+    title: risk.title,
+    provider: res.provider,
+    error: res.error ?? null,
+    assessment
+  };
+}
+
 /**
  * Validation humaine — met à jour uniquement `AiSuggestion`.
  * @param {{
@@ -303,6 +628,7 @@ export async function proposeActions(opts) {
  */
 export async function reviewSuggestion(opts) {
   const { tenantId, id, status, validatedByUserId, editedContent } = opts;
+  const tf = prismaTenantFilter(tenantId);
   const tenantRow =
     tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : null;
   const st = String(status || '').trim();

@@ -1,6 +1,9 @@
 /**
  * Application — thème sombre par défaut, surfaces plates + dégradés très légers.
  * Chargé en dernier pour surcharger styles.css.
+ *
+ * Breakpoints (référence) : 768px (sm), 1024px (md), 1280px (lg).
+ * Les requêtes @media utilisent des largeurs en px (pas de var() dans les media queries).
  */
 
 *,
@@ -28,15 +31,31 @@ body {
 /* Dégradés discrets (surtout thème sombre) — toile + primary #1C2F5C */
 [data-theme='dark'] body {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgba(20, 184, 166, 0.06), transparent 55%),
-    radial-gradient(95% 65% at 0% 0%, rgba(15, 118, 110, 0.09), transparent 48%),
-    var(--color-background-tertiary, #0b1220);
+    radial-gradient(
+      120% 90% at 50% -20%,
+      color-mix(in srgb, var(--color-primary) 8%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      95% 65% at 0% 0%,
+      color-mix(in srgb, var(--palette-primary) 12%, transparent),
+      transparent 48%
+    ),
+    var(--color-background-tertiary, var(--surface-2));
 }
 
 [data-theme='light'] body {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgba(20, 184, 166, 0.045), transparent 55%),
-    radial-gradient(95% 65% at 0% 0%, rgba(15, 118, 110, 0.06), transparent 48%),
+    radial-gradient(
+      120% 90% at 50% -20%,
+      color-mix(in srgb, var(--color-primary) 6%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      95% 65% at 0% 0%,
+      color-mix(in srgb, var(--palette-primary) 9%, transparent),
+      transparent 48%
+    ),
     var(--color-background-tertiary);
 }
 
@@ -1244,7 +1263,7 @@ p,
   gap: 16px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .ds-alert-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
@@ -1639,7 +1658,7 @@ p,
   line-height: 1.7;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .app-shell {
     flex-direction: column;
   }
@@ -1701,7 +1720,7 @@ p,
 }
 
 /* Mode Complet (expert) — mobile : scroll piégé dans la page, topbar stable, menu en tiroir */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   [data-display-mode='expert'] html:has(#app .app-shell) {
     height: 100%;
   }
@@ -1817,7 +1836,7 @@ p,
   }
 }
 
-@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+@media (max-width: 1024px) and (prefers-reduced-motion: reduce) {
   [data-display-mode='expert'] .app-shell .sidebar-v2 {
     transition: none;
   }
@@ -1841,4 +1860,259 @@ p,
   .app-topbar__nav-link:hover {
     transform: none;
   }
+}
+
+/* —— Mode terrain / chantier (tactile, évite le zoom iOS < 16px) —— */
+.btn-terrain {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.field-terrain {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, var(--color-border-secondary));
+  background: var(--color-surface, var(--surface-1));
+  color: var(--color-text, var(--text-primary));
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+
+.field-terrain::placeholder {
+  color: var(--color-text-muted, var(--text-muted));
+  opacity: 0.85;
+}
+
+.grid-terrain-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Panneaux formulaire terrain (glissent du bas, hors modal) */
+.terrain-mode-page {
+  position: relative;
+}
+.terrain-inline-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  background: rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.terrain-inline-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.terrain-inline-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2500;
+  max-height: 88vh;
+  overflow: auto;
+  padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 18px 18px 0 0;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: none;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+  transform: translateY(105%);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.terrain-inline-sheet.is-open {
+  transform: translateY(0);
+}
+.terrain-inline-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.terrain-inline-sheet__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+}
+.terrain-inline-sheet__close {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: var(--surface-1, #ffffff);
+  color: var(--text-primary, #1e293b);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.terrain-inline-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.terrain-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.terrain-recent-li {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--surface-1, #ffffff);
+  font-size: 14px;
+}
+.terrain-actions-host .btn-terrain {
+  margin-top: 8px;
+  min-height: 48px;
+  font-size: 15px;
+}
+
+/* ===== MODE TERRAIN MOBILE ===== */
+.btn-terrain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  padding: 0 20px;
+  font-size: 17px;
+  font-weight: 600;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.btn-terrain:active { transform: scale(0.97); opacity: 0.85; }
+.btn-terrain--danger  { background: #ef4444; color: #fff; }
+.btn-terrain--warning { background: #f59e0b; color: #fff; }
+.btn-terrain--success { background: #10b981; color: #fff; }
+.btn-terrain--primary { background: var(--color-primary, #3b82f6); color: #fff; }
+
+.field-terrain {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  background: var(--surface-2, #f8fafc);
+  color: var(--text-primary, #1e293b);
+  box-sizing: border-box;
+}
+.field-terrain:focus {
+  outline: none;
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+}
+.textarea-terrain { min-height: 100px; resize: vertical; }
+
+.grid-terrain-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.terrain-chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.terrain-chip {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.terrain-chip.active {
+  background: var(--color-primary, #3b82f6);
+  border-color: var(--color-primary, #3b82f6);
+  color: #fff;
+  font-weight: 600;
+}
+
+.terrain-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #64748b);
+  margin: 0 0 8px;
+}
+
+.offline-banner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: #f59e0b;
+  color: var(--text-on-warning, #000);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.offline-banner.visible { display: flex; }
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f59e0b22;
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.sync-badge.synced {
+  background: #10b98122;
+  border-color: #10b981;
+  color: #10b981;
+}
+
+#network-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  margin: 0 8px;
+  transition: background 0.3s;
+}
+#network-indicator.offline {
+  background: #f59e0b;
+  animation: pulse-offline 1.5s infinite;
+}
+@keyframes pulse-offline {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
 }

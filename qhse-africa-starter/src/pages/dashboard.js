@@ -43,15 +43,18 @@ import {
 } from '../utils/reconcileDashboardStats.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { Chart, registerables } from 'chart.js';
+import { initDashboardCharts } from '../components/dashboardCharts.js';
 import { listPermits } from '../services/ptw.service.js';
-import { createDashboardKpiCard } from '../components/dashboardKpiCard.js';
+import { renderKpiCards } from '../components/dashboardKpiCards.js';
 import {
   HABILITATIONS_DEMO_ROWS,
   computeHabilitationsBySite,
   computeHabilitationsKpis
 } from '../data/habilitationsDemo.js';
 
-Chart.register(...registerables);
+function getCssVar(name, fallback = '') {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
 
 const DASH_DECISION_STYLE_ID = 'qhse-dashboard-decision-styles';
 const DASHBOARD_DEMO_LISTS = {
@@ -316,8 +319,6 @@ function trimTrailingZeroAuditScores(series) {
 }
 
 const DC_CHART_FONT = { family: "'Inter', system-ui, sans-serif", size: 11 };
-const DC_TICK = 'rgba(148, 163, 184, 0.92)';
-const DC_GRID = 'rgba(148, 163, 184, 0.08)';
 
 function computeDeltaLabel(value) {
   const current = Number(value) || 0;
@@ -397,20 +398,6 @@ const kpiDashboardLists = { incidents: [], actions: [], audits: [], ncs: [], doc
 /** @type {{ open: (k: string) => void; element: HTMLDialogElement } | null} */
 let kpiDetailDrawerSingleton = null;
 
-const KPI_SPECS = [
-  { key: 'incidents', label: 'Incidents', note: 'Total déclarés (périmètre)', tone: 'amber' },
-  { key: 'ncOpen', label: 'NC ouvertes', note: 'Non clos — détail après chargement', tone: 'amber' },
-  {
-    key: 'actionsLate',
-    label: 'Actions en retard',
-    note: 'Échéance dépassée ou statut « retard » (hors clôturées)',
-    tone: 'red'
-  },
-  { key: 'actions', label: 'Actions (total)', note: 'En base sur le périmètre', tone: 'blue' },
-  { key: 'auditScore', label: 'Score moyen audits', note: 'Moyenne sur audits récents', tone: 'green' },
-  { key: 'auditsN', label: 'Audits (liste)', note: 'Nombre sur cette vue', tone: 'blue' }
-];
-
 function formatDateForMeta(iso) {
   if (!iso) return '—';
   try {
@@ -479,6 +466,53 @@ function normalizeDashboardPayload(raw) {
     criticalIncidents: Array.isArray(raw.criticalIncidents) ? raw.criticalIncidents : [],
     overdueActionItems: Array.isArray(raw.overdueActionItems) ? raw.overdueActionItems : []
   };
+}
+
+function buildMistralDashboardStatsPayload(lastStats, audits, risks) {
+  const critSrc = lastStats?.criticalIncidents;
+  const criticalIncidents = Array.isArray(critSrc) ? critSrc.length : Number(critSrc) || 0;
+  let avgAuditScore = 'N/A';
+  if (Array.isArray(audits) && audits.length) {
+    const scores = audits.map((a) => Number(a.score)).filter((n) => Number.isFinite(n));
+    if (scores.length) {
+      avgAuditScore = String(Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
+    }
+  }
+  let risksOpen = 0;
+  if (Array.isArray(risks)) {
+    risksOpen = risks.filter((r) => {
+      const s = String(r?.status || '').toLowerCase();
+      return !/clos|ferm|trait|ma[iî]tris/i.test(s);
+    }).length;
+  }
+  return {
+    incidents: asDashboardCount(lastStats?.incidents),
+    criticalIncidents,
+    risksOpen,
+    actionsOverdue: asDashboardCount(lastStats?.overdueActions),
+    avgAuditScore
+  };
+}
+
+async function loadDashboardInsight(stats) {
+  const zone = document.getElementById('dashboard-ai-insight');
+  if (!zone) return;
+  try {
+    const res = await qhseFetch('/api/ai/dashboard-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stats)
+    });
+    if (!res.ok) throw new Error('api');
+    const { insight } = await res.json();
+    zone.innerHTML = `
+      <div style="padding:16px;background:var(--surface-2, #f0f7ff);border-radius:10px;border-left:3px solid var(--color-primary, #3b82f6);color:var(--text-primary, #1e293b)">
+        <div style="font-size:11px;font-weight:700;color:var(--color-primary, #3b82f6);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Analyse IA de la semaine</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text-primary, #1e293b)">${escapeHtml(String(insight ?? ''))}</div>
+      </div>`;
+  } catch {
+    zone.innerHTML = '';
+  }
 }
 
 async function fetchJsonList(path) {
@@ -654,6 +688,7 @@ function showDashboardConnectivityError(slot) {
 }
 
 export function renderDashboard() {
+  initDashboardCharts();
   ensureDashboardStyles();
   ensureDashboardDecisionStyles();
 
@@ -917,10 +952,6 @@ export function renderDashboard() {
   bandAnalysisLecture.className = 'dashboard-band dashboard-band--analysis';
   bandAnalysisLecture.append(autoAnalysisSection);
 
-  /** @type {Record<string, HTMLDivElement>} */
-  const kpiValues = {};
-  /** @type {Record<string, HTMLDivElement>} */
-  const kpiNotes = {};
   if (!kpiDetailDrawerSingleton) {
     kpiDetailDrawerSingleton = createKpiDetailDrawer({
       getData: () => kpiDashboardLists
@@ -928,29 +959,9 @@ export function renderDashboard() {
     kpiDetailDrawerSingleton.element.id = 'qhse-kpi-detail-dialog';
     document.body.append(kpiDetailDrawerSingleton.element);
   }
-  const kpiGrid = document.createElement('section');
-  kpiGrid.className = 'kpi-grid dashboard-kpi-grid';
-  KPI_SPECS.forEach((spec) => {
-    const card = createDashboardKpiCard({
-      label: spec.label,
-      value: '—',
-      note: spec.note,
-      tone: spec.tone,
-      deltaLabel: 'Variation: —',
-      impactLabel: 'Site impacté: —',
-      kpiKey: spec.key,
-      onOpen: (key) => kpiDetailDrawerSingleton?.open(key)
-    });
-    const value = card.querySelector('.metric-value');
-    const note = card.querySelector('.metric-note');
-    if (value) kpiValues[spec.key] = value;
-    if (note && spec.key === 'ncOpen') kpiNotes.ncOpen = note;
-    kpiGrid.append(card);
+  const { kpiStickyWrap, kpiValues, kpiNotes, dismissKpiSkeleton } = renderKpiCards({
+    onOpenDetail: (key) => kpiDetailDrawerSingleton?.open(key)
   });
-
-  const kpiStickyWrap = document.createElement('div');
-  kpiStickyWrap.className = 'dashboard-kpi-sticky';
-  kpiStickyWrap.append(kpiGrid);
 
   const kpiPriorityLine = document.createElement('p');
   kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
@@ -1164,7 +1175,9 @@ export function renderDashboard() {
     const ncSeries = buildNcMajorMinorMonthlySeries(ncs, 6);
     const riskTypes = buildTopIncidentTypes(incidents).slice(0, 5);
     const auditScores = trimTrailingZeroAuditScores(buildAuditScoreSeriesFromAudits(audits).slice(-6));
-    const sliceBorder = 'rgba(15, 23, 42, 0.94)';
+    const dcTick = getCssVar('--text-secondary', '#64748b');
+    const dcGrid = `color-mix(in srgb, ${getCssVar('--border-color', '#e2e8f0')} 50%, transparent)`;
+    const sliceBorder = getCssVar('--border-color', '#e2e8f0');
     if (decisionCharts.ncStack) decisionCharts.ncStack.destroy();
     if (decisionCharts.risk) decisionCharts.risk.destroy();
     if (decisionCharts.score) decisionCharts.score.destroy();
@@ -1228,7 +1241,7 @@ export function renderDashboard() {
               position: 'top',
               align: 'end',
               labels: {
-                color: DC_TICK,
+                color: dcTick,
                 boxWidth: 10,
                 boxHeight: 10,
                 padding: 12,
@@ -1238,10 +1251,10 @@ export function renderDashboard() {
               }
             },
             tooltip: {
-              backgroundColor: 'rgba(15, 23, 42, 0.96)',
-              titleColor: '#f1f5f9',
-              bodyColor: '#cbd5e1',
-              borderColor: 'rgba(148, 163, 184, 0.25)',
+              backgroundColor: getCssVar('--surface-2', '#f1f5f9'),
+              titleColor: getCssVar('--text-primary', '#1e293b'),
+              bodyColor: getCssVar('--text-muted', '#64748b'),
+              borderColor: getCssVar('--border-color', '#e2e8f0'),
               borderWidth: 1,
               padding: 12,
               cornerRadius: 10,
@@ -1266,13 +1279,13 @@ export function renderDashboard() {
             x: {
               stacked: true,
               grid: { display: false },
-              ticks: { color: DC_TICK, font: DC_CHART_FONT, maxRotation: 0, autoSkipPadding: 8 }
+              ticks: { color: dcTick, font: DC_CHART_FONT, maxRotation: 0, autoSkipPadding: 8 }
             },
             y: {
               stacked: true,
               beginAtZero: true,
-              grid: { color: DC_GRID, drawBorder: false },
-              ticks: { color: DC_TICK, font: DC_CHART_FONT, precision: 0 }
+              grid: { color: dcGrid, drawBorder: false },
+              ticks: { color: dcTick, font: DC_CHART_FONT, precision: 0 }
             }
           },
           onHover: (e, elements) => {
@@ -1320,7 +1333,7 @@ export function renderDashboard() {
             legend: {
               position: 'bottom',
               labels: {
-                color: DC_TICK,
+                color: dcTick,
                 boxWidth: 10,
                 boxHeight: 10,
                 padding: 14,
@@ -1330,10 +1343,10 @@ export function renderDashboard() {
               }
             },
             tooltip: {
-              backgroundColor: 'rgba(15, 23, 42, 0.96)',
-              titleColor: '#f1f5f9',
-              bodyColor: '#cbd5e1',
-              borderColor: 'rgba(148, 163, 184, 0.25)',
+              backgroundColor: getCssVar('--surface-2', '#f1f5f9'),
+              titleColor: getCssVar('--text-primary', '#1e293b'),
+              bodyColor: getCssVar('--text-muted', '#64748b'),
+              borderColor: getCssVar('--border-color', '#e2e8f0'),
               borderWidth: 1,
               padding: 12,
               cornerRadius: 10,
@@ -1378,10 +1391,10 @@ export function renderDashboard() {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(15, 23, 42, 0.96)',
-              titleColor: '#f1f5f9',
-              bodyColor: '#cbd5e1',
-              borderColor: 'rgba(148, 163, 184, 0.25)',
+              backgroundColor: getCssVar('--surface-2', '#f1f5f9'),
+              titleColor: getCssVar('--text-primary', '#1e293b'),
+              bodyColor: getCssVar('--text-muted', '#64748b'),
+              borderColor: getCssVar('--border-color', '#e2e8f0'),
               borderWidth: 1,
               padding: 12,
               cornerRadius: 10,
@@ -1393,13 +1406,13 @@ export function renderDashboard() {
           scales: {
             x: {
               grid: { display: false },
-              ticks: { color: DC_TICK, font: DC_CHART_FONT, maxRotation: 0, autoSkipPadding: 10 }
+              ticks: { color: dcTick, font: DC_CHART_FONT, maxRotation: 0, autoSkipPadding: 10 }
             },
             y: {
               min: 0,
               max: 100,
-              grid: { color: DC_GRID, drawBorder: false },
-              ticks: { color: DC_TICK, font: DC_CHART_FONT, callback: (v) => `${v}%` }
+              grid: { color: dcGrid, drawBorder: false },
+              ticks: { color: dcTick, font: DC_CHART_FONT, callback: (v) => `${v}%` }
             }
           },
           onHover: (e, elements) => {
@@ -1583,7 +1596,19 @@ export function renderDashboard() {
     cockpitPremium.root
   );
 
-  page.append(connectivitySlot, blockPilotage, blockExposition, blockAlertes, blockAnalyse, bandAssistant);
+  const dashboardAiInsight = document.createElement('div');
+  dashboardAiInsight.id = 'dashboard-ai-insight';
+  dashboardAiInsight.style.marginTop = '24px';
+
+  page.append(
+    connectivitySlot,
+    blockPilotage,
+    blockExposition,
+    blockAlertes,
+    blockAnalyse,
+    bandAssistant,
+    dashboardAiInsight
+  );
 
   ceoHero.update({
     stats: lastStats,
@@ -1730,7 +1755,8 @@ export function renderDashboard() {
       fetchJsonListWithRetry('/api/actions?limit=500'),
       fetchJsonListWithRetry('/api/audits?limit=80'),
       fetchJsonListWithRetry('/api/nonconformities?limit=150'),
-      fetchJsonListWithRetry('/api/controlled-documents?type=fds&limit=300')
+      fetchJsonListWithRetry('/api/controlled-documents?type=fds&limit=300'),
+      fetchJsonListWithRetry('/api/risks?limit=300')
     ]);
     const listVal = (i) => {
       const r = listResults[i];
@@ -1743,6 +1769,7 @@ export function renderDashboard() {
     const audR = listVal(2);
     const ncR = listVal(3);
     const docsR = listVal(4);
+    const risksR = listVal(5);
     if (listResults.some((r) => r.status === 'rejected')) {
       showToast('Certaines listes n’ont pas pu être chargées — affichage partiel.', 'warning');
     }
@@ -1844,12 +1871,17 @@ export function renderDashboard() {
         actions,
         audits,
         ncs,
+        risks: Array.isArray(risksR) ? risksR : null,
         siteLabel: siteName
       });
       pilotageAssistant.update(snap);
     } catch (asstErr) {
       console.warn('[dashboard] assistant snapshot', asstErr);
     }
+    void loadDashboardInsight(
+      buildMistralDashboardStatsPayload(lastStats, audits, risksR || [])
+    );
+    dismissKpiSkeleton();
   }
 
   (async function loadDashboard() {
@@ -1872,6 +1904,7 @@ export function renderDashboard() {
     try {
       if (res.status === 401) {
         showToast('Session expirée — reconnectez-vous.', 'warning');
+        dismissKpiSkeleton();
         return;
       }
       if (res.status === 403) {
@@ -1916,6 +1949,7 @@ export function renderDashboard() {
         criticalIncidents: normalized.criticalIncidents
       });
       applyStatsToKpis(normalized);
+      dismissKpiSkeleton();
       alertsPrio.update({ stats: lastStats, ncs: [], audits: [] });
       systemStatus.update({
         stats: lastStats,

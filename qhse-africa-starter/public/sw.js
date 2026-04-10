@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qhse-terrain-v4';
+const CACHE_NAME = 'qhse-terrain-v5';
 
 /** Précache léger : pas de HTML (évite un shell figé d’une ancienne build). */
 const PRECACHE_URLS = ['/manifest.webmanifest'];
@@ -6,19 +6,16 @@ const PRECACHE_URLS = ['/manifest.webmanifest'];
 const INDEX_URL = new URL('/index.html', self.location.origin).href;
 const ROOT_URL = new URL('/', self.location.origin).href;
 
-self.addEventListener('message', (event) => {
-  if (event?.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {})
+    (async () => {
+      await caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {});
+      /* Première installation : activer tout de suite. Mise à jour : attendre SKIP_WAITING (toast client). */
+      if (!self.registration.active) {
+        await self.skipWaiting();
+      }
+    })()
   );
-  /* Active rapidement la nouvelle version ; le client marque la mise à jour avant la fin d’install
-     (updatefound) pour recharger une seule fois au controllerchange. */
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -32,14 +29,17 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-function isStaticAssetPath(pathname) {
-  return /\.(?:js|css|mjs|png|jpg|jpeg|gif|svg|webp|ico|avif|woff2?|ttf|eot|otf|webmanifest|map)$/i.test(
-    pathname
-  );
+/** Cache first + revalidate (stale-while-revalidate) — extensions terrain demandées. */
+function isCacheFirstStaticPath(pathname) {
+  return /\.(?:js|css|woff2|svg|png)$/i.test(pathname);
 }
 
-/** Document ou entrées shell explicites : toujours réseau d’abord, pas de shell obsolète servi en priorité. */
-function isAppShellRequest(request, url) {
+function isApiRequest(url) {
+  return url.pathname.startsWith('/api/');
+}
+
+/** Document / shell HTML : network first, repli cache. */
+function isNavigateOrShellRequest(request, url) {
   if (request.mode === 'navigate') return true;
   const p = url.pathname;
   return p === '/' || p === '/index.html';
@@ -53,8 +53,13 @@ async function putResponse(cache, request, response) {
   }
 }
 
-/** Réseau → mise à jour du cache ; échec → cache (requête, puis index, puis /). */
-async function networkFirstShell(request) {
+/** Réseau uniquement — jamais de réponse API depuis le cache (QHSE). */
+function networkOnly(request) {
+  return fetch(request);
+}
+
+/** Réseau → mise à jour cache ; échec → cache (requête, index, /). */
+async function networkFirstNavigate(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const res = await fetch(request);
@@ -73,13 +78,14 @@ async function networkFirstShell(request) {
   }
 }
 
-/** Cache d’abord (offline rapide) ; mise à jour en arrière-plan si le réseau répond. */
-async function cacheFirstStatic(request) {
-  const cached = await caches.match(request);
+/** Cache first (offline rapide) ; mise à jour en arrière-plan si le réseau répond. */
+async function cacheFirstStaleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+
   const networkPromise = fetch(request)
     .then(async (res) => {
       if (res.ok) {
-        const cache = await caches.open(CACHE_NAME);
         await putResponse(cache, request, res);
       }
       return res;
@@ -102,36 +108,49 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  /* Ne pas intercepter les appels vers une autre origine (API Railway) : évite chemins
-     opaques / conflits CSP ; le document parle directement à l’API. */
   if (url.origin !== self.location.origin) return;
 
-  /* Requêtes partielles : ne pas les mettre en cache (put échoue souvent). */
   if (req.headers.has('range')) {
     event.respondWith(fetch(req));
     return;
   }
 
-  if (isAppShellRequest(req, url)) {
-    event.respondWith(networkFirstShell(req));
+  if (isApiRequest(url)) {
+    event.respondWith(networkOnly(req));
     return;
   }
 
-  if (isStaticAssetPath(url.pathname)) {
-    event.respondWith(cacheFirstStatic(req));
+  if (isNavigateOrShellRequest(req, url)) {
+    event.respondWith(networkFirstNavigate(req));
     return;
   }
 
-  /* Autres GET même origine : réseau d’abord, repli cache générique (sans forcer le shell). */
-  event.respondWith(
-    fetch(req)
-      .then(async (res) => {
-        if (res.ok) {
-          const cache = await caches.open(CACHE_NAME);
-          await putResponse(cache, req, res);
-        }
-        return res;
-      })
-      .catch(() => caches.match(req))
-  );
+  if (isCacheFirstStaticPath(url.pathname)) {
+    event.respondWith(cacheFirstStaleWhileRevalidate(req));
+    return;
+  }
+
+  event.respondWith(fetch(req));
+});
+
+// Notification de mise à jour SW
+self.addEventListener('message', (event) => {
+  if (event?.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'terrain-incident-sync') {
+    event.waitUntil(
+      self.clients.matchAll().then(clients =>
+        clients.forEach(c => c.postMessage({ type: 'SW_SYNC_INCIDENTS' }))
+      )
+    );
+  }
+  if (event.tag === 'terrain-risk-sync') {
+    event.waitUntil(
+      self.clients.matchAll().then(clients =>
+        clients.forEach(c => c.postMessage({ type: 'SW_SYNC_RISKS' }))
+      )
+    );
+  }
 });

@@ -116,7 +116,7 @@ function dangerTone(d) {
 
 function matchesFilter(p, q) {
   if (!q) return true;
-  const s = `${p.name} ${p.cas} ${p.site}`.toLowerCase();
+  const s = `${p.name} ${p.cas} ${p.site} ${p.supplier || ''}`.toLowerCase();
   return s.includes(q);
 }
 
@@ -147,6 +147,13 @@ function normalizeProductRow(p) {
   if (typeof o.fdsHumanValidated !== 'boolean') o.fdsHumanValidated = false;
   if (!Array.isArray(o.iaSuggestedActions)) o.iaSuggestedActions = [];
   if (!Array.isArray(o.iaInconsistencies)) o.iaInconsistencies = [];
+  if (!Array.isArray(o.ghsCodes)) o.ghsCodes = [];
+  if (typeof o.supplier !== 'string') o.supplier = '';
+  if (typeof o.ceNumber !== 'string') o.ceNumber = '';
+  if (typeof o.vlep !== 'string') o.vlep = '';
+  if (typeof o.storageClass !== 'string') o.storageClass = '';
+  if (!Array.isArray(o.hStatementsList)) o.hStatementsList = [];
+  if (!Array.isArray(o.pStatementsList)) o.pStatementsList = [];
   return o;
 }
 
@@ -172,13 +179,192 @@ function savePersistedProducts(rows) {
 }
 
 function getAllProducts() {
-  if (apiProductsLoaded) return [...apiProducts];
-  return [...PRODUCT_REGISTRY.map((x) => normalizeProductRow(x)), ...loadPersistedProducts()];
+  if (!apiProductsLoaded && !chemicalProductsLoaded) {
+    return [...PRODUCT_REGISTRY.map((x) => normalizeProductRow(x)), ...loadPersistedProducts()];
+  }
+  const merged = [];
+  const seen = new Set();
+  if (chemicalProductsLoaded) {
+    for (const raw of chemicalProductsRows) {
+      const row = normalizeProductRow(mapDbProductToRow(raw));
+      merged.push(row);
+      seen.add(row.id);
+    }
+  }
+  if (apiProductsLoaded) {
+    for (const p of apiProducts) {
+      const n = normalizeProductRow(p);
+      if (seen.has(n.id)) continue;
+      merged.push(n);
+      seen.add(n.id);
+    }
+  }
+  if (merged.length === 0) {
+    return [...PRODUCT_REGISTRY.map((x) => normalizeProductRow(x)), ...loadPersistedProducts()];
+  }
+  return merged;
 }
 
 /** @type {object[]} */
 let apiProducts = [];
 let apiProductsLoaded = false;
+
+/** Produits issus de la table `Product` (parse FDS serveur). */
+let chemicalProductsRows = [];
+let chemicalProductsLoaded = false;
+
+const FDS_PRODUCTS_LIST_URL = '/api/controlled-documents/products/fds';
+const FDS_PARSE_URL = '/api/controlled-documents/products/fds/parse';
+
+/**
+ * @param {string[]} h
+ */
+function inferDangerFromHStatements(h) {
+  const s = (Array.isArray(h) ? h.join(' ') : '').toUpperCase();
+  if (/\bH(300|301|302|304|310|311|314|317|318|330|331|340|341|350|351|360|361|362)\b/.test(s)) {
+    return 'élevé';
+  }
+  if (/\bH(3\d\d|4\d\d)\b/.test(s)) return 'moyen';
+  return 'faible';
+}
+
+/**
+ * @param {string} code
+ */
+function extractGhsCodesFromPictograms(p) {
+  if (!Array.isArray(p)) return [];
+  const out = [];
+  for (const x of p) {
+    const m = String(x).match(/\bGHS\s*0?([1-9])\b/i);
+    if (m) out.push(`GHS0${m[1]}`);
+  }
+  return uniqStrings(out);
+}
+
+function uniqStrings(arr) {
+  const seen = new Set();
+  const o = [];
+  for (const x of arr || []) {
+    const k = String(x).trim();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    o.push(k);
+  }
+  return o;
+}
+
+function ghsBadgeInlineStyle(code) {
+  const raw = String(code || '').toUpperCase().replace(/^GHS0?/, '');
+  const n = raw.replace(/\D/g, '').replace(/^0+/, '') || '0';
+  const palette = {
+    1: '#e11d48',
+    2: '#ea580c',
+    3: '#ca8a04',
+    4: '#475569',
+    5: '#9333ea',
+    6: '#6d28d9',
+    7: '#f97316',
+    8: '#db2777',
+    9: '#059669'
+  };
+  const bg = palette[Number(n)] || '#64748b';
+  return `background:${bg};color:#fff;border:none;font-weight:800;font-size:11px;padding:3px 8px;border-radius:999px;margin:2px 4px 2px 0;display:inline-block`;
+}
+
+/**
+ * @param {object} p
+ */
+function mapDbProductToRow(p) {
+  const ghsRaw = Array.isArray(p.ghsPictograms)
+    ? p.ghsPictograms.map((x) => String(x).toUpperCase())
+    : [];
+  const ghsCodes = ghsRaw.map((c) => (c.startsWith('GHS') ? c : `GHS${c.replace(/^0+/, '')}`));
+  const hSt = Array.isArray(p.hStatements) ? p.hStatements.map((x) => String(x)) : [];
+  const pSt = Array.isArray(p.pStatements) ? p.pStatements.map((x) => String(x)) : [];
+  const pictoLabels = ghsCodes.map((c) => {
+    const n = c.replace(/^GHS0?/i, '');
+    const labels = {
+      1: 'Explosif',
+      2: 'Inflammable',
+      3: 'Comburant',
+      4: 'Gaz sous pression',
+      5: 'Corrosif',
+      6: 'Toxique',
+      7: 'Irritant',
+      8: 'Santé',
+      9: 'Environnement'
+    };
+    return `GHS0${n} ${labels[Number(n)] || ''}`.trim();
+  });
+  const siteName = p.siteRecord?.name || appState.currentSite || '—';
+  const updated = p.updatedAt ? new Date(p.updatedAt) : null;
+  return normalizeProductRow({
+    id: String(p.id),
+    name: String(p.name || 'Produit'),
+    cas: p.casNumber ? String(p.casNumber) : '—',
+    supplier: p.supplier ? String(p.supplier) : '',
+    ceNumber: p.ceNumber ? String(p.ceNumber) : '',
+    site: siteName,
+    danger: inferDangerFromHStatements(hSt),
+    revision: updated
+      ? updated.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '—',
+    signalWord: '—',
+    hazards: hSt.length ? hSt.join(' · ') : '—',
+    fdsFileName: p.fdsFileUrl ? String(p.fdsFileUrl).replace(/^fds:/, '') : '',
+    fdsValidUntil: '',
+    fdsPictograms: pictoLabels.length ? pictoLabels : ghsCodes,
+    ghsCodes,
+    fdsEpi: [],
+    fdsStorage: p.storageClass ? String(p.storageClass) : '',
+    fdsRescue: '',
+    fdsMeasures: p.vlep ? `VLEP / exposition : ${p.vlep}` : '',
+    risksLinked: pSt.length ? [`Conseils P : ${pSt.slice(0, 4).join(', ')}`] : [],
+    incidentsHint: 'Voir module Incidents pour le terrain.',
+    fdsHumanValidated: true,
+    iaSuggestedActions: [],
+    iaInconsistencies: [],
+    fromChemicalDb: true,
+    vlep: p.vlep ? String(p.vlep) : '',
+    storageClass: p.storageClass ? String(p.storageClass) : '',
+    hStatementsList: hSt,
+    pStatementsList: pSt
+  });
+}
+
+async function parseFdsPdfOnServer(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  if (appState.activeSiteId) fd.append('siteId', String(appState.activeSiteId));
+  const res = await qhseFetch(FDS_PARSE_URL, { method: 'POST', body: fd });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.error || `Analyse FDS impossible (${res.status})`);
+  }
+  return body;
+}
+
+async function confirmFdsProductOnServer(productId, fields) {
+  const fd = new FormData();
+  fd.append('confirm', '1');
+  fd.append('productId', String(productId));
+  fd.append('name', fields.name);
+  fd.append('supplier', fields.supplier || '');
+  fd.append('casNumber', fields.casNumber || '');
+  fd.append('ceNumber', fields.ceNumber || '');
+  fd.append('hStatementsJson', JSON.stringify(fields.hStatements || []));
+  fd.append('pStatementsJson', JSON.stringify(fields.pStatements || []));
+  fd.append('ghsPictogramsJson', JSON.stringify(fields.ghsPictograms || []));
+  fd.append('vlep', fields.vlep || '');
+  fd.append('storageClass', fields.storageClass || '');
+  if (appState.activeSiteId) fd.append('siteId', String(appState.activeSiteId));
+  const res = await qhseFetch(FDS_PARSE_URL, { method: 'POST', body: fd });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.error || `Enregistrement impossible (${res.status})`);
+  }
+  return body;
+}
 
 function mapControlledDocumentToProduct(doc) {
   return normalizeProductRow({
@@ -208,11 +394,29 @@ function mapControlledDocumentToProduct(doc) {
 }
 
 async function loadProductsFromApi() {
-  const res = await qhseFetch(withSiteQuery('/api/controlled-documents?type=fds'));
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const rows = await res.json().catch(() => []);
-  apiProducts = (Array.isArray(rows) ? rows : []).map(mapControlledDocumentToProduct);
-  apiProductsLoaded = true;
+  const [docRes, chemRes] = await Promise.all([
+    qhseFetch(withSiteQuery('/api/controlled-documents?type=fds')),
+    qhseFetch(withSiteQuery(FDS_PRODUCTS_LIST_URL))
+  ]);
+  if (docRes.ok) {
+    const rows = await docRes.json().catch(() => []);
+    apiProducts = (Array.isArray(rows) ? rows : []).map(mapControlledDocumentToProduct);
+    apiProductsLoaded = true;
+  } else {
+    apiProductsLoaded = false;
+    apiProducts = [];
+  }
+  if (chemRes.ok) {
+    const rows = await chemRes.json().catch(() => []);
+    chemicalProductsRows = Array.isArray(rows) ? rows : [];
+    chemicalProductsLoaded = true;
+  } else {
+    chemicalProductsLoaded = false;
+    chemicalProductsRows = [];
+  }
+  if (!docRes.ok && !chemRes.ok) {
+    throw new Error(`HTTP ${docRes.status || chemRes.status}`);
+  }
 }
 
 async function uploadFdsDocument(payload) {
@@ -427,6 +631,25 @@ function createProductRow(product, handlers = {}) {
     ${docLine}
     ${pills}
   `;
+
+  const ghsCodes =
+    Array.isArray(product.ghsCodes) && product.ghsCodes.length
+      ? product.ghsCodes
+      : extractGhsCodesFromPictograms(product.fdsPictograms);
+  if (ghsCodes.length) {
+    const ghsWrap = document.createElement('div');
+    ghsWrap.className = 'products-row-ghs-wrap';
+    ghsWrap.setAttribute('aria-label', 'Pictogrammes SGH');
+    ghsCodes.forEach((code) => {
+      const sp = document.createElement('span');
+      sp.className = 'products-ghs-badge';
+      sp.style.cssText = ghsBadgeInlineStyle(code);
+      const c = String(code).toUpperCase();
+      sp.textContent = c.startsWith('GHS') ? c : `GHS${c}`;
+      ghsWrap.append(sp);
+    });
+    main.append(ghsWrap);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'products-row-actions';
@@ -822,18 +1045,24 @@ export function renderProducts() {
         <div class="section-kicker">Étape 1 — Import</div>
         <h3>Importer une FDS (PDF ou image)</h3>
         <p class="content-card-lead products-import-lead">
-          PDF ou image : préremplissage <strong>assisté</strong> (sans OCR réel dans le navigateur) — vous complétez la fiche exploitable avant enregistrement.
+          <strong>PDF</strong> : extraction automatique côté serveur (sections 1, 3, 8 — H/P, GHS, VLEP, stockage).
+          <strong>Image</strong> : préremplissage assisté local (sans OCR réel) — contrôle humain obligatoire.
         </p>
       </div>
+    </div>
+    <div class="products-fds-dropzone" tabindex="0" role="region" aria-label="Glisser-déposer une FDS PDF"
+      style="border:2px dashed var(--color-border-secondary,#475569);border-radius:14px;padding:18px 16px;text-align:center;margin-top:8px;background:color-mix(in srgb,var(--color-background-secondary,#0f172a) 88%,transparent)">
+      <p style="margin:0 0 6px;font-weight:700">Déposer une FDS PDF ici</p>
+      <p style="margin:0;font-size:13px;opacity:.88">Relâchez le fichier ou choisissez-le ci-dessous — pictogrammes SGH détectés par analyse du texte.</p>
     </div>
     <div class="products-import-row">
       <label class="products-file-label">
         <span class="products-file-label__text">Fichier</span>
         <input type="file" class="products-fds-input" accept=".pdf,application/pdf,.png,.jpg,.jpeg,.webp,.gif,image/*" />
       </label>
-      <button type="button" class="btn btn-primary products-extract-btn" disabled>Lancer l’analyse IA</button>
+      <button type="button" class="btn btn-primary products-extract-btn" disabled>Analyser la FDS</button>
     </div>
-    <p class="products-ia-disclaimer" role="note">IA indicative uniquement — rien n’est enregistré sans votre validation (voir étape 2).</p>
+    <p class="products-ia-disclaimer" role="note">PDF : premier enregistrement dès l’analyse (brouillon en base) — corrigez puis confirmez. Images : IA indicative locale uniquement.</p>
   `;
 
   const validationCard = document.createElement('article');
@@ -847,8 +1076,9 @@ export function renderProducts() {
         <p class="content-card-lead">Alignez chaque champ sur la FDS officielle ; l’IA propose des pistes, pas des décisions.</p>
       </div>
     </div>
+    <input type="hidden" class="products-fds-product-id" value="" />
     <p class="products-human-gate" role="status">
-      <strong>Validation requise :</strong> rien n’est écrit dans le registre local tant que vous n’avez pas validé ci-dessous.
+      <strong>Validation requise :</strong> contrôlez chaque champ contre la FDS officielle avant confirmation.
     </p>
     <div class="products-ia-preview" aria-live="polite">
       <h4 class="products-ia-preview-title">Analyse IA — à vérifier</h4>
@@ -865,7 +1095,9 @@ export function renderProducts() {
     </div>
     <div class="products-validation-grid form-grid">
       <label class="field"><span>Nom produit</span><input type="text" class="control-input products-field-name" autocomplete="off" /></label>
+      <label class="field"><span>Fournisseur / fabricant</span><input type="text" class="control-input products-field-supplier" autocomplete="off" /></label>
       <label class="field"><span>N° CAS</span><input type="text" class="control-input products-field-cas" autocomplete="off" /></label>
+      <label class="field"><span>N° CE</span><input type="text" class="control-input products-field-ce" autocomplete="off" /></label>
       <label class="field"><span>Site / zone</span><input type="text" class="control-input products-field-site" autocomplete="off" /></label>
       <label class="field"><span>Criticité</span>
         <select class="control-select products-field-danger">
@@ -892,7 +1124,19 @@ export function renderProducts() {
       <label class="field field-full"><span>Mesures de prévention</span>
         <textarea class="control-input products-field-measures" rows="2" autocomplete="off"></textarea>
       </label>
-      <label class="field field-full"><span>Mentions dangers / phrases H (texte libre)</span>
+      <label class="field field-full"><span>Phrases H (une par ligne)</span>
+        <textarea class="control-input products-field-h-lines" rows="3" autocomplete="off" placeholder="H302&#10;H314"></textarea>
+      </label>
+      <label class="field field-full"><span>Conseils P (une par ligne)</span>
+        <textarea class="control-input products-field-p-lines" rows="3" autocomplete="off" placeholder="P280&#10;P301+P310"></textarea>
+      </label>
+      <label class="field field-full"><span>VLEP / exposition (section 8)</span>
+        <textarea class="control-input products-field-vlep" rows="2" autocomplete="off"></textarea>
+      </label>
+      <label class="field field-full"><span>Classe de stockage</span>
+        <input type="text" class="control-input products-field-storage-class" autocomplete="off" />
+      </label>
+      <label class="field field-full"><span>Mentions dangers / synthèse (texte libre)</span>
         <textarea class="control-input products-field-hazards" rows="3" autocomplete="off"></textarea>
       </label>
       <label class="field field-full"><span>Nom du document source</span>
@@ -906,7 +1150,7 @@ export function renderProducts() {
       </label>
     </div>
     <div class="products-validation-actions">
-      <button type="button" class="btn btn-primary products-validate-btn">Valider et enregistrer</button>
+      <button type="button" class="btn btn-primary products-validate-btn">Confirmer et enregistrer</button>
       <button type="button" class="text-button products-cancel-draft-btn" style="font-weight:700">Annuler</button>
     </div>
   `;
@@ -936,11 +1180,15 @@ export function renderProducts() {
 
   const fileInput = importCard.querySelector('.products-fds-input');
   const extractBtn = importCard.querySelector('.products-extract-btn');
+  const dropzone = importCard.querySelector('.products-fds-dropzone');
   /** @type {File | null} */
   let pendingFile = null;
+  let fdsServerFlow = false;
 
   const fieldName = validationCard.querySelector('.products-field-name');
+  const fieldSupplier = validationCard.querySelector('.products-field-supplier');
   const fieldCas = validationCard.querySelector('.products-field-cas');
+  const fieldCe = validationCard.querySelector('.products-field-ce');
   const fieldSite = validationCard.querySelector('.products-field-site');
   const fieldDanger = validationCard.querySelector('.products-field-danger');
   const fieldRevision = validationCard.querySelector('.products-field-revision');
@@ -953,8 +1201,33 @@ export function renderProducts() {
   const fieldStorage = validationCard.querySelector('.products-field-storage');
   const fieldRescue = validationCard.querySelector('.products-field-rescue');
   const fieldMeasures = validationCard.querySelector('.products-field-measures');
+  const fieldHLines = validationCard.querySelector('.products-field-h-lines');
+  const fieldPLines = validationCard.querySelector('.products-field-p-lines');
+  const fieldVlep = validationCard.querySelector('.products-field-vlep');
+  const fieldStorageClass = validationCard.querySelector('.products-field-storage-class');
+  const hiddenFdsProductId = validationCard.querySelector('.products-fds-product-id');
   const iaIncList = validationCard.querySelector('.products-ia-inc-list');
   const iaActList = validationCard.querySelector('.products-ia-act-list');
+
+  function updateExtractButtonLabel() {
+    if (!extractBtn || !pendingFile) return;
+    const isPdf =
+      (pendingFile.type && pendingFile.type.includes('pdf')) || /\.pdf$/i.test(pendingFile.name || '');
+    extractBtn.textContent = isPdf ? 'Extraire le PDF (serveur)' : 'Lancer l’analyse IA';
+  }
+
+  function pictogramLinesToGhsCodes(text) {
+    return uniqStrings(
+      linesToArray(text).flatMap((line) => {
+        const m = line.match(/\bGHS\s*0?([1-9])\b/gi);
+        if (!m) return [];
+        return m.map((x) => {
+          const d = x.match(/0?([1-9])/i);
+          return d ? `GHS0${d[1]}` : '';
+        });
+      })
+    );
+  }
 
   function fillIaPreview(inc, act) {
     if (iaIncList) {
@@ -989,10 +1262,16 @@ export function renderProducts() {
 
   function resetDraft() {
     pendingFile = null;
+    fdsServerFlow = false;
     pendingIaSuggestedActions = [];
     pendingIaInconsistencies = [];
     if (fileInput) fileInput.value = '';
-    if (extractBtn) extractBtn.disabled = true;
+    if (extractBtn) {
+      extractBtn.disabled = true;
+      extractBtn.textContent = 'Analyser la FDS';
+    }
+    if (hiddenFdsProductId) hiddenFdsProductId.value = '';
+    if (dropzone) dropzone.classList.remove('products-fds-dropzone--over');
     validationCard.hidden = true;
     fillIaPreview([], []);
     const hc = validationCard.querySelector('.products-human-confirm-check');
@@ -1022,39 +1301,140 @@ export function renderProducts() {
     const f = fileInput.files && fileInput.files[0];
     pendingFile = f || null;
     if (extractBtn) extractBtn.disabled = !pendingFile;
+    updateExtractButtonLabel();
   });
+
+  if (dropzone && fileInput) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((ev) => {
+      dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+    dropzone.addEventListener('dragover', () => {
+      dropzone.classList.add('products-fds-dropzone--over');
+      dropzone.style.borderColor = 'var(--app-accent,#14b8a6)';
+    });
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('products-fds-dropzone--over');
+      dropzone.style.borderColor = '';
+    });
+    dropzone.addEventListener('drop', (e) => {
+      dropzone.classList.remove('products-fds-dropzone--over');
+      dropzone.style.borderColor = '';
+      const f = e.dataTransfer?.files?.[0];
+      if (!f) return;
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      fileInput.files = dt.files;
+      pendingFile = f;
+      if (extractBtn) extractBtn.disabled = false;
+      updateExtractButtonLabel();
+      showToast(`Fichier « ${f.name} » prêt — lancez l’analyse.`, 'info');
+    });
+    dropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+    dropzone.addEventListener('click', () => fileInput.click());
+  }
 
   extractBtn?.addEventListener('click', async () => {
     if (!pendingFile) return;
     extractBtn.disabled = true;
     extractBtn.textContent = 'Analyse en cours…';
     try {
-      const data = await simulateFdsIaExtraction(pendingFile);
-      pendingIaSuggestedActions = Array.isArray(data.iaSuggestedActions) ? [...data.iaSuggestedActions] : [];
-      pendingIaInconsistencies = Array.isArray(data.iaInconsistencies) ? [...data.iaInconsistencies] : [];
-      fillIaPreview(pendingIaInconsistencies, pendingIaSuggestedActions);
+      const isPdf =
+        (pendingFile.type && pendingFile.type.includes('pdf')) || /\.pdf$/i.test(pendingFile.name || '');
+      if (isPdf) {
+        fdsServerFlow = true;
+        const { parsed, product } = await parseFdsPdfOnServer(pendingFile);
+        if (hiddenFdsProductId && product?.id) hiddenFdsProductId.value = String(product.id);
+        pendingIaSuggestedActions = [
+          'Vérifier les phrases H/P et pictogrammes contre la FDS signée fournisseur.',
+          'Compléter EPI, secours et mesures depuis les sections 6–8 si absentes du PDF.'
+        ];
+        pendingIaInconsistencies = [
+          'Extraction automatique : les mises en page PDF varient — recouper chaque champ.'
+        ];
+        fillIaPreview(pendingIaInconsistencies, pendingIaSuggestedActions);
 
-      fieldName.value = data.name || '';
-      fieldCas.value = data.cas || '';
-      fieldSite.value = data.site || '';
-      fieldDanger.value = data.danger || 'moyen';
-      fieldRevision.value = data.revision || '';
-      fieldSignal.value = data.signalWord || '';
-      fieldHazards.value = data.hazards || '';
-      fieldFilename.value = pendingFile.name || '';
-      if (fieldValidUntil && data.fdsValidUntil) fieldValidUntil.value = data.fdsValidUntil;
-      if (fieldPictograms && Array.isArray(data.pictograms)) fieldPictograms.value = data.pictograms.join('\n');
-      if (fieldEpi && Array.isArray(data.epi)) fieldEpi.value = data.epi.join('\n');
-      if (fieldStorage) fieldStorage.value = data.storage || '';
-      if (fieldRescue) fieldRescue.value = data.rescue || '';
-      if (fieldMeasures) fieldMeasures.value = data.measures || '';
+        const p = parsed || {};
+        fieldName.value = p.productName || '';
+        if (fieldSupplier) fieldSupplier.value = p.supplier || '';
+        fieldCas.value = p.casNumber || '';
+        if (fieldCe) fieldCe.value = p.ceNumber || '';
+        fieldSite.value = appState.currentSite || '';
+        fieldDanger.value = inferDangerFromHStatements(p.hStatements || []);
+        fieldRevision.value = new Date().toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+        fieldSignal.value = '';
+        if (fieldHLines) fieldHLines.value = (p.hStatements || []).join('\n');
+        if (fieldPLines) fieldPLines.value = (p.pStatements || []).join('\n');
+        fieldHazards.value = (p.hStatements || []).length
+          ? `${(p.hStatements || []).join(' · ')}`
+          : '';
+        if (fieldVlep) fieldVlep.value = p.vlep || '';
+        if (fieldStorageClass) fieldStorageClass.value = p.storageClass || '';
+        if (fieldStorage) fieldStorage.value = p.storageClass || '';
+        fieldFilename.value = pendingFile.name || '';
+        if (fieldPictograms && Array.isArray(p.ghs)) {
+          fieldPictograms.value = p.ghs.join('\n');
+        }
 
-      validationCard.hidden = false;
-      validationCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      showToast('Analyse terminée — contrôlez chaque champ avant validation.', 'info');
+        validationCard.hidden = false;
+        validationCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        showToast('PDF analysé — fiche créée ou mise à jour côté serveur. Corrigez puis confirmez.', 'info');
+        try {
+          await loadProductsFromApi();
+          refreshList();
+          refreshKpi();
+        } catch {
+          /* liste locale */
+        }
+      } else {
+        fdsServerFlow = false;
+        if (hiddenFdsProductId) hiddenFdsProductId.value = '';
+        const data = await simulateFdsIaExtraction(pendingFile);
+        pendingIaSuggestedActions = Array.isArray(data.iaSuggestedActions) ? [...data.iaSuggestedActions] : [];
+        pendingIaInconsistencies = Array.isArray(data.iaInconsistencies) ? [...data.iaInconsistencies] : [];
+        fillIaPreview(pendingIaInconsistencies, pendingIaSuggestedActions);
+
+        fieldName.value = data.name || '';
+        if (fieldSupplier) fieldSupplier.value = '';
+        fieldCas.value = data.cas || '';
+        if (fieldCe) fieldCe.value = '';
+        fieldSite.value = data.site || '';
+        fieldDanger.value = data.danger || 'moyen';
+        fieldRevision.value = data.revision || '';
+        fieldSignal.value = data.signalWord || '';
+        fieldHazards.value = data.hazards || '';
+        if (fieldHLines) fieldHLines.value = '';
+        if (fieldPLines) fieldPLines.value = '';
+        if (fieldVlep) fieldVlep.value = '';
+        if (fieldStorageClass) fieldStorageClass.value = '';
+        fieldFilename.value = pendingFile.name || '';
+        if (fieldValidUntil && data.fdsValidUntil) fieldValidUntil.value = data.fdsValidUntil;
+        if (fieldPictograms && Array.isArray(data.pictograms)) fieldPictograms.value = data.pictograms.join('\n');
+        if (fieldEpi && Array.isArray(data.epi)) fieldEpi.value = data.epi.join('\n');
+        if (fieldStorage) fieldStorage.value = data.storage || '';
+        if (fieldRescue) fieldRescue.value = data.rescue || '';
+        if (fieldMeasures) fieldMeasures.value = data.measures || '';
+
+        validationCard.hidden = false;
+        validationCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        showToast('Analyse terminée — contrôlez chaque champ avant validation.', 'info');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Analyse impossible', 'error');
     } finally {
       extractBtn.disabled = !pendingFile;
-      extractBtn.textContent = 'Lancer l’analyse IA';
+      updateExtractButtonLabel();
     }
   });
 
@@ -1076,6 +1456,54 @@ export function renderProducts() {
       return;
     }
     const cas = (fieldCas.value || '').trim();
+    const hFromLines = linesToArray(fieldHLines?.value || '');
+    const pFromLines = linesToArray(fieldPLines?.value || '');
+    const ghsMerged = uniqStrings([
+      ...pictogramLinesToGhsCodes(fieldPictograms?.value || ''),
+      ...hFromLines
+        .map((x) => {
+          const m = x.match(/\bGHS\s*0?([1-9])\b/i);
+          return m ? `GHS0${m[1]}` : '';
+        })
+        .filter(Boolean)
+    ]);
+
+    const serverProductId = (hiddenFdsProductId?.value || '').trim();
+    if (fdsServerFlow && serverProductId) {
+      try {
+        await confirmFdsProductOnServer(serverProductId, {
+          name,
+          supplier: (fieldSupplier?.value || '').trim(),
+          casNumber: cas,
+          ceNumber: (fieldCe?.value || '').trim(),
+          hStatements: hFromLines.length ? hFromLines : linesToArray(fieldHazards?.value || ''),
+          pStatements: pFromLines,
+          ghsPictograms: ghsMerged.length ? ghsMerged : pictogramLinesToGhsCodes(fieldPictograms?.value || ''),
+          vlep: (fieldVlep?.value || '').trim(),
+          storageClass: (fieldStorageClass?.value || '').trim()
+        });
+        await loadProductsFromApi();
+        activityLogStore.add({
+          module: 'products',
+          action: 'FDS confirmée (serveur)',
+          detail: `${name} — Product ${serverProductId}`,
+          user: getSessionUser()?.name || 'Utilisateur'
+        });
+        showToast(`Produit « ${name} » enregistré (base chimique).`, 'success');
+        resetDraft();
+        refreshList();
+        refreshKpi();
+        const row = getAllProducts().find((x) => x.id === serverProductId);
+        if (row) {
+          renderProductDetail(row, detailHost);
+          detailHost.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Enregistrement impossible', 'error');
+      }
+      return;
+    }
+
     const id = makeProductId();
     const row = {
       id,

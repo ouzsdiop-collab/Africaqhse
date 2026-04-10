@@ -115,6 +115,24 @@ export function computeQuadInsightHeuristic(counts, data) {
     }
   }
 
+  if (actTotal >= 8 && actOver > 0 && actOver / actTotal <= 0.12) {
+    parts.push(
+      'Les retards restent une minorité du plan d’actions — privilégier la clôture rapide de ces fiches pour éviter qu’elles ne deviennent structurels.'
+    );
+  }
+
+  if (ncOpen > 0 && auditsN > 0 && critOpen === 0) {
+    parts.push(
+      'Coupler revues NC et constats d’audit récents : vérifier que chaque NC majeure dispose d’une preuve de traitement ou d’un plan daté.'
+    );
+  }
+
+  if (inc30 > 0 && inc30 <= 2 && critOpen === 0) {
+    parts.push(
+      'Volume incidents 30 j. contenu sans critique ouvert — opportunité de capitaliser sur le retour d’expérience (Rex) plutôt que sur la réaction d’urgence.'
+    );
+  }
+
   if (parts.length === 0) {
     return 'Indicateurs peu denses sur cet échantillon — enrichir les données ou élargir le périmètre pour une lecture plus fine.';
   }

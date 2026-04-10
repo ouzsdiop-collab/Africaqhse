@@ -115,6 +115,9 @@ export async function create(req, res, next) {
       incidentId: created.id,
       ref: created.ref,
       siteId: created.siteId ?? null,
+      site: created.site,
+      severity: created.severity,
+      description: created.description ?? null,
       userId: auditUserIdFromRequest(req)
     });
     res.status(201).json(created);

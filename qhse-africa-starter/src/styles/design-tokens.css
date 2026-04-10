@@ -10,32 +10,32 @@
 :root {
   --font-sans: ui-sans-serif, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Référence marque — réutilisable dans les modules */
-  --palette-primary: #0f766e;
-  --palette-accent: #14b8a6;
-  --palette-success: #22c55e;
-  --palette-warning: #f59e0b;
-  --palette-danger: #ef4444;
+  /* Référence marque — pilotée par tokens.css (--color-primary, etc.) */
+  --palette-primary: color-mix(in srgb, var(--color-primary) 42%, black);
+  --palette-accent: var(--color-primary);
+  --palette-success: var(--color-success);
+  --palette-warning: var(--color-warning);
+  --palette-danger: var(--color-danger);
 
   --app-accent: var(--palette-accent);
-  --app-accent-hover: #0f766e;
+  --app-accent-hover: color-mix(in srgb, var(--color-primary) 58%, black);
 
-  --color-background-primary: #ffffff;
-  --color-background-secondary: #f4f6fa;
-  --color-background-tertiary: #eef1f7;
+  --color-background-primary: var(--surface-1);
+  --color-background-secondary: var(--surface-2);
+  --color-background-tertiary: var(--surface-3);
   --color-background-info: var(--color-primary-bg);
 
-  --color-text-primary: #0f172a;
+  --color-text-primary: var(--text-primary);
   /* Hiérarchie texte unique (clair) : même échelle sur toutes les pages */
-  --color-text-secondary: #334155;
-  /* Un seul « gris UI » pour labels / méta (aligné avec tokens.css --color-text-muted) */
-  --color-text-tertiary: #64748b;
+  --color-text-secondary: var(--text-secondary);
+  /* Un seul « gris UI » pour labels / méta */
+  --color-text-tertiary: var(--text-muted);
   --color-text-muted: var(--color-text-tertiary);
   --color-text: var(--color-text-primary);
   --color-text-info: var(--color-primary-text);
-  --color-text-success: #15803d;
-  --color-text-warning: #9a3412;
-  --color-text-danger: #991b1b;
+  --color-text-success: var(--color-success-text);
+  --color-text-warning: var(--color-warning-text);
+  --color-text-danger: var(--color-danger-text);
 
   --color-border-tertiary: rgba(15, 23, 42, 0.1);
   --color-border-secondary: rgba(15, 23, 42, 0.18);
@@ -45,8 +45,9 @@
   --color-border-success: rgba(34, 197, 94, 0.45);
   --color-border-info: var(--color-primary-border);
 
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
+  --border-radius-sm: var(--radius-sm);
+  --border-radius-md: var(--radius-md);
+  --border-radius-lg: var(--radius-lg);
 
   /* Pont compatibilité (styles + modules JS) */
   --text: var(--color-text-primary);
@@ -61,9 +62,6 @@
   --card-border: var(--color-border-tertiary);
   --accent-blue: var(--color-text-info);
   --accent-green: var(--color-text-success);
-  --radius-sm: var(--border-radius-md);
-  --radius-md: var(--border-radius-md);
-  --radius-lg: var(--border-radius-lg);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
 
   /**
@@ -95,7 +93,7 @@
   --page-stack-gap: 1.5rem;
   --page-stack-pad-top: 20px;
   --page-stack-pad-bottom: 44px;
-  --shell-surface-veil: color-mix(in srgb, var(--palette-accent, #14b8a6) 4%, transparent);
+  --shell-surface-veil: color-mix(in srgb, var(--palette-accent) 4%, transparent);
 
   /* Anciens tokens DS (réduits au plat) */
   --ds-font-sans: var(--font-sans);
@@ -118,9 +116,9 @@
   --ds-space-6: 24px;
   --ds-space-8: 32px;
   --ds-space-10: 40px;
-  --ds-radius-sm: var(--border-radius-md);
-  --ds-radius-md: var(--border-radius-lg);
-  --ds-radius-lg: var(--border-radius-lg);
+  --ds-radius-sm: var(--radius-sm);
+  --ds-radius-md: var(--radius-md);
+  --ds-radius-lg: var(--radius-lg);
   --ds-radius-pill: 999px;
   --ds-canvas: var(--color-background-tertiary);
   --ds-surface-0: var(--color-background-secondary);
@@ -144,15 +142,15 @@
   --ds-success-muted: rgba(46, 125, 50, 0.1);
   --ds-info: var(--color-text-info);
   --ds-info-muted: var(--color-background-info);
-  --ds-ai-tint: rgba(20, 184, 166, 0.06);
+  --ds-ai-tint: color-mix(in srgb, var(--color-primary) 8%, transparent);
   --ds-ai-border: var(--color-border-info);
   --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --ds-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
   --ds-shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.1);
-  --ds-shadow-focus: 0 0 0 2px rgba(20, 184, 166, 0.22);
+  --ds-shadow-focus: 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent);
   --ds-chart-grid: var(--color-border-tertiary);
   --ds-chart-line-primary: var(--color-text-info);
-  --ds-chart-fill-primary: rgba(20, 184, 166, 0.12);
+  --ds-chart-fill-primary: color-mix(in srgb, var(--color-primary) 14%, transparent);
   --ds-chart-line-secondary: var(--color-text-success);
 }
 
@@ -160,23 +158,22 @@
  * Thème sombre — fond #0B1220, surfaces #111827 / #1F2937, accent teal.
  */
 [data-theme='dark'] {
-  --color-background-primary: #111827;
-  --color-background-secondary: #0b1220;
-  --color-background-tertiary: #0b1220;
+  --color-background-primary: var(--surface-1);
+  --color-background-secondary: var(--surface-2);
+  --color-background-tertiary: var(--surface-3);
   --color-background-info: var(--color-primary-bg);
   --app-accent: var(--palette-accent);
-  --app-accent-hover: #2dd4bf;
+  --app-accent-hover: color-mix(in srgb, var(--color-primary) 72%, white);
 
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #e2e8f0;
-  /* Tertiaire relevé pour lisibilité sur #0b1220 / #111827 */
-  --color-text-tertiary: #cbd5e1;
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-muted);
   --color-text-muted: var(--color-text-tertiary);
   --color-text: var(--color-text-primary);
   --color-text-info: var(--color-primary-text);
-  --color-text-success: #4ade80;
-  --color-text-warning: #fcd34d;
-  --color-text-danger: #fecaca;
+  --color-text-success: var(--color-success-text);
+  --color-text-warning: var(--color-warning-text);
+  --color-text-danger: var(--color-danger-text);
 
   --color-border-tertiary: rgba(186, 200, 220, 0.14);
   --color-border-secondary: rgba(186, 200, 220, 0.22);
@@ -194,28 +191,28 @@
 
   --ds-surface-0: var(--color-background-secondary);
   --ds-surface-1: var(--color-background-primary);
-  --ds-surface-2: #1f2937;
+  --ds-surface-2: var(--surface-3);
   --ds-border-subtle: var(--color-border-tertiary);
   --ds-border-default: var(--color-border-secondary);
   --ds-border-strong: var(--color-border-primary);
   --ds-primary: var(--color-text-info);
-  --ds-primary-muted: rgba(20, 184, 166, 0.12);
+  --ds-primary-muted: color-mix(in srgb, var(--color-primary) 14%, transparent);
   --ds-secondary: var(--color-text-success);
-  --ds-secondary-muted: rgba(34, 197, 94, 0.1);
+  --ds-secondary-muted: color-mix(in srgb, var(--color-success) 12%, transparent);
   --ds-danger: var(--color-text-danger);
-  --ds-danger-muted: rgba(239, 68, 68, 0.12);
+  --ds-danger-muted: color-mix(in srgb, var(--color-danger) 14%, transparent);
   --ds-warning: var(--color-text-warning);
-  --ds-warning-muted: rgba(245, 158, 11, 0.12);
+  --ds-warning-muted: color-mix(in srgb, var(--color-warning) 14%, transparent);
   --ds-success: var(--color-text-success);
-  --ds-success-muted: rgba(34, 197, 94, 0.1);
+  --ds-success-muted: color-mix(in srgb, var(--color-success) 12%, transparent);
   --ds-info: var(--color-text-info);
   --ds-info-muted: var(--color-background-info);
-  --ds-ai-tint: rgba(20, 184, 166, 0.05);
+  --ds-ai-tint: color-mix(in srgb, var(--color-primary) 6%, transparent);
   --ds-ai-border: var(--color-border-info);
-  --ds-shadow-focus: 0 0 0 2px rgba(20, 184, 166, 0.32);
+  --ds-shadow-focus: 0 0 0 2px color-mix(in srgb, var(--color-primary) 45%, transparent);
   --ds-chart-grid: rgba(148, 163, 184, 0.12);
-  --ds-chart-line-primary: #2dd4bf;
-  --ds-chart-fill-primary: rgba(20, 184, 166, 0.14);
+  --ds-chart-line-primary: var(--color-primary-text);
+  --ds-chart-fill-primary: color-mix(in srgb, var(--color-primary) 16%, transparent);
   --ds-chart-line-secondary: var(--color-text-success);
   --ds-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --ds-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.38);
@@ -224,22 +221,22 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-background-primary: #111827;
-    --color-background-secondary: #0b1220;
-    --color-background-tertiary: #0b1220;
+    --color-background-primary: var(--surface-1);
+    --color-background-secondary: var(--surface-2);
+    --color-background-tertiary: var(--surface-3);
     --color-background-info: var(--color-primary-bg);
     --app-accent: var(--palette-accent);
-    --app-accent-hover: #2dd4bf;
+    --app-accent-hover: color-mix(in srgb, var(--color-primary) 72%, white);
 
-    --color-text-primary: #f8fafc;
-    --color-text-secondary: #e2e8f0;
-    --color-text-tertiary: #cbd5e1;
+    --color-text-primary: var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-text-tertiary: var(--text-muted);
     --color-text-muted: var(--color-text-tertiary);
     --color-text: var(--color-text-primary);
     --color-text-info: var(--color-primary-text);
-    --color-text-success: #4ade80;
-    --color-text-warning: #fcd34d;
-    --color-text-danger: #fecaca;
+    --color-text-success: var(--color-success-text);
+    --color-text-warning: var(--color-warning-text);
+    --color-text-danger: var(--color-danger-text);
 
     --color-border-tertiary: rgba(186, 200, 220, 0.14);
     --color-border-secondary: rgba(186, 200, 220, 0.22);
@@ -257,7 +254,7 @@
 
     --ds-surface-0: var(--color-background-secondary);
     --ds-surface-1: var(--color-background-primary);
-    --ds-surface-2: #1f2937;
+    --ds-surface-2: var(--surface-3);
     --ds-border-subtle: var(--color-border-tertiary);
     --ds-border-default: var(--color-border-secondary);
     --ds-border-strong: var(--color-border-primary);
@@ -273,12 +270,12 @@
     --ds-success-muted: rgba(34, 197, 94, 0.1);
     --ds-info: var(--color-text-info);
     --ds-info-muted: var(--color-background-info);
-    --ds-ai-tint: rgba(20, 184, 166, 0.05);
+    --ds-ai-tint: color-mix(in srgb, var(--color-primary) 6%, transparent);
     --ds-ai-border: var(--color-border-info);
-    --ds-shadow-focus: 0 0 0 2px rgba(20, 184, 166, 0.32);
+    --ds-shadow-focus: 0 0 0 2px color-mix(in srgb, var(--color-primary) 45%, transparent);
     --ds-chart-grid: rgba(148, 163, 184, 0.12);
-    --ds-chart-line-primary: #2dd4bf;
-    --ds-chart-fill-primary: rgba(20, 184, 166, 0.14);
+    --ds-chart-line-primary: var(--color-primary-text);
+    --ds-chart-fill-primary: color-mix(in srgb, var(--color-primary) 16%, transparent);
     --ds-chart-line-secondary: var(--color-text-success);
     --ds-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
     --ds-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.38);

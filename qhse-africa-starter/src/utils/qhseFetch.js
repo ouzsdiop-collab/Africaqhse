@@ -5,6 +5,7 @@ import {
   getAuthToken,
   clearAuthSession
 } from '../data/sessionUser.js';
+import { refreshAccessToken, getAccessTokenForRequest } from './auth.js';
 import { isDemoMode } from '../services/demoMode.service.js';
 import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
 
@@ -24,7 +25,9 @@ export async function qhseFetch(path, init = {}) {
     ? path
     : `${base}${path.startsWith('/') ? path : `/${path}`}`;
   const headers = new Headers(init.headers || undefined);
-  const token = getAuthToken();
+
+  const token = getAccessTokenForRequest() || getAuthToken();
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   } else {
@@ -35,7 +38,24 @@ export async function qhseFetch(path, init = {}) {
     headers.delete('Content-Type');
   }
   const sentBearer = Boolean(token);
-  const res = await fetch(url, { ...init, headers });
+
+  const isRefreshUrl = url.includes('/api/auth/refresh');
+  const isLoginUrl = url.includes('/api/auth/login');
+
+  let res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401 && sentBearer && !isRefreshUrl && !isLoginUrl) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      const retryHeaders = new Headers(init.headers || undefined);
+      retryHeaders.set('Authorization', `Bearer ${newToken}`);
+      if (init.body instanceof FormData) {
+        retryHeaders.delete('Content-Type');
+      }
+      res = await fetch(url, { ...init, headers: retryHeaders });
+    }
+  }
+
   if (res.status === 401 && sentBearer) {
     clearAuthSession();
   }

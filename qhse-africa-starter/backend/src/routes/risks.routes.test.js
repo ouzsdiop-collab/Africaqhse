@@ -21,14 +21,23 @@ vi.mock('../services/auditLog.service.js', () => ({
   writeAuditLog: vi.fn(async () => {})
 }));
 
-vi.mock('../services/riskAnalyze.service.js', () => ({
-  analyzeRiskDescription: vi.fn((description) => ({
+vi.mock('../services/riskAnalyze.service.js', () => {
+  const build = (description) => ({
     category: String(description).includes('chute') ? 'Sécurité' : 'Autre',
     severity: 'moyenne',
     probability: 'moyenne',
-    suggestedActions: ['Action suggérée (test)']
-  }))
-}));
+    suggestedActions: ['Action suggérée (test)'],
+    causes: 'Causes (test).',
+    impacts: 'Impacts (test).'
+  });
+  return {
+    analyzeRiskDescription: vi.fn((description) => build(description)),
+    analyzeRiskDescriptionAsync: vi.fn(async (description) => ({
+      ...build(description),
+      provider: 'rules'
+    }))
+  };
+});
 
 vi.mock('../services/risks.service.js', () => ({
   findAllRisks: vi.fn(async (_tenantId, filters = {}) => applyFilters(store, filters)),
@@ -128,17 +137,18 @@ describe('risks routes', () => {
     expect(res.body).toMatchObject({ title: 'Risque test', ref: 'RSK-101', gp: 12 });
   });
 
-  it('POST /api/risks sans title -> 400', async () => {
+  it('POST /api/risks sans title -> 422 (validation Zod)', async () => {
     const res = await request(app).post('/api/risks').send({ category: 'Sécurité' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain('title');
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(JSON.stringify(res.body.details ?? {})).toMatch(/title/i);
   });
 
-  it('POST /api/risks invalide probability/gravity -> 400', async () => {
-    const p = await request(app).post('/api/risks').send({ title: 'R', probability: 6, gravity: 3 });
-    expect(p.status).toBe(400);
-    const g = await request(app).post('/api/risks').send({ title: 'R', probability: 3, gravity: 0 });
-    expect(g.status).toBe(400);
+  it('POST /api/risks invalide probability/gravity -> 422', async () => {
+    const p = await request(app).post('/api/risks').send({ title: 'RR', probability: 6, gravity: 3 });
+    expect(p.status).toBe(422);
+    const g = await request(app).post('/api/risks').send({ title: 'RR', probability: 3, gravity: 0 });
+    expect(g.status).toBe(422);
   });
 
   it('GET /api/risks/:id existant et inexistant', async () => {
@@ -187,6 +197,7 @@ describe('risks routes', () => {
     const ok = await request(app).post('/api/risks/analyze').send({ description: 'Risque de chute' });
     expect(ok.status).toBe(200);
     expect(ok.body.category).toBe('Sécurité');
+    expect(ok.body.provider).toBe('rules');
     const ko = await request(app).post('/api/risks/analyze').send({ description: '' });
     expect(ko.status).toBe(400);
   });

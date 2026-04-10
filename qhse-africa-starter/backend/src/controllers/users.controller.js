@@ -110,12 +110,24 @@ export async function patchById(req, res, next) {
     }
     const hasPassword = passwordRaw.length > 0;
 
+    const hasOnboardingCompleted = typeof body.onboardingCompleted === 'boolean';
+    let onboardingStepVal;
+    if (body.onboardingStep !== undefined && body.onboardingStep !== null && body.onboardingStep !== '') {
+      const n = Number(body.onboardingStep);
+      if (!Number.isFinite(n) || n < 0 || n > 5) {
+        return res.status(400).json({ error: 'onboardingStep doit être un entier entre 0 et 5' });
+      }
+      onboardingStepVal = Math.floor(n);
+    }
+
     if (
       (name === undefined || name === '') &&
       (roleRaw === undefined || roleRaw === '') &&
-      !hasPassword
+      !hasPassword &&
+      !hasOnboardingCompleted &&
+      onboardingStepVal === undefined
     ) {
-      return res.status(400).json({ error: 'Fournir au moins name, role ou password' });
+      return res.status(400).json({ error: 'Fournir au moins name, role, password ou champs onboarding' });
     }
     if (roleRaw !== undefined && roleRaw !== '' && !isValidRole(roleRaw)) {
       return res.status(400).json({
@@ -127,6 +139,8 @@ export async function patchById(req, res, next) {
     if (name != null && name !== '') patch.name = name;
     if (roleRaw != null && roleRaw !== '') patch.role = roleRaw;
     if (hasPassword) patch.password = passwordRaw;
+    if (hasOnboardingCompleted) patch.onboardingCompleted = body.onboardingCompleted;
+    if (onboardingStepVal !== undefined) patch.onboardingStep = onboardingStepVal;
 
     const updated = await usersService.updateUserInTenant(req.qhseTenantId, id, patch);
     void writeAuditLog({

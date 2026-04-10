@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /** Limite par défaut des listes API (évite findMany illimité). */
 export const LIST_DEFAULT_LIMIT = 300;
 
@@ -162,4 +164,23 @@ export function parseAuditScore(score) {
     return { ok: false, error: 'score doit être entre 0 et 100' };
   }
   return { ok: true, value: Math.round(n * 100) / 100 };
+}
+
+/**
+ * Middleware Express : valide `req.body` avec un schéma Zod.
+ * @param {z.ZodTypeAny} schema
+ */
+export function validateBody(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(422).json({
+        error: 'Donnees invalides',
+        code: 'VALIDATION_ERROR',
+        details: result.error.flatten().fieldErrors
+      });
+    }
+    req.body = result.data;
+    next();
+  };
 }

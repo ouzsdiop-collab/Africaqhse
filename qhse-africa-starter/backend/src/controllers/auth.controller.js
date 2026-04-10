@@ -31,9 +31,14 @@ export async function login(req, res, next) {
     }
 
     const role = String(user.role ?? '').trim().toUpperCase();
-    const token = authService.issueAccessToken(user);
+    const accessToken = authService.issueAccessToken(user);
+    const refreshToken = authService.issueRefreshToken(user);
 
     res.json({
+      accessToken,
+      refreshToken,
+      expiresIn: 3600,
+      token: accessToken,
       user: {
         id: user.id,
         name: user.name,
@@ -41,16 +46,23 @@ export async function login(req, res, next) {
         role
       },
       tenant: authService.MONO_ORG,
-      tenants: tenantsPayloadForUser(role),
-      token
+      tenants: tenantsPayloadForUser(role)
     });
   } catch (err) {
     next(err);
   }
 }
 
-export function logout(req, res) {
-  res.status(204).send();
+export async function logoutHandler(req, res, next) {
+  try {
+    const raw = req.body?.refreshToken;
+    if (typeof raw === 'string' && raw.trim()) {
+      await authService.revokeRefreshToken(raw.trim());
+    }
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**

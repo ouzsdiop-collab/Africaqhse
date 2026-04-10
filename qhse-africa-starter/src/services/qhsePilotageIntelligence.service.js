@@ -5,7 +5,11 @@
 import { computeQhseGlobalScore } from '../utils/dashboardDecisionLayer.js';
 import { risks as seedRisks } from '../data/mock.js';
 import { AUDITS_TO_SCHEDULE } from '../data/conformityStore.js';
-import { riskCriticalityFromMeta } from '../components/riskMatrixPanel.js';
+import {
+  riskCriticalityFromMeta,
+  riskTierFromGp,
+  riskLevelLabelFromTier
+} from '../components/riskMatrixPanel.js';
 import {
   fetchControlledDocumentsFromApi,
   mergeControlledDocumentRows,
@@ -28,6 +32,27 @@ function riskIsCritique(r) {
   if (c && c.tier >= 5) return true;
   const s = String(r?.status || '').toLowerCase();
   return s.includes('critique') || (s.includes('très') && s.includes('élev'));
+}
+
+/**
+ * Aligné sur le mapping API risques (G/P numériques → meta « Gn × Pm »).
+ * @param {object} row
+ */
+function mapApiRiskRowForAssistant(row) {
+  const gRaw = Number(row?.gravity ?? row?.severity ?? 3);
+  const pRaw = Number(row?.probability ?? 3);
+  const g = Number.isFinite(gRaw) && gRaw > 0 ? Math.max(1, Math.min(5, Math.round(gRaw))) : 3;
+  const p = Number.isFinite(pRaw) && pRaw > 0 ? Math.max(1, Math.min(5, Math.round(pRaw))) : 3;
+  const meta = `G${g} × P${p}`;
+  const tier = riskTierFromGp(g, p);
+  const statusLabel = row?.status != null ? String(row.status) : riskLevelLabelFromTier(tier);
+  return {
+    title: String(row?.title || 'Sans titre'),
+    type: String(row?.category || ''),
+    meta,
+    status: statusLabel,
+    actionLinked: row?.actionLinked ?? null
+  };
 }
 
 /**
@@ -75,6 +100,7 @@ export function priorityLabelFromScore(internalScore) {
  *   actions: object[],
  *   audits: object[],
  *   ncs: object[],
+ *   risks?: object[]|null,
  *   siteLabel?: string
  * }} input
  */
@@ -121,8 +147,13 @@ export async function buildAssistantSnapshot(input) {
     overduePreview[0] ||
     (overdue > 0 ? pickFirstOverdueFromActions(actions) : null);
 
-  const criticalRisks = seedRisks.filter(riskIsCritique);
-  const risksSansAction = seedRisks.filter((r) => !r.actionLinked).length;
+  const apiRiskRows = Array.isArray(input.risks) ? input.risks : null;
+  const risksForAssistant =
+    apiRiskRows && apiRiskRows.length > 0
+      ? apiRiskRows.map(mapApiRiskRowForAssistant)
+      : seedRisks;
+  const criticalRisks = risksForAssistant.filter(riskIsCritique);
+  const risksSansAction = risksForAssistant.filter((r) => !r.actionLinked).length;
 
   const auditsSoon = AUDITS_TO_SCHEDULE.length;
 
@@ -245,6 +276,18 @@ export async function buildAssistantSnapshot(input) {
     });
   }
 
+  if (ncOpen >= 3 && recRaw.length < 4) {
+    recRaw.push({
+      id: 'rec-nc-stock',
+      internalScore: 52 + Math.min(ncOpen * 2, 18),
+      title:
+        ncOpen > 5 ? `${ncOpen} NC ouvertes — arbitrage recommandé` : `${ncOpen} NC ouvertes`,
+      detail: 'Prioriser par criticité et jalons de clôture ; éviter l’empilement sans plan.',
+      navigateHash: 'audits',
+      dialogDefaults: null
+    });
+  }
+
   recRaw.sort((a, b) => b.internalScore - a.internalScore);
   const recommendations = recRaw.slice(0, 3).map((r) => {
     const pr = priorityLabelFromScore(r.internalScore);
@@ -259,12 +302,24 @@ export async function buildAssistantSnapshot(input) {
   synthesisParts.push(
     `Score pilotage assisté : ${enriched} % (intègre retards, incidents critiques, documents et risques de la vue).`
   );
-  if (overdue || docSum.expire || critInc) {
+  if (overdue || docSum.expire || critInc || criticalRisks.length) {
     synthesisParts.push(
-      `Points sous tension sur ${site} : ${[overdue && `${overdue} retard(s)`, docSum.expire && `${docSum.expire} doc. expiré(s)`, critInc && `${critInc} incident(s) critique(s)`].filter(Boolean).join(', ') || 'à surveiller'}.`
+      `Points sous tension sur ${site} : ${[
+        overdue && `${overdue} retard(s)`,
+        docSum.expire && `${docSum.expire} doc. expiré(s)`,
+        critInc && `${critInc} incident(s) critique(s)`,
+        criticalRisks.length && `${criticalRisks.length} risque(s) critique(s) (registre)`
+      ]
+        .filter(Boolean)
+        .join(', ') || 'à surveiller'}.`
     );
   } else {
     synthesisParts.push(`Situation relativement maîtrisée sur ${site} — maintenir le suivi des plans.`);
+  }
+  if (apiRiskRows && apiRiskRows.length > 0 && risksSansAction >= 2) {
+    synthesisParts.push(
+      `${risksSansAction} fiche(s) risque sans action liée — renforcer le lien registre risques / plan d’actions.`
+    );
   }
   if (auditsSoon) {
     synthesisParts.push(`${auditsSoon} échéance(s) audit à garder en tête sur le planning affiché.`);
@@ -282,7 +337,8 @@ export async function buildAssistantSnapshot(input) {
       expiredDocs: docSum.expire,
       criticalIncidents: critInc,
       auditsSoon,
-      criticalRisksCount: criticalRisks.length
+      criticalRisksCount: criticalRisks.length,
+      risksSource: apiRiskRows && apiRiskRows.length > 0 ? 'api' : 'demo'
     }
   };
 }

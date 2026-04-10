@@ -72,7 +72,8 @@ export async function createNonConformityWithAction(
         owner: 'À assigner',
         assigneeId: null,
         dueDate: null,
-        siteId
+        siteId,
+        auditId: auditRow?.id ?? null
       }
     });
 

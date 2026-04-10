@@ -206,17 +206,17 @@
 }
 
 /* —— Toasts : état initial + classe .app-toast--in (ajoutée en JS) —— */
-.app-toast {
+.app-toast-live .app-toast {
   opacity: 0;
-  transform: translateX(-50%) translateY(10px);
+  transform: translateY(10px);
   transition:
     opacity var(--qhse-motion-med) var(--qhse-motion-ease-out),
     transform 0.22s var(--qhse-motion-ease-out);
 }
 
-.app-toast.app-toast--in {
+.app-toast-live .app-toast.app-toast--in {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 /* —— Badge notifications topbar —— */
@@ -309,9 +309,9 @@ dialog.incidents-detail-dialog[open] {
     transform: none;
   }
 
-  .app-toast {
+  .app-toast-live .app-toast {
     opacity: 1;
-    transform: translateX(-50%);
+    transform: none;
     transition: none;
   }
 

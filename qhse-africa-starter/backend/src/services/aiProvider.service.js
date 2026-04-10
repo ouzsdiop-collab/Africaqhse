@@ -1,70 +1,126 @@
 /**
- * Fournisseur IA externe — désactivé par défaut (aucune fuite vers le cloud).
- * Activer uniquement avec AI_ALLOW_EXTERNAL=true + OPENAI_API_KEY (+ modèle optionnel).
- * Les données ne sont jamais persistées côté provider par ce module.
+ * Fournisseur IA multi-mode : OpenAI, Mistral ou mock (aucun appel réseau).
+ * Contrôlé par AI_PROVIDER=openai|mistral|mock (défaut : mock si absent ou clés manquantes).
  */
+
+/**
+ * @returns {'openai' | 'mistral' | 'mock'}
+ */
+export function resolveAiProvider() {
+  const p = String(process.env.AI_PROVIDER || 'mock')
+    .toLowerCase()
+    .trim();
+  if (p === 'openai' && String(process.env.OPENAI_API_KEY || '').trim()) {
+    return 'openai';
+  }
+  if (p === 'mistral' && String(process.env.MISTRAL_API_KEY || '').trim()) {
+    return 'mistral';
+  }
+  return 'mock';
+}
 
 /**
  * @returns {boolean}
  */
 export function isExternalAiEnabled() {
-  return (
-    process.env.AI_ALLOW_EXTERNAL === 'true' &&
-    Boolean(process.env.OPENAI_API_KEY && String(process.env.OPENAI_API_KEY).trim().length > 0)
+  return resolveAiProvider() !== 'mock';
+}
+
+/**
+ * @param {string} systemPrompt
+ * @param {string} userMessage
+ * @param {number} [maxTokens=500]
+ * @returns {Promise<{ provider: string, rawText: string | null, error?: string | null }>}
+ */
+export async function callAiProvider(systemPrompt, userMessage, maxTokens = 500) {
+  const mode = resolveAiProvider();
+  if (mode === 'mock') {
+    return { provider: 'mock', rawText: null, error: null };
+  }
+  if (mode === 'openai') {
+    return chatOpenAiCompatible(
+      'https://api.openai.com/v1/chat/completions',
+      String(process.env.OPENAI_API_KEY || '').trim(),
+      'gpt-4o-mini',
+      systemPrompt,
+      userMessage,
+      maxTokens,
+      true
+    );
+  }
+  return chatOpenAiCompatible(
+    'https://api.mistral.ai/v1/chat/completions',
+    String(process.env.MISTRAL_API_KEY || '').trim(),
+    'mistral-small-latest',
+    systemPrompt,
+    userMessage,
+    maxTokens,
+    false
   );
 }
 
 /**
- * Appel optionnel à un LLM pour obtenir du JSON texte — à valider côté app avant usage.
+ * Client HTTP type OpenAI Chat Completions (fetch natif).
+ * @param {boolean} isOpenAi — si true, tente `response_format: json_object` puis repli sans.
+ */
+async function chatOpenAiCompatible(url, apiKey, model, systemPrompt, userMessage, maxTokens, isOpenAi) {
+  const baseBody = {
+    model,
+    temperature: 0.2,
+    max_tokens: Math.min(Math.max(64, maxTokens), 4096),
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ]
+  };
+
+  const attempts = [];
+  if (isOpenAi) {
+    attempts.push({ ...baseBody, response_format: { type: 'json_object' } });
+  }
+  attempts.push(baseBody);
+
+  let lastErr = null;
+  for (const body of attempts) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      const provider = url.includes('mistral') ? 'mistral' : 'openai';
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        lastErr = `HTTP ${res.status} ${t.slice(0, 240)}`;
+        if (res.status === 400 && body.response_format) {
+          continue;
+        }
+        return { provider, rawText: null, error: lastErr };
+      }
+      const data = await res.json();
+      const rawText =
+        data?.choices?.[0]?.message?.content != null
+          ? String(data.choices[0].message.content)
+          : null;
+      return { provider, rawText, error: null };
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+    }
+  }
+  return {
+    provider: isOpenAi ? 'openai' : 'mistral',
+    rawText: null,
+    error: lastErr
+  };
+}
+
+/**
  * @param {{ system: string, user: string }} messages
  * @returns {Promise<{ provider: string, rawText: string | null, error?: string }>}
  */
 export async function requestJsonCompletion(messages) {
-  if (!isExternalAiEnabled()) {
-    return { provider: 'none', rawText: null };
-  }
-
-  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  const key = String(process.env.OPENAI_API_KEY).trim();
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: messages.system },
-          { role: 'user', content: messages.user }
-        ]
-      })
-    });
-
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      return {
-        provider: 'openai',
-        rawText: null,
-        error: `HTTP ${res.status} ${t.slice(0, 200)}`
-      };
-    }
-
-    const data = await res.json();
-    const rawText =
-      data?.choices?.[0]?.message?.content != null
-        ? String(data.choices[0].message.content)
-        : null;
-    return { provider: 'openai', rawText };
-  } catch (e) {
-    return {
-      provider: 'openai',
-      rawText: null,
-      error: e instanceof Error ? e.message : String(e)
-    };
-  }
+  return callAiProvider(messages.system, messages.user, 1200);
 }

@@ -1,5 +1,5 @@
 import { parseRiskMatrixGp, riskCriticalityFromMeta } from './riskMatrixPanel.js';
-import { openRiskSheetModal } from './riskSheetModal.js';
+import { openRiskDetail } from './riskDetailPanel.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { getLinksFor } from '../services/moduleLinks.service.js';
 
@@ -55,6 +55,7 @@ export function computeRiskRowAlerts(r) {
  * @param {() => void} [opts.onRefresh]
  * @param {(riskTitle: string) => void} [opts.onCreatePreventiveAction]
  * @param {(riskTitle: string) => void} [opts.onCreatePtwFromRisk]
+ * @param {(inner: HTMLElement, risk: object) => void} [opts.onSheetBodyReady]
  */
 export function createRiskRegisterRow(risk, opts = {}) {
   const linkedIncidents = Array.isArray(opts.linkedIncidents) ? opts.linkedIncidents : [];
@@ -190,11 +191,12 @@ export function createRiskRegisterRow(risk, opts = {}) {
 
   function openSheet(e) {
     if (e.target.closest('button,a')) return;
-    openRiskSheetModal(risk, {
+    openRiskDetail(risk, {
       linkedIncidents,
       incidentsLinkNote,
       onRefresh: opts.onRefresh,
-      onCreatePreventiveAction: opts.onCreatePreventiveAction
+      onCreatePreventiveAction: opts.onCreatePreventiveAction,
+      onSheetBodyReady: opts.onSheetBodyReady
     });
   }
 

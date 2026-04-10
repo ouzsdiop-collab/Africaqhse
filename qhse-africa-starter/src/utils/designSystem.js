@@ -16,3 +16,59 @@ export const dsAlertTone = {
   info: 'ds-alert--info',
   warning: 'ds-alert--warning'
 };
+
+/**
+ * Carte placeholder animée (chargement).
+ * @param {number} [lines=3]
+ * @returns {HTMLDivElement}
+ */
+export function createSkeletonCard(lines = 3) {
+  const card = document.createElement('div');
+  card.className = 'skeleton-card';
+  const n = Math.max(0, Math.floor(Number(lines)) || 3);
+  for (let i = 0; i < n; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'skeleton-bar';
+    if (i === n - 1) bar.style.marginBottom = '0';
+    card.append(bar);
+  }
+  return card;
+}
+
+/**
+ * Bloc d’état vide cohérent avec le design system.
+ * @param {string} icon Texte ou glyphe affiché en en-tête
+ * @param {string} title
+ * @param {string} subtitle
+ * @param {string} [ctaLabel]
+ * @param {() => void} [ctaAction]
+ * @returns {HTMLDivElement}
+ */
+export function createEmptyState(icon, title, subtitle, ctaLabel, ctaAction) {
+  const root = document.createElement('div');
+  root.className = 'empty-state';
+  const iconEl = document.createElement('div');
+  iconEl.className = 'empty-state__icon';
+  iconEl.setAttribute('aria-hidden', 'true');
+  iconEl.textContent = icon;
+  root.append(iconEl);
+  const h = document.createElement('h3');
+  h.className = 'empty-state__title';
+  h.textContent = title;
+  root.append(h);
+  if (subtitle) {
+    const p = document.createElement('p');
+    p.className = 'empty-state__subtitle';
+    p.textContent = subtitle;
+    root.append(p);
+  }
+  if (ctaLabel && typeof ctaAction === 'function') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-primary empty-state__cta';
+    btn.textContent = ctaLabel;
+    btn.addEventListener('click', () => ctaAction());
+    root.append(btn);
+  }
+  return root;
+}

@@ -15,12 +15,13 @@ export function openActionCreateDialog(opts) {
 
   const dialog = document.createElement('dialog');
   dialog.className = 'action-create-dialog';
+  dialog.setAttribute('aria-labelledby', 'action-create-dialog-title');
 
   const inner = document.createElement('div');
   inner.className = 'action-create-dialog__inner';
 
   inner.innerHTML = `
-    <h2 class="action-create-dialog__title">Nouvelle action</h2>
+    <h2 class="action-create-dialog__title" id="action-create-dialog-title">Nouvelle action</h2>
     <p class="action-create-dialog__lead">L’origine est obligatoire — l’assistant peut préremplir la description et la priorité pour gagner du temps sur le terrain.</p>
     <form class="action-create-dialog__form" id="action-create-form">
       <label>Titre *
@@ -206,4 +207,9 @@ export function openActionCreateDialog(opts) {
 
   dialog.addEventListener('close', () => dialog.remove());
   dialog.showModal();
+  requestAnimationFrame(() => {
+    const firstField = form?.querySelector?.('[name="title"]');
+    if (firstField instanceof HTMLElement) firstField.focus();
+    else inner.querySelector('button[type="submit"]')?.focus?.();
+  });
 }

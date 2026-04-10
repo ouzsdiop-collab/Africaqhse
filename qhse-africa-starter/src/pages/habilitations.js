@@ -5,13 +5,14 @@
 
 import { ensureHabilitationsStyles } from '../components/habilitationsStyles.js';
 import {
-  HABILITATIONS_DEMO_ROWS,
   HABILITATIONS_STATUS_LABEL as STATUS_LABEL,
   computeHabilitationsKpis,
   computeHabilitationsBySite,
   computeHabilitationsByService,
   habDaysUntil
 } from '../data/habilitationsDemo.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
 import {
   sortHabilitationsByCriticality,
   habRowIsBlockedCritical,
@@ -25,6 +26,55 @@ import {
   downloadHabilitationsConformitePdf
 } from '../services/habilitationsExport.service.js';
 import { showToast } from '../components/toast.js';
+
+/**
+ * @param {Record<string, unknown>} api
+ */
+function mapApiHabilitation(api) {
+  const user = api.user && typeof api.user === 'object' ? api.user : {};
+  const site = api.siteRecord && typeof api.siteRecord === 'object' ? api.siteRecord : null;
+  const uid = typeof user.id === 'string' ? user.id : '';
+  const vf = api.validFrom ? String(api.validFrom).slice(0, 10) : '';
+  const vu = api.validUntil ? String(api.validUntil).slice(0, 10) : '';
+  const until = api.validUntil ? new Date(String(api.validUntil)) : null;
+  const untilOk = until && !Number.isNaN(until.getTime()) ? until : null;
+  const days =
+    untilOk != null
+      ? Math.ceil((untilOk.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      : 9999;
+
+  let statut = 'valide';
+  const st = String(api.status ?? 'active').toLowerCase();
+  if (st === 'expiree' || st === 'expired') statut = 'expiree';
+  else if (st === 'suspendue' || st === 'suspended') statut = 'suspendue';
+  else if (st === 'en_attente' || st === 'pending') statut = 'en_attente';
+  else if (st === 'incomplete') statut = 'incomplete';
+  else if (st === 'expire_bientot') statut = 'expire_bientot';
+  else if (st === 'active' || st === 'valide') {
+    if (untilOk && untilOk < new Date()) statut = 'expiree';
+    else if (days >= 0 && days <= 30) statut = 'expire_bientot';
+    else statut = 'valide';
+  }
+
+  return {
+    id: String(api.id ?? ''),
+    _userId: uid,
+    collaborateur: typeof user.name === 'string' && user.name ? user.name : '—',
+    entreprise: '—',
+    matricule: uid.length >= 8 ? uid.slice(-8) : uid || '—',
+    poste: typeof user.role === 'string' && user.role ? user.role : '—',
+    service: '—',
+    site: site && typeof site.name === 'string' ? site.name : '—',
+    type: typeof api.type === 'string' ? api.type : '—',
+    niveau: api.level != null ? String(api.level) : '',
+    delivrance: vf || '—',
+    expiration: vu || '—',
+    organisme: '',
+    justificatif: true,
+    statut,
+    remarques: ''
+  };
+}
 
 function daysUntil(dateIso) {
   return habDaysUntil(dateIso);
@@ -73,6 +123,38 @@ export function renderHabilitations() {
   const page = document.createElement('section');
   page.className = 'page-stack habilitations-page';
 
+  const dataState = { rows: [], loading: true, error: null };
+
+  function allRows() {
+    return dataState.rows;
+  }
+
+  async function loadHabilitations() {
+    dataState.loading = true;
+    dataState.error = null;
+    render();
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/habilitations'));
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        const msg = typeof j.error === 'string' ? j.error : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      const raw = await res.json().catch(() => []);
+      dataState.rows = Array.isArray(raw) ? raw.map(mapApiHabilitation) : [];
+      if (!state.selectedId && dataState.rows[0]) {
+        state.selectedId = dataState.rows[0].id;
+      }
+    } catch (e) {
+      dataState.error = e;
+      dataState.rows = [];
+      showToast('Impossible de charger les habilitations.', 'warning');
+    } finally {
+      dataState.loading = false;
+      render();
+    }
+  }
+
   /** En-tête éditorial — un seul bloc titre, hiérarchie SaaS */
   const pageHead = document.createElement('header');
   pageHead.className = 'hab-page-head';
@@ -97,7 +179,7 @@ export function renderHabilitations() {
     type: '',
     expiration: '',
     subcontractorOnly: false,
-    selectedId: HABILITATIONS_DEMO_ROWS[0]?.id || null
+    selectedId: null
   };
 
   try {
@@ -173,7 +255,7 @@ export function renderHabilitations() {
   commandBar.append(tabs, exportBar);
 
   function currentRows() {
-    return HABILITATIONS_DEMO_ROWS.filter((r) => {
+    return allRows().filter((r) => {
       const text = `${r.collaborateur} ${r.entreprise} ${r.poste} ${r.type} ${r.site}`.toLowerCase();
       if (state.q && !text.includes(state.q.toLowerCase())) return false;
       if (state.site && r.site !== state.site) return false;
@@ -415,9 +497,9 @@ export function renderHabilitations() {
       }),
       mk('PDF fiche', 'btn-ghost', async () => {
         const hit =
-          HABILITATIONS_DEMO_ROWS.find((r) => r.id === state.selectedId) || rows[0] || HABILITATIONS_DEMO_ROWS[0];
+          allRows().find((r) => r.id === state.selectedId) || rows[0] || allRows()[0];
         if (!hit) return;
-        const pr = HABILITATIONS_DEMO_ROWS.filter((r) => r.matricule === hit.matricule);
+        const pr = allRows().filter((r) => r._userId === hit._userId);
         await downloadHabilitationsPdf({
           title: `Fiche habilitations — ${hit.collaborateur}`,
           subtitle: `${hit.poste} · ${hit.entreprise} · ${hit.site}`,
@@ -449,10 +531,11 @@ export function renderHabilitations() {
   }
 
   function renderFilters() {
-    const sites = [...new Set(HABILITATIONS_DEMO_ROWS.map((r) => r.site))];
-    const services = [...new Set(HABILITATIONS_DEMO_ROWS.map((r) => r.service))];
-    const entreprises = [...new Set(HABILITATIONS_DEMO_ROWS.map((r) => r.entreprise))];
-    const types = [...new Set(HABILITATIONS_DEMO_ROWS.map((r) => r.type))];
+    const rows = allRows();
+    const sites = [...new Set(rows.map((r) => r.site))];
+    const services = [...new Set(rows.map((r) => r.service))];
+    const entreprises = [...new Set(rows.map((r) => r.entreprise))];
+    const types = [...new Set(rows.map((r) => r.type))];
     return `
       <div class="hab-filters">
         <input class="control-input" data-hab-filter="q" placeholder="Nom, poste, habilitation…" value="${state.q.replace(/"/g, '&quot;')}" />
@@ -555,11 +638,15 @@ export function renderHabilitations() {
 
   function renderFiche(rows) {
     const hit =
-      HABILITATIONS_DEMO_ROWS.find((r) => r.id === state.selectedId) ||
-      rows[0] ||
-      HABILITATIONS_DEMO_ROWS[0];
-    if (!hit) return document.createElement('div');
-    const personRows = HABILITATIONS_DEMO_ROWS.filter((r) => r.matricule === hit.matricule);
+      allRows().find((r) => r.id === state.selectedId) || rows[0] || allRows()[0];
+    if (!hit) {
+      const empty = document.createElement('div');
+      empty.className = 'content-card card-soft';
+      empty.innerHTML =
+        '<p class="ptw-mini">Aucune habilitation chargée — vérifiez l’API ou les droits d’accès.</p>';
+      return empty;
+    }
+    const personRows = allRows().filter((r) => r._userId === hit._userId);
     const personAlerts = personRows.filter(
       (r) => r.statut === 'expiree' || r.statut === 'expire_bientot' || r.statut === 'incomplete' || !r.justificatif
     );
@@ -707,9 +794,15 @@ export function renderHabilitations() {
     const rows = currentRows();
     const scopeBadge = pageHead.querySelector('[data-hab-scope-badge]');
     if (scopeBadge) {
-      scopeBadge.textContent = habFiltersActive()
-        ? `${rows.length} résultat(s) — ${filtersText()}`
-        : `${rows.length} habilitation(s) — registre affiché`;
+      if (dataState.loading) {
+        scopeBadge.textContent = 'Chargement du registre…';
+      } else if (dataState.error) {
+        scopeBadge.textContent = 'Registre indisponible — données non chargées';
+      } else {
+        scopeBadge.textContent = habFiltersActive()
+          ? `${rows.length} résultat(s) — ${filtersText()}`
+          : `${rows.length} habilitation(s) — registre affiché`;
+      }
     }
     renderRiskOperational(rows);
     renderKpisSecondary(rows);
@@ -733,5 +826,6 @@ export function renderHabilitations() {
 
   page.append(pageHead, cockpit, commandBar, viewHost);
   render();
+  void loadHabilitations();
   return page;
 }

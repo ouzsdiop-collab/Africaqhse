@@ -11,6 +11,8 @@ import {
 import { addMockIncidentRefToRisk } from '../utils/riskMockIncidentLinks.js';
 import { showToast } from './toast.js';
 
+export { openRiskCreateDialog as openRiskDialog } from './riskFormDialog.js';
+
 const STYLE_ID = 'qhse-risk-sheet-modal-styles';
 
 const CSS = `
@@ -93,6 +95,9 @@ function defaultHistory(r) {
  *   incidentsLinkNote?: string;
  *   onRefresh?: () => void;
  *   onCreatePreventiveAction?: (riskTitle: string) => void;
+ *   onClose?: () => void;
+ *   onEdit?: (risk: object) => void;
+ *   onSheetBodyReady?: (inner: HTMLElement, risk: object) => void;
  * }} ctx
  */
 export function openRiskSheetModal(risk, ctx = {}) {
@@ -105,6 +110,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
 
   const dialog = document.createElement('dialog');
   dialog.className = 'risk-sheet-modal';
+  dialog.setAttribute('aria-labelledby', 'risk-sheet-modal-title');
 
   const inner = document.createElement('div');
   inner.className = 'risk-sheet-modal__inner';
@@ -113,13 +119,26 @@ export function openRiskSheetModal(risk, ctx = {}) {
   head.className = 'risk-sheet-modal__head';
   const h2 = document.createElement('h2');
   h2.className = 'risk-sheet-modal__title';
+  h2.id = 'risk-sheet-modal-title';
   h2.textContent = risk.title || 'Fiche risque';
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'risk-sheet-modal__close';
   closeBtn.textContent = 'Fermer';
   closeBtn.addEventListener('click', () => dialog.close());
-  head.append(h2, closeBtn);
+  if (typeof ctx.onEdit === 'function') {
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'risk-sheet-modal__close';
+    editBtn.textContent = 'Modifier';
+    editBtn.style.marginRight = '8px';
+    editBtn.addEventListener('click', () => {
+      ctx.onEdit(risk);
+    });
+    head.append(h2, editBtn, closeBtn);
+  } else {
+    head.append(h2, closeBtn);
+  }
 
   const grid = document.createElement('div');
   grid.className = 'risk-sheet-modal__grid';
@@ -342,14 +361,28 @@ export function openRiskSheetModal(risk, ctx = {}) {
   grid.append(section('Historique des modifications', histUl));
 
   inner.append(head, grid);
+  if (typeof ctx.onSheetBodyReady === 'function') {
+    try {
+      ctx.onSheetBodyReady(inner, risk);
+    } catch (e) {
+      console.warn('[riskSheetModal] onSheetBodyReady', e);
+    }
+  }
   dialog.append(inner);
   document.body.append(dialog);
 
-  dialog.addEventListener('close', () => dialog.remove());
+  dialog.addEventListener('close', () => {
+    try {
+      ctx.onClose?.();
+    } finally {
+      dialog.remove();
+    }
+  });
   dialog.addEventListener('click', (e) => {
     if (e.target === dialog) dialog.close();
   });
   dialog.showModal();
+  requestAnimationFrame(() => closeBtn.focus());
 }
 
 function splitDetail(detail) {

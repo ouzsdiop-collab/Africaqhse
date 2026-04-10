@@ -12,6 +12,7 @@ import { isDemoMode } from '../services/demoMode.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { getActiveTenant } from '../data/sessionUser.js';
 import { getTheme, toggleTheme, THEME_CHANGED_EVENT } from '../utils/theme.js';
+import { syncNetworkIndicatorUi } from '../utils/networkStatus.js';
 
 const STYLE_ID = 'qhse-topbar-v2-styles';
 
@@ -97,7 +98,7 @@ function ensureTopbarV2Styles() {
 .topbar-v2__nav-toggle svg {
   display: block;
 }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   [data-display-mode="expert"] .topbar-v2__nav-toggle {
     display: inline-flex;
   }
@@ -109,6 +110,19 @@ function ensureTopbarV2Styles() {
   flex-direction: column;
   justify-content: center;
   gap: 3px;
+}
+.topbar-v2__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+  min-width: 0;
+}
+.topbar-v2__title-row .topbar-v2__page-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
 }
 .topbar-v2__page-title {
   margin: 0;
@@ -502,7 +516,7 @@ function ensureTopbarV2Styles() {
 [data-display-mode="terrain"] .display-mode-switch {
   border-color: color-mix(in srgb, var(--color-primary-border) 45%, var(--color-border));
 }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .topbar-v2 .display-mode-switch {
     display: none !important;
   }
@@ -725,6 +739,12 @@ export function createTopbar({
 
   const safeUnread = Math.max(0, Number(unreadCount) || 0);
   const badgeLabel = safeUnread > 99 ? '99+' : String(safeUnread);
+  const notifBadgeAriaLabel =
+    safeUnread === 1
+      ? '1 notification non lue'
+      : safeUnread > 1
+        ? `${safeUnread} notifications non lues`
+        : '';
   const mode = getDisplayMode();
   const dashboardIntentLast = readDashboardIntentLast();
 
@@ -734,7 +754,9 @@ export function createTopbar({
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <div class="topbar-v2__lead">
-        <p class="topbar-v2__page-title" data-tb2-page-title></p>
+        <div class="topbar-v2__title-row">
+          <p class="topbar-v2__page-title" data-tb2-page-title></p>
+        </div>
         <div class="topbar-v2__breadcrumb" data-tb2-breadcrumb></div>
         <p class="topbar-v2__tenant" data-tb2-tenant hidden></p>
       </div>
@@ -758,10 +780,10 @@ export function createTopbar({
       <div class="topbar-v2__trailing">
         <span class="topbar-v2__demo-pill" hidden data-topbar-demo-pill title="Exploration : données d’illustration pour prise en main (hors production)">Essai</span>
         <span class="topbar-v2__notif-wrap">
-          <button type="button" class="topbar-v2__notif notification-toggle" aria-label="Notifications${safeUnread ? ` (${safeUnread} non lues)` : ''}">
+          <button type="button" class="topbar-v2__notif notification-toggle" aria-label="Ouvrir les notifications${safeUnread ? ` — ${safeUnread} non lues` : ''}">
             <span class="topbar-v2__notif-icon" aria-hidden="true">${ICON_BELL_SVG}</span>
           </button>
-          <span class="topbar-v2__notif-badge${safeUnread ? ' topbar-v2__notif-badge--visible' : ''}" ${safeUnread ? '' : 'hidden'} data-notif-badge>${badgeLabel}</span>
+          <span class="topbar-v2__notif-badge${safeUnread ? ' topbar-v2__notif-badge--visible' : ''}" role="status" aria-live="polite" aria-atomic="true"${safeUnread ? ` aria-label="${notifBadgeAriaLabel}"` : ' aria-hidden="true"'} ${safeUnread ? '' : 'hidden'} data-notif-badge>${badgeLabel}</span>
         </span>
         <button type="button" class="topbar-v2__theme" data-theme-toggle title="Thème clair" aria-label="Activer le thème clair">
           <span class="topbar-v2__theme-icon" aria-hidden="true"></span>
@@ -773,6 +795,7 @@ export function createTopbar({
         <button type="button" class="topbar-v2__ai topbar-ai-btn topbar-v2__ai--subtle" aria-label="Centre IA">
           <span aria-hidden="true">✦</span>
         </button>
+        <span id="network-indicator" title="Statut reseau"></span>
         <button type="button" class="topbar-v2__profile-btn topbar-v2__avatar-wrap" aria-label="Ouvrir les paramètres">
           <span class="topbar-v2__avatar" aria-hidden="true"></span>
           <span class="visually-hidden topbar-v2__user-name"></span>
@@ -814,6 +837,7 @@ export function createTopbar({
   if (titleEl) {
     titleEl.textContent = pageTitleForTopbar(currentPage);
   }
+  syncNetworkIndicatorUi();
 
   const breadcrumbHost = header.querySelector('[data-tb2-breadcrumb]');
   if (breadcrumbHost) {
