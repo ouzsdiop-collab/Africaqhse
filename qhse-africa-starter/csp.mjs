@@ -1,8 +1,8 @@
 /**
- * Politique CSP pour le front (build / `vite preview` / balise meta injectée).
+ * Référence CSP (alignement possible avec Helmet côté API).
  *
- * Build : `vite.config.js` fusionne `DEFAULT_PROD_API_ORIGINS` et l’origine dérivée de
- * `VITE_API_BASE` puis appelle `buildContentSecurityPolicy()` pour la meta injectée.
+ * Vite n’injecte plus de meta CSP ni d’en-tête sur `vite preview` : la politique effective
+ * est celle renvoyée par le backend (Helmet) pour les réponses HTML/API servies par Express.
  *
  * Si une **en-tête HTTP** `Content-Security-Policy` est aussi envoyée par l’hébergeur
  * (Railway, CDN…), les deux politiques s’appliquent **en même temps** : chaque requête

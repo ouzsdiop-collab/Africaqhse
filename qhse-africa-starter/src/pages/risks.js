@@ -10,7 +10,6 @@ import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { showToast } from '../components/toast.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
-import { getMergedIncidentsForRisk } from '../utils/riskMockIncidentLinks.js';
 import { createRiskManagerReadingCard } from '../components/riskManagerReading.js';
 import { activityLogStore } from '../data/activityLog.js';
 import { appState } from '../utils/state.js';
@@ -28,6 +27,48 @@ export { openRiskDetail } from '../components/riskDetailPanel.js';
 
 const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
 
+/** Marqueur `[Risque lié: …]` dans la description d’incident (aligné API incidents). */
+const RISK_LINK_RE = /\[Risque lié:\s*([^\]]+?)\]/gi;
+
+function normalizeRiskLinkTitle(t) {
+  return String(t || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function descriptionLinksToRisk(description, riskTitle) {
+  const wanted = normalizeRiskLinkTitle(riskTitle);
+  if (!wanted || typeof description !== 'string') return false;
+  RISK_LINK_RE.lastIndex = 0;
+  let m;
+  while ((m = RISK_LINK_RE.exec(description)) !== null) {
+    if (normalizeRiskLinkTitle(m[1]) === wanted) return true;
+  }
+  return false;
+}
+
+/**
+ * Incidents dont la description référence le titre du risque (pas de mock session).
+ * @param {Array<{ description?: string, ref?: string, type?: string, status?: string, createdAt?: string }>} rows
+ * @param {string} riskTitle
+ */
+function incidentsLinkedToRiskFromRows(rows, riskTitle) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((r) => descriptionLinksToRisk(r?.description, riskTitle))
+    .map((r) => ({
+      ref: r.ref || '—',
+      type: r.type || '—',
+      status: r.status || '—',
+      date: r.createdAt
+        ? new Date(r.createdAt).toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          })
+        : '—'
+    }));
+}
+
 function consumeDashboardIntent() {
   try {
     const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
@@ -40,20 +81,46 @@ function consumeDashboardIntent() {
   }
 }
 
-/** Série locale pour graphique évolution (hors API). */
-const RISK_EVOLUTION_SERIES = [
-  { m: 'Déc', crit: 1, avgScore: 14 },
-  { m: 'Jan', crit: 2, avgScore: 15 },
-  { m: 'Fév', crit: 2, avgScore: 16 },
-  { m: 'Mar', crit: 3, avgScore: 17 },
-  { m: 'Avr', crit: 2, avgScore: 16 }
-];
+const MONTH_SHORT_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
-const RISK_DOCS_MOCK = [
-  { label: 'PV revue des risques — 28/03/2026', kind: 'Document' },
-  { label: 'Contrôle rétention hydrocarbures — constat', kind: 'Contrôle' },
-  { label: 'Export matrice G×P — version consolidée', kind: 'Document' }
-];
+/**
+ * Histogramme mensuel : nb. fiches critiques + score moyen G×P (données registre chargées).
+ * @param {Array<{ meta?: string, updatedAt?: string }>} uiRisks
+ */
+function buildEvolutionSeriesFromRisks(uiRisks, maxMonths = 6) {
+  if (!Array.isArray(uiRisks) || !uiRisks.length) return [];
+  /** @type {Map<string, { crit: number, sumGp: number, n: number }>} */
+  const byMonth = new Map();
+  uiRisks.forEach((r) => {
+    const gp = parseRiskMatrixGp(r.meta);
+    const product = gp ? gp.g * gp.p : 0;
+    const crit = riskTierBucket(r) === 'critique' ? 1 : 0;
+    const dStr = r.updatedAt || '';
+    const d = dStr ? new Date(String(dStr)) : null;
+    if (!d || Number.isNaN(d.getTime())) return;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const cur = byMonth.get(key) || { crit: 0, sumGp: 0, n: 0 };
+    cur.crit += crit;
+    if (product > 0) {
+      cur.sumGp += product;
+      cur.n += 1;
+    }
+    byMonth.set(key, cur);
+  });
+  const keys = [...byMonth.keys()].sort();
+  const tail = keys.slice(-maxMonths);
+  return tail.map((k) => {
+    const parts = k.split('-');
+    const monthNum = Number(parts[1]) || 1;
+    const agg = byMonth.get(k) || { crit: 0, sumGp: 0, n: 0 };
+    const avgScore = agg.n > 0 ? Math.round((agg.sumGp / agg.n) * 10) / 10 : 0;
+    return {
+      m: MONTH_SHORT_FR[monthNum - 1] || k,
+      crit: agg.crit,
+      avgScore: avgScore > 0 ? avgScore : 0
+    };
+  });
+}
 
 function countRiskLevels(list) {
   let critique = 0;
@@ -185,13 +252,6 @@ function levelToNum(v) {
   return 3;
 }
 
-function numToLevel(n) {
-  const x = Number(n) || 3;
-  if (x >= 4) return 'élevée';
-  if (x <= 2) return 'faible';
-  return 'moyenne';
-}
-
 function mapApiRiskToUi(row) {
   const gRaw = Number(row?.gravity ?? row?.severity ?? row?.level ?? 3);
   const pRaw = Number(row?.probability ?? 3);
@@ -275,9 +335,25 @@ async function fetchRisksApi(filters = {}) {
   if (filters.category) qs.set('category', String(filters.category));
   if (filters.q) qs.set('q', String(filters.q));
   const res = await qhseFetch(withSiteQuery(`/api/risks?${qs.toString()}`));
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const list = await res.json().catch(() => []);
-  return Array.isArray(list) ? list.map(mapApiRiskToUi) : [];
+  if (res.status === 401) {
+    showToast('Session expirée — reconnectez-vous pour charger les risques.', 'warning');
+    throw new Error('401');
+  }
+  if (res.status === 403) {
+    showToast('Accès au registre des risques refusé pour ce profil.', 'warning');
+    throw new Error('403');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const msg =
+      body && typeof body === 'object' && typeof body.error === 'string' && body.error.trim()
+        ? body.error.trim()
+        : `Erreur ${res.status}`;
+    throw new Error(msg);
+  }
+  const raw = await res.json().catch(() => []);
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' && Array.isArray(raw.items) ? raw.items : [];
+  return list.map((row) => mapApiRiskToUi(row && typeof row === 'object' ? row : {}));
 }
 
 const RISKS_LIST_CACHE_KEY = 'qhse.cache.risks.list.v1';
@@ -695,19 +771,32 @@ export function renderRisks() {
         <div>
           <div class="section-kicker">Évolution</div>
           <h3>Tendance</h3>
-          <p class="content-card-lead risks-evolution-card__lead">Risques critiques et score moyen G×P — évolution sur la période affichée (indicateurs alimentés par vos données).</p>
+          <p class="content-card-lead risks-evolution-card__lead">Risques en palier critique et score moyen G×P par mois de dernière mise à jour — calculé à partir du registre chargé via l’API.</p>
         </div>
       </div>
       <div class="risks-evolution-chart" data-risks-evolution-chart></div>
     `;
     const chartHost = art.querySelector('[data-risks-evolution-chart]');
-    const maxCrit = Math.max(...RISK_EVOLUTION_SERIES.map((x) => x.crit), 1);
-    const maxAvg = Math.max(...RISK_EVOLUTION_SERIES.map((x) => x.avgScore), 1);
-    RISK_EVOLUTION_SERIES.forEach((pt) => {
+    const series = buildEvolutionSeriesFromRisks(localRisks, 6);
+    if (!series.length) {
+      const empty = document.createElement('p');
+      empty.className = 'ptw-mini';
+      empty.style.padding = '12px 0';
+      empty.textContent =
+        risksLoading || !localRisks.length
+          ? 'Chargement ou aucune donnée — le graphique s’affichera après synchronisation du registre.'
+          : 'Pas assez de dates de mise à jour pour agréger par mois — vérifiez les champs date côté API.';
+      chartHost.append(empty);
+      evolutionHost.append(art);
+      return;
+    }
+    const maxCrit = Math.max(...series.map((x) => x.crit), 1);
+    const maxAvg = Math.max(...series.map((x) => x.avgScore), 1);
+    series.forEach((pt) => {
       const row = document.createElement('div');
       row.className = 'risks-evolution-chart__row';
       const hCrit = (pt.crit / maxCrit) * 100;
-      const hAvg = (pt.avgScore / maxAvg) * 100;
+      const hAvg = maxAvg > 0 ? (pt.avgScore / maxAvg) * 100 : 0;
       row.innerHTML = `
         <span class="risks-evolution-chart__lbl">${escapeHtml(pt.m)}</span>
         <div class="risks-evolution-chart__bars">
@@ -739,15 +828,34 @@ export function renderRisks() {
     const h = document.createElement('div');
     h.className = 'content-card-head content-card-head--tight';
     h.innerHTML =
-      '<div><div class="section-kicker">Preuves & contrôles</div><h3>Documents liés</h3><p class="content-card-lead risks-proofs-card__lead">Pièces et contrôles rattachés à la fiche risque (référentiel documentaire).</p></div>';
+      '<div><div class="section-kicker">Preuves & contrôles</div><h3>Liaisons incidents (API)</h3><p class="content-card-lead risks-proofs-card__lead">Risques référencés dans la description d’incidents via le marqueur <code>[Risque lié: …]</code> — données issues de GET /api/incidents.</p></div>';
     const ul = document.createElement('ul');
     ul.className = 'risks-proofs-list';
-    RISK_DOCS_MOCK.forEach((d) => {
+    const lines = [];
+    localRisks.forEach((r) => {
+      const title = String(r.title || '').trim();
+      if (!title) return;
+      const linked = incidentsLinkedToRiskFromRows(incidentRowsRaw, title);
+      if (!linked.length) return;
+      lines.push({
+        kind: 'Incident',
+        label: `${title} — ${linked.length} lien(s) : ${linked.map((x) => String(x.ref)).join(', ')}`
+      });
+    });
+    if (!lines.length) {
       const li = document.createElement('li');
       li.className = 'risks-proofs-item';
-      li.innerHTML = `<span class="risks-proofs-item__kind">${escapeHtml(d.kind)}</span><span class="risks-proofs-item__label">${escapeHtml(d.label)}</span>`;
+      li.innerHTML =
+        '<span class="risks-proofs-item__kind">—</span><span class="risks-proofs-item__label">Aucune preuve de liaison incident ↔ risque sur les données chargées. Ajoutez le marqueur dans la description d’incident ou vérifiez le chargement des listes.</span>';
       ul.append(li);
-    });
+    } else {
+      lines.slice(0, 40).forEach((d) => {
+        const li = document.createElement('li');
+        li.className = 'risks-proofs-item';
+        li.innerHTML = `<span class="risks-proofs-item__kind">${escapeHtml(d.kind)}</span><span class="risks-proofs-item__label">${escapeHtml(d.label)}</span>`;
+        ul.append(li);
+      });
+    }
     art.append(h, ul);
     proofsHost.append(art);
   }
@@ -850,7 +958,7 @@ export function renderRisks() {
   const matrixHead = document.createElement('div');
   matrixHead.className = 'content-card-head content-card-head--tight';
   matrixHead.innerHTML =
-    '<div><div class="section-kicker">Matrice centrale</div><h3>Gravité × Probabilité</h3><p class="content-card-lead risks-matrix-card-prominent__lead">Survol : aperçu des fiches · Clic sur une case remplie : filtre le registre. <abbr title="Produit Gravité × Probabilité (1–25), priorisation relative ISO.">G×P</abbr> explicite sur chaque fiche.</p></div>';
+    '<div><div class="section-kicker">Matrice centrale</div><h3>Matrice gravité × probabilité (G×P)</h3><p class="content-card-lead risks-matrix-card-prominent__lead">Grille 5×5 : axes gravité (G) et probabilité (P) issus de l’API — chaque fiche est positionnée d’après ses champs gravité / probabilité. Survol : aperçu · clic sur une case remplie : filtre le registre.</p></div>';
   matrixCard.append(matrixHead, matrixStatusLine, matrixPanel.element);
 
   function updateMatrixStatusLine() {
@@ -1154,7 +1262,7 @@ export function renderRisks() {
 
     rows.forEach((r) => {
       const frag = createRiskRegisterRow(r, {
-        linkedIncidents: getMergedIncidentsForRisk(String(r.title || ''), incidentRowsRaw),
+        linkedIncidents: incidentsLinkedToRiskFromRows(incidentRowsRaw, String(r.title || '')),
         incidentsLinkNote,
         onRefresh: () => void refreshAll(),
         onCreatePreventiveAction: (title) => {
@@ -1275,10 +1383,15 @@ export function renderRisks() {
         localRisks = fallback;
       } else {
         localRisks = [];
-        showToast(
-          'Impossible de charger le registre des risques depuis le serveur.',
-          'error'
-        );
+        const em = err instanceof Error ? err.message : '';
+        if (em !== '401' && em !== '403') {
+          showToast(
+            em && !/^HTTP \d+$/.test(em)
+              ? em
+              : 'Impossible de charger le registre des risques depuis le serveur.',
+            'error'
+          );
+        }
       }
     } finally {
       risksLoading = false;
@@ -1514,7 +1627,7 @@ export function renderRisks() {
   const secondarySum = document.createElement('summary');
   secondarySum.className = 'risks-page__secondary-summary';
   secondarySum.innerHTML =
-    '<span class="risks-page__secondary-title">Tendances & documents</span><span class="risks-page__secondary-badge">local</span>';
+    '<span class="risks-page__secondary-title">Tendances & liaisons</span><span class="risks-page__secondary-badge">API</span>';
   const secondaryBody = document.createElement('div');
   secondaryBody.className = 'risks-page__secondary-body';
   secondaryBody.append(evolutionHost, proofsHost);

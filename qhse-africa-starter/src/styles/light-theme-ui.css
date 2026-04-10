@@ -209,6 +209,21 @@ html[data-theme='light'] .card-soft,
 html[data-theme='light'] .ds-card {
   border: 1px solid rgba(15, 23, 42, 0.12);
   box-shadow: var(--shadow-card);
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease;
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .page-stack .content-card.card-soft:hover,
+  html[data-theme='light'] .page-stack article.card-soft.content-card:hover {
+    border-color: rgba(15, 23, 42, 0.16);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 4px 20px rgba(15, 23, 42, 0.1);
+    transform: translateY(-2px);
+  }
 }
 
 html[data-theme='light'] .card-soft {
@@ -230,6 +245,13 @@ html[data-theme='light'] .content-card .content-card-head:not(:last-child) {
 html[data-theme='light'] .section-kicker {
   color: var(--palette-primary);
   opacity: 1;
+}
+
+/* Badge info (statuts ouverts / « À suivre ») : contraste sur cartes teintées teal */
+html[data-theme='light'] .ds-badge--info {
+  color: #0f766e;
+  background: color-mix(in srgb, var(--palette-accent) 14%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--palette-accent) 38%, var(--surface-1));
 }
 
 html[data-theme='light'] .content-card-lead,

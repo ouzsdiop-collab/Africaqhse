@@ -1,6 +1,6 @@
 /**
  * Module Habilitations — pilotage conformité opérationnelle (terrain / industrie).
- * Données d’illustration côté client ; exports locaux CSV / XLSX / PDF.
+ * Liste chargée via GET /api/habilitations ; exports locaux CSV / XLSX / PDF.
  */
 
 import { ensureHabilitationsStyles } from '../components/habilitationsStyles.js';
@@ -26,6 +26,21 @@ import {
   downloadHabilitationsConformitePdf
 } from '../services/habilitationsExport.service.js';
 import { showToast } from '../components/toast.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, unknown>[]}
+ */
+function normalizeHabilitationsPayload(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === 'object') {
+    const o = /** @type {Record<string, unknown>} */ (raw);
+    const nested = o.items ?? o.data ?? o.habilitations ?? o.rows;
+    if (Array.isArray(nested)) return nested;
+  }
+  return [];
+}
 
 /**
  * @param {Record<string, unknown>} api
@@ -56,10 +71,18 @@ function mapApiHabilitation(api) {
     else statut = 'valide';
   }
 
+  const hasDoc =
+    api.justificatif === true ||
+    api.hasDocument === true ||
+    (typeof api.documentUrl === 'string' && api.documentUrl.length > 0);
+
   return {
     id: String(api.id ?? ''),
     _userId: uid,
-    collaborateur: typeof user.name === 'string' && user.name ? user.name : '—',
+    collaborateur:
+      (typeof user.name === 'string' && user.name) ||
+      (typeof user.email === 'string' && user.email) ||
+      '—',
     entreprise: '—',
     matricule: uid.length >= 8 ? uid.slice(-8) : uid || '—',
     poste: typeof user.role === 'string' && user.role ? user.role : '—',
@@ -69,10 +92,10 @@ function mapApiHabilitation(api) {
     niveau: api.level != null ? String(api.level) : '',
     delivrance: vf || '—',
     expiration: vu || '—',
-    organisme: '',
-    justificatif: true,
+    organisme: typeof api.organisme === 'string' ? api.organisme : '',
+    justificatif: hasDoc,
     statut,
-    remarques: ''
+    remarques: typeof api.remarques === 'string' ? api.remarques : typeof api.notes === 'string' ? api.notes : ''
   };
 }
 
@@ -135,20 +158,37 @@ export function renderHabilitations() {
     render();
     try {
       const res = await qhseFetch(withSiteQuery('/api/habilitations'));
+      const rawBody = res.ok
+        ? await res.json().catch(() => [])
+        : await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        const msg = typeof j.error === 'string' ? j.error : `HTTP ${res.status}`;
-        throw new Error(msg);
+        const j = rawBody && typeof rawBody === 'object' ? /** @type {Record<string, unknown>} */ (rawBody) : {};
+        const apiMsg = typeof j.error === 'string' && j.error.trim() ? j.error.trim() : '';
+        let msg = apiMsg || `Erreur serveur (${res.status})`;
+        if (res.status === 401) msg = 'Session expirée — reconnectez-vous pour voir les habilitations.';
+        if (res.status === 403) msg = 'Accès au registre des habilitations refusé pour ce profil.';
+        dataState.error = new Error(msg);
+        dataState.rows = [];
+        showToast(msg, res.status === 401 || res.status === 403 ? 'warning' : 'error');
+        return;
       }
-      const raw = await res.json().catch(() => []);
-      dataState.rows = Array.isArray(raw) ? raw.map(mapApiHabilitation) : [];
+
+      const list = normalizeHabilitationsPayload(rawBody);
+      dataState.rows = list.map((item) =>
+        mapApiHabilitation(item && typeof item === 'object' ? /** @type {Record<string, unknown>} */ (item) : {})
+      );
       if (!state.selectedId && dataState.rows[0]) {
         state.selectedId = dataState.rows[0].id;
       }
     } catch (e) {
-      dataState.error = e;
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : 'Réseau indisponible — impossible de charger les habilitations.';
+      dataState.error = e instanceof Error ? e : new Error(msg);
       dataState.rows = [];
-      showToast('Impossible de charger les habilitations.', 'warning');
+      showToast(msg, 'error');
     } finally {
       dataState.loading = false;
       render();
@@ -568,6 +608,79 @@ export function renderHabilitations() {
     const sorted = sortHabilitationsByCriticality(rows);
     const card = document.createElement('article');
     card.className = 'content-card card-soft';
+
+    let tbodyRows = '';
+    if (dataState.loading) {
+      tbodyRows = `<tr class="hab-tr--loading"><td colspan="11"><p class="ptw-mini">Chargement des habilitations…</p></td></tr>`;
+    } else if (dataState.error && !allRows().length) {
+      tbodyRows = `<tr class="hab-tr--error"><td colspan="11"><p class="ptw-mini">${
+        dataState.error instanceof Error ? escapeHtml(dataState.error.message) : 'Registre indisponible.'
+      }</p></td></tr>`;
+    } else if (!sorted.length) {
+      tbodyRows = `<tr><td colspan="11"><p class="ptw-mini">Aucune habilitation sur ce périmètre (filtre site / recherche).</p></td></tr>`;
+    } else {
+      tbodyRows = sorted
+        .map((r) => {
+          const alertIc =
+            r.statut === 'expiree' || daysUntil(r.expiration) < 0
+              ? '<span class="hab-alert-ic" title="Critique">⚠</span>'
+              : !r.justificatif
+                ? '<span class="hab-alert-ic" title="Justificatif">📄</span>'
+                : '';
+          return `
+              <tr class="${rowTableClass(r)}">
+                <td>${alertIc}</td>
+                <td><button type="button" class="hab-row-btn" data-hab-open="${escapeHtml(r.id)}">${escapeHtml(r.collaborateur)}</button></td>
+                <td>${escapeHtml(r.entreprise)}</td>
+                <td>${escapeHtml(r.poste)}</td>
+                <td>${escapeHtml(r.site)}</td>
+                <td>${escapeHtml(r.type)}</td>
+                <td>${escapeHtml(r.niveau)}</td>
+                <td>${escapeHtml(r.expiration)}</td>
+                <td><span class="hab-status-cell">${rowChipHtml(r)}</span></td>
+                <td><strong>${r.justificatif ? '✓ OK' : '✕ Manquant'}</strong></td>
+                <td><div class="hab-actions"><button type="button" class="btn btn-secondary" data-hab-open="${escapeHtml(r.id)}">Voir fiche</button></div></td>
+              </tr>`;
+        })
+        .join('');
+    }
+
+    let mobileBlocks = '';
+    if (dataState.loading) {
+      mobileBlocks = `<article class="hab-mobile-card"><p class="ptw-mini">Chargement des habilitations…</p></article>`;
+    } else if (dataState.error && !allRows().length) {
+      mobileBlocks = `<article class="hab-mobile-card"><p class="ptw-mini">${
+        dataState.error instanceof Error ? escapeHtml(dataState.error.message) : 'Registre indisponible.'
+      }</p></article>`;
+    } else if (!sorted.length) {
+      mobileBlocks = `<article class="hab-mobile-card"><p class="ptw-mini">Aucune habilitation sur ce périmètre.</p></article>`;
+    } else {
+      mobileBlocks = sorted
+        .map((r) => {
+          const warn = rowTableClass(r) !== '';
+          return `
+          <article class="hab-mobile-card ${mobileCardClass(r)}">
+            <div class="hab-mobile-head">
+              <div>${warn ? '<span class="hab-mobile-warn-ic" aria-hidden="true">⚠</span>' : ''}<button type="button" class="hab-row-btn" data-hab-open="${escapeHtml(r.id)}">${escapeHtml(r.collaborateur)}</button></div>
+              ${rowChipHtml(r)}
+            </div>
+            <div class="hab-mobile-meta">
+              <div><strong>Entreprise:</strong> ${escapeHtml(r.entreprise)}</div>
+              <div><strong>Poste:</strong> ${escapeHtml(r.poste)}</div>
+              <div><strong>Site:</strong> ${escapeHtml(r.site)}</div>
+              <div><strong>Type:</strong> ${escapeHtml(r.type)}</div>
+              <div><strong>Niveau:</strong> ${escapeHtml(r.niveau)}</div>
+              <div><strong>Expiration:</strong> ${escapeHtml(r.expiration)}</div>
+            </div>
+            <div class="hab-actions">
+              <span class="hab-pill">${r.justificatif ? 'Justificatif OK' : 'Justificatif manquant'}</span>
+              <button type="button" class="btn btn-primary" data-hab-open="${escapeHtml(r.id)}">Voir fiche</button>
+            </div>
+          </article>`;
+        })
+        .join('');
+    }
+
     card.innerHTML = `
       <div class="content-card-head"><div><div class="section-kicker">Registre</div><h3>Habilitations terrain & sous-traitants</h3><p class="ptw-mini">Tri par criticité par défaut (expiré et urgence calendaire en tête).</p></div></div>
       ${renderFilters()}
@@ -575,54 +688,12 @@ export function renderHabilitations() {
         <table class="hab-table">
           <thead><tr><th></th><th>Collaborateur</th><th>Entreprise</th><th>Poste</th><th>Site</th><th>Habilitation</th><th>Niveau</th><th>Expiration</th><th>Statut</th><th>Justificatif</th><th>Actions</th></tr></thead>
           <tbody>
-            ${sorted.map((r) => {
-              const alertIc =
-                r.statut === 'expiree' || daysUntil(r.expiration) < 0
-                  ? '<span class="hab-alert-ic" title="Critique">⚠</span>'
-                  : !r.justificatif
-                    ? '<span class="hab-alert-ic" title="Justificatif">📄</span>'
-                    : '';
-              return `
-              <tr class="${rowTableClass(r)}">
-                <td>${alertIc}</td>
-                <td><button type="button" class="hab-row-btn" data-hab-open="${r.id}">${r.collaborateur}</button></td>
-                <td>${r.entreprise}</td>
-                <td>${r.poste}</td>
-                <td>${r.site}</td>
-                <td>${r.type}</td>
-                <td>${r.niveau}</td>
-                <td>${r.expiration}</td>
-                <td><span class="hab-status-cell">${rowChipHtml(r)}</span></td>
-                <td><strong>${r.justificatif ? '✓ OK' : '✕ Manquant'}</strong></td>
-                <td><div class="hab-actions"><button type="button" class="btn btn-secondary" data-hab-open="${r.id}">Voir fiche</button></div></td>
-              </tr>`;
-            }).join('')}
+            ${tbodyRows}
           </tbody>
         </table>
       </div>
       <div class="hab-mobile-list">
-        ${sorted.map((r) => {
-          const warn = rowTableClass(r) !== '';
-          return `
-          <article class="hab-mobile-card ${mobileCardClass(r)}">
-            <div class="hab-mobile-head">
-              <div>${warn ? '<span class="hab-mobile-warn-ic" aria-hidden="true">⚠</span>' : ''}<button type="button" class="hab-row-btn" data-hab-open="${r.id}">${r.collaborateur}</button></div>
-              ${rowChipHtml(r)}
-            </div>
-            <div class="hab-mobile-meta">
-              <div><strong>Entreprise:</strong> ${r.entreprise}</div>
-              <div><strong>Poste:</strong> ${r.poste}</div>
-              <div><strong>Site:</strong> ${r.site}</div>
-              <div><strong>Type:</strong> ${r.type}</div>
-              <div><strong>Niveau:</strong> ${r.niveau}</div>
-              <div><strong>Expiration:</strong> ${r.expiration}</div>
-            </div>
-            <div class="hab-actions">
-              <span class="hab-pill">${r.justificatif ? 'Justificatif OK' : 'Justificatif manquant'}</span>
-              <button type="button" class="btn btn-primary" data-hab-open="${r.id}">Voir fiche</button>
-            </div>
-          </article>`;
-        }).join('')}
+        ${mobileBlocks}
       </div>
     `;
     card.querySelectorAll('[data-hab-open]').forEach((b) => {

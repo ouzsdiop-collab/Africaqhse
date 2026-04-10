@@ -139,7 +139,11 @@ const CSS = `
 .mod-default .activity-log-module-short{color:var(--text2)}
 .activity-log-action-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .activity-log-cell--action .activity-log-strong{font-weight:700;font-size:13px;color:var(--text);line-height:1.4}
-.activity-log-importance{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:rgba(20,184,166,.12);color:#5eead4;border:1px solid rgba(20,184,166,.25)}
+.activity-log-importance{
+  font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 8px;border-radius:999px;
+  background:var(--color-primary-bg);color:var(--color-primary-text);border:1px solid var(--color-primary-border);
+}
 .activity-log-cell--detail .activity-log-detail-text{font-size:12px;line-height:1.5;color:var(--text2)}
 .activity-log-meta{font-size:12px;font-weight:600;color:var(--text)}
 .activity-log-time{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums;font-weight:600}

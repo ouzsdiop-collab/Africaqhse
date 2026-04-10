@@ -9,13 +9,13 @@ html[data-theme='light'] .dashboard-page {
   --dash-surface: var(--surface-1);
   --dash-surface-muted: var(--surface-2);
   --dash-surface-band: var(--surface-3);
-  --dash-border: rgba(15, 23, 42, 0.11);
-  --dash-border-strong: rgba(15, 23, 42, 0.16);
+  --dash-border: rgba(15, 23, 42, 0.12);
+  --dash-border-strong: rgba(15, 23, 42, 0.18);
   --dash-accent-border: color-mix(in srgb, var(--palette-accent) 32%, rgba(15, 23, 42, 0.14));
   --dash-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.88) inset,
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 10px 36px rgba(15, 23, 42, 0.09);
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 12px 42px rgba(15, 23, 42, 0.11);
 }
 
 html[data-theme='light'] .kpi-performance-page {
@@ -362,6 +362,11 @@ html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-btn 
   background: var(--dash-surface) !important;
   border-color: var(--dash-border) !important;
   color: var(--color-text-primary) !important;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease !important;
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-title {
@@ -370,6 +375,108 @@ html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-titl
 
 html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-cta {
   color: var(--color-primary-text) !important;
+}
+
+/* Badges priorité & anomalies : texte foncé sur fond pastel (WCAG) */
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-prio--urgent {
+  background: color-mix(in srgb, var(--palette-danger) 16%, white) !important;
+  color: #991b1b !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-prio--prioritaire {
+  background: color-mix(in srgb, var(--palette-warning) 22%, white) !important;
+  color: #92400e !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-prio--normal {
+  background: color-mix(in srgb, var(--color-text-primary) 7%, var(--dash-surface-muted)) !important;
+  color: #334155 !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly--err {
+  color: #b91c1c !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly--warn {
+  color: #b45309 !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-lbl,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-sub,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__h {
+  color: var(--color-text-secondary) !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-detail {
+  color: var(--color-text-secondary) !important;
+}
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__synthesis-text {
+  color: var(--color-text-primary) !important;
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-btn:hover {
+    border-color: color-mix(in srgb, var(--palette-accent) 30%, var(--dash-border)) !important;
+    background: var(--dash-surface-muted) !important;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1) !important;
+    transform: translateY(-2px);
+  }
+}
+
+/* Points de vigilance — cartes séparées du fond, labels lisibles */
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-card {
+  border-color: var(--dash-border-strong) !important;
+  box-shadow: var(--dash-shadow) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-rich-item {
+  background: var(--dash-surface) !important;
+  border-color: var(--dash-border) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 1px 3px rgba(15, 23, 42, 0.07) !important;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease !important;
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .dashboard-page .dashboard-vigilance-rich-item:hover {
+    border-color: var(--dash-accent-border) !important;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 8px 26px rgba(15, 23, 42, 0.12) !important;
+    transform: translateY(-2px);
+  }
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-rich-variant {
+  color: var(--color-text-secondary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-rich-detail {
+  color: var(--color-text-secondary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-rich-hint {
+  color: var(--color-text-secondary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-investigate {
+  border-color: color-mix(in srgb, var(--palette-primary) 42%, var(--dash-border)) !important;
+  background: color-mix(in srgb, var(--palette-primary) 10%, var(--dash-surface)) !important;
+  color: var(--color-primary-text) !important;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease !important;
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .dashboard-page .dashboard-vigilance-investigate:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--palette-primary) 16%, var(--dash-surface)) !important;
+  }
+}
+
+/* Sections dashboard : séparation plus nette sous les titres */
+html[data-theme='light'] .dashboard-page .dashboard-section-head {
+  border-bottom-color: var(--dash-border-strong) !important;
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-executive-panel {
@@ -574,4 +681,48 @@ html[data-theme='light'] .kpi-performance-page .kpi-perf-priority-absolute-cta {
 
 html[data-theme='light'] .kpi-performance-page .kpi-perf-priority-absolute-cta:hover {
   background: color-mix(in srgb, var(--palette-accent) 16%, white) !important;
+}
+
+/* Grille opérationnelle & alertes décision (styles inline dashboard.js) */
+html[data-theme='light'] .dashboard-page .dashboard-ops-card {
+  background: var(--dash-surface-muted) !important;
+  border-color: var(--dash-border) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ops-card__k {
+  color: var(--color-text-secondary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ops-card__d {
+  color: var(--color-text-secondary) !important;
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .dashboard-page .dashboard-ops-card:hover {
+    border-color: var(--dash-accent-border) !important;
+    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.11) !important;
+    transform: translateY(-2px);
+  }
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-decision-alert {
+  background: var(--dash-surface-muted) !important;
+  border-color: var(--dash-border) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-decision-alert__k {
+  color: var(--color-text-secondary) !important;
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .dashboard-page .dashboard-decision-alert:hover {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1) !important;
+    transform: translateY(-2px);
+  }
 }

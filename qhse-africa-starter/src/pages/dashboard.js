@@ -1139,6 +1139,7 @@ export function renderDashboard() {
   }
 
   function updateDecisionAlerts(stats, incidents, actions, ncs, audits) {
+    const monthly = buildIncidentMonthlySeries(incidents);
     const crit = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
     const late = asDashboardCount(stats?.overdueActions);
     const ncOpen = ncs.filter(isNcOpen).length;
@@ -1428,7 +1429,6 @@ export function renderDashboard() {
       });
     }
 
-    const monthly = buildIncidentMonthlySeries(incidents);
     const trendDelta =
       monthly.length >= 2 ? monthly[monthly.length - 1].value - monthly[0].value : 0;
     const iaMsgs = [

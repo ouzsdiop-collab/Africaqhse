@@ -2437,6 +2437,19 @@
   border: 1px solid rgba(34, 197, 94, 0.35);
 }
 
+/* Pastilles phase : encres claires pensées pour fond sombre — mode clair = encre foncée */
+html[data-theme='light'] .incidents-phase-pill--ouvert {
+  color: #1e40af;
+}
+
+html[data-theme='light'] .incidents-phase-pill--analyse {
+  color: #b45309;
+}
+
+html[data-theme='light'] .incidents-phase-pill--traite {
+  color: #15803d;
+}
+
 .incidents-detail-section--analysis .incidents-detail-analysis-field {
   display: flex;
   flex-direction: column;
