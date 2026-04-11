@@ -107,6 +107,27 @@ const CSS = `
 .audit-ia-expert-suggest__title{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:0 0 8px}
 .audit-ia-expert-suggest__list{margin:0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.5}
 .audit-ia-expert-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
+html[data-theme='light'] .audit-page-alert-strip{
+  border:1px solid rgba(220,38,38,.28);
+  background:#fef2f2;
+}
+html[data-theme='light'] .audit-page-alert-strip__badge{
+  background:#dc2626;
+  color:#fff;
+}
+html[data-theme='light'] .audit-page-alert-strip__text{
+  color:#991b1b;
+  font-weight:600;
+}
+html[data-theme='light'] .audit-expert-kpi{
+  background:#f9fafb;
+  border-color:rgba(15,23,42,.1);
+}
+html[data-theme='light'] .audit-expert-kpi__lbl{color:#6b7280}
+html[data-theme='light'] .audit-expert-kpi__val{color:#111827}
+html[data-theme='light'] .audit-expert-kpi__val--danger{color:#b91c1c}
+html[data-theme='light'] .audit-expert-kpi__val--warn{color:#b45309}
 `;
 
 export function ensureAuditExpertUxStyles() {

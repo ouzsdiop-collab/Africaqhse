@@ -195,13 +195,16 @@ export function updateUI(root = document) {
     const vis = getProofVisual(reqId);
 
     const statCell = line.querySelector('.iso-req-status-cell');
-    if (statCell) {
-      let ib = statCell.querySelector('.iso-proof-inline-badge');
+    statCell?.querySelectorAll('.iso-proof-inline-badge').forEach((el) => el.remove());
+
+    const actionCell = line.querySelector('.iso-req-action-cell');
+    if (actionCell) {
+      let ib = actionCell.querySelector('.iso-proof-inline-badge');
       if (!ib) {
         ib = document.createElement('span');
         ib.className = 'iso-proof-inline-badge';
         ib.setAttribute('aria-hidden', 'true');
-        statCell.append(ib);
+        actionCell.insertBefore(ib, actionCell.firstChild);
       }
       ib.textContent = vis.icon;
       ib.title = `Preuve : ${vis.label}`;

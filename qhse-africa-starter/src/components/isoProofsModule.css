@@ -201,10 +201,16 @@
 .iso-proof-inline-badge {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
-  font-size: 0.95rem;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1rem;
+  line-height: 1;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-background-secondary, rgba(148, 163, 184, 0.12)) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border-secondary, rgba(148, 163, 184, 0.22)) 80%, transparent);
   vertical-align: middle;
-  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.35));
 }
 
 .iso-proof-doc-bar-extra {

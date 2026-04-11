@@ -1375,15 +1375,13 @@ export function renderRisks() {
   exportPdfRisks.textContent = 'Export PDF';
   exportPdfRisks.className = 'btn btn-secondary btn-sm';
   exportPdfRisks.setAttribute('aria-label', 'Exporter le registre risques en PDF');
-  exportPdfRisks.addEventListener('click', async () => {
+    exportPdfRisks.addEventListener('click', async () => {
     try {
       await downloadRisksRegisterPdf(localRisks, {
         siteLabel: appState.currentSite || undefined
       });
-      showToast('PDF registre risques généré.', 'success');
     } catch (e) {
       console.error(e);
-      showToast('Export PDF impossible.', 'error');
     }
   });
   register.querySelector('.risks-page__panel-actions')?.append(exportPdfRisks);

@@ -3,6 +3,7 @@
  */
 
 import { saveElementAsPdf, buildHtml2PdfOptions } from '../utils/html2pdfExport.js';
+import { showToast } from './toast.js';
 
 const PDF_BRAND = '#1D9E75';
 
@@ -113,17 +114,24 @@ export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
   host.style.width = '210mm';
   host.style.background = '#fff';
   host.innerHTML = htmlString;
-  document.body.append(host);
+  document.body.appendChild(host);
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w-]+/g, '_');
+  const pdfName = `${safeName}.pdf`;
   try {
+    showToast('Génération du PDF en cours...', 'info');
     await saveElementAsPdf(
       host,
-      `${safeName}.pdf`,
-      buildHtml2PdfOptions(`${safeName}.pdf`, {
+      pdfName,
+      buildHtml2PdfOptions(pdfName, {
         margin: [14, 12, 18, 12],
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       })
     );
+    showToast('PDF téléchargé avec succès', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('Échec de la génération du PDF.', 'error');
+    throw e;
   } finally {
     host.remove();
   }

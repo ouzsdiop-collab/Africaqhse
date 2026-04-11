@@ -528,10 +528,8 @@ export function renderPerformance() {
       await downloadPerformanceQhsePdf(
         /** @type {Parameters<typeof downloadPerformanceQhsePdf>[0]} */ (lastPerfPdfContext)
       );
-      showToast('PDF performance généré.', 'info');
     } catch (e) {
       console.error(e);
-      showToast('Export PDF indisponible.', 'error');
     }
   });
 

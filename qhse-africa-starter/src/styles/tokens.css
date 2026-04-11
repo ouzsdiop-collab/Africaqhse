@@ -109,6 +109,11 @@
   --color-violet-label: #6d28d9;
 }
 
+/* Mode clair : plancher de lisibilité pour labels / méta (#6B7280 ≈ gris 500). */
+html[data-theme='light'] {
+  --text-muted: #6b7280;
+}
+
 [data-theme='dark'] {
   --text-primary: #f8fafc;
   --text-secondary: #e2e8f0;

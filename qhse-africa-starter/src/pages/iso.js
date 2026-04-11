@@ -1742,7 +1742,6 @@ export function renderIso(onAddLog) {
         requirementLines: requirementLinesForIsoPdf()
       });
       await downloadAuditIsoPdfFromHtml(html, 'rapport-conformite-iso');
-      showToast('PDF conformité généré (export local).', 'success');
       if (typeof onAddLog === 'function') {
         onAddLog({
           module: 'iso',
@@ -1753,7 +1752,6 @@ export function renderIso(onAddLog) {
       }
     } catch (e) {
       console.error(e);
-      showToast('Génération PDF impossible.', 'error');
     }
   });
 

@@ -493,9 +493,8 @@ export function renderHabilitations() {
             rows,
             filename: `habilitations_registre_${Date.now()}`
           });
-          showToast('Export PDF généré.', 'info');
         } catch (e) {
-          showToast('Échec export PDF.', 'warning');
+          console.error(e);
         }
       })
     );
@@ -516,39 +515,48 @@ export function renderHabilitations() {
         showToast('Export échéances < 30 j (Excel).', 'info');
       }),
       mk('PDF alertes', 'btn-ghost', async () => {
-        const enriched = buildAlertRowList(rows);
-        await downloadHabilitationsPdf({
-          title: 'Rapport alertes habilitations',
-          filtersText: ft,
-          rows: enriched,
-          filename: `habilitations_alertes_${Date.now()}`
-        });
-        showToast('PDF alertes généré.', 'info');
+        try {
+          const enriched = buildAlertRowList(rows);
+          await downloadHabilitationsPdf({
+            title: 'Rapport alertes habilitations',
+            filtersText: ft,
+            rows: enriched,
+            filename: `habilitations_alertes_${Date.now()}`
+          });
+        } catch (e) {
+          console.error(e);
+        }
       }),
       mk('PDF conformité', 'btn-ghost', async () => {
-        const k = computeKpis(rows);
-        await downloadHabilitationsConformitePdf({
-          filtersText: ft,
-          kpis: k,
-          bySite: computeHabilitationsBySite(rows),
-          rows,
-          filename: `conformite_hab_${Date.now()}`
-        });
-        showToast('PDF synthèse conformité.', 'info');
+        try {
+          const k = computeKpis(rows);
+          await downloadHabilitationsConformitePdf({
+            filtersText: ft,
+            kpis: k,
+            bySite: computeHabilitationsBySite(rows),
+            rows,
+            filename: `conformite_hab_${Date.now()}`
+          });
+        } catch (e) {
+          console.error(e);
+        }
       }),
       mk('PDF fiche', 'btn-ghost', async () => {
-        const hit =
-          allRows().find((r) => r.id === state.selectedId) || rows[0] || allRows()[0];
-        if (!hit) return;
-        const pr = allRows().filter((r) => r._userId === hit._userId);
-        await downloadHabilitationsPdf({
-          title: `Fiche habilitations — ${hit.collaborateur}`,
-          subtitle: `${hit.poste} · ${hit.entreprise} · ${hit.site}`,
-          filtersText: `${ft} · Fiche matricule ${hit.matricule}`,
-          rows: pr,
-          filename: `fiche_${hit.matricule}_${Date.now()}`
-        });
-        showToast('PDF fiche collaborateur.', 'info');
+        try {
+          const hit =
+            allRows().find((r) => r.id === state.selectedId) || rows[0] || allRows()[0];
+          if (!hit) return;
+          const pr = allRows().filter((r) => r._userId === hit._userId);
+          await downloadHabilitationsPdf({
+            title: `Fiche habilitations — ${hit.collaborateur}`,
+            subtitle: `${hit.poste} · ${hit.entreprise} · ${hit.site}`,
+            filtersText: `${ft} · Fiche matricule ${hit.matricule}`,
+            rows: pr,
+            filename: `fiche_${hit.matricule}_${Date.now()}`
+          });
+        } catch (e) {
+          console.error(e);
+        }
       })
     );
 
@@ -771,9 +779,8 @@ export function renderHabilitations() {
           rows: personRows,
           filename: `fiche_${hit.matricule}_${Date.now()}`
         });
-        showToast('PDF fiche généré.', 'info');
-      } catch {
-        showToast('Échec PDF.', 'warning');
+      } catch (e) {
+        console.error(e);
       }
     });
     return card;

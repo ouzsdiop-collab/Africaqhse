@@ -416,16 +416,17 @@ html[data-theme='light'] .iso-points-doc-tag {
   border: 1px solid var(--color-danger-border);
 }
 
+/* Chiffres état documentaire : contrastes renforcés sur fond clair (ISO & conformité) */
 html[data-theme='light'] .iso-doc-state-summary__val--warn {
-  color: var(--color-warning-text);
+  color: #b45309;
 }
 
 html[data-theme='light'] .iso-doc-state-summary__val--bad {
-  color: var(--color-danger-text);
+  color: #b91c1c;
 }
 
 html[data-theme='light'] .iso-doc-state-summary__val--ok {
-  color: var(--color-success-text);
+  color: #15803d;
 }
 
 /* ── Produits / conformité produit ── */
@@ -770,4 +771,38 @@ html[data-theme='light'] .dcp-badge--moyen {
   color: var(--color-warning-text);
   background: var(--color-warning-bg);
   border-color: var(--color-warning-border);
+}
+
+/* ── Plancher contraste : kickers / barre vue page / métriques hors dashboard ── */
+html[data-theme='light'] .section-kicker {
+  opacity: 0.92;
+}
+
+html[data-theme='light'] .qhse-page-view-switch__label {
+  color: #6b7280;
+}
+
+html[data-theme='light'] .qhse-page-view-bar__hint {
+  color: #6b7280;
+}
+
+html[data-theme='light'] .qhse-page-view-switch__btn {
+  background: var(--surface-1);
+  color: #374151;
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+html[data-theme='light'] .qhse-page-view-switch__btn--on {
+  color: #0f172a;
+  background: color-mix(in srgb, var(--palette-accent) 12%, var(--surface-1));
+}
+
+html[data-theme='light'] .metric-label {
+  opacity: 0.95;
+  color: var(--color-text-secondary);
+}
+
+html[data-theme='light'] .metric-note {
+  opacity: 1;
+  color: var(--color-text-tertiary);
 }

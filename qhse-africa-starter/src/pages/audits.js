@@ -1009,7 +1009,6 @@ export function renderAudits() {
         signerName: su?.name || 'Responsable audit'
       });
       await downloadAuditIsoPdfFromHtml(html, `audit-iso-${LAST_AUDIT.ref}`);
-      showToast('PDF ISO complet généré (export local).', 'info');
       activityLogStore.add({
         module: 'audits',
         action: 'Export PDF ISO complet',
@@ -1018,7 +1017,6 @@ export function renderAudits() {
       });
     } catch (e) {
       console.error(e);
-      showToast('Génération PDF locale impossible.', 'error');
     }
   }
 

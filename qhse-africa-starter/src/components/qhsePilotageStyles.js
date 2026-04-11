@@ -1704,6 +1704,30 @@ const CSS = `
   .risk-register-table-row--pulse-soft{animation:none;box-shadow:inset 3px 0 0 0 rgba(245,158,11,.28)}
   .action-card--pulse-late{animation:none}
 }
+
+/* Mode clair : bandeaux pilotage risques / cartes KPI sur fond papier */
+html[data-theme='light'] .risks-pilot-banner__kpi{
+  background:#f9fafb;
+  border-color:rgba(15,23,42,.1);
+}
+html[data-theme='light'] .risks-pilot-banner__kpi-lbl,
+html[data-theme='light'] .risks-pilot-banner__kpi-hint{
+  color:#6b7280;
+}
+html[data-theme='light'] .risks-pilot-banner__kpi-val{
+  color:#111827;
+}
+html[data-theme='light'] .metric-card--kpi-click:not(.dashboard-kpi-card){
+  background:#f9fafb;
+  border-color:rgba(15,23,42,.1);
+}
+html[data-theme='light'] .metric-card--kpi-click:not(.dashboard-kpi-card) .metric-label{
+  color:#6b7280;
+  opacity:1;
+}
+html[data-theme='light'] .metric-card--kpi-click:not(.dashboard-kpi-card) .metric-value{
+  color:#111827;
+}
 `;
 
 export function ensureQhsePilotageStyles() {

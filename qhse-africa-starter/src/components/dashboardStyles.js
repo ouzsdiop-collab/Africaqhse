@@ -1710,7 +1710,7 @@ const CSS = `
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  opacity: .5;
+  opacity: 0.82;
 }
 .dashboard-section-sub,
 .dashboard-muted-lead,
@@ -1778,11 +1778,11 @@ const CSS = `
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
-  opacity: .55;
+  opacity: 0.88;
 }
 .metric-note {
   font-size: 12px;
-  opacity: .5;
+  opacity: 0.82;
   line-height: 1.4;
 }
 

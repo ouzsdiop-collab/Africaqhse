@@ -624,10 +624,8 @@ function mountPeriodicReportingBlock(periodicCard) {
     }
     try {
       await downloadAnalyticsPeriodicPdf(periodicPdfPayload.data, periodicPdfPayload.meta);
-      showToast('PDF reporting périodique généré.', 'info');
     } catch (e) {
       console.error(e);
-      showToast('Export PDF impossible.', 'error');
     }
   });
 
@@ -995,10 +993,8 @@ export function renderAnalytics() {
     }
     try {
       await downloadAnalyticsSummaryPdf(lastAnalyticsSummary);
-      showToast('PDF synthèse généré.', 'info');
     } catch (e) {
       console.error(e);
-      showToast('Export PDF impossible.', 'error');
     }
   });
 

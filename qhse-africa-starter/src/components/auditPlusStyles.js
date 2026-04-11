@@ -800,6 +800,59 @@ html[data-theme='dark'] .audit-proof-badge--verify{
 .audit-plus-page .audit-iso-treatment-head,.audit-plus-page .audit-iso-treatment-row{padding:9px 11px}
 .audit-plus-page .audit-cockpit-notifs__item,
 .audit-plus-page .audit-iso-trace-item{border-radius:12px}
+
+/* ── Mode clair : synthèse opérationnelle, KPI, cycle contrôle (contraste lisible) ── */
+html[data-theme='light'] .audit-plus-page .audit-cockpit-metric,
+html[data-theme='light'] .audit-plus-page .audit-cockpit-stat,
+html[data-theme='light'] .audit-plus-page .audit-strategic-kpi,
+html[data-theme='light'] .audit-plus-page .audit-iso-conformity-card{
+  background:#f9fafb!important;
+  border-color:rgba(15,23,42,.1)!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-metric span:first-child,
+html[data-theme='light'] .audit-plus-page .audit-cockpit-stat__lbl,
+html[data-theme='light'] .audit-plus-page .audit-strategic-kpi__lbl,
+html[data-theme='light'] .audit-plus-page .audit-iso-conformity-card__lbl,
+html[data-theme='light'] .audit-plus-page .audit-cockpit-cycle__label{
+  color:#6b7280!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-metric span:last-child,
+html[data-theme='light'] .audit-plus-page .audit-cockpit-stat__val,
+html[data-theme='light'] .audit-plus-page .audit-strategic-kpi__val,
+html[data-theme='light'] .audit-plus-page .audit-iso-conformity-card__val{
+  color:#111827!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-iso-conformity-card__hint{
+  color:#6b7280!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-step{
+  background:#f3f4f6!important;
+  border-color:rgba(15,23,42,.12)!important;
+  color:#374151!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-step--active{
+  background:#1d9e75!important;
+  border-color:#15803d!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-step--done{
+  background:#ecfdf5!important;
+  border-color:rgba(21,128,61,.35)!important;
+  color:#166534!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-cycle-progress{
+  color:#374151!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-cycle-progress strong{
+  color:#0f766e!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-hero__exec-sep{
+  opacity:.88!important;
+}
+html[data-theme='light'] .audit-plus-page .audit-cockpit-hero__exec-summary{
+  color:#374151!important;
+}
 `;
 
 export function ensureAuditPlusStyles() {

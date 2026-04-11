@@ -51,16 +51,47 @@ html[data-theme='light'] .dashboard-page .dashboard-band--cockpit {
   box-shadow: var(--dash-shadow) !important;
 }
 
-/* Alerte : même base claire, liseré chaud discret (pas toute la zone en anthracite) */
+/* Alerte : fond rouge très pâle + texte rouge foncé (lisibilité WCAG) */
 html[data-theme='light'] .dashboard-page .dashboard-band--alerts {
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--palette-warning) 10%, var(--surface-1)) 0%,
-    var(--dash-surface) 38%,
-    var(--dash-surface-muted) 100%
-  ) !important;
-  border-color: color-mix(in srgb, var(--palette-warning) 32%, var(--dash-border)) !important;
+  background: #fef2f2 !important;
+  border-color: rgba(220, 38, 38, 0.28) !important;
   box-shadow: var(--dash-shadow) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-band--alerts .dashboard-section-kicker,
+html[data-theme='light'] .dashboard-page .dashboard-band--alerts .dashboard-section-kicker--alert {
+  color: #991b1b !important;
+  opacity: 1 !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-band--alerts .dashboard-section-title {
+  color: #111827 !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-band--alerts .dashboard-section-sub {
+  color: #374151 !important;
+  opacity: 1 !important;
+}
+
+/* Sections « pilot » empilées (assistant + KPI) : texte lisible sur fond clair */
+html[data-theme='light'] .dashboard-page .dashboard-pilot-block {
+  background: var(--surface-1) !important;
+  border-color: rgba(15, 23, 42, 0.11) !important;
+  box-shadow: var(--dash-shadow) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilot-block .dashboard-section-kicker {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilot-block .dashboard-section-title {
+  color: #111827 !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-section--kpi-pilotage {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--palette-accent) 6%, var(--surface-1)) 0%, var(--surface-1) 100%) !important;
+  border-color: var(--dash-border) !important;
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-band--actions {
@@ -579,9 +610,13 @@ html[data-theme='light'] .dashboard-page .dashboard-section-kicker--ok {
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-band--priority .section-kicker,
-html[data-theme='light'] .dashboard-page .dashboard-band--alerts .section-kicker,
 html[data-theme='light'] .dashboard-page .dashboard-section-kicker--alert {
   color: var(--color-text-danger) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-band--alerts .section-kicker,
+html[data-theme='light'] .dashboard-page .dashboard-band--alerts .dashboard-section-kicker--alert {
+  color: #991b1b !important;
 }
 
 html[data-theme='light'] .dashboard-band--activity-foot .dashboard-section-kicker {

@@ -84,6 +84,8 @@ const CSS = `
   display:flex;
   align-items:center;
   justify-content:flex-start;
+  gap:10px;
+  flex-wrap:wrap;
   position:relative;
   z-index:2;
   min-width:0;
@@ -128,14 +130,14 @@ const CSS = `
 .iso-doc-state-summary__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media (max-width:700px){.iso-doc-state-summary__grid{grid-template-columns:1fr}}
 .iso-doc-state-summary__metric{
-  padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.1);background:rgba(0,0,0,.12);
+  padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.16);background:rgba(255,255,255,.08);
   display:flex;flex-direction:column;gap:4px;min-width:0;
 }
-.iso-doc-state-summary__val{font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--text)}
-.iso-doc-state-summary__val--ok{color:#86efac}
-.iso-doc-state-summary__val--warn{color:#fcd34d}
-.iso-doc-state-summary__val--bad{color:#fca5a5}
-.iso-doc-state-summary__lbl{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.iso-doc-state-summary__val{font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--text);text-shadow:0 1px 0 rgba(0,0,0,.25)}
+.iso-doc-state-summary__val--ok{color:#4ade80}
+.iso-doc-state-summary__val--warn{color:#fbbf24}
+.iso-doc-state-summary__val--bad{color:#f87171}
+.iso-doc-state-summary__lbl{font-size:11px;font-weight:700;color:rgba(226,232,240,.82);text-transform:uppercase;letter-spacing:.06em}
 .iso-registry-doc-impact{
   margin-bottom:10px;padding:12px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.22);
   background:rgba(239,68,68,.07);
@@ -1169,8 +1171,18 @@ html[data-theme='dark'] .iso-doc-state-summary{
 html[data-theme='dark'] .iso-doc-state-summary__hint{
   color:#cbd5e1;
 }
+html[data-theme='dark'] .iso-doc-state-summary__metric{
+  background:rgba(255,255,255,.1);
+  border-color:rgba(148,163,184,.22);
+}
+html[data-theme='dark'] .iso-doc-state-summary__lbl{
+  color:#e2e8f0;
+}
+html[data-theme='dark'] .iso-doc-state-summary__val{
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
 html[data-theme='dark'] .iso-doc-state-summary__val--ok{
-  color:#6ee7b7;
+  color:#4ade80;
 }
 html[data-theme='dark'] .iso-doc-state-summary__val--warn{
   color:#fbbf24;
@@ -1242,6 +1254,29 @@ html[data-theme='dark'] .iso-ia-suggestion-pill{
   color:#991b1b;
   border-color:rgba(239,68,68,.45);
   background:rgba(239,68,68,.1);
+}
+[data-theme='light'] .iso-doc-state-summary{
+  border:1px solid var(--border-color, #e2e8f0);
+  background:linear-gradient(145deg, var(--surface-2, #f1f5f9), var(--surface-1, #ffffff));
+  box-shadow:0 6px 22px rgba(15,23,42,.07);
+}
+[data-theme='light'] .iso-doc-state-summary__title{
+  color:var(--text-primary, #0f172a);
+}
+[data-theme='light'] .iso-doc-state-summary__hint{
+  color:var(--text-secondary, #64748b);
+}
+[data-theme='light'] .iso-doc-state-summary__metric{
+  border:1px solid var(--border-color, #e2e8f0);
+  background:var(--surface-1, #ffffff);
+  box-shadow:0 1px 3px rgba(15,23,42,.06);
+}
+[data-theme='light'] .iso-doc-state-summary__lbl{
+  color:#475569;
+  font-weight:700;
+}
+[data-theme='light'] .iso-doc-state-summary__val{
+  text-shadow:none;
 }
 [data-theme='light'] .iso-page.iso-page--hub .iso-ai-spotlight{
   border:1px solid color-mix(in srgb, var(--color-primary) 22%, var(--border-color, #e2e8f0));
@@ -1422,6 +1457,30 @@ html[data-theme='dark'] .iso-ia-suggestion-pill{
 @media (max-width:640px){
   .iso-l2-disclosure__summary{padding:12px 14px}
   .iso-l2-disclosure__hint{max-width:none}
+}
+
+/* Mode clair : labels / valeurs sur cartes claires */
+html[data-theme='light'] .iso-page .iso-global-score-caption,
+html[data-theme='light'] .iso-page .iso-global-meta,
+html[data-theme='light'] .iso-page .iso-points-col-head,
+html[data-theme='light'] .iso-page .iso-norm-id,
+html[data-theme='light'] .iso-page .iso-doc-attention-block-title,
+html[data-theme='light'] .iso-page .iso-table-head{
+  color:#6b7280;
+}
+html[data-theme='light'] .iso-page .iso-global-pct,
+html[data-theme='light'] .iso-page .iso-points-metric,
+html[data-theme='light'] .iso-page .iso-norm-title{
+  color:#111827;
+}
+html[data-theme='light'] .iso-page .iso-points-panel,
+html[data-theme='light'] .iso-page .iso-doc-attention-row,
+html[data-theme='light'] .iso-page .iso-norm-card{
+  background:#f9fafb;
+  border-color:rgba(15,23,42,.1);
+}
+html[data-theme='light'] .iso-page .iso-l2-disclosure__summary::after{
+  opacity:.85;
 }
 `;
 

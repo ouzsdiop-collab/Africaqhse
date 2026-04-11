@@ -295,6 +295,19 @@ const CSS = `
 @media (max-width:520px){.settings-sensitive-pin-grid{grid-template-columns:1fr}}
 .settings-sensitive-select-label{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text2)}
 .settings-subsection__lead--tight{margin-top:6px;font-size:12.5px;line-height:1.5;color:var(--text3)}
+
+html[data-theme='light'] .settings-cycle-map__step{
+  background:#f3f4f6;
+  border-color:rgba(15,23,42,.12);
+  color:#374151;
+}
+html[data-theme='light'] .settings-cycle-map__arrow{
+  color:#6b7280;
+  opacity:1;
+}
+html[data-theme='light'] .settings-hero-premium__eyebrow{
+  color:#6b7280;
+}
 `;
 
 export function ensureSettingsPageStyles() {

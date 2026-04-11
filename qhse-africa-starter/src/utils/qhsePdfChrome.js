@@ -5,6 +5,7 @@
 
 import { escapeHtml } from './escapeHtml.js';
 import { saveElementAsPdf, buildHtml2PdfOptions } from './html2pdfExport.js';
+import { showToast } from '../components/toast.js';
 
 export const QHSE_PDF_BRAND = '#1D9E75';
 
@@ -104,17 +105,25 @@ export function assembleQhsePdfDocument(reportTitle, pageBodies) {
  * @param {string} html
  * @param {string} filename
  * @param {Record<string, unknown>} [pdfOverrides] — pass-through to buildHtml2PdfOptions
+ * @param {{ silentToasts?: boolean }} [opts] — désactive les toasts (ex. appelant gère le message)
  */
-export async function downloadQhseChromePdf(html, filename, pdfOverrides = {}) {
+export async function downloadQhseChromePdf(html, filename, pdfOverrides = {}, opts = {}) {
+  const silent = Boolean(opts.silentToasts);
   const host = document.createElement('div');
   host.style.cssText =
     'position:fixed;left:-9999px;top:0;width:210mm;background:#fff;color:#0f172a;';
   host.innerHTML = html;
-  document.body.append(host);
+  document.body.appendChild(host);
   const safe = String(filename || 'export').replace(/[^\w.-]+/g, '_');
   const name = safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
   try {
+    if (!silent) showToast('Génération du PDF en cours...', 'info');
     await saveElementAsPdf(host, name, buildHtml2PdfOptions(name, pdfOverrides));
+    if (!silent) showToast('PDF téléchargé avec succès', 'success');
+  } catch (e) {
+    console.error(e);
+    if (!silent) showToast('Échec de la génération du PDF.', 'error');
+    throw e;
   } finally {
     host.remove();
   }

@@ -702,10 +702,8 @@ export function renderIncidents(onAddLog) {
       await downloadIncidentsRegisterPdf(getFilteredSortedRows(), {
         filtersSummary: incidentsFiltersSummaryForPdf()
       });
-      showToast('PDF incidents généré.', 'success');
     } catch (e) {
       console.error(e);
-      showToast('Export PDF impossible.', 'error');
     }
   });
 

@@ -674,9 +674,8 @@ export function renderPermits() {
           margin: [12, 10, 16, 10],
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         });
-        showToast('PDF PTW généré.', 'success');
-      } catch {
-        showToast('Export PDF indisponible.', 'error');
+      } catch (e) {
+        console.error(e);
       }
     });
     actions.append(activateBtn, signAny, pdfBtn, toAction, toIncident, toRisk);
