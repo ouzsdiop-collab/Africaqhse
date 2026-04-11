@@ -8,6 +8,7 @@ export const globalApiLimiter = rateLimit({
   max: Number(process.env.RATE_LIMIT_MAX) || 400,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   skip(req) {
     const u = req.originalUrl || req.url || '';
     const p = req.path || '';
@@ -22,7 +23,8 @@ export const authLoginLimiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_AUTH_WINDOW_MS) || 15 * 60 * 1000,
   max: Number(process.env.RATE_LIMIT_AUTH_MAX) || 40,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false }
 });
 
 /** Import documentaire — prévisualisation / upload (POST avec fichier). */
@@ -31,6 +33,7 @@ export const importUploadLimiter = rateLimit({
   max: Number(process.env.RATE_LIMIT_UPLOAD_MAX) || 60,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   skipSuccessfulRequests: false
 });
 
@@ -40,5 +43,6 @@ export const controlledDocumentUploadLimiter = rateLimit({
   max: Number(process.env.RATE_LIMIT_UPLOAD_MAX) || 60,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   skipSuccessfulRequests: false
 });
