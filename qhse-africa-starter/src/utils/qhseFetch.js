@@ -17,8 +17,10 @@ let isRefreshing = false;
  * @param {RequestInit & { _retry?: boolean }} [init]
  */
 export async function qhseFetch(path, init = {}) {
+  const { _retry, ...fetchInit } = init;
+
   if (isDemoMode()) {
-    const demoRes = await tryDemoFetchResponse(path, init);
+    const demoRes = await tryDemoFetchResponse(path, fetchInit);
     if (demoRes) return demoRes;
   }
 
@@ -26,7 +28,7 @@ export async function qhseFetch(path, init = {}) {
   const url = path.startsWith('http')
     ? path
     : `${base}${path.startsWith('/') ? path : `/${path}`}`;
-  const headers = new Headers(init.headers || undefined);
+  const headers = new Headers(fetchInit.headers || undefined);
 
   const token = getAccessTokenForRequest() || getAuthToken();
 
