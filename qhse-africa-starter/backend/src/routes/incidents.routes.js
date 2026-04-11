@@ -8,6 +8,9 @@ import { createIncidentSchema, patchIncidentSchema } from '../validation/inciden
 const router = Router();
 router.use(prismaRouteDebug('incidents'));
 
+/** KPI TF/TG (taux fréquence / gravité) — avant les routes paramétriques */
+router.get('/kpi/tf-tg', requirePermission('incidents', 'read'), controller.getTfTgKpi);
+
 /** Liste des incidents (plus récent en premier) */
 router.get('/', requirePermission('incidents', 'read'), controller.getAll);
 

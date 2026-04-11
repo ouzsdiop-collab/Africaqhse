@@ -203,3 +203,219 @@ export async function deleteIncident(tenantId, ref) {
   }
   return prisma.incident.delete({ where: { id: matches[0].id } });
 }
+
+/** Heures travaillées de référence / an (mining & pétrole) — surchargeable par env. */
+const DEFAULT_HEURES_TRAVAILLEES_AN =
+  Number(process.env.QHSE_HEURES_TRAVAILLEES_AN) > 0
+    ? Number(process.env.QHSE_HEURES_TRAVAILLEES_AN)
+    : 200_000;
+
+const DEFAULT_OBJECTIF_TF =
+  Number(process.env.QHSE_OBJECTIF_TF) > 0 ? Number(process.env.QHSE_OBJECTIF_TF) : 2.0;
+
+const DEFAULT_OBJECTIF_TG =
+  Number(process.env.QHSE_OBJECTIF_TG) > 0 ? Number(process.env.QHSE_OBJECTIF_TG) : 0.5;
+
+/**
+ * Accident avec arrêt : libellé type / description, ou Accident + sévérité lourde (données seed).
+ * @param {{ type?: string | null; description?: string | null; severity?: string | null }} row
+ */
+export function isAccidentAvecArretRow(row) {
+  const type = String(row?.type ?? '').trim();
+  const typeL = type.toLowerCase();
+  const desc = String(row?.description ?? '').toLowerCase();
+  const sev = String(row?.severity ?? '');
+  const hay = `${typeL} ${desc}`;
+  if (/quasi[-\s]?accident/.test(typeL)) return false;
+  if (/accident\s+avec\s+arr[eê]t/i.test(type)) return true;
+  if (/\baccident\b/.test(typeL) && /\b(arr[eê]t|itt|jours?\s*perdus?|incapacit|work\s*stoppage)\b/.test(hay)) {
+    return true;
+  }
+  if (typeL === 'accident' && /(élev|elev|critique|majeur|grave|mortel)/i.test(sev)) return true;
+  return false;
+}
+
+/**
+ * @param {string | null | undefined} description
+ * @returns {number}
+ */
+export function extractJoursPerdusFromDescription(description) {
+  const d = String(description ?? '');
+  const re1 =
+    /(\d+[.,]?\d*)\s*(?:j\.?\s*(?:ouvrables?\s*)?|jours?\s*(?:perdus?|d['']absence)?)\b/i.exec(d);
+  const re2 = /(?:itt|arr[eê]t)\s*[:(]?\s*(\d+[.,]?\d*)/i.exec(d);
+  const m = re1 || re2;
+  if (m) {
+    const n = parseFloat(String(m[1]).replace(',', '.'));
+    if (Number.isFinite(n) && n >= 0) return Math.round(n * 100) / 100;
+  }
+  return 1;
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * @param {number} y
+ * @returns {{ start: Date; end: Date }}
+ */
+function utcYearBounds(y) {
+  const year = Math.floor(y);
+  return {
+    start: new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)),
+    end: new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999))
+  };
+}
+
+/**
+ * TF = (accidents avec arrêt × 1 000 000) / heures travaillées
+ * TG = (jours perdus × 1 000) / heures travaillées
+ *
+ * @param {string | null | undefined} tenantId
+ * @param {string | null | undefined} siteId
+ * @param {{
+ *   periodDays?: number | null,
+ *   year?: number | null,
+ *   heuresTravaillees?: number | null,
+ *   objectifTF?: number | null,
+ *   objectifTG?: number | null
+ * }} [options]
+ */
+export async function computeTfTg(tenantId, siteId, options = {}) {
+  const tf = prismaTenantFilter(tenantId);
+  const sid =
+    siteId != null && String(siteId).trim() !== '' ? String(siteId).trim() : null;
+
+  const now = new Date();
+  let start;
+  let end;
+  /** @type {string} */
+  let periode;
+
+  const rawYear = options.year;
+  const y =
+    rawYear != null && Number.isFinite(Number(rawYear)) ? Math.floor(Number(rawYear)) : null;
+  const pd =
+    options.periodDays != null && Number.isFinite(Number(options.periodDays))
+      ? Math.max(1, Math.min(3660, Math.floor(Number(options.periodDays))))
+      : null;
+
+  if (y != null) {
+    ({ start, end } = utcYearBounds(y));
+    periode = `Année ${y}`;
+  } else if (pd != null) {
+    end = now;
+    start = new Date(now.getTime() - pd * 86400000);
+    periode = `${pd} dernier${pd > 1 ? 's' : ''} jour${pd > 1 ? 's' : ''}`;
+  } else {
+    const cy = now.getUTCFullYear();
+    ({ start, end } = utcYearBounds(cy));
+    periode = `Année ${cy}`;
+  }
+
+  const objectifTF =
+    options.objectifTF != null && Number.isFinite(Number(options.objectifTF))
+      ? Number(options.objectifTF)
+      : DEFAULT_OBJECTIF_TF;
+  const objectifTG =
+    options.objectifTG != null && Number.isFinite(Number(options.objectifTG))
+      ? Number(options.objectifTG)
+      : DEFAULT_OBJECTIF_TG;
+
+  let heuresTravaillees =
+    options.heuresTravaillees != null && Number.isFinite(Number(options.heuresTravaillees))
+      ? Math.max(1, Number(options.heuresTravaillees))
+      : null;
+
+  if (heuresTravaillees == null) {
+    if (y != null || (pd == null && y == null)) {
+      heuresTravaillees = DEFAULT_HEURES_TRAVAILLEES_AN;
+    } else {
+      heuresTravaillees = Math.max(
+        1,
+        Math.round(DEFAULT_HEURES_TRAVAILLEES_AN * (pd / 365.25))
+      );
+    }
+  }
+
+  const baseWhere = {
+    ...tf,
+    ...(sid ? { siteId: sid } : {}),
+    createdAt: { gte: start, lte: end }
+  };
+
+  const rows = await prisma.incident.findMany({
+    where: baseWhere,
+    select: {
+      type: true,
+      description: true,
+      severity: true
+    }
+  });
+
+  let accidentsAvecArret = 0;
+  let joursPerdus = 0;
+  for (const row of rows) {
+    if (!isAccidentAvecArretRow(row)) continue;
+    accidentsAvecArret += 1;
+    joursPerdus += extractJoursPerdusFromDescription(row.description);
+  }
+  joursPerdus = round2(joursPerdus);
+
+  const H = heuresTravaillees;
+  const tfVal = H > 0 ? round2((accidentsAvecArret * 1_000_000) / H) : 0;
+  const tgVal = H > 0 ? round2((joursPerdus * 1000) / H) : 0;
+
+  let prevStart;
+  let prevEnd;
+  if (y != null) {
+    ({ start: prevStart, end: prevEnd } = utcYearBounds(y - 1));
+  } else {
+    const len = end.getTime() - start.getTime();
+    prevEnd = new Date(start.getTime() - 1);
+    prevStart = new Date(prevEnd.getTime() - len);
+  }
+
+  const prevRows = await prisma.incident.findMany({
+    where: {
+      ...tf,
+      ...(sid ? { siteId: sid } : {}),
+      createdAt: { gte: prevStart, lte: prevEnd }
+    },
+    select: { type: true, description: true, severity: true }
+  });
+  let prevAcc = 0;
+  let prevJours = 0;
+  for (const row of prevRows) {
+    if (!isAccidentAvecArretRow(row)) continue;
+    prevAcc += 1;
+    prevJours += extractJoursPerdusFromDescription(row.description);
+  }
+  prevJours = round2(prevJours);
+
+  let prevH = H;
+  if (pd != null) {
+    prevH = Math.max(1, Math.round(DEFAULT_HEURES_TRAVAILLEES_AN * (pd / 365.25)));
+  } else if (y != null) {
+    prevH = DEFAULT_HEURES_TRAVAILLEES_AN;
+  }
+
+  const tfPrev = prevH > 0 ? round2((prevAcc * 1_000_000) / prevH) : 0;
+  const tgPrev = prevH > 0 ? round2((prevJours * 1000) / prevH) : 0;
+
+  return {
+    tf: tfVal,
+    tg: tgVal,
+    accidentsAvecArret,
+    joursPerdus,
+    heuresTravaillees: H,
+    periode,
+    objectifTF,
+    objectifTG,
+    tfPrev,
+    tgPrev,
+    prevPeriode:
+      y != null ? `Année ${y - 1}` : pd != null ? 'Période précédente de même durée' : 'Période précédente'
+  };
+}

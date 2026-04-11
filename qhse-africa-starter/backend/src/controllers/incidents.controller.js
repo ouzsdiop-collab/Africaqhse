@@ -23,6 +23,75 @@ export async function getAll(req, res, next) {
   }
 }
 
+/** GET /api/incidents/kpi/tf-tg — taux de fréquence et de gravité (mining / pétrole). */
+export async function getTfTgKpi(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+
+    const qy = req.query.year;
+    const year =
+      qy !== undefined && qy !== null && String(qy).trim() !== ''
+        ? Math.floor(Number(qy))
+        : null;
+
+    const qd = req.query.periodDays;
+    const periodDays =
+      qd !== undefined && qd !== null && String(qd).trim() !== ''
+        ? Math.floor(Number(qd))
+        : null;
+
+    const qh = req.query.heuresTravaillees;
+    const heuresTravaillees =
+      qh !== undefined && qh !== null && String(qh).trim() !== ''
+        ? Number(qh)
+        : null;
+
+    const qoTf = req.query.objectifTF;
+    const objectifTF =
+      qoTf !== undefined && qoTf !== null && String(qoTf).trim() !== ''
+        ? Number(qoTf)
+        : null;
+
+    const qoTg = req.query.objectifTG;
+    const objectifTG =
+      qoTg !== undefined && qoTg !== null && String(qoTg).trim() !== ''
+        ? Number(qoTg)
+        : null;
+
+    if (year != null && Number.isNaN(year)) {
+      return res.status(400).json({ error: 'year invalide' });
+    }
+    if (periodDays != null && Number.isNaN(periodDays)) {
+      return res.status(400).json({ error: 'periodDays invalide' });
+    }
+
+    const payload = await incidentsService.computeTfTg(req.qhseTenantId, siteId, {
+      year: Number.isFinite(year) ? year : null,
+      periodDays: Number.isFinite(periodDays) ? periodDays : null,
+      heuresTravaillees: Number.isFinite(heuresTravaillees) ? heuresTravaillees : null,
+      objectifTF: Number.isFinite(objectifTF) ? objectifTF : null,
+      objectifTG: Number.isFinite(objectifTG) ? objectifTG : null
+    });
+
+    res.json({
+      tf: payload.tf,
+      tg: payload.tg,
+      accidentsAvecArret: payload.accidentsAvecArret,
+      joursPerdus: payload.joursPerdus,
+      heuresTravaillees: payload.heuresTravaillees,
+      periode: payload.periode,
+      objectifTF: payload.objectifTF,
+      objectifTG: payload.objectifTG,
+      tfPrev: payload.tfPrev,
+      tgPrev: payload.tgPrev,
+      prevPeriode: payload.prevPeriode
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function create(req, res, next) {
   try {
     const {

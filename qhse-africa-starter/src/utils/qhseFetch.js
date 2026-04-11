@@ -3,13 +3,41 @@ import {
   getSessionUserId,
   setSessionUser,
   getAuthToken,
-  clearAuthSession
+  getRefreshToken,
+  clearSession,
+  nativeFetch
 } from '../data/sessionUser.js';
 import { getAccessTokenForRequest } from './auth.js';
 import { isDemoMode } from '../services/demoMode.service.js';
 import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
 
-let isRefreshing = false;
+/** @type {Promise<string | null> | null} */
+let refreshPromise = null;
+
+function hasStoredRefreshToken() {
+  const rt = getRefreshToken().trim();
+  if (rt) return true;
+  try {
+    return Boolean(
+      localStorage.getItem('qhse_refresh_token')?.trim()
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sharedRefreshAccessToken() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const { refreshAccessToken } = await import('./auth.js');
+      return await refreshAccessToken();
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
 
 /**
  * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (session / dev).
@@ -22,6 +50,16 @@ export async function qhseFetch(path, init = {}) {
   if (isDemoMode()) {
     const demoRes = await tryDemoFetchResponse(path, fetchInit);
     if (demoRes) return demoRes;
+    return new Response(
+      JSON.stringify({
+        error:
+          'Cette opération n’est pas simulée en mode exploration — aucun appel réseau effectué.'
+      }),
+      {
+        status: 503,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      }
+    );
   }
 
   const base = getApiBase();
@@ -46,34 +84,31 @@ export async function qhseFetch(path, init = {}) {
   const isRefreshUrl = url.includes('/api/auth/refresh');
   const isLoginUrl = url.includes('/api/auth/login');
 
-  let res = await fetch(url, { ...fetchInit, headers });
+  let res = await nativeFetch(url, { ...fetchInit, headers });
 
   if (
     res.status === 401 &&
     sentBearer &&
     !_retry &&
-    !isRefreshing &&
     !isRefreshUrl &&
     !isLoginUrl
   ) {
-    isRefreshing = true;
-    try {
-      const { refreshAccessToken } = await import('./auth.js');
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        const retryHeaders = new Headers(fetchInit.headers || undefined);
-        retryHeaders.set('Authorization', `Bearer ${newToken}`);
-        return qhseFetch(path, { ...fetchInit, _retry: true, headers: retryHeaders });
-      }
-    } catch {
-      /* ignore */
-    } finally {
-      isRefreshing = false;
+    if (!hasStoredRefreshToken()) {
+      clearSession();
+      return res;
     }
+    const newToken = await sharedRefreshAccessToken();
+    if (newToken) {
+      const retryHeaders = new Headers(fetchInit.headers || undefined);
+      retryHeaders.set('Authorization', `Bearer ${newToken}`);
+      return qhseFetch(path, { ...fetchInit, _retry: true, headers: retryHeaders });
+    }
+    clearSession();
+    return res;
   }
 
-  if (res.status === 401 && sentBearer) {
-    clearAuthSession();
+  if (res.status === 401 && sentBearer && !isLoginUrl) {
+    clearSession();
   }
   if (res.status === 403) {
     try {

@@ -35,15 +35,38 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           const n = normalizeModuleId(id);
-          if (n.includes('chart.js')) return 'vendor-charts';
-          if (n.includes('html2pdf') || n.includes('pdfkit')) return 'vendor-pdf';
-          if (n.includes('xlsx')) return 'vendor-xlsx';
-          if (n.includes('@sentry')) return 'vendor-sentry';
+          if (n.includes('node_modules')) {
+            if (n.includes('/chart.js/') || n.includes('\\chart.js\\')) return 'charts';
+            if (n.includes('/xlsx/') || n.includes('\\xlsx\\')) return 'vendor-xlsx';
+            if (
+              n.includes('html2pdf') ||
+              n.includes('jspdf') ||
+              n.includes('/pdfkit/') ||
+              n.includes('\\pdfkit\\') ||
+              n.includes('canvg')
+            ) {
+              return 'vendor-pdf';
+            }
+            if (n.includes('@sentry')) return 'vendor-sentry';
+            return undefined;
+          }
           if (n.includes('src/pages/dashboard')) return 'page-dashboard';
           if (n.includes('src/pages/incidents')) return 'page-incidents';
           if (n.includes('src/pages/audits')) return 'page-audits';
           if (n.includes('src/pages/iso')) return 'page-iso';
           if (n.includes('src/pages/analytics')) return 'page-analytics';
+          if (n.includes('src/components/dashboardCharts')) return 'charts';
+          if (
+            n.includes('src/components/auditExpertUx') ||
+            n.includes('src/components/auditFormDialog') ||
+            n.includes('src/components/auditResultPanel') ||
+            n.includes('src/components/auditFieldMode') ||
+            n.includes('src/components/auditDocumentComplianceStrip')
+          ) {
+            return 'audit-expert';
+          }
+          if (n.includes('src/utils/html2pdfExport')) return 'vendor-pdf';
+          if (n.includes('src/components/auditPremiumSaaS.pdf')) return 'vendor-pdf';
           if (n.includes('src/components/dashboard')) return 'chunk-dashboard-components';
           return undefined;
         }

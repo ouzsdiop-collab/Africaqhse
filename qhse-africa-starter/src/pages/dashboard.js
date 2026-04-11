@@ -45,6 +45,7 @@ import { Chart, registerables } from 'chart.js';
 import { initDashboardCharts } from '../components/dashboardCharts.js';
 import { listPermits } from '../services/ptw.service.js';
 import { renderKpiCards } from '../components/dashboardKpiCards.js';
+import { createDashboardTfTgMiniRow } from '../components/tfTgKpi.js';
 import {
   HABILITATIONS_DEMO_ROWS,
   computeHabilitationsBySite,
@@ -264,6 +265,11 @@ function ensureDashboardDecisionStyles() {
 .dashboard-hab-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .dashboard-kpi-subline{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text3);padding-top:3px}
 .dashboard-kpi-subline__delta{font-weight:700}
+.dashboard-kpi-empty-hint,.dashboard-ops-card__empty-hint,.dashboard-decision-alert__empty-hint{font-size:11px;color:var(--text3);margin:4px 0 0;line-height:1.35}
+.dashboard-kpi-zero-success__msg,.dashboard-ops-card__success-msg,.dashboard-decision-alert__success-msg{font-size:15px;font-weight:700;margin:6px 0 0;color:var(--color-success-text, #15803d)}
+.metric-card.dashboard-kpi-card--tone-success{border-color:var(--color-success-border, rgba(34,197,94,.42));background:var(--color-success-bg, color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-background-secondary)))}
+.dashboard-ops-card--zero-success{border-color:var(--color-success-border, rgba(34,197,94,.42));background:var(--color-success-bg, color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-background-secondary)))}
+.dashboard-decision-alert--zero-success{border-color:var(--color-success-border, rgba(34,197,94,.42));background:var(--color-success-bg, color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-background-secondary)))}
 /* Blocs pilot : surface plus « papier » que « vitrine » — hiérarchie portée par le titre, pas par triple ombre. */
 .dashboard-pilot-block{
   position:relative;
@@ -482,6 +488,18 @@ export function renderDashboard() {
   ensureDashboardDecisionStyles();
 
   const siteName = appState.currentSite || 'Tous sites';
+
+  const kpiToneClasses = [
+    'dashboard-kpi-card--tone-blue',
+    'dashboard-kpi-card--tone-red',
+    'dashboard-kpi-card--tone-amber',
+    'dashboard-kpi-card--tone-green',
+    'dashboard-kpi-card--tone-success'
+  ];
+
+  function dashboardKpiScopeEmptyLabel() {
+    return appState.activeSiteId ? 'Aucun sur ce site' : 'Aucune donnée';
+  }
 
   function exportDirectionToast() {
     showToast(
@@ -751,7 +769,7 @@ export function renderDashboard() {
     kpiDetailDrawerSingleton.element.id = 'qhse-kpi-detail-dialog';
     document.body.append(kpiDetailDrawerSingleton.element);
   }
-  const { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, dismissKpiSkeleton } = renderKpiCards({
+  const { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, kpiEmptyHints, dismissKpiSkeleton } = renderKpiCards({
     onOpenDetail: (key) => kpiDetailDrawerSingleton?.open(key)
   });
   kpiGrid.classList.add('dashboard-kpi-grid--executive');
@@ -759,6 +777,8 @@ export function renderDashboard() {
   const kpiPriorityLine = document.createElement('p');
   kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
   kpiPriorityLine.textContent = '';
+
+  const tfTgMini = createDashboardTfTgMiniRow();
 
   const kpiSection = document.createElement('section');
   kpiSection.className = 'dashboard-section dashboard-section--kpi-pilotage';
@@ -776,6 +796,7 @@ export function renderDashboard() {
   kpiSection.append(
     makeSectionHeader('Priorités', 'Cinq indicateurs clés', 'Le détail et les listes complètes : volet « Analyses & modules » ou clic sur une carte.'),
     kpiStickyWrap,
+    tfTgMini.root,
     kpiPriorityLine,
     ...(kpiQuick ? [kpiFoot] : [])
   );
@@ -933,21 +954,35 @@ export function renderDashboard() {
     const crit = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
     const late = asDashboardCount(stats?.overdueActions);
     const ncOpen = ncs.filter(isNcOpen).length;
+    const scopeEmpty = dashboardKpiScopeEmptyLabel();
     const cards = [
       { k: 'Incidents critiques', v: crit, tone: toneByValue(crit, 1, 2), kpi: 'incidents', impact: guessImpactedSite(incidents) },
       { k: 'Actions en retard', v: late, tone: toneByValue(late, 1, 3), kpi: 'actionsLate', impact: guessImpactedSite(actions) },
       { k: 'NC ouvertes', v: ncOpen, tone: toneByValue(ncOpen, 1, 3), kpi: 'ncOpen', impact: guessImpactedSite(ncs) }
     ];
     decisionAlerts.innerHTML = cards
-      .map(
-        (c) => `<article class="dashboard-decision-alert dashboard-decision-alert--${c.tone}" data-kpi-open="${escapeHtml(
+      .map((c) => {
+        if (c.kpi === 'actionsLate' && c.v === 0) {
+          return `<article class="dashboard-decision-alert dashboard-decision-alert--zero-success" data-kpi-open="${escapeHtml(
+            c.kpi
+          )}" role="button" tabindex="0">
+          <div class="dashboard-decision-alert__k">${escapeHtml(c.k)}</div>
+          <div class="dashboard-decision-alert__success-msg">Aucune action en retard</div>
+        </article>`;
+        }
+        const zeroHint =
+          c.v === 0
+            ? `<div class="dashboard-decision-alert__empty-hint">${escapeHtml(scopeEmpty)}</div>`
+            : '';
+        return `<article class="dashboard-decision-alert dashboard-decision-alert--${c.tone}" data-kpi-open="${escapeHtml(
           c.kpi
         )}" role="button" tabindex="0">
           <div class="dashboard-decision-alert__k">${escapeHtml(c.k)}</div>
           <div class="dashboard-decision-alert__v">${escapeHtml(String(c.v))}</div>
+          ${zeroHint}
           <div class="dashboard-kpi-subline"><span>${escapeHtml(computeDeltaLabel(c.v))}</span><span>${escapeHtml(c.impact)}</span></div>
-        </article>`
-      )
+        </article>`;
+      })
       .join('');
     decisionAlerts.querySelectorAll('[data-kpi-open]').forEach((el) => {
       const open = () => renderKpiFilteredModal(el.getAttribute('data-kpi-open') || 'incidents');
@@ -1250,11 +1285,10 @@ export function renderDashboard() {
       permits,
       docs: kpiDashboardLists.docs || []
     });
+    const opsScopeEmpty = dashboardKpiScopeEmptyLabel();
     opsGrid.innerHTML = tiles
-      .map(
-        (t) => `<article class="dashboard-ops-card dashboard-ops-card--${escapeHtml(t.tone)}" data-ops-go="${escapeHtml(
-          t.page
-        )}" data-kpi-open="${escapeHtml(
+      .map((t) => {
+        const kpiOpen =
           t.page === 'incidents'
             ? 'incidents'
             : t.page === 'actions'
@@ -1263,16 +1297,38 @@ export function renderDashboard() {
                 ? 'auditsN'
                 : t.page === 'risks'
                   ? 'incidentsCritical'
-                  : 'actions'
-        )}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
+                  : 'actions';
+        const impact = guessImpactedSite([...(incidents || []), ...(actions || []), ...(audits || [])]);
+        if (t.k === 'Actions en retard' && t.v === 0) {
+          return `<article class="dashboard-ops-card dashboard-ops-card--zero-success" data-ops-go="${escapeHtml(
+            t.page
+          )}" data-kpi-open="${escapeHtml(kpiOpen)}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
+          <div class="dashboard-ops-card__k">${escapeHtml(t.k)}</div>
+          <div class="dashboard-ops-card__success-msg">Aucune action en retard</div>
+        </article>`;
+        }
+        if (t.k === 'Risques critiques' && t.v === 0) {
+          return `<article class="dashboard-ops-card dashboard-ops-card--zero-success" data-ops-go="${escapeHtml(
+            t.page
+          )}" data-kpi-open="${escapeHtml(kpiOpen)}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
+          <div class="dashboard-ops-card__k">${escapeHtml(t.k)}</div>
+          <div class="dashboard-ops-card__success-msg">Aucun risque critique</div>
+        </article>`;
+        }
+        const opsZeroHint =
+          t.v === 0 ? `<div class="dashboard-ops-card__empty-hint">${escapeHtml(opsScopeEmpty)}</div>` : '';
+        return `<article class="dashboard-ops-card dashboard-ops-card--${escapeHtml(t.tone)}" data-ops-go="${escapeHtml(
+          t.page
+        )}" data-kpi-open="${escapeHtml(kpiOpen)}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
           <div class="dashboard-ops-card__k">${escapeHtml(t.k)}</div>
           <div class="dashboard-ops-card__v">${escapeHtml(String(t.v))}</div>
+          ${opsZeroHint}
           <div class="dashboard-ops-card__d">${escapeHtml(t.d)}</div>
           <div class="dashboard-kpi-subline"><span>${escapeHtml(computeDeltaLabel(t.v))}</span><span>${escapeHtml(
-            guessImpactedSite([...(incidents || []), ...(actions || []), ...(audits || [])])
+            impact
           )}</span></div>
-        </article>`
-      )
+        </article>`;
+      })
       .join('');
     opsGrid.querySelectorAll('[data-ops-go]').forEach((el) => {
       const go = () => {
@@ -1430,23 +1486,62 @@ export function renderDashboard() {
   }
 
   function applyStatsToKpis(data) {
+    const scopeHint = dashboardKpiScopeEmptyLabel();
+
+    const incN = asDashboardCount(data.incidents);
     kpiValues.incidents.textContent = formatDashboardCount(data.incidents);
-    kpiValues.actionsLate.textContent = formatDashboardCount(data.overdueActions);
+    const incHint = kpiEmptyHints.incidents;
+    if (incHint) {
+      incHint.hidden = incN !== 0;
+      incHint.textContent = incN === 0 ? scopeHint : '';
+    }
+
+    const lateN = asDashboardCount(data.overdueActions);
+    const lateCard = kpiValues.actionsLate?.closest('.dashboard-kpi-card');
+    const lateDefault = lateCard?.querySelector('.dashboard-kpi-default');
+    const lateSuccess = lateCard?.querySelector('.dashboard-kpi-zero-success');
+    const lateNote = lateCard?.querySelector('.metric-note');
+    if (lateSuccess && lateDefault && lateCard && kpiValues.actionsLate) {
+      if (lateN === 0) {
+        lateDefault.hidden = true;
+        if (lateNote) lateNote.hidden = true;
+        lateSuccess.hidden = false;
+        kpiToneClasses.forEach((c) => lateCard.classList.remove(c));
+        lateCard.classList.add('dashboard-kpi-card--tone-success');
+      } else {
+        lateDefault.hidden = false;
+        if (lateNote) lateNote.hidden = false;
+        lateSuccess.hidden = true;
+        kpiToneClasses.forEach((c) => lateCard.classList.remove(c));
+        lateCard.classList.add('dashboard-kpi-card--tone-red');
+        kpiValues.actionsLate.textContent = formatDashboardCount(data.overdueActions);
+      }
+    } else if (kpiValues.actionsLate) {
+      kpiValues.actionsLate.textContent = formatDashboardCount(data.overdueActions);
+    }
+
     const lateTone = toneByValue(data.overdueActions, 1, 3);
     const incTone = toneByValue(data.incidents, 3, 8);
     [kpiValues.actionsLate?.parentElement, kpiValues.incidents?.parentElement].forEach((el) => {
       if (!el) return;
       el.classList.remove('dashboard-kpi-card--crit');
     });
-    if (lateTone === 'red') kpiValues.actionsLate?.parentElement?.classList.add('dashboard-kpi-card--crit');
+    if (lateN > 0 && lateTone === 'red') kpiValues.actionsLate?.parentElement?.classList.add('dashboard-kpi-card--crit');
     if (incTone === 'red') kpiValues.incidents?.parentElement?.classList.add('dashboard-kpi-card--crit');
+
     updateKpiPriorityLine();
   }
 
   function applyEnrichmentKpis(ncList, auditList, ncTotalAggregate) {
+    const scopeHint = dashboardKpiScopeEmptyLabel();
     if (Array.isArray(ncList)) {
       const n = ncList.filter(isNcOpen).length;
       kpiValues.ncOpen.textContent = String(n);
+      const ncHint = kpiEmptyHints.ncOpen;
+      if (ncHint) {
+        ncHint.hidden = n !== 0;
+        ncHint.textContent = n === 0 ? scopeHint : '';
+      }
       if (kpiNotes.ncOpen) {
         const agg =
           ncTotalAggregate != null && Number.isFinite(Number(ncTotalAggregate))
@@ -1466,9 +1561,19 @@ export function renderDashboard() {
         kpiValues.auditScore.textContent = '—';
       }
       kpiValues.auditsN.textContent = String(auditList.length);
+      const audHint = kpiEmptyHints.auditsN;
+      if (audHint) {
+        audHint.hidden = true;
+        audHint.textContent = '';
+      }
     } else {
       kpiValues.auditScore.textContent = '—';
-      kpiValues.auditsN.textContent = '—';
+      kpiValues.auditsN.textContent = '0';
+      const audHint = kpiEmptyHints.auditsN;
+      if (audHint) {
+        audHint.hidden = false;
+        audHint.textContent = scopeHint;
+      }
     }
   }
 
@@ -1651,6 +1756,7 @@ export function renderDashboard() {
     void loadDashboardInsight(
       buildMistralDashboardStatsPayload(lastStats, audits, risksR || [])
     );
+    await tfTgMini.refresh();
     dismissKpiSkeleton();
   }
 

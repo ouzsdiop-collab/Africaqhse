@@ -1,7 +1,6 @@
 import { showToast } from '../components/toast.js';
 import { ensureSensitiveAccess } from '../components/sensitiveAccessGate.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
-import { createAuditIsoNormBarsChart } from '../components/dashboardCharts.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import { appState } from '../utils/state.js';
@@ -11,33 +10,15 @@ import { activityLogStore } from '../data/activityLog.js';
 import { ensureAuditProductsStyles } from '../components/auditProductsStyles.js';
 import { ensureAuditPlusStyles } from '../components/auditPlusStyles.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
-import { createAuditFieldMode } from '../components/auditFieldMode.js';
 import { fetchUsers } from '../services/users.service.js';
 import { readImportDraft } from '../utils/importDraft.js';
-import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
+import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
 import {
   ensureAuditPremiumSaaSStyles,
-  createAuditTerrainWorkflowStrip,
-  downloadAuditIsoPdfFromHtml,
-  buildAuditIsoPdfHtml
+  createAuditTerrainWorkflowStrip
 } from '../components/auditPremiumSaaS.js';
-import {
-  ensureAuditExpertUxStyles,
-  createAuditExpertCockpitBlock,
-  createExigenceHeatmap,
-  createProcessScoresBlock,
-  attachModeDirectionButton,
-  runAuditExpertAlerts,
-  buildAuditTimeline,
-  openAuditExcelImportModal,
-  enhanceAuditAssistantCard
-} from '../components/auditExpertUx.js';
-import { createAuditDocumentComplianceStrip } from '../components/auditDocumentComplianceStrip.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
-import { linkModules } from '../services/moduleLinks.service.js';
-import { createAuditImportDraftSection, openAuditDialog } from '../components/auditFormDialog.js';
-import { openAuditResult } from '../components/auditResultPanel.js';
 /* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
@@ -640,13 +621,16 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   bLink.style.fontWeight = '700';
   bLink.textContent = 'Lier action';
   bLink.addEventListener('click', () => {
-    linkModules({
-      fromModule: 'audits',
-      fromId: String(item.point || 'nc'),
-      toModule: 'risks',
-      toId: `risk_from_audit_${String(item.point || 'nc')}`,
-      kind: 'audit_nc_to_risk'
-    });
+    void (async () => {
+      const { linkModules } = await import('../services/moduleLinks.service.js');
+      linkModules({
+        fromModule: 'audits',
+        fromId: String(item.point || 'nc'),
+        toModule: 'risks',
+        toId: `risk_from_audit_${String(item.point || 'nc')}`,
+        kind: 'audit_nc_to_risk'
+      });
+    })();
     window.location.hash = 'risks';
     activityLogStore.add({
       module: 'audits',
@@ -905,7 +889,31 @@ function createPlanningTable() {
   return wrap;
 }
 
-export function renderAudits() {
+export async function renderAudits() {
+  const [auditExpertUx, auditFormMod, auditResultMod, auditFieldModeMod, auditDocStripMod] =
+    await Promise.all([
+      import('../components/auditExpertUx.js'),
+      import('../components/auditFormDialog.js'),
+      import('../components/auditResultPanel.js'),
+      import('../components/auditFieldMode.js'),
+      import('../components/auditDocumentComplianceStrip.js')
+    ]);
+  const {
+    ensureAuditExpertUxStyles,
+    createAuditExpertCockpitBlock,
+    createExigenceHeatmap,
+    createProcessScoresBlock,
+    attachModeDirectionButton,
+    runAuditExpertAlerts,
+    buildAuditTimeline,
+    openAuditExcelImportModal,
+    enhanceAuditAssistantCard
+  } = auditExpertUx;
+  const { createAuditImportDraftSection, openAuditDialog } = auditFormMod;
+  const { openAuditResult } = auditResultMod;
+  const { createAuditFieldMode } = auditFieldModeMod;
+  const { createAuditDocumentComplianceStrip } = auditDocStripMod;
+
   ensureAuditProductsStyles();
   ensureAuditPlusStyles();
   ensureQhsePilotageStyles();
@@ -991,6 +999,9 @@ export function renderAudits() {
 
   async function generateAuditIsoClientPdf() {
     try {
+      const { buildAuditIsoPdfHtml, downloadAuditIsoPdfFromHtml } = await import(
+        '../components/auditPremiumSaaS.pdf.js'
+      );
       const curScore = Math.min(
         100,
         Math.max(0, Math.round(LAST_AUDIT.score + scoreAdjust))
@@ -1418,7 +1429,17 @@ export function renderAudits() {
   const auditTrendBody = document.createElement('div');
   auditTrendBody.className =
     'dashboard-chart-card-inner audit-cockpit-strategic-chart-body audit-premium-chart-body';
-  auditTrendBody.append(createAuditIsoNormBarsChart(AUDIT_ISO_NORM_SCORES));
+  const auditNormChartSlot = document.createElement('div');
+  auditNormChartSlot.className = 'audit-cockpit-norm-chart-slot';
+  auditTrendBody.append(auditNormChartSlot);
+  void (async () => {
+    try {
+      const { createAuditIsoNormBarsChart } = await import('../components/dashboardCharts.js');
+      auditNormChartSlot.replaceWith(createAuditIsoNormBarsChart(AUDIT_ISO_NORM_SCORES));
+    } catch (e) {
+      console.error(e);
+    }
+  })();
   const deltaStrip = document.createElement('div');
   deltaStrip.className = 'audit-cockpit-delta-strip';
   deltaStrip.setAttribute('role', 'status');

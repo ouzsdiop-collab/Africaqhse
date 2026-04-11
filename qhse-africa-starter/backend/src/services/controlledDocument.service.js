@@ -156,7 +156,8 @@ export async function getControlledDocumentByIdUnscoped(id) {
 export async function createControlledDocument(buffer, meta) {
   const tenantRowId = normalizeTenantId(meta.tenantId);
   const { relativePath, sizeBytes } = await saveControlledFile(buffer, {
-    originalName: meta.name || 'document'
+    originalName: meta.name || 'document',
+    contentType: meta.mimeType || null
   });
   const classification = normalizeClassification(meta.classification);
   let expiresAt = null;

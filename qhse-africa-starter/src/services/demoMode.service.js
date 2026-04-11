@@ -9,19 +9,25 @@ const STORAGE_KEY = 'qhse-demo-mode-v1';
 const NOTIF_SYNTH_READ_KEY = 'qhse-notif-synthetic-read-v1';
 
 /**
- * Le mode exploration (données locales hors API) est réservé aux builds non production.
+ * En production (`import.meta.env.PROD`), le mode exploration est désactivé par défaut.
+ * Pour l’activer sur un build déployé : définir `VITE_ALLOW_DEMO_MODE=true` au build.
+ * En développement, toujours autorisé.
  * @returns {boolean}
  */
 export function isDemoModeAllowed() {
   try {
-    return Boolean(import.meta.env && import.meta.env.DEV);
+    if (import.meta.env?.DEV) return true;
+    if (import.meta.env?.PROD && import.meta.env?.VITE_ALLOW_DEMO_MODE !== 'true') {
+      return false;
+    }
+    return true;
   } catch {
     return true;
   }
 }
 
 /**
- * Désactive le stockage exploration en production et réinitialise l’état runtime associé.
+ * En production sans `VITE_ALLOW_DEMO_MODE=true` : retire le flag local et le runtime démo.
  */
 export function ensureProductionDemoModeOff() {
   if (isDemoModeAllowed()) return;

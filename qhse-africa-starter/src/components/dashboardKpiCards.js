@@ -5,7 +5,13 @@ import { createSkeletonCard } from '../utils/designSystem.js';
 export const DASHBOARD_KPI_SPECS = [
   { key: 'incidents', label: 'Incidents', note: 'Périmètre courant', tone: 'amber' },
   { key: 'ncOpen', label: 'NC ouvertes', note: 'Non clos', tone: 'amber' },
-  { key: 'actionsLate', label: 'Actions en retard', note: 'Hors clôturées', tone: 'red' },
+  {
+    key: 'actionsLate',
+    label: 'Actions en retard',
+    note: 'Hors clôturées',
+    tone: 'red',
+    zeroSuccessMessage: 'Aucune action en retard'
+  },
   { key: 'auditScore', label: 'Score audits', note: 'Moyenne', tone: 'green' },
   { key: 'auditsN', label: 'Audits', note: 'Cette vue', tone: 'blue' }
 ];
@@ -55,5 +61,5 @@ export function renderKpiCards(opts) {
     if (kpiSkeletonLayer.isConnected) kpiSkeletonLayer.remove();
   }
 
-  return { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, dismissKpiSkeleton };
+  return { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, kpiEmptyHints, dismissKpiSkeleton };
 }

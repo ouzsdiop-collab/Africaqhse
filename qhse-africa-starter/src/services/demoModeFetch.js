@@ -1,8 +1,9 @@
 /**
- * Interception qhseFetch en mode exploration — réponses JSON locales + PATCH légers (Kanban / incidents).
+ * Interception qhseFetch en mode exploration — réponses JSON locales + mutations légères (sans backend).
  */
 
 import {
+  DEMO_SITE_ID,
   demoSites,
   demoUsers,
   demoIncidentsBase,
@@ -11,13 +12,17 @@ import {
   demoNonConformities,
   demoNotifications,
   demoControlledDocuments,
+  demoRisks,
   buildDemoDashboardStats,
-  buildDemoReportingSummary
+  buildDemoReportingSummary,
+  buildDemoAiRootCausesPayload,
+  buildDemoAiCorrectiveActionsPayload
 } from '../data/demoModeFixtures.js';
 import {
   loadDemoRuntime,
   patchDemoActionRuntime,
-  patchDemoIncidentRuntime
+  patchDemoIncidentRuntime,
+  appendDemoCreatedIncident
 } from './demoModeRuntime.service.js';
 
 /**
@@ -58,8 +63,37 @@ function parseApiPath(path) {
 }
 
 function getMergedIncidents() {
-  const { incidentPatches } = loadDemoRuntime();
-  return demoIncidentsBase.map((r) => ({ ...r, ...(incidentPatches[r.ref] || {}) }));
+  const { incidentPatches, createdIncidents } = loadDemoRuntime();
+  const created = Array.isArray(createdIncidents) ? createdIncidents : [];
+  const patchedCreated = created.map((r) => ({
+    ...r,
+    ...(incidentPatches[r.ref] || {})
+  }));
+  const patchedBase = demoIncidentsBase.map((r) => ({
+    ...r,
+    ...(incidentPatches[r.ref] || {})
+  }));
+  return [...patchedCreated, ...patchedBase];
+}
+
+function filterIncidentsForList(sp) {
+  let list = getMergedIncidents();
+  const siteId = sp.get('siteId');
+  if (siteId) {
+    list = list.filter((r) => r.siteId === siteId);
+  }
+  const lim = Math.min(500, Math.max(1, parseInt(String(sp.get('limit') || '500'), 10) || 500));
+  return list.slice(0, lim);
+}
+
+function filterDemoRisks(sp) {
+  let out = [...demoRisks];
+  const siteId = sp.get('siteId');
+  if (siteId) {
+    out = out.filter((r) => r.siteId === siteId);
+  }
+  const lim = Math.min(500, Math.max(1, parseInt(String(sp.get('limit') || '300'), 10) || 300));
+  return out.slice(0, lim);
 }
 
 function getMergedActions() {
@@ -98,10 +132,24 @@ function findAssigneePayload(assigneeId) {
   };
 }
 
+function mapSeverityForDemoApi(raw) {
+  const t = String(raw || '').toLowerCase();
+  if (t === 'critique') return 'Critique';
+  if (t === 'faible') return 'Faible';
+  if (t === 'élevée' || t === 'elevee' || t === 'elevée') return 'Élevée';
+  return 'Moyenne';
+}
+
+function findDemoIncidentById(id) {
+  const sid = String(id || '').trim();
+  if (!sid) return null;
+  return getMergedIncidents().find((i) => i.id === sid) || null;
+}
+
 /**
  * @param {string} path
  * @param {RequestInit} [init]
- * @returns {Promise<Response | null>} null = laisser le fetch réseau
+ * @returns {Promise<Response | null>} null uniquement si hors périmètre (ne plus utiliser en prod démo — voir qhseFetch)
  */
 export async function tryDemoFetchResponse(path, init = {}) {
   const method = String(init.method || 'GET').toUpperCase();
@@ -139,6 +187,81 @@ export async function tryDemoFetchResponse(path, init = {}) {
     return jsonResponse(row);
   }
 
+  if (pathname === '/api/incidents' && method === 'POST') {
+    const body = await readJsonBody(init.body);
+    const ref = typeof body.ref === 'string' ? body.ref.trim() : '';
+    if (!ref) {
+      return jsonResponse({ error: 'Référence incident requise' }, 400);
+    }
+    const id = `cldemo-inc-${Date.now()}`;
+    const now = new Date().toISOString();
+    const siteId =
+      typeof body.siteId === 'string' && body.siteId.trim() ? body.siteId.trim() : DEMO_SITE_ID;
+    const siteLabel =
+      typeof body.site === 'string' && body.site.trim()
+        ? body.site.trim()
+        : demoSites.find((s) => s.id === siteId)?.name || 'Mine Kassa — RDC';
+    const row = {
+      id,
+      ref,
+      type: typeof body.type === 'string' ? body.type.trim() : 'Événement',
+      site: siteLabel,
+      siteId,
+      severity: mapSeverityForDemoApi(body.severity),
+      description: typeof body.description === 'string' ? body.description : '',
+      status: typeof body.status === 'string' ? body.status.trim() : 'Nouveau',
+      createdAt: now,
+      location: body.location != null ? String(body.location) : null,
+      causes: body.causes != null ? String(body.causes) : null,
+      causeCategory: body.causeCategory != null ? String(body.causeCategory).trim() || null : null,
+      photosJson: typeof body.photosJson === 'string' ? body.photosJson : null,
+      responsible: body.responsible != null ? String(body.responsible).trim() || null : null
+    };
+    appendDemoCreatedIncident(row);
+    return jsonResponse(row, 201);
+  }
+
+  if (pathname === '/api/ai-suggestions/suggest/root-causes' && method === 'POST') {
+    const body = await readJsonBody(init.body);
+    const incidentId = String(body.incidentId ?? '').trim();
+    if (!incidentId) {
+      return jsonResponse({ error: 'incidentId requis' }, 400);
+    }
+    const inc = findDemoIncidentById(incidentId);
+    if (!inc) {
+      return jsonResponse({ error: 'Incident introuvable' }, 404);
+    }
+    return jsonResponse(buildDemoAiRootCausesPayload(inc));
+  }
+
+  if (pathname === '/api/ai-suggestions/suggest/actions' && method === 'POST') {
+    const body = await readJsonBody(init.body);
+    const incidentId = String(body.incidentId ?? '').trim();
+    if (!incidentId) {
+      return jsonResponse({ error: 'incidentId requis' }, 400);
+    }
+    const inc = findDemoIncidentById(incidentId);
+    if (!inc) {
+      return jsonResponse({ error: 'Incident introuvable' }, 404);
+    }
+    return jsonResponse(buildDemoAiCorrectiveActionsPayload(inc));
+  }
+
+  if (pathname === '/api/ai/incident-causes' && method === 'POST') {
+    const body = await readJsonBody(init.body);
+    const ref = String(body?.ref || '').trim() || 'INC';
+    const suggestion = [
+      'Analyse exploration (mine / SST) — causes probables :',
+      '• Organisation : coordination engins / piétons, permis de travail, consignes de circulation.',
+      '• Matériel : intégrité garde-corps, signalisation dynamique, état des engins blindés.',
+      '• Humain : formation SST actualisée, fatigue poste nuit, respect des EPI (casque, chaussures, visibilité).',
+      '• Environnement : pluie / boue, poussière silice, éclairage insuffisant en fin de quart.',
+      '',
+      `Réf. dossier : ${ref} — valider sur le terrain avant clôture.`
+    ].join('\n');
+    return jsonResponse({ suggestion });
+  }
+
   if (method !== 'GET') {
     return null;
   }
@@ -150,7 +273,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
   }
 
   if (pathname === '/api/incidents') {
-    return jsonResponse(getMergedIncidents());
+    return jsonResponse(filterIncidentsForList(sp));
   }
 
   const mIncGet = /^\/api\/incidents\/([^/]+)$/.exec(pathname);
@@ -195,6 +318,61 @@ export async function tryDemoFetchResponse(path, init = {}) {
 
   if (pathname === '/api/controlled-documents') {
     return jsonResponse(demoControlledDocuments);
+  }
+
+  if (pathname === '/api/risks') {
+    return jsonResponse(filterDemoRisks(sp));
+  }
+
+  if (pathname === '/api/incidents/kpi/tf-tg') {
+    const y = sp.get('year');
+    const year =
+      y !== undefined && y !== null && String(y).trim() !== ''
+        ? Math.floor(Number(y))
+        : new Date().getFullYear();
+    const yLabel = Number.isFinite(year) ? String(year) : String(new Date().getFullYear());
+    return jsonResponse({
+      tf: 1.85,
+      tg: 0.42,
+      accidentsAvecArret: 2,
+      joursPerdus: 12,
+      heuresTravaillees: 1080000,
+      periode: `Année ${yLabel} — Mine Kassa (démo)`,
+      objectifTF: 2,
+      objectifTG: 0.5,
+      tfPrev: 2.31,
+      tgPrev: 0.55,
+      prevPeriode: 'Période précédente (jeu d’illustration)'
+    });
+  }
+
+  if (pathname === '/api/export/incidents') {
+    const rows = filterIncidentsForList(sp);
+    const esc = (v) => {
+      const s = String(v ?? '');
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const header = 'ref,type,site,severity,status,createdAt,location,description';
+    const lines = rows.map((r) =>
+      [
+        esc(r.ref),
+        esc(r.type),
+        esc(r.site),
+        esc(r.severity),
+        esc(r.status),
+        esc(r.createdAt),
+        esc(r.location),
+        esc(r.description)
+      ].join(',')
+    );
+    const csv = `\uFEFF${header}\n${lines.join('\n')}`;
+    return new Response(csv, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8'
+      }
+    });
   }
 
   if (pathname === '/api/reports/summary') {

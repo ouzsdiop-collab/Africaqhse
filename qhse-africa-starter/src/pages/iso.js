@@ -2,7 +2,6 @@ import { showToast } from '../components/toast.js';
 import { ensureSensitiveAccess } from '../components/sensitiveAccessGate.js';
 import { pageTopbarById } from '../data/navigation.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
-import { createRequirementStatusMixChart } from '../components/dashboardCharts.js';
 import { ensureIsoPageStyles } from '../components/isoPageStyles.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { openComplianceAssistModal } from '../components/isoComplianceAssistPanel.js';
@@ -26,10 +25,6 @@ import {
   getImportedDocumentProofs,
   addImportedDocumentProof
 } from '../data/conformityStore.js';
-import {
-  buildIsoConformityPdfHtml,
-  downloadAuditIsoPdfFromHtml
-} from '../components/auditPremiumSaaS.js';
 import {
   computeAuditReadiness,
   createAuditReadinessBanner,
@@ -1733,6 +1728,9 @@ export function renderIso(onAddLog) {
 
   heroCard.querySelector('.iso-export-conformity-pdf')?.addEventListener('click', async () => {
     try {
+      const { buildIsoConformityPdfHtml, downloadAuditIsoPdfFromHtml } = await import(
+        '../components/auditPremiumSaaS.pdf.js'
+      );
       const pctEl = heroCard.querySelector('.iso-hero-stat-pct');
       const gapEl = heroCard.querySelector('.iso-hero-stat-gaps');
       const html = buildIsoConformityPdfHtml({
@@ -2064,21 +2062,21 @@ export function renderIso(onAddLog) {
     tableCtx.onAnalyze(row)
   );
 
-  function paintIsoMixCharts() {
-    if (isoMixChartHosts.req) {
-      const reqs = getRequirements();
-      let conforme = 0;
-      let partiel = 0;
-      let nonConforme = 0;
-      reqs.forEach((r) => {
-        if (r.status === 'conforme') conforme += 1;
-        else if (r.status === 'partiel') partiel += 1;
-        else nonConforme += 1;
-      });
-      isoMixChartHosts.req.replaceChildren(
-        createRequirementStatusMixChart({ conforme, partiel, nonConforme })
-      );
-    }
+  async function paintIsoMixCharts() {
+    if (!isoMixChartHosts.req) return;
+    const reqs = getRequirements();
+    let conforme = 0;
+    let partiel = 0;
+    let nonConforme = 0;
+    reqs.forEach((r) => {
+      if (r.status === 'conforme') conforme += 1;
+      else if (r.status === 'partiel') partiel += 1;
+      else nonConforme += 1;
+    });
+    const { createRequirementStatusMixChart } = await import('../components/dashboardCharts.js');
+    isoMixChartHosts.req.replaceChildren(
+      createRequirementStatusMixChart({ conforme, partiel, nonConforme })
+    );
   }
 
   let isRefreshingPilotage = false;
@@ -2103,7 +2101,7 @@ export function renderIso(onAddLog) {
       docStateSummary.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
       registryDocImpact.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
       docTableSection.refresh();
-      paintIsoMixCharts();
+      void paintIsoMixCharts();
     } finally {
       isRefreshingPilotage = false;
       if (refreshPilotageQueued) {
@@ -2239,7 +2237,7 @@ export function renderIso(onAddLog) {
   isoMixRow.append(isoReqStatCard);
 
   isoMixChartHosts.req = isoReqChartBody;
-  paintIsoMixCharts();
+  void paintIsoMixCharts();
 
   const priorityShell = document.createElement('div');
   priorityShell.className = 'iso-priority-shell';

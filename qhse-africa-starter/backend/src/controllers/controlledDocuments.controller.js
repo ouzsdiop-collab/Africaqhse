@@ -15,6 +15,12 @@ import {
   isEnforceDocumentSiteScopeEnabled
 } from '../lib/siteScope.service.js';
 import { emitBusinessEvent } from '../services/businessEvents.service.js';
+import {
+  getPresignedControlledDocumentDownloadUrl,
+  isS3StorageEnabled
+} from '../services/documentStorage.service.js';
+
+const S3_DOWNLOAD_PRESIGN_SECONDS = 3600;
 
 function mayAccessDocumentRow(user, row) {
   if (!isEnforceDocumentSiteScopeEnabled()) return true;
@@ -87,7 +93,6 @@ export async function streamByToken(req, res, next) {
     if (!controlledDocumentService.canAccessControlledDocument(qhseUser, doc.classification, 'read')) {
       return res.status(403).json({ error: 'Accès refusé pour cette classification.' });
     }
-    const { buffer } = await controlledDocumentService.readDocumentBufferFromRow(doc);
     await writeAuditLog({
       tenantId: doc.tenantId ?? v.tenantId,
       userId: anonDev ? null : (qhseUser?.id ?? null),
@@ -95,13 +100,23 @@ export async function streamByToken(req, res, next) {
       resourceId: doc.id,
       action: 'controlled_document_download',
       metadata: {
-        via: 'signed_token',
+        via: isS3StorageEnabled() ? 's3_presigned_redirect' : 'signed_token',
         mimeType: doc.mimeType,
         name: doc.name,
         siteId: doc.siteId ?? null,
         requestId: req.requestId ?? null
       }
     });
+    if (isS3StorageEnabled() && doc.path) {
+      const url = await getPresignedControlledDocumentDownloadUrl(doc.path, {
+        fileName: doc.name,
+        mimeType: doc.mimeType,
+        expiresInSeconds: S3_DOWNLOAD_PRESIGN_SECONDS
+      });
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.redirect(302, url);
+    }
+    const { buffer } = await controlledDocumentService.readDocumentBufferFromRow(doc);
     const mime = doc.mimeType || 'application/octet-stream';
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
@@ -322,13 +337,24 @@ export async function issueAccessToken(req, res, next) {
       action: 'controlled_document_issue_token',
       metadata: { expiresIn }
     });
-    return res.json({
+    /** @type {{ token: string, streamPath: string, expiresIn: string, hint: string, signedDownloadUrl?: string, signedDownloadExpiresInSeconds?: number }} */
+    const payload = {
       token,
       streamPath,
       expiresIn,
-      /** Indication client : préfixer avec l’origine HTTPS de l’API. */
       hint: 'Utilisez streamPath sur la même origine que l’API (HTTPS en production).'
-    });
+    };
+    if (isS3StorageEnabled() && doc.path) {
+      payload.signedDownloadUrl = await getPresignedControlledDocumentDownloadUrl(doc.path, {
+        fileName: doc.name,
+        mimeType: doc.mimeType,
+        expiresInSeconds: S3_DOWNLOAD_PRESIGN_SECONDS
+      });
+      payload.signedDownloadExpiresInSeconds = S3_DOWNLOAD_PRESIGN_SECONDS;
+      payload.hint =
+        'Stockage S3 : signedDownloadUrl (GET direct, 1 h) ou streamPath (redirige vers une URL S3 présignée).';
+    }
+    return res.json(payload);
   } catch (e) {
     return next(e);
   }
@@ -349,7 +375,6 @@ export async function downloadAuthenticated(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé.' });
     }
     assertDocumentSiteAllowed(u, doc.siteId);
-    const { buffer } = await controlledDocumentService.readDocumentBufferForId(req.qhseTenantId, doc.id);
     await writeAuditLog({
       tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
@@ -357,13 +382,23 @@ export async function downloadAuthenticated(req, res, next) {
       resourceId: doc.id,
       action: 'controlled_document_download',
       metadata: {
-        via: 'bearer',
+        via: isS3StorageEnabled() ? 'bearer_s3_presigned_redirect' : 'bearer',
         mimeType: doc.mimeType,
         name: doc.name,
         siteId: doc.siteId ?? null,
         requestId: req.requestId ?? null
       }
     });
+    if (isS3StorageEnabled() && doc.path) {
+      const url = await getPresignedControlledDocumentDownloadUrl(doc.path, {
+        fileName: doc.name,
+        mimeType: doc.mimeType,
+        expiresInSeconds: S3_DOWNLOAD_PRESIGN_SECONDS
+      });
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.redirect(302, url);
+    }
+    const { buffer } = await controlledDocumentService.readDocumentBufferForId(req.qhseTenantId, doc.id);
     const mime = doc.mimeType || 'application/octet-stream';
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);

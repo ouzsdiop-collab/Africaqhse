@@ -345,7 +345,8 @@ export function renderSettings() {
       <p class="settings-section__lead">
         Fournit des <strong>données d’illustration</strong> cohérentes dans le navigateur (incidents, actions, audits, non-conformités, notifications)
         pour formation ou pré-production lorsque l’API n’est pas utilisée ou seulement partiellement disponible.
-        Les appels non interceptés continuent d’utiliser le réseau si le serveur est joignable.
+        En build <strong>production</strong>, cette section n’apparaît que si le déploiement définit <code>VITE_ALLOW_DEMO_MODE=true</code>.
+        Les requêtes passent par le même client que l’app : en mode exploration actif, les routes mockées ne contactent pas le backend.
       </p>
     </header>
     <div class="settings-demo-card content-card card-soft">

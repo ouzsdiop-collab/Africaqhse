@@ -42,6 +42,180 @@ export const demoUsers = [
   }
 ];
 
+/** Registre risques — cohérent avec l’assistant pilotage et GET /api/risks en mode exploration. */
+export const demoRisks = [
+  {
+    id: 'cldemo-risk-01',
+    ref: 'RSK-MK-2026-01',
+    title: 'Chute de hauteur — accès trémies et passerelles provisoires',
+    description:
+      'Travail en hauteur sur infrastructure extraction : garde-corps démontables, intempéries, charge dynamique engins.',
+    category: 'Sécurité',
+    gravity: 5,
+    probability: 3,
+    gp: 15,
+    severity: 'Critique',
+    status: 'ouvert',
+    siteId: DEMO_SITE_ID,
+    site: DEMO_SITE_LABEL,
+    owner: 'Amina Mukendi',
+    updatedAt: '2026-04-01T10:00:00.000Z',
+    createdAt: '2025-12-01T08:00:00.000Z'
+  },
+  {
+    id: 'cldemo-risk-02',
+    ref: 'RSK-MK-2026-02',
+    title: 'Écrasement / heurt — circulation engins blindés et bennes',
+    description:
+      'Croisement engins de terrassement et piétons logistique ; visibilité réduite nuit et poussière.',
+    category: 'Sécurité',
+    gravity: 4,
+    probability: 4,
+    gp: 16,
+    severity: 'Élevée',
+    status: 'en_traitement',
+    siteId: DEMO_SITE_ID,
+    site: DEMO_SITE_LABEL,
+    owner: 'Patrick Kasaï',
+    updatedAt: '2026-03-28T14:00:00.000Z',
+    createdAt: '2026-01-15T09:00:00.000Z'
+  },
+  {
+    id: 'cldemo-risk-03',
+    ref: 'RSK-MK-2026-03',
+    title: 'Fuite hydrocarbures — stockage carburant tranchée nord',
+    description: 'Bacs de rétention, raccords vibratoires, surveillance cuve mobile forage.',
+    category: 'Environnement',
+    gravity: 3,
+    probability: 3,
+    gp: 9,
+    severity: 'Moyenne',
+    status: 'ouvert',
+    siteId: DEMO_SITE_ID,
+    site: DEMO_SITE_LABEL,
+    owner: 'Jean-Paul Ilunga',
+    updatedAt: '2026-03-10T11:00:00.000Z',
+    createdAt: '2025-11-20T08:00:00.000Z'
+  },
+  {
+    id: 'cldemo-risk-04',
+    ref: 'RSK-MK-2026-04',
+    title: 'Effondrement localisé — talus stérile humide',
+    description: 'Saison des pluies ; stabilité bermes accès flanc nord ; géotechnique à mettre à jour.',
+    category: 'Sécurité',
+    gravity: 5,
+    probability: 2,
+    gp: 10,
+    severity: 'Élevée',
+    status: 'ouvert',
+    siteId: DEMO_SITE_ID,
+    site: DEMO_SITE_LABEL,
+    owner: 'Jean-Paul Ilunga',
+    updatedAt: '2026-02-22T09:30:00.000Z',
+    createdAt: '2026-02-01T08:00:00.000Z'
+  },
+  {
+    id: 'cldemo-risk-05',
+    ref: 'RSK-MK-2026-05',
+    title: 'Exposition poussières silice — concassage primaire',
+    description: 'Mesures EPI FFP3, arrosages, captage — alignement plan hygiène industrielle.',
+    category: 'Santé au travail',
+    gravity: 4,
+    probability: 3,
+    gp: 12,
+    severity: 'Élevée',
+    status: 'ouvert',
+    siteId: DEMO_SITE_ID,
+    site: DEMO_SITE_LABEL,
+    owner: 'Amina Mukendi',
+    updatedAt: '2026-04-05T16:00:00.000Z',
+    createdAt: '2025-10-10T07:00:00.000Z'
+  }
+];
+
+/**
+ * Causes racines mock (mine / SST) — même forme que POST /api/ai-suggestions/suggest/root-causes.
+ * @param {{ id?: string, ref?: string }} inc
+ */
+export function buildDemoAiRootCausesPayload(inc) {
+  const ref = inc?.ref || '—';
+  return {
+    incidentId: inc?.id || '—',
+    ref,
+    provider: 'qhse-demo-mining',
+    error: null,
+    rootCauses: [
+      {
+        cause: `Signalisation / isolement zone insuffisants sur le poste concerné (${ref})`,
+        category: 'materiel',
+        confidence: 0.72
+      },
+      {
+        cause: 'Brief sécurité ou permis de travail incomplet avant intervention',
+        category: 'organisation',
+        confidence: 0.66
+      },
+      {
+        cause: 'Fatigue ou rotation équipes non suivie sur astreinte extraction',
+        category: 'humain',
+        confidence: 0.58
+      },
+      {
+        cause: 'Maintenance préventive engins / auxiliaires non respectée sur la période',
+        category: 'mixte',
+        confidence: 0.61
+      },
+      {
+        cause: 'Conditions météo (pluie / boue) aggravant adhérence et visibilité',
+        category: 'mixte',
+        confidence: 0.54
+      }
+    ]
+  };
+}
+
+/**
+ * Actions correctives mock — même forme que POST /api/ai-suggestions/suggest/actions.
+ * @param {{ id?: string, ref?: string, severity?: string }} inc
+ */
+export function buildDemoAiCorrectiveActionsPayload(inc) {
+  const ref = inc?.ref || 'INC';
+  const sev = String(inc?.severity || '').toLowerCase();
+  const crit = sev.includes('crit');
+  return {
+    incidentId: inc?.id || '—',
+    ref,
+    provider: 'qhse-demo-mining',
+    error: null,
+    actions: [
+      {
+        title: `Isolement terrain & consignation — ${ref}`,
+        description:
+          'Baliser la zone, couper les énergies si besoin, désigner un opérateur radio, photo de preuve pour QHSE.',
+        delayDays: 1,
+        ownerRole: 'Chef de poste extraction',
+        confidence: crit ? 0.9 : 0.78
+      },
+      {
+        title: `Analyse 5M0 + lien registre risques (trémie / engins) — ${ref}`,
+        description:
+          'Mettre à jour la fiche incident, croiser avec RSK-MK-2026-01 / 02 si pertinent, proposer indicateur de suivi.',
+        delayDays: 5,
+        ownerRole: 'Responsable QHSE site',
+        confidence: 0.73
+      },
+      {
+        title: 'Retour d’expérience — équipe forage & maintenance',
+        description:
+          'Toolbox 15 min, focus EPI et circulation engins ; enregistrement dans le registre des formations.',
+        delayDays: 10,
+        ownerRole: 'Encadrement terrain',
+        confidence: 0.67
+      }
+    ]
+  };
+}
+
 /**
  * Incidents (réf. uniques pour PATCH /api/incidents/:ref).
  * @type {object[]}

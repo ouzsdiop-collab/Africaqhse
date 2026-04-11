@@ -1,3 +1,7 @@
+/**
+ * Import de fichiers : analyse en mémoire (multer.memoryStorage) — pas d’écriture disque / S3 ici.
+ * Le stockage objet (S3 ou local) est réservé aux documents contrôlés : documentStorage.service.js.
+ */
 import multer from 'multer';
 import * as documentImportService from '../services/documentImport.service.js';
 import * as importConfirmService from '../services/importConfirm.service.js';

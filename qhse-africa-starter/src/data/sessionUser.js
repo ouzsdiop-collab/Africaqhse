@@ -6,7 +6,8 @@ const REFRESH_TOKEN_KEY = 'qhseRefreshToken';
 const TENANT_KEY = 'qhseSessionTenant';
 const TENANTS_KEY = 'qhseSessionTenants';
 
-const nativeFetch = globalThis.fetch.bind(globalThis);
+/** Fetch navigateur d’origine (capturé avant le patch global ci-dessous) — utilisé par qhseFetch pour éviter les boucles. */
+export const nativeFetch = globalThis.fetch.bind(globalThis);
 /** @type {Promise<boolean> | null} */
 let refreshInFlight = null;
 const AUTH_401_RETRY = Symbol('qhseAuth401Retried');
@@ -186,6 +187,21 @@ export function clearAuthSession() {
   setSessionUser(null);
 }
 
+/** Access / refresh (clés auth.js) + session utilisateur, puis écran de connexion. */
+export function clearSession() {
+  clearAuthSession();
+  try {
+    sessionStorage.removeItem('qhse_access_token');
+    localStorage.removeItem('qhse_refresh_token');
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== 'undefined') {
+    const { origin, pathname } = window.location;
+    window.location.assign(`${origin}${pathname || '/'}#login`);
+  }
+}
+
 /**
  * @param {SessionUser} user
  * @param {string} token
@@ -316,6 +332,24 @@ function resolveFetchUrl(input) {
   return '';
 }
 
+/**
+ * Extrait le chemin `/api/...` (+ query) pour déléguer au client API (mode démo, refresh, etc.).
+ * @param {string} url
+ * @returns {string | null}
+ */
+function toRelativeApiPath(url) {
+  const s = String(url || '').trim();
+  if (!s) return null;
+  try {
+    const base = typeof window !== 'undefined' ? window.location.origin : 'http://qhse.local';
+    const u = s.startsWith('http') ? new URL(s) : new URL(s, base);
+    if (!u.pathname.startsWith('/api')) return null;
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return s.startsWith('/api') ? s : null;
+  }
+}
+
 function isAuthRefreshOrLoginUrl(url) {
   return url.includes('/api/auth/refresh') || url.includes('/api/auth/login');
 }
@@ -387,7 +421,8 @@ async function callRefreshEndpoint() {
   const ac = new AbortController();
   const tid = setTimeout(() => ac.abort(), 15000);
   try {
-    const res = await nativeFetch(`${getApiBase()}/api/auth/refresh`, {
+    const { qhseFetch } = await import('../utils/qhseFetch.js');
+    const res = await qhseFetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: rt }),
@@ -437,26 +472,14 @@ async function qhseFetchWithRefresh(input, init) {
   const mergedInit = augmentLogoutInit(input, init);
   const url = resolveFetchUrl(input);
   const cleanInit = stripAuth401Retry(mergedInit);
-  let res = await nativeFetch(input, cleanInit);
-  maybePersistLoginRefresh(res, url);
-  if (
-    res.status === 401 &&
-    !mergedInit[AUTH_401_RETRY] &&
-    !isAuthRefreshOrLoginUrl(url) &&
-    hasBearerAuth(mergedInit) &&
-    getRefreshToken().trim()
-  ) {
-    if (!refreshInFlight) {
-      refreshInFlight = callRefreshEndpoint().finally(() => {
-        refreshInFlight = null;
-      });
-    }
-    const ok = await refreshInFlight;
-    if (ok) {
-      res = await nativeFetch(input, stripAuth401Retry(withRetriedBearer(mergedInit)));
-    }
+  const apiPath = toRelativeApiPath(url);
+  if (apiPath) {
+    const { qhseFetch } = await import('../utils/qhseFetch.js');
+    const res = await qhseFetch(apiPath, cleanInit);
+    maybePersistLoginRefresh(res, url);
+    return res;
   }
-  return res;
+  return nativeFetch(input, cleanInit);
 }
 
 globalThis.fetch = qhseFetchWithRefresh;

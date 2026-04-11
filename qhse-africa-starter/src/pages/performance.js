@@ -26,6 +26,7 @@ import {
   createTimelineSection,
   createUrgencySection
 } from '../components/performanceCockpitPremium.js';
+import { createPerformanceTfTgBlock } from '../components/tfTgKpi.js';
 
 const SNAPSHOT_KEY = 'qhse-performance-kpi-snapshot-v1';
 
@@ -541,7 +542,23 @@ export function renderPerformance() {
   siteSel.setAttribute('aria-label', 'Filtrer par site');
   siteWrap.append(siteSel);
 
-  toolbar.append(periodWrap, siteWrap, pdfPerfBtn);
+  const yearWrap = document.createElement('label');
+  yearWrap.className = 'field kpi-perf-field';
+  yearWrap.innerHTML = `<span>Année (TF/TG)</span>`;
+  const yearSel = document.createElement('select');
+  yearSel.className = 'control-select';
+  yearSel.setAttribute('aria-label', 'Année pour les indicateurs TF et TG');
+  const currentY = new Date().getFullYear();
+  for (let y = currentY + 1; y >= currentY - 6; y--) {
+    const opt = document.createElement('option');
+    opt.value = String(y);
+    opt.textContent = String(y);
+    yearSel.append(opt);
+  }
+  yearSel.value = String(currentY);
+  yearWrap.append(yearSel);
+
+  toolbar.append(periodWrap, siteWrap, yearWrap, pdfPerfBtn);
   header.append(toolbar);
   page.append(header);
 
@@ -549,9 +566,13 @@ export function renderPerformance() {
   loading.className = 'kpi-perf-loading';
   loading.textContent = 'Chargement des indicateurs…';
 
+  const tfTgBlock = createPerformanceTfTgBlock({
+    getYear: () => yearSel.value
+  });
+
   const content = document.createElement('div');
   content.className = 'kpi-perf-content stack';
-  content.append(loading);
+  content.append(tfTgBlock.root, loading);
 
   page.append(content);
 
@@ -586,12 +607,18 @@ export function renderPerformance() {
 
   periodSel.addEventListener('change', () => reload());
 
+  yearSel.addEventListener('change', () => reload());
+
   reload = async function loadPerformanceData() {
     const months = Math.max(3, Math.min(12, parseInt(periodSel.value, 10) || 6));
     loading.style.display = 'block';
+    const tfRoot = tfTgBlock.root;
     [...content.children].forEach((n) => {
-      if (!n.classList.contains('kpi-perf-loading')) n.remove();
+      if (n.classList.contains('kpi-perf-loading')) return;
+      if (n === tfRoot) return;
+      n.remove();
     });
+    const tfTgPromise = tfTgBlock.refresh();
     try {
       const [sumRes, incRes, audRes, actRes, ncRes] = await Promise.all([
         qhseFetch(withSiteQuery('/api/reports/summary')),
@@ -1102,6 +1129,8 @@ export function renderPerformance() {
       console.error('[performance]', err);
       loading.textContent = 'Impossible de charger les KPI.';
       showToast('Erreur chargement Performance QHSE', 'error');
+    } finally {
+      await tfTgPromise.catch(() => {});
     }
   };
 

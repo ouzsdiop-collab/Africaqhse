@@ -5,7 +5,7 @@
 const KEY = 'qhse-demo-runtime-v1';
 
 /**
- * @returns {{ actionPatches: Record<string, object>; incidentPatches: Record<string, object> }}
+ * @returns {{ actionPatches: Record<string, object>; incidentPatches: Record<string, object>; createdIncidents: object[] }}
  */
 export function loadDemoRuntime() {
   try {
@@ -17,14 +17,15 @@ export function loadDemoRuntime() {
       incidentPatches:
         j.incidentPatches && typeof j.incidentPatches === 'object'
           ? j.incidentPatches
-          : {}
+          : {},
+      createdIncidents: Array.isArray(j.createdIncidents) ? j.createdIncidents : []
     };
   } catch {
-    return { actionPatches: {}, incidentPatches: {} };
+    return { actionPatches: {}, incidentPatches: {}, createdIncidents: [] };
   }
 }
 
-/** @param {{ actionPatches: object; incidentPatches: object }} state */
+/** @param {{ actionPatches: object; incidentPatches: object; createdIncidents?: object[] }} state */
 export function saveDemoRuntime(state) {
   try {
     sessionStorage.setItem(KEY, JSON.stringify(state));
@@ -52,6 +53,14 @@ export function patchDemoActionRuntime(id, partial) {
 export function patchDemoIncidentRuntime(ref, partial) {
   const s = loadDemoRuntime();
   s.incidentPatches[ref] = { ...s.incidentPatches[ref], ...partial };
+  saveDemoRuntime(s);
+}
+
+/** @param {object} row — ligne incident complète (POST /api/incidents) */
+export function appendDemoCreatedIncident(row) {
+  const s = loadDemoRuntime();
+  if (!Array.isArray(s.createdIncidents)) s.createdIncidents = [];
+  s.createdIncidents.unshift(row);
   saveDemoRuntime(s);
 }
 

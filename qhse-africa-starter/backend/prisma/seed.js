@@ -132,25 +132,49 @@ async function main() {
   await prisma.audit.deleteMany({});
   await prisma.incident.deleteMany({});
   await prisma.risk.deleteMany({});
+  await prisma.habilitation.deleteMany({});
+  await prisma.product.deleteMany({});
   await prisma.site.deleteMany({});
 
-  const siteNord = await prisma.site.create({
+  /**
+   * Identifiants stables (filtre `?siteId=` dashboard, API, TF/TG).
+   * MINE-YAKRO : extraction / engins / forage production.
+   * USINE-ABJ : concassage, lixiviation, laboratoire, stockage réactifs.
+   * EXPL-BON : forage reconnaissance, géotech, hors chaîne usine.
+   */
+  const SITE_MINE = 'SODEMI_MINE_YAKRO';
+  const SITE_USINE = 'SODEMI_USINE_ABJ';
+  const SITE_EXPL = 'SODEMI_EXPLORATION_BON';
+
+  await prisma.site.create({
     data: {
+      id: SITE_MINE,
       tenantId: null,
-      name: 'Mine à ciel ouvert — Zone Nord',
-      code: 'MINE-N01',
+      name: 'Mine à ciel ouvert — Yakro (extraction & forage)',
+      code: 'MINE-YAKRO',
       address: "Front d'exploitation aurifère — forage, extraction et transport stériles"
     }
   });
-  const siteSud = await prisma.site.create({
+  await prisma.site.create({
     data: {
+      id: SITE_USINE,
       tenantId: null,
-      name: 'Fosse Sud — concassage & lixiviation',
-      code: 'MINE-S02',
-      address: 'Unité de traitement du minerai, bassins et atelier lixiviation'
+      name: 'Usine traitement — Abidjan (concassage & lixiviation)',
+      code: 'USINE-ABJ',
+      address: 'Unité de traitement du minerai, bassins, atelier lixiviation et laboratoire'
+    }
+  });
+  await prisma.site.create({
+    data: {
+      id: SITE_EXPL,
+      tenantId: null,
+      name: 'Camp exploration — Bondoukou (forage reconnaissance)',
+      code: 'EXPL-BON',
+      address: 'Plateformes de forage exploration, géotechnique et hydrogéologie'
     }
   });
 
+  const adminUser = await prisma.user.findUnique({ where: { email: 'admin@qhse.local' } });
   const qhse = await prisma.user.findUnique({ where: { email: 'qhse@qhse.local' } });
   const direction = await prisma.user.findUnique({ where: { email: 'direction@qhse.local' } });
   const assistant = await prisma.user.findUnique({ where: { email: 'assistant@qhse.local' } });
@@ -159,10 +183,11 @@ async function main() {
   const forage = await prisma.user.findUnique({ where: { email: 'forage@qhse.local' } });
   const concassage = await prisma.user.findUnique({ where: { email: 'concassage@qhse.local' } });
 
-  const M = 'MINE-N01';
-  const S = 'MINE-S02';
+  const M = 'MINE-YAKRO';
+  const S = 'USINE-ABJ';
+  const E = 'EXPL-BON';
 
-  /** 8 risques enregistrés (probability × gravity = gp), secteur minier. */
+  /** Risques enregistrés (probability × gravity = gp), secteur minier + exploration. */
   const risksSeed = [
     {
       ref: 'RSK-2026-01',
@@ -173,7 +198,7 @@ async function main() {
       gravity: 5,
       status: 'open',
       owner: qhse?.name ?? 'QHSE',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       ref: 'RSK-2026-02',
@@ -184,7 +209,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: extraction?.name ?? 'QHSE',
-      siteId: siteSud.id
+      siteId: SITE_USINE
     },
     {
       ref: 'RSK-2026-03',
@@ -195,7 +220,7 @@ async function main() {
       gravity: 5,
       status: 'open',
       owner: qhse?.name ?? 'QHSE',
-      siteId: siteSud.id
+      siteId: SITE_USINE
     },
     {
       ref: 'RSK-2026-04',
@@ -206,7 +231,7 @@ async function main() {
       gravity: 5,
       status: 'mitigation',
       owner: forage?.name ?? 'Forage',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       ref: 'RSK-2026-05',
@@ -217,7 +242,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: terrain?.name ?? 'Terrain',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       ref: 'RSK-2026-06',
@@ -228,7 +253,7 @@ async function main() {
       gravity: 3,
       status: 'open',
       owner: direction?.name ?? 'Direction',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       ref: 'RSK-2026-07',
@@ -239,7 +264,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: concassage?.name ?? 'Assistant',
-      siteId: siteSud.id
+      siteId: SITE_USINE
     },
     {
       ref: 'RSK-2026-08',
@@ -250,7 +275,40 @@ async function main() {
       gravity: 3,
       status: 'open',
       owner: assistant?.name ?? 'Assistant',
-      siteId: siteSud.id
+      siteId: SITE_USINE
+    },
+    {
+      ref: 'RSK-2026-09',
+      title: 'Forage exploration — projection boue / tige',
+      description: 'Plateformes mobiles, rotation tiges, zone riveraine.',
+      category: 'Sécurité',
+      probability: 3,
+      gravity: 3,
+      status: 'open',
+      owner: forage?.name ?? 'Forage',
+      siteId: SITE_EXPL
+    },
+    {
+      ref: 'RSK-2026-10',
+      title: 'Accès pistes saison pluies — enlisement convois',
+      description: 'Liaison camp / plateformes, engins légers et approvisionnement.',
+      category: 'Sécurité',
+      probability: 3,
+      gravity: 2,
+      status: 'mitigation',
+      owner: terrain?.name ?? 'Terrain',
+      siteId: SITE_EXPL
+    },
+    {
+      ref: 'RSK-2026-11',
+      title: 'Chute plateforme forage exploration — garde-corps mobile',
+      description: 'Montage/démontage plates-formes, travail en hauteur sans filet.',
+      category: 'Sécurité',
+      probability: 4,
+      gravity: 4,
+      status: 'open',
+      owner: forage?.name ?? 'Forage',
+      siteId: SITE_EXPL
     }
   ];
 
@@ -280,7 +338,7 @@ async function main() {
       ref: 'INC-2026-001',
       type: 'Engin / circulation',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'critique',
       status: 'Investigation',
       days: 18,
@@ -291,7 +349,7 @@ async function main() {
       ref: 'INC-2026-002',
       type: 'Accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'critique',
       status: 'En cours',
       days: 35,
@@ -302,7 +360,7 @@ async function main() {
       ref: 'INC-2026-003',
       type: 'Environnement',
       site: S,
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       severity: 'critique',
       status: 'Clôturé',
       days: 52,
@@ -313,7 +371,7 @@ async function main() {
       ref: 'INC-2026-004',
       type: 'Accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'critique',
       status: 'Clôturé',
       days: 78,
@@ -324,7 +382,7 @@ async function main() {
       ref: 'INC-2026-005',
       type: 'Engin / circulation',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'critique',
       status: 'Clôturé',
       days: 112,
@@ -335,7 +393,7 @@ async function main() {
       ref: 'INC-2026-006',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'moyen',
       status: 'Nouveau',
       days: 8,
@@ -345,8 +403,8 @@ async function main() {
     {
       ref: 'INC-2026-007',
       type: 'Accident',
-      site: M,
-      siteId: siteNord.id,
+      site: S,
+      siteId: SITE_USINE,
       severity: 'moyen',
       status: 'En cours',
       days: 14,
@@ -357,7 +415,7 @@ async function main() {
       ref: 'INC-2026-008',
       type: 'Environnement',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'moyen',
       status: 'En cours',
       days: 22,
@@ -368,7 +426,7 @@ async function main() {
       ref: 'INC-2026-009',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'moyen',
       status: 'Investigation',
       days: 41,
@@ -379,7 +437,7 @@ async function main() {
       ref: 'INC-2026-010',
       type: 'Accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'moyen',
       status: 'Clôturé',
       days: 55,
@@ -390,7 +448,7 @@ async function main() {
       ref: 'INC-2026-011',
       type: 'Environnement',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'moyen',
       status: 'Clôturé',
       days: 63,
@@ -401,7 +459,7 @@ async function main() {
       ref: 'INC-2026-012',
       type: 'Accident',
       site: S,
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       severity: 'moyen',
       status: 'Clôturé',
       days: 71,
@@ -412,7 +470,7 @@ async function main() {
       ref: 'INC-2026-013',
       type: 'Quasi-accident',
       site: S,
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       severity: 'moyen',
       status: 'Clôturé',
       days: 88,
@@ -423,7 +481,7 @@ async function main() {
       ref: 'INC-2026-014',
       type: 'Environnement',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'moyen',
       status: 'Clôturé',
       days: 95,
@@ -433,8 +491,8 @@ async function main() {
     {
       ref: 'INC-2026-015',
       type: 'Accident',
-      site: M,
-      siteId: siteNord.id,
+      site: S,
+      siteId: SITE_USINE,
       severity: 'moyen',
       status: 'Clôturé',
       days: 108,
@@ -445,7 +503,7 @@ async function main() {
       ref: 'INC-2026-016',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'faible',
       status: 'Clôturé',
       days: 32,
@@ -456,7 +514,7 @@ async function main() {
       ref: 'INC-2026-017',
       type: 'Autre',
       site: S,
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       severity: 'faible',
       status: 'Clôturé',
       days: 48,
@@ -467,7 +525,7 @@ async function main() {
       ref: 'INC-2026-018',
       type: 'Environnement',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'faible',
       status: 'En cours',
       days: 59,
@@ -478,7 +536,7 @@ async function main() {
       ref: 'INC-2026-019',
       type: 'Quasi-accident',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       severity: 'faible',
       status: 'Clôturé',
       days: 75,
@@ -489,12 +547,45 @@ async function main() {
       ref: 'INC-2026-020',
       type: 'Autre',
       site: S,
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       severity: 'faible',
       status: 'En cours',
       days: 90,
       description:
         "Réactif chimique stocké hors zone réglementaire. Détecté lors d'audit interne. Remise en conformité planifiée."
+    },
+    {
+      ref: 'INC-2026-021',
+      type: 'Quasi-accident',
+      site: E,
+      siteId: SITE_EXPL,
+      severity: 'moyen',
+      status: 'Investigation',
+      days: 11,
+      description:
+        'Décrochage partiel tige forage sur sondage EX-BON-14 : arrêt d’urgence, personne non blessée. Inspection équipement en cours.'
+    },
+    {
+      ref: 'INC-2026-023',
+      type: 'Engin / circulation',
+      site: E,
+      siteId: SITE_EXPL,
+      severity: 'critique',
+      status: 'En cours',
+      days: 6,
+      description:
+        'Rupture conduite hydraulique sur foreuse légère — jet sous pression près d’opérateurs. Arrêt machine, blessure légère au visage (sans ITT).'
+    },
+    {
+      ref: 'INC-2026-022',
+      type: 'Environnement',
+      site: E,
+      siteId: SITE_EXPL,
+      severity: 'faible',
+      status: 'En cours',
+      days: 26,
+      description:
+        'Boues forage stockées hors bâche étanche 24 h — rétention provisoire conformée, camp Bondoukou.'
     }
   ];
 
@@ -518,7 +609,7 @@ async function main() {
     {
       ref: 'AUD-2026-101',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 61,
       status: 'Terminé',
       days: 45,
@@ -538,7 +629,7 @@ async function main() {
     {
       ref: 'AUD-2026-102',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 74,
       status: 'Terminé',
       days: 62,
@@ -553,7 +644,7 @@ async function main() {
     {
       ref: 'AUD-2026-103',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 82,
       status: 'Terminé',
       days: 78,
@@ -568,7 +659,7 @@ async function main() {
     {
       ref: 'AUD-2026-104',
       site: S,
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       score: 88,
       status: 'Terminé',
       days: 91,
@@ -583,7 +674,7 @@ async function main() {
     {
       ref: 'AUD-2026-105',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 79,
       status: 'Terminé',
       days: 110,
@@ -598,7 +689,7 @@ async function main() {
     {
       ref: 'AUD-2026-106',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 71,
       status: 'Terminé',
       days: 130,
@@ -613,7 +704,7 @@ async function main() {
     {
       ref: 'AUD-2026-107',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 68,
       status: 'Terminé',
       days: 155,
@@ -629,7 +720,7 @@ async function main() {
     {
       ref: 'AUD-2026-108',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 0,
       status: 'Planifié',
       days: -18,
@@ -644,7 +735,7 @@ async function main() {
     {
       ref: 'AUD-2026-109',
       site: M,
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       score: 0,
       status: 'Planifié',
       days: -35,
@@ -652,6 +743,21 @@ async function main() {
         {
           point:
             'Revue direction QHSE — bilan semestriel (Interne). Planifiée — synthèse à produire en séance.',
+          conforme: false
+        }
+      ]
+    },
+    {
+      ref: 'AUD-2026-110',
+      site: E,
+      siteId: SITE_EXPL,
+      score: 76,
+      status: 'Terminé',
+      days: 33,
+      checklist: [
+        {
+          point:
+            'Audit SST camp exploration Bondoukou — circulation engins, stockage carburant, plans évacuation. Constat : EPI forage conformes, registre visite médicale à compléter.',
           conforme: false
         }
       ]
@@ -684,7 +790,7 @@ async function main() {
         'Référentiel : ISO 45001 — Article 10.2.\nCriticité : majeure.\nStatut métier : En cours.\nLié audit : AUD-2026-103 (ISO 14001 — déchets / effluents).',
       status: 'open',
       auditRef: 'AUD-2026-103',
-      siteId: siteSud.id
+      siteId: SITE_USINE
     },
     {
       title: 'Périmètre sécurité tirs non conforme distances réglementaires',
@@ -692,7 +798,7 @@ async function main() {
         'Référentiel : code minier national — Article 87 (réf. démo).\nCriticité : majeure.\nStatut métier : En cours.',
       status: 'open',
       auditRef: 'AUD-2026-105',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       title: 'Formation PRAP non dispensée — 8 agents manutention',
@@ -700,28 +806,36 @@ async function main() {
         'Référentiel : ISO 45001 — Article 7.2.\nCriticité : mineure.\nStatut métier : En cours.\nLié audit : AUD-2026-107 (SST).',
       status: 'open',
       auditRef: 'AUD-2026-107',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       title: 'Plan urgence cyanure non validé par autorité compétente',
       detail: 'Référentiel : réglementation nationale mines.\nCriticité : majeure.\nClôturé après validation obtenue.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-104',
-      siteId: siteSud.id
+      siteId: SITE_USINE
     },
     {
       title: 'Absence affichage consignes sécurité atelier mécanique',
       detail: 'Référentiel : ISO 45001 — Article 7.4.\nCriticité : mineure.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-107',
-      siteId: siteNord.id
+      siteId: SITE_MINE
     },
     {
       title: 'Registre déchets dangereux incomplet — T3 2025',
       detail: 'Référentiel : ISO 14001 — Article 8.1.\nCriticité : mineure.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-103',
-      siteId: siteNord.id
+      siteId: SITE_MINE
+    },
+    {
+      title: 'Registre visites médicales équipes forage exploration incomplet',
+      detail:
+        'Référentiel : ISO 45001 — Article 7.2.\nCriticité : mineure.\nStatut métier : En cours.\nLié audit : AUD-2026-110 (SST camp exploration).',
+      status: 'open',
+      auditRef: 'AUD-2026-110',
+      siteId: SITE_EXPL
     }
   ];
 
@@ -752,7 +866,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(12),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 20
     },
     {
@@ -762,7 +876,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysAgo(8),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 25
     },
     {
@@ -772,7 +886,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(5),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 55
     },
     {
@@ -782,7 +896,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(3),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 42
     },
     {
@@ -792,7 +906,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(7),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 50
     },
     {
@@ -802,7 +916,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(10),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 30
     },
     {
@@ -812,7 +926,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(4),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 9
     },
     {
@@ -822,7 +936,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(2),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 78
     },
     {
@@ -832,7 +946,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(15),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 5
     },
     {
@@ -842,7 +956,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(21),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 4
     },
     {
@@ -852,7 +966,7 @@ async function main() {
       owner: direction?.name ?? 'Direction Site',
       assigneeId: direction?.id,
       dueDate: daysFromNow(30),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 3
     },
     {
@@ -862,7 +976,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(18),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 2
     },
     {
@@ -872,7 +986,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysFromNow(12),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 96
     },
     {
@@ -882,7 +996,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(25),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 40
     },
     {
@@ -892,7 +1006,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysFromNow(10),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 1
     },
     {
@@ -902,7 +1016,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(35),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 8
     },
     {
@@ -912,7 +1026,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(8),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 52
     },
     {
@@ -922,7 +1036,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysFromNow(20),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 59
     },
     {
@@ -932,7 +1046,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(28),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 6
     },
     {
@@ -942,7 +1056,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysFromNow(40),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 10
     },
     {
@@ -952,7 +1066,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(45),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 12
     },
     {
@@ -962,7 +1076,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(42),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 7
     },
     {
@@ -972,7 +1086,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(45),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 52
     },
     {
@@ -982,7 +1096,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysAgo(62),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 80
     },
     {
@@ -992,7 +1106,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(70),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 75
     },
     {
@@ -1002,7 +1116,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(28),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 33
     },
     {
@@ -1012,7 +1126,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(80),
-      siteId: siteSud.id,
+      siteId: SITE_USINE,
       daysCreated: 89
     },
     {
@@ -1022,7 +1136,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(95),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 112
     },
     {
@@ -1032,7 +1146,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysAgo(110),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 115
     },
     {
@@ -1042,8 +1156,38 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysAgo(120),
-      siteId: siteNord.id,
+      siteId: SITE_MINE,
       daysCreated: 125
+    },
+    {
+      title: 'Compléter registre visites médicales — équipes exploration Bondoukou',
+      detail: '[Priorité haute]\nSuite audit AUD-2026-110.',
+      status: 'En retard',
+      owner: qhse?.name ?? 'Responsable QHSE',
+      assigneeId: qhse?.id,
+      dueDate: daysAgo(6),
+      siteId: SITE_EXPL,
+      daysCreated: 34
+    },
+    {
+      title: 'Installer bâches étanches — aire stockage boues forage EX-BON',
+      detail: '[Priorité haute]\nLié incident INC-2026-022.',
+      status: 'En cours',
+      owner: forage?.name ?? 'Forage',
+      assigneeId: forage?.id,
+      dueDate: daysFromNow(14),
+      siteId: SITE_EXPL,
+      daysCreated: 27
+    },
+    {
+      title: 'Révision plan circulation engins — camp exploration',
+      detail: '[Priorité moyenne]',
+      status: 'À lancer',
+      owner: terrain?.name ?? 'Terrain',
+      assigneeId: terrain?.id,
+      dueDate: daysFromNow(22),
+      siteId: SITE_EXPL,
+      daysCreated: 5
     }
   ];
 
@@ -1063,8 +1207,87 @@ async function main() {
     });
   }
 
+  const habilitationSeeds = [
+    { user: adminUser, siteId: SITE_MINE, type: 'Accès général', level: 'complet' },
+    { user: qhse, siteId: SITE_MINE, type: 'Coordination QHSE groupe', level: 'N3' },
+    { user: direction, siteId: SITE_MINE, type: 'Direction site extraction', level: null },
+    { user: assistant, siteId: SITE_USINE, type: 'Qualité & documents usine', level: null },
+    { user: terrain, siteId: SITE_EXPL, type: 'Encadrement camp exploration', level: null },
+    { user: extraction, siteId: SITE_MINE, type: 'Extraction / engins', level: 'N2' },
+    { user: forage, siteId: SITE_EXPL, type: 'Forage exploration', level: 'N2' },
+    { user: concassage, siteId: SITE_USINE, type: 'Concassage & maintenance usine', level: null }
+  ];
+  for (const h of habilitationSeeds) {
+    if (!h.user?.id) continue;
+    await prisma.habilitation.create({
+      data: {
+        tenantId: null,
+        userId: h.user.id,
+        siteId: h.siteId,
+        type: h.type,
+        level: h.level,
+        validFrom: daysAgo(400),
+        validUntil: daysFromNow(500),
+        status: 'active'
+      }
+    });
+  }
+
+  const jsonEmpty = [];
+  const productsSeed = [
+    {
+      name: 'Gasoil — stock carburant engins mine',
+      supplier: 'Total Énergies CI',
+      casNumber: null,
+      siteId: SITE_MINE
+    },
+    {
+      name: 'Lubrifiant hydraulique ISO VG 46',
+      supplier: 'Shell',
+      casNumber: null,
+      siteId: SITE_MINE
+    },
+    {
+      name: 'Solution cyanure — lixiviation (usage encadré)',
+      supplier: 'ProChem Afrique',
+      casNumber: '143-33-9',
+      siteId: SITE_USINE
+    },
+    {
+      name: 'Acide chlorhydrique technique 32 %',
+      supplier: 'LabSupply CI',
+      casNumber: '7647-01-0',
+      siteId: SITE_USINE
+    },
+    {
+      name: 'Réactif analyse or — digestion',
+      supplier: 'LabSupply CI',
+      casNumber: null,
+      siteId: SITE_USINE
+    },
+    {
+      name: 'Gasoil — convois exploration',
+      supplier: 'Total Énergies CI',
+      casNumber: null,
+      siteId: SITE_EXPL
+    }
+  ];
+  for (const p of productsSeed) {
+    await prisma.product.create({
+      data: {
+        name: p.name,
+        supplier: p.supplier,
+        casNumber: p.casNumber,
+        siteId: p.siteId,
+        hStatements: jsonEmpty,
+        pStatements: jsonEmpty,
+        ghsPictograms: jsonEmpty
+      }
+    });
+  }
+
   console.log(
-    '[seed] 2 sites miniers, 8 utilisateurs (ADMIN/QHSE/DIRECTION/ASSISTANT/TERRAIN), 20 incidents, 8 risques (table risks), 30 actions, 9 audits, 6 NC.'
+    '[seed] 3 sites (SODEMI_MINE_YAKRO, SODEMI_USINE_ABJ, SODEMI_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits.'
   );
   console.log(
     '[seed] Ordre de purge : relations puis risks avant sites (FK). tenantId null partout (mono-tenant).'
