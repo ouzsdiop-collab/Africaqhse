@@ -44,6 +44,11 @@ body {
     var(--color-background-tertiary, var(--surface-2));
 }
 
+[data-theme='light'] {
+  --border-color: #e2e8f0;
+  --border-color-strong: #cbd5e1;
+}
+
 [data-theme='light'] body {
   background:
     radial-gradient(

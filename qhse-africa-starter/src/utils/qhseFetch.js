@@ -5,14 +5,16 @@ import {
   getAuthToken,
   clearAuthSession
 } from '../data/sessionUser.js';
-import { refreshAccessToken, getAccessTokenForRequest } from './auth.js';
+import { getAccessTokenForRequest } from './auth.js';
 import { isDemoMode } from '../services/demoMode.service.js';
 import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
+
+let isRefreshing = false;
 
 /**
  * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (session / dev).
  * @param {string} path — ex. `/api/actions` ou URL absolue
- * @param {RequestInit} [init]
+ * @param {RequestInit & { _retry?: boolean }} [init]
  */
 export async function qhseFetch(path, init = {}) {
   if (isDemoMode()) {
@@ -34,7 +36,7 @@ export async function qhseFetch(path, init = {}) {
     const uid = getSessionUserId();
     if (uid) headers.set('X-User-Id', uid);
   }
-  if (init.body instanceof FormData) {
+  if (fetchInit.body instanceof FormData) {
     headers.delete('Content-Type');
   }
   const sentBearer = Boolean(token);
@@ -42,17 +44,29 @@ export async function qhseFetch(path, init = {}) {
   const isRefreshUrl = url.includes('/api/auth/refresh');
   const isLoginUrl = url.includes('/api/auth/login');
 
-  let res = await fetch(url, { ...init, headers });
+  let res = await fetch(url, { ...fetchInit, headers });
 
-  if (res.status === 401 && sentBearer && !isRefreshUrl && !isLoginUrl) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      const retryHeaders = new Headers(init.headers || undefined);
-      retryHeaders.set('Authorization', `Bearer ${newToken}`);
-      if (init.body instanceof FormData) {
-        retryHeaders.delete('Content-Type');
+  if (
+    res.status === 401 &&
+    sentBearer &&
+    !_retry &&
+    !isRefreshing &&
+    !isRefreshUrl &&
+    !isLoginUrl
+  ) {
+    isRefreshing = true;
+    try {
+      const { refreshAccessToken } = await import('./auth.js');
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        const retryHeaders = new Headers(fetchInit.headers || undefined);
+        retryHeaders.set('Authorization', `Bearer ${newToken}`);
+        return qhseFetch(path, { ...fetchInit, _retry: true, headers: retryHeaders });
       }
-      res = await fetch(url, { ...init, headers: retryHeaders });
+    } catch {
+      /* ignore */
+    } finally {
+      isRefreshing = false;
     }
   }
 

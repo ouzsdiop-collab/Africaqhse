@@ -334,9 +334,9 @@ async function loadDashboardInsight(stats) {
     if (!res.ok) throw new Error('api');
     const { insight } = await res.json();
     zone.innerHTML = `
-      <div style="padding:16px;background:var(--surface-2, #f0f7ff);border-radius:10px;border-left:3px solid var(--color-primary, #3b82f6);color:var(--text-primary, #1e293b)">
+      <div style="padding:16px;background:var(--surface-2);border-radius:10px;border-left:3px solid var(--color-primary, #3b82f6);color:var(--text-primary)">
         <div style="font-size:11px;font-weight:700;color:var(--color-primary, #3b82f6);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Analyse IA de la semaine</div>
-        <div style="font-size:13px;line-height:1.6;color:var(--text-primary, #1e293b)">${escapeHtml(String(insight ?? ''))}</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text-primary)">${escapeHtml(String(insight ?? ''))}</div>
       </div>`;
   } catch {
     zone.innerHTML = '';
@@ -986,7 +986,7 @@ export function renderDashboard() {
                 g.addColorStop(1, 'rgba(129, 140, 248, 0.88)');
                 return g;
               },
-              borderColor: 'rgba(255, 255, 255, 0.35)',
+              borderColor: getCssVar('--border-color', '#e2e8f0'),
               borderWidth: 0,
               borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 10, bottomRight: 10 },
               borderSkipped: false,
@@ -1004,7 +1004,7 @@ export function renderDashboard() {
                 g.addColorStop(1, 'rgba(220, 38, 38, 0.92)');
                 return g;
               },
-              borderColor: 'rgba(255, 255, 255, 0.4)',
+              borderColor: getCssVar('--border-color', '#e2e8f0'),
               borderWidth: 0,
               borderRadius: { topLeft: 10, topRight: 10, bottomLeft: 0, bottomRight: 0 },
               borderSkipped: false,

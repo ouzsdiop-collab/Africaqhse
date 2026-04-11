@@ -8,6 +8,20 @@ const REFRESH_KEY = 'qhse_refresh_token';
 const LEGACY_REFRESH_KEY = 'qhseRefreshToken';
 
 /**
+ * Après un login réussi : stockage explicite + synchro sessionUser (Bearer / refresh).
+ * À appeler avec le JSON de `/api/auth/login` (accepte `accessToken` ou `token`).
+ * @param {{ accessToken?: string, token?: string, refreshToken?: string }} data
+ */
+export function persistTokensFromLoginResponse(data) {
+  if (!data || typeof data !== 'object') return;
+  const access = typeof data.accessToken === 'string' ? data.accessToken : '';
+  const legacy = typeof data.token === 'string' ? data.token : '';
+  const accessToken = access || legacy;
+  const refreshToken = typeof data.refreshToken === 'string' ? data.refreshToken : '';
+  persistAuthTokensAfterLogin(accessToken, refreshToken);
+}
+
+/**
  * Après un login réussi : access en sessionStorage, refresh en localStorage.
  * Synchronise aussi les clés utilisées par sessionUser (Bearer / logout).
  * @param {string} accessToken
@@ -15,8 +29,12 @@ const LEGACY_REFRESH_KEY = 'qhseRefreshToken';
  */
 export function persistAuthTokensAfterLogin(accessToken, refreshToken) {
   try {
-    if (accessToken) sessionStorage.setItem(ACCESS_KEY, accessToken);
-    if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+    if (accessToken) {
+      sessionStorage.setItem(ACCESS_KEY, accessToken);
+    }
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_KEY, refreshToken);
+    }
     if (accessToken) setAuthToken(accessToken);
     if (refreshToken) setRefreshToken(refreshToken);
   } catch {
@@ -51,6 +69,7 @@ export async function refreshAccessToken() {
       try {
         localStorage.removeItem(REFRESH_KEY);
         localStorage.removeItem(LEGACY_REFRESH_KEY);
+        sessionStorage.removeItem(ACCESS_KEY);
       } catch {
         /* ignore */
       }

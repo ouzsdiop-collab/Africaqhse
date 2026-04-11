@@ -1,5 +1,6 @@
 import { getApiBase } from '../config.js';
 import { setAuthSession } from '../data/sessionUser.js';
+import { persistTokensFromLoginResponse } from '../utils/auth.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 
@@ -338,6 +339,7 @@ export function createLoginView({ onSuccess }) {
         showToast('Réponse serveur invalide', 'error');
         return;
       }
+      persistTokensFromLoginResponse(body);
       setAuthSession(
         {
           id: body.user.id,
@@ -346,7 +348,7 @@ export function createLoginView({ onSuccess }) {
           role: body.user.role || ''
         },
         body.token,
-        { tenant: body.tenant, tenants: body.tenants }
+        { tenant: body.tenant, tenants: body.tenants, refreshToken: body.refreshToken }
       );
       showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
       window.location.hash = 'dashboard';
