@@ -289,8 +289,8 @@ export function renderAiCenter(onAddLog) {
           Assistants orientés terrain et audit : résumés d’incidents, plans d’actions, analyses structurées et briefs direction.
           Les scénarios ci-dessous restent locaux ; l’API suggestions (causes / actions / criticité risque) s’active côté serveur selon <code style="font-size:12px">AI_PROVIDER</code> — toujours avec validation humaine.
         </p>
-        <p class="content-card-lead content-card-lead--narrow ai-center-human-trust" style="margin-top:10px;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.25);background:rgba(34,197,94,.08);font-size:13px;line-height:1.5;color:var(--text2)">
-          <strong style="color:#86efac">Validation humaine</strong> — chaque proposition reste une suggestion : copiez, adaptez ou ignorez avant toute décision ou enregistrement officiel.
+        <p class="content-card-lead content-card-lead--narrow ai-center-human-trust">
+          <strong class="ai-center-human-trust__strong">Validation humaine</strong> — chaque proposition reste une suggestion : copiez, adaptez ou ignorez avant toute décision ou enregistrement officiel.
         </p>
       </div>
       <button type="button" class="btn btn-primary btn--pilotage-cta ai-quick-run">Enregistrer un brouillon d’analyse</button>

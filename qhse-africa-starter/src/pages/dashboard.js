@@ -336,10 +336,15 @@ async function loadDashboardInsight(stats) {
     if (!res.ok) throw new Error('api');
     const { insight } = await res.json();
     zone.innerHTML = `
-      <div style="padding:16px;background:var(--surface-2);border-radius:10px;border-left:3px solid var(--color-primary, #3b82f6);color:var(--text-primary)">
-        <div style="font-size:11px;font-weight:700;color:var(--color-primary, #3b82f6);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Analyse IA de la semaine</div>
-        <div style="font-size:13px;line-height:1.6;color:var(--text-primary)">${escapeHtml(String(insight ?? ''))}</div>
-      </div>`;
+      <article class="content-card card-soft dashboard-ai-insight__card" aria-label="Analyse IA de la semaine">
+        <div class="dashboard-ai-insight__shell">
+          <div class="dashboard-ai-insight__rail" aria-hidden="true"></div>
+          <div class="dashboard-ai-insight__content">
+            <p class="section-kicker dashboard-ai-insight__kicker">Analyse IA de la semaine</p>
+            <div class="dashboard-ai-insight__body">${escapeHtml(String(insight ?? ''))}</div>
+          </div>
+        </div>
+      </article>`;
   } catch {
     zone.innerHTML = '';
   }
@@ -1372,8 +1377,7 @@ export function renderDashboard() {
 
   const dashboardAiInsight = document.createElement('div');
   dashboardAiInsight.id = 'dashboard-ai-insight';
-  dashboardAiInsight.className = 'qhse-page-advanced-only';
-  dashboardAiInsight.style.marginTop = '24px';
+  dashboardAiInsight.className = 'dashboard-ai-insight qhse-page-advanced-only';
 
   page.append(connectivitySlot, pageViewBar, executiveBand, toggleRow, extendedSection, dashboardAiInsight);
 

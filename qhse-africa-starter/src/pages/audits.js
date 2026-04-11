@@ -1002,6 +1002,7 @@ export function renderAudits() {
         date: LAST_AUDIT.date,
         score: curScore,
         checklist: CHECKLIST,
+        normScores: AUDIT_ISO_NORM_SCORES,
         proofs: AUDIT_PROOFS.map((p) => ({ name: p.name, status: p.status })),
         treatmentRows: AUDIT_TREATMENT_ROWS,
         traceRows: AUDIT_TRACE_ROWS,

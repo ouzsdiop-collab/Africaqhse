@@ -408,6 +408,43 @@ html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__synthesi
   color: var(--color-text-primary) !important;
 }
 
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly-panel {
+  background: var(--dash-surface-muted) !important;
+  border-color: var(--dash-border) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly {
+  background: var(--dash-surface) !important;
+  border-color: var(--dash-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly--err {
+  background: color-mix(in srgb, var(--palette-danger) 10%, var(--dash-surface)) !important;
+  border-left-color: color-mix(in srgb, var(--palette-danger) 70%, transparent) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly--warn {
+  background: color-mix(in srgb, var(--palette-warning) 12%, var(--dash-surface)) !important;
+  border-left-color: color-mix(in srgb, var(--palette-warning) 65%, transparent) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__card {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--palette-accent) 5%, var(--dash-surface)) 0%,
+    var(--dash-surface) 52%,
+    var(--dash-surface-muted) 100%
+  ) !important;
+  border-color: var(--dash-accent-border) !important;
+  box-shadow: var(--dash-shadow) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__body {
+  color: var(--color-text-primary) !important;
+}
+
 @media (hover: hover) {
   html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-btn:hover {
     border-color: color-mix(in srgb, var(--palette-accent) 30%, var(--dash-border)) !important;

@@ -275,6 +275,131 @@ dialog.incidents-detail-dialog[open] {
   transform: scale(0.97);
 }
 
+/* —— Sous-blocs (hors .content-card) : mêmes transitions que les cartes ——
+   Thème clair : léger lift. Thème sombre : pas de translation (aligné enterprise-visual-tone),
+   seulement bordure + ombre un peu plus marquées. */
+.ai-use-card,
+.activity-log-cert-strip,
+.activity-log-quick,
+.activity-log-summary-card,
+.activity-log-analysis,
+.activity-log-prefs,
+.activity-log-filters,
+.activity-log-quick-card,
+.dashboard-pilotage-assistant__anomaly-panel,
+.dashboard-pilotage-assistant__anomaly,
+.iso-global-snapshot,
+.iso-points-panel,
+.iso-points-col,
+.iso-doc-proof-strip,
+.iso-cockpit-hero-executive-band,
+.iso-hero-kpi,
+.dashboard-decision-insight,
+.dashboard-vigilance-rich-item,
+.iso-audits-linked-item,
+.iso-cockpit-human-row,
+.iso-norm-card,
+.iso-req-hot-item,
+.iso-doc-attention-row,
+.iso-l2-disclosure,
+.ai-sim-output,
+.ai-sim-history,
+.ai-sim-history__item {
+  transition:
+    border-color var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    box-shadow var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    background-color var(--qhse-motion-med) var(--qhse-motion-ease-out),
+    transform var(--qhse-motion-fast) var(--qhse-motion-ease-out);
+}
+
+@media (hover: hover) {
+  html[data-theme='light'] .ai-use-card:hover,
+  html[data-theme='light'] .activity-log-cert-strip:hover,
+  html[data-theme='light'] .activity-log-summary-card:hover,
+  html[data-theme='light'] .activity-log-analysis:hover,
+  html[data-theme='light'] .activity-log-prefs:hover,
+  html[data-theme='light'] .activity-log-filters:hover,
+  html[data-theme='light'] .activity-log-quick-card:hover,
+  html[data-theme='light'] .dashboard-pilotage-assistant__anomaly:hover,
+  html[data-theme='light'] .iso-global-snapshot:hover,
+  html[data-theme='light'] .iso-points-col:hover,
+  html[data-theme='light'] .iso-doc-proof-strip:hover,
+  html[data-theme='light'] .iso-hero-kpi:hover,
+  html[data-theme='light'] .dashboard-decision-insight:hover,
+  html[data-theme='light'] .dashboard-vigilance-rich-item:hover,
+  html[data-theme='light'] .iso-audits-linked-item:hover,
+  html[data-theme='light'] .iso-cockpit-human-row:hover,
+  html[data-theme='light'] .iso-norm-card:hover,
+  html[data-theme='light'] .iso-req-hot-item:hover,
+  html[data-theme='light'] .iso-doc-attention-row:hover,
+  html[data-theme='light'] .ai-sim-output:hover,
+  html[data-theme='light'] .ai-sim-history__item:hover {
+    transform: translateY(-1px);
+  }
+
+  html[data-theme='dark'] .ai-use-card:hover,
+  html[data-theme='dark'] .activity-log-cert-strip:hover,
+  html[data-theme='dark'] .activity-log-summary-card:hover,
+  html[data-theme='dark'] .activity-log-analysis:hover,
+  html[data-theme='dark'] .activity-log-prefs:hover,
+  html[data-theme='dark'] .activity-log-filters:hover,
+  html[data-theme='dark'] .activity-log-quick-card:hover,
+  html[data-theme='dark'] .dashboard-pilotage-assistant__anomaly:hover,
+  html[data-theme='dark'] .iso-global-snapshot:hover,
+  html[data-theme='dark'] .iso-points-col:hover,
+  html[data-theme='dark'] .iso-doc-proof-strip:hover,
+  html[data-theme='dark'] .iso-hero-kpi:hover,
+  html[data-theme='dark'] .dashboard-decision-insight:hover,
+  html[data-theme='dark'] .dashboard-vigilance-rich-item:hover,
+  html[data-theme='dark'] .iso-audits-linked-item:hover,
+  html[data-theme='dark'] .iso-cockpit-human-row:hover,
+  html[data-theme='dark'] .iso-norm-card:hover,
+  html[data-theme='dark'] .iso-req-hot-item:hover,
+  html[data-theme='dark'] .iso-doc-attention-row:hover,
+  html[data-theme='dark'] .ai-sim-output:hover,
+  html[data-theme='dark'] .ai-sim-history__item:hover {
+    transform: none;
+    border-color: var(--color-border-secondary, rgba(186, 200, 220, 0.22));
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+  }
+
+  /* Panneaux « conteneurs » : pas de lift (évite double mouvement avec les sous-cartes) */
+  html[data-theme='light'] .dashboard-pilotage-assistant__anomaly-panel:hover,
+  html[data-theme='light'] .iso-points-panel:hover,
+  html[data-theme='light'] .iso-cockpit-hero-executive-band:hover,
+  html[data-theme='light'] .activity-log-quick:hover {
+    transform: none;
+  }
+
+  html[data-theme='dark'] .dashboard-pilotage-assistant__anomaly-panel:hover,
+  html[data-theme='dark'] .iso-points-panel:hover,
+  html[data-theme='dark'] .iso-cockpit-hero-executive-band:hover,
+  html[data-theme='dark'] .activity-log-quick:hover {
+    transform: none;
+    border-color: var(--color-border-secondary, rgba(186, 200, 220, 0.2));
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Accordéons ISO : relief au survol sans translation */
+  html[data-theme='light'] .iso-l2-disclosure:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--palette-accent, #14b8a6) 22%,
+      var(--color-border-secondary, rgba(148, 163, 184, 0.28))
+    );
+    box-shadow: 0 2px 18px color-mix(in srgb, var(--palette-accent, #14b8a6) 8%, rgba(15, 23, 42, 0.08));
+  }
+
+  html[data-theme='dark'] .iso-l2-disclosure:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--palette-accent, #14b8a6) 18%,
+      var(--color-border-secondary, rgba(148, 163, 184, 0.24))
+    );
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.28);
+  }
+}
+
 /* —— Accessibilité : désactiver mouvements superflus —— */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -304,6 +429,60 @@ dialog.incidents-detail-dialog[open] {
   .card-soft:not(.notif-panel):hover,
   .metric-card:hover {
     transform: none;
+  }
+
+  html[data-theme='light'] .ai-use-card:hover,
+  html[data-theme='light'] .activity-log-cert-strip:hover,
+  html[data-theme='light'] .activity-log-summary-card:hover,
+  html[data-theme='light'] .activity-log-analysis:hover,
+  html[data-theme='light'] .activity-log-prefs:hover,
+  html[data-theme='light'] .activity-log-filters:hover,
+  html[data-theme='light'] .activity-log-quick-card:hover,
+  html[data-theme='light'] .dashboard-pilotage-assistant__anomaly:hover,
+  html[data-theme='light'] .iso-global-snapshot:hover,
+  html[data-theme='light'] .iso-points-col:hover,
+  html[data-theme='light'] .iso-doc-proof-strip:hover,
+  html[data-theme='light'] .iso-hero-kpi:hover,
+  html[data-theme='light'] .dashboard-decision-insight:hover,
+  html[data-theme='light'] .dashboard-vigilance-rich-item:hover,
+  html[data-theme='light'] .iso-audits-linked-item:hover,
+  html[data-theme='light'] .iso-cockpit-human-row:hover,
+  html[data-theme='light'] .iso-norm-card:hover,
+  html[data-theme='light'] .iso-req-hot-item:hover,
+  html[data-theme='light'] .iso-doc-attention-row:hover,
+  html[data-theme='light'] .ai-sim-output:hover,
+  html[data-theme='light'] .ai-sim-history__item:hover,
+  html[data-theme='dark'] .ai-use-card:hover,
+  html[data-theme='dark'] .activity-log-cert-strip:hover,
+  html[data-theme='dark'] .activity-log-summary-card:hover,
+  html[data-theme='dark'] .activity-log-analysis:hover,
+  html[data-theme='dark'] .activity-log-prefs:hover,
+  html[data-theme='dark'] .activity-log-filters:hover,
+  html[data-theme='dark'] .activity-log-quick-card:hover,
+  html[data-theme='dark'] .dashboard-pilotage-assistant__anomaly:hover,
+  html[data-theme='dark'] .iso-global-snapshot:hover,
+  html[data-theme='dark'] .iso-points-col:hover,
+  html[data-theme='dark'] .iso-doc-proof-strip:hover,
+  html[data-theme='dark'] .iso-hero-kpi:hover,
+  html[data-theme='dark'] .dashboard-decision-insight:hover,
+  html[data-theme='dark'] .dashboard-vigilance-rich-item:hover,
+  html[data-theme='dark'] .iso-audits-linked-item:hover,
+  html[data-theme='dark'] .iso-cockpit-human-row:hover,
+  html[data-theme='dark'] .iso-norm-card:hover,
+  html[data-theme='dark'] .iso-req-hot-item:hover,
+  html[data-theme='dark'] .iso-doc-attention-row:hover,
+  html[data-theme='dark'] .ai-sim-output:hover,
+  html[data-theme='dark'] .ai-sim-history__item:hover,
+  html[data-theme='dark'] .dashboard-pilotage-assistant__anomaly-panel:hover,
+  html[data-theme='dark'] .iso-points-panel:hover,
+  html[data-theme='dark'] .iso-cockpit-hero-executive-band:hover,
+  html[data-theme='dark'] .activity-log-quick:hover {
+    transform: none !important;
+  }
+
+  html[data-theme='light'] .iso-l2-disclosure:hover,
+  html[data-theme='dark'] .iso-l2-disclosure:hover {
+    box-shadow: none !important;
   }
 
   .btn:active,

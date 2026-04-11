@@ -531,6 +531,7 @@ export function renderHabilitations() {
           filtersText: ft,
           kpis: k,
           bySite: computeHabilitationsBySite(rows),
+          rows,
           filename: `conformite_hab_${Date.now()}`
         });
         showToast('PDF synthèse conformité.', 'info');

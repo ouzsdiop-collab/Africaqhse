@@ -40,6 +40,7 @@ import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
 /* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { downloadIncidentsRegisterPdf } from '../services/qhseReportsPdf.service.js';
 
 function incidentOperationalPhase(status) {
   const s = String(status || '').toLowerCase();
@@ -496,6 +497,16 @@ export function renderIncidents(onAddLog) {
     return sortIncidentsForDisplay(rows);
   }
 
+  function incidentsFiltersSummaryForPdf() {
+    const parts = [];
+    if (filterText.trim()) parts.push(`Recherche : « ${filterText.trim()} »`);
+    if (filterSeverity) parts.push(`Gravité : ${filterSeverity}`);
+    if (filterStatus) parts.push(`Statut : ${filterStatus}`);
+    if (filterSite) parts.push(`Site : ${filterSite}`);
+    if (filterDateRange !== 'all') parts.push(`Fenêtre : ${filterDateRange} derniers jours`);
+    return parts.length ? parts.join(' · ') : 'Registre filtré — vue liste affichée';
+  }
+
   function updateHeaderStats() {
     const dash = '—';
     if (apiLoadState === 'loading' || apiLoadState === 'error') {
@@ -681,9 +692,26 @@ export function renderIncidents(onAddLog) {
     }
   });
 
+  const exportBtnPdf = document.createElement('button');
+  exportBtnPdf.type = 'button';
+  exportBtnPdf.textContent = 'Export PDF';
+  exportBtnPdf.className = 'btn btn-secondary btn-sm';
+  exportBtnPdf.setAttribute('aria-label', 'Exporter le registre incidents en PDF');
+  exportBtnPdf.addEventListener('click', async () => {
+    try {
+      await downloadIncidentsRegisterPdf(getFilteredSortedRows(), {
+        filtersSummary: incidentsFiltersSummaryForPdf()
+      });
+      showToast('PDF incidents généré.', 'success');
+    } catch (e) {
+      console.error(e);
+      showToast('Export PDF impossible.', 'error');
+    }
+  });
+
   const exportWrap = document.createElement('div');
   exportWrap.className = 'incidents-filter-export-slot';
-  exportWrap.append(exportBtnInc);
+  exportWrap.append(exportBtnInc, exportBtnPdf);
 
   primaryRow.append(searchLab, statusLab, dateLab, exportWrap);
 

@@ -41,7 +41,9 @@ export function createDashboardPilotageAssistant(opts = {}) {
       </div>
       <div class="dashboard-pilotage-assistant__anomalies" hidden>
         <h4 class="dashboard-pilotage-assistant__h">Détection d’anomalies</h4>
-        <ul class="dashboard-pilotage-assistant__anomaly-list"></ul>
+        <div class="dashboard-pilotage-assistant__anomaly-panel">
+          <ul class="dashboard-pilotage-assistant__anomaly-list"></ul>
+        </div>
       </div>
     </article>
   `;

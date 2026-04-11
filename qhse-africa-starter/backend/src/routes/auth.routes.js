@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authLimiter } from '../lib/rateLimiter.js';
 import * as controller from '../controllers/auth.controller.js';
 import {
   issueRefreshToken,
@@ -9,11 +10,11 @@ import { prisma } from '../db.js';
 
 const router = Router();
 
-router.post('/login', controller.login);
+router.post('/login', authLimiter, controller.login);
 router.post('/switch-tenant', controller.postSwitchTenant);
 router.post('/logout', controller.logoutHandler);
 
-router.post('/refresh', async (req, res, next) => {
+router.post('/refresh', authLimiter, async (req, res, next) => {
   try {
     const token =
       req.cookies?.refreshToken ||

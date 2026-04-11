@@ -27,6 +27,10 @@ import {
   addImportedDocumentProof
 } from '../data/conformityStore.js';
 import {
+  buildIsoConformityPdfHtml,
+  downloadAuditIsoPdfFromHtml
+} from '../components/auditPremiumSaaS.js';
+import {
   computeAuditReadiness,
   createAuditReadinessBanner,
   updateAuditReadinessBanner
@@ -38,6 +42,36 @@ import { withSiteQuery } from '../utils/siteFilter.js';
 /* Préférences colonnes table exigences ISO — localStorage centralisé dans isoTablePreferences.js */
 import { readIsoReqColumnMode, LS_ISO_REQ_TABLE_COLS } from '../utils/isoTablePreferences.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
+
+function buildIsoNormScoresForPdf() {
+  const reqs = getRequirements();
+  const globalPct = computeComplianceSummary().pct;
+  /** @type {Map<string, { pts: number; n: number }>} */
+  const byNorm = new Map();
+  for (const r of reqs) {
+    const nid = r.normId || 'iso9001';
+    if (!byNorm.has(nid)) byNorm.set(nid, { pts: 0, n: 0 });
+    const b = byNorm.get(nid);
+    b.n += 1;
+    if (r.status === 'conforme') b.pts += 100;
+    else if (r.status === 'partiel') b.pts += 50;
+  }
+  return CONFORMITY_NORMS.map((norm) => {
+    const b = byNorm.get(norm.id);
+    const score = b && b.n > 0 ? Math.round(b.pts / b.n) : globalPct;
+    return { norm: norm.code, score };
+  });
+}
+
+function requirementLinesForIsoPdf() {
+  const mapSt = (s) =>
+    s === 'conforme' ? 'Conforme' : s === 'partiel' ? 'Partiel' : 'Non conforme';
+  return getRequirements().slice(0, 40).map((r) => ({
+    clause: r.clause,
+    title: r.title,
+    status: mapSt(r.status)
+  }));
+}
 
 /** Normes — cartes allégées (statut + une phrase). */
 const NORMS_LITE = [
@@ -1678,6 +1712,7 @@ export function renderIso(onAddLog) {
       <div class="iso-cockpit-hero-actions">
         <button type="button" class="btn btn-secondary iso-hero-scroll-prio">Voir les priorités</button>
         <button type="button" class="btn btn-secondary iso-auditor-view-btn" title="Focus écarts, preuves et statuts">Vue auditeur</button>
+        <button type="button" class="btn btn-secondary iso-export-conformity-pdf" title="Rapport PDF multi-pages (vue cockpit)">Exporter PDF conformité</button>
         <button type="button" class="btn btn-primary btn--pilotage-cta iso-prep-audit">Préparer l’audit</button>
       </div>
     </div>
@@ -1695,6 +1730,32 @@ export function renderIso(onAddLog) {
       <div class="iso-cockpit-hero-snapshot-host iso-cockpit-hero-snapshot-host--compact"></div>
     </div>
   `;
+
+  heroCard.querySelector('.iso-export-conformity-pdf')?.addEventListener('click', async () => {
+    try {
+      const pctEl = heroCard.querySelector('.iso-hero-stat-pct');
+      const gapEl = heroCard.querySelector('.iso-hero-stat-gaps');
+      const html = buildIsoConformityPdfHtml({
+        globalScoreLabel: pctEl?.textContent?.trim() || '—',
+        gapsLabel: gapEl?.textContent?.trim() || '—',
+        normScores: buildIsoNormScoresForPdf(),
+        requirementLines: requirementLinesForIsoPdf()
+      });
+      await downloadAuditIsoPdfFromHtml(html, 'rapport-conformite-iso');
+      showToast('PDF conformité généré (export local).', 'success');
+      if (typeof onAddLog === 'function') {
+        onAddLog({
+          module: 'iso',
+          action: 'Export PDF conformité ISO',
+          detail: 'Rapport multi-pages — cockpit',
+          user: getSessionUser()?.name || 'Utilisateur'
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Génération PDF impossible.', 'error');
+    }
+  });
 
   heroCard.querySelector('.iso-prep-audit').addEventListener('click', () => {
     showToast(

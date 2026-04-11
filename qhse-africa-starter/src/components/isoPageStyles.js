@@ -1126,6 +1126,69 @@ const CSS = `
 .iso-ai-suggestion-btn{transition:transform .15s ease,border-color .15s ease}
 .iso-ai-suggestion-btn:hover{transform:translateY(-1px)}
 
+/* ── ISO : contraste renforcé (thème sombre) — blocs audit & conformité ── */
+html[data-theme='dark'] .iso-audit-readiness{
+  background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(15,23,42,.99));
+  border-color:rgba(148,163,184,.32);
+}
+html[data-theme='dark'] .iso-audit-readiness-kicker{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .iso-audit-readiness-pill--pret{
+  color:#ecfdf5;
+  background:rgba(52,211,153,.2);
+  border-color:rgba(52,211,153,.55);
+}
+html[data-theme='dark'] .iso-audit-readiness-pill--fragile{
+  color:#fffbeb;
+  background:rgba(245,158,11,.2);
+  border-color:rgba(251,191,36,.55);
+}
+html[data-theme='dark'] .iso-audit-readiness-pill--non_pret{
+  color:#fff1f2;
+  background:rgba(248,113,113,.2);
+  border-color:rgba(248,113,113,.55);
+}
+html[data-theme='dark'] .iso-audit-readiness-hint{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .iso-priority-hero{
+  background:linear-gradient(125deg,rgba(55,32,8,.72),rgba(15,23,42,.96));
+  border-color:rgba(251,191,36,.48);
+}
+html[data-theme='dark'] .iso-priority-hero-k{
+  color:#e2e8f0;
+}
+html[data-theme='dark'] .iso-priority-hero-detail{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .iso-doc-state-summary{
+  border-color:rgba(148,163,184,.22);
+  background:linear-gradient(135deg,rgba(15,23,42,.88),rgba(15,23,42,.94));
+}
+html[data-theme='dark'] .iso-doc-state-summary__hint{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .iso-doc-state-summary__val--ok{
+  color:#6ee7b7;
+}
+html[data-theme='dark'] .iso-doc-state-summary__val--warn{
+  color:#fbbf24;
+}
+html[data-theme='dark'] .iso-doc-state-summary__val--bad{
+  color:#f87171;
+}
+html[data-theme='dark'] .iso-points-doc-tag{
+  color:#fecdd3;
+  background:rgba(239,68,68,.28);
+  border:1px solid rgba(248,113,113,.35);
+}
+html[data-theme='dark'] .iso-ia-suggestion-pill{
+  color:#ede9fe;
+  background:rgba(124,58,237,.22);
+  border-color:rgba(196,181,253,.45);
+}
+
 /* ── ISO (hub) : mode clair — surfaces et textes lisibles (évite texte foncé sur fond foncé) ── */
 [data-theme='light'] .iso-priority-hero{
   border:1px solid color-mix(in srgb, #f59e0b 32%, var(--border-color, #e2e8f0));
@@ -1219,17 +1282,41 @@ const CSS = `
   border-color:color-mix(in srgb, var(--color-primary) 35%, var(--border-color, #e2e8f0));
 }
 [data-theme='light'] .iso-ai-suggestion-note{color:var(--text-secondary, #475569)}
-[data-theme='light'] .iso-hero-kpi{
-  background:var(--surface-2, #f8fafc);
+[data-theme='light'] .iso-page.iso-page--cockpit .iso-cockpit-hero.content-card{
   border:1px solid var(--border-color, #e2e8f0);
+  background:linear-gradient(
+    165deg,
+    var(--surface-1, #ffffff) 0%,
+    var(--surface-2, #f8fafc) 100%
+  );
+  box-shadow:
+    0 14px 44px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+}
+[data-theme='light'] .iso-cockpit-hero-executive-band{
+  margin-top:10px;
+  padding:16px 18px;
+  border-top:none;
+  border-radius:14px;
+  border:1px solid var(--border-color, #e2e8f0);
+  background:var(--surface-2, #f1f5f9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 1px 2px rgba(15, 23, 42, 0.04);
+}
+[data-theme='light'] .iso-hero-kpi{
+  background:var(--surface-1, #ffffff);
+  border:1px solid var(--border-color-strong, #cbd5e1);
+  box-shadow:0 1px 2px rgba(15, 23, 42, 0.05);
 }
 [data-theme='light'] .iso-compliance-cycle{
   background:var(--surface-2, #f8fafc);
   border:1px solid var(--border-color, #e2e8f0);
 }
 [data-theme='light'] .iso-global-snapshot{
-  background:linear-gradient(135deg, color-mix(in srgb, #3b82f6 6%, var(--surface-1, #fff)), var(--surface-2, #f8fafc));
-  border:1px solid var(--border-color, #e2e8f0);
+  background:linear-gradient(135deg, color-mix(in srgb, #3b82f6 6%, var(--surface-1, #fff)), var(--surface-1, #ffffff));
+  border:1px solid var(--border-color-strong, #cbd5e1);
+  box-shadow:0 1px 3px rgba(15, 23, 42, 0.06);
 }
 [data-theme='light'] .iso-global-snapshot--ok{
   background:linear-gradient(135deg, color-mix(in srgb, #22c55e 8%, var(--surface-1, #fff)), var(--surface-2, #f8fafc));

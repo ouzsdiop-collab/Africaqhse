@@ -671,6 +671,128 @@ const CSS = `
 .audit-doc-compliance-strip--bad{color:#fecaca;font-weight:700}
 .audit-doc-compliance-strip--warn{color:#fcd34d;font-weight:600}
 
+/* —— Contraste lecture (thème sombre) : cockpit audit & pilotage ISO —— */
+html[data-theme='dark'] .audit-cockpit-cycle-progress strong{
+  color:#e0f2fe;
+}
+html[data-theme='dark'] .audit-cockpit-step--active{
+  color:#e0f2fe;
+  border-color:rgba(56,189,248,.55);
+  background:rgba(56,189,248,.18);
+}
+html[data-theme='dark'] .audit-cockpit-step--done{
+  color:#d1fae5;
+  border-color:rgba(52,211,153,.48);
+}
+html[data-theme='dark'] .audit-cockpit-pill--on{
+  color:#fef9c3;
+  background:rgba(251,191,36,.14);
+  border-color:rgba(251,191,36,.52);
+}
+html[data-theme='dark'] .audit-cockpit-pill--ok{
+  color:#d1fae5;
+  border-color:rgba(52,211,153,.48);
+}
+html[data-theme='dark'] .audit-cockpit-pill--wait{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .audit-cockpit-ia__badge{
+  color:#faf5ff;
+  background:rgba(109,40,217,.32);
+  border-color:rgba(196,181,253,.48);
+}
+html[data-theme='dark'] .audit-cockpit-ia__insight{
+  color:#f5f3ff;
+  background:rgba(88,28,135,.26);
+  border-color:rgba(196,181,253,.42);
+}
+html[data-theme='dark'] .audit-cockpit-ia__trust{
+  color:#e2e8f0;
+  border-color:rgba(196,181,253,.32);
+}
+html[data-theme='dark'] .audit-cockpit-notifs__ia-pill{
+  color:#faf5ff;
+  background:rgba(109,40,217,.3);
+  border-color:rgba(192,132,252,.45);
+}
+html[data-theme='dark'] .audit-cockpit-notifs__ia-text{
+  color:#e2e8f0;
+}
+html[data-theme='dark'] .audit-premium-header__score-val{
+  color:#e0f2fe;
+}
+html[data-theme='dark'] .audit-premium-header__nav-btn:hover{
+  color:#e0f2fe;
+}
+html[data-theme='dark'] .audit-cockpit-delta-strip strong{
+  color:#e0f2fe;
+}
+html[data-theme='dark'] .audit-doc-compliance-strip__text{
+  color:#e2e8f0;
+}
+html[data-theme='dark'] .audit-doc-compliance-strip--bad{
+  color:#fecdd3;
+}
+html[data-theme='dark'] .audit-doc-compliance-strip--warn{
+  color:#fef08a;
+}
+html[data-theme='dark'] .audit-iso-export-bar__sub{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .audit-iso-conformity-card__lbl{
+  color:#cbd5e1;
+}
+html[data-theme='dark'] .audit-iso-conformity-card__hint{
+  color:#94a3b8;
+}
+html[data-theme='dark'] .audit-premium-assistant__insight{
+  color:#f5f3ff;
+  background:rgba(88,28,135,.24);
+  border-color:rgba(196,181,253,.4);
+}
+html[data-theme='dark'] .audit-human-status--pending{
+  color:#fef08a;
+}
+html[data-theme='dark'] .audit-human-status--validated{
+  color:#a7f3d0;
+}
+html[data-theme='dark'] .audit-human-status--adjusted{
+  color:#bae6fd;
+}
+html[data-theme='dark'] .audit-human-status--rejected{
+  color:#fecdd3;
+}
+html[data-theme='dark'] .audit-field-toggles button.is-on.conforme{
+  color:#d1fae5!important;
+}
+html[data-theme='dark'] .audit-field-toggles button.is-on.nonconforme{
+  color:#fecdd3!important;
+}
+html[data-theme='dark'] .audit-cockpit-prio h4{
+  color:#fecdd3;
+}
+html[data-theme='dark'] .audit-nc-block h5{
+  color:#fecdd3;
+}
+html[data-theme='dark'] .audit-nc-card__ref{
+  color:#fecdd3;
+}
+html[data-theme='dark'] .audit-proof-badge--present{
+  color:#d1fae5;
+  border-color:rgba(52,211,153,.5);
+  background:rgba(52,211,153,.14);
+}
+html[data-theme='dark'] .audit-proof-badge--missing{
+  color:#fecdd3;
+  border-color:rgba(248,113,113,.5);
+  background:rgba(248,113,113,.12);
+}
+html[data-theme='dark'] .audit-proof-badge--verify{
+  color:#fef08a;
+  border-color:rgba(251,191,36,.52);
+  background:rgba(251,191,36,.12);
+}
+
 /* Passe premium fine : lecture plus nette et cohérente */
 .audit-plus-page .audit-premium-header{border-radius:18px}
 .audit-plus-page .audit-cockpit-tier{gap:12px}

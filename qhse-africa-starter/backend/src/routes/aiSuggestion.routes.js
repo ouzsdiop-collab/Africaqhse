@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { aiLimiter } from '../lib/rateLimiter.js';
 import * as controller from '../controllers/aiSuggestion.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
 import {
@@ -26,15 +26,6 @@ const incidentsRead = requirePermission('incidents', 'read');
 const risksRead = requirePermission('risks', 'read');
 const auditsRead = requirePermission('audits', 'read');
 
-/** 20 requêtes / 15 min — suggestions IA (coût / abus). */
-const aiSuggestLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Trop de requêtes IA — réessayez dans quelques minutes.' }
-});
-
 /**
  * Préfixe monté sur `/api/ai-suggestions` (voir server.js).
  * Équivalent demandé documentaire : `/api/ai/suggest/*` → utiliser `/api/ai-suggestions/suggest/*`.
@@ -42,7 +33,7 @@ const aiSuggestLimiter = rateLimit({
 router.post(
   '/suggest/root-causes',
   write,
-  aiSuggestLimiter,
+  aiLimiter,
   async (req, res, next) => {
     try {
       const incidentId = String(req.body?.incidentId ?? '').trim();
@@ -63,7 +54,7 @@ router.post(
   }
 );
 
-router.post('/suggest/actions', write, aiSuggestLimiter, async (req, res, next) => {
+router.post('/suggest/actions', write, aiLimiter, async (req, res, next) => {
   try {
     const incidentId = String(req.body?.incidentId ?? '').trim();
     if (!incidentId) {
@@ -82,7 +73,7 @@ router.post('/suggest/actions', write, aiSuggestLimiter, async (req, res, next) 
   }
 });
 
-router.post('/suggest/risk-level', write, aiSuggestLimiter, async (req, res, next) => {
+router.post('/suggest/risk-level', write, aiLimiter, async (req, res, next) => {
   try {
     const riskId = String(req.body?.riskId ?? '').trim();
     if (!riskId) {
@@ -102,13 +93,13 @@ router.post('/suggest/risk-level', write, aiSuggestLimiter, async (req, res, nex
 });
 
 router.get('/', read, controller.list);
-router.post('/generate', write, controller.postGenerate);
-router.post('/analyze-document', write, controller.postAnalyzeDocument);
-router.post('/propose-actions', write, controller.postProposeActions);
+router.post('/generate', write, aiLimiter, controller.postGenerate);
+router.post('/analyze-document', write, aiLimiter, controller.postAnalyzeDocument);
+router.post('/propose-actions', write, aiLimiter, controller.postProposeActions);
 router.patch('/:id/review', write, controller.patchReview);
 router.get('/:id', read, controller.getById);
 
-mistralAiRouter.post('/incident-causes', incidentsRead, aiSuggestLimiter, async (req, res, next) => {
+mistralAiRouter.post('/incident-causes', incidentsRead, aiLimiter, async (req, res, next) => {
   try {
     const suggestion = await suggestIncidentCauses(req.body);
     res.json({ suggestion });
@@ -117,7 +108,7 @@ mistralAiRouter.post('/incident-causes', incidentsRead, aiSuggestLimiter, async 
   }
 });
 
-mistralAiRouter.post('/risk-mitigation', risksRead, aiSuggestLimiter, async (req, res, next) => {
+mistralAiRouter.post('/risk-mitigation', risksRead, aiLimiter, async (req, res, next) => {
   try {
     const suggestion = await suggestRiskMitigation(req.body);
     res.json({ suggestion });
@@ -126,7 +117,7 @@ mistralAiRouter.post('/risk-mitigation', risksRead, aiSuggestLimiter, async (req
   }
 });
 
-mistralAiRouter.post('/audit-questions', auditsRead, aiSuggestLimiter, async (req, res, next) => {
+mistralAiRouter.post('/audit-questions', auditsRead, aiLimiter, async (req, res, next) => {
   try {
     const suggestion = await suggestAuditQuestions(req.body.auditType);
     res.json({ suggestion });
@@ -135,7 +126,7 @@ mistralAiRouter.post('/audit-questions', auditsRead, aiSuggestLimiter, async (re
   }
 });
 
-mistralAiRouter.post('/dashboard-insight', incidentsRead, aiSuggestLimiter, async (req, res, next) => {
+mistralAiRouter.post('/dashboard-insight', incidentsRead, aiLimiter, async (req, res, next) => {
   try {
     const insight = await generateDashboardInsight(req.body);
     res.json({ insight });

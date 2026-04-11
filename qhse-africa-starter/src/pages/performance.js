@@ -12,6 +12,7 @@ import {
   interpretAuditScoreSeries
 } from '../components/dashboardCharts.js';
 import { createKpiDetailDrawer } from '../components/kpiDetailDrawer.js';
+import { downloadPerformanceQhsePdf } from '../services/qhseReportsPdf.service.js';
 import {
   buildActivityTimelineEntries,
   buildCockpitRecommendations,
@@ -510,6 +511,30 @@ export function renderPerformance() {
   periodSel.value = '6';
   periodWrap.append(periodSel);
 
+  /** @type {null | Record<string, unknown>} */
+  let lastPerfPdfContext = null;
+
+  const pdfPerfBtn = document.createElement('button');
+  pdfPerfBtn.type = 'button';
+  pdfPerfBtn.className = 'btn btn-secondary';
+  pdfPerfBtn.textContent = 'Export PDF';
+  pdfPerfBtn.title = 'Rapport de performance QHSE (PDF premium)';
+  pdfPerfBtn.addEventListener('click', async () => {
+    if (!lastPerfPdfContext) {
+      showToast('Chargez d’abord les indicateurs.', 'warning');
+      return;
+    }
+    try {
+      await downloadPerformanceQhsePdf(
+        /** @type {Parameters<typeof downloadPerformanceQhsePdf>[0]} */ (lastPerfPdfContext)
+      );
+      showToast('PDF performance généré.', 'info');
+    } catch (e) {
+      console.error(e);
+      showToast('Export PDF indisponible.', 'error');
+    }
+  });
+
   const siteWrap = document.createElement('label');
   siteWrap.className = 'field kpi-perf-field';
   siteWrap.innerHTML = `<span>Site</span>`;
@@ -518,7 +543,7 @@ export function renderPerformance() {
   siteSel.setAttribute('aria-label', 'Filtrer par site');
   siteWrap.append(siteSel);
 
-  toolbar.append(periodWrap, siteWrap);
+  toolbar.append(periodWrap, siteWrap, pdfPerfBtn);
   header.append(toolbar);
   page.append(header);
 
@@ -1049,6 +1074,22 @@ export function renderPerformance() {
       analysesStack.append(heroSurface, kpiBlock, pilotageRow, chartsBand);
 
       content.append(cockpitPremium, timelineSection, analysesStack, alertWrap, foot);
+
+      const siteLabel =
+        siteSel.selectedOptions[0]?.textContent?.trim() || 'Vue groupe (tous sites)';
+      lastPerfPdfContext = {
+        periodMonths: months,
+        siteLabel,
+        conformity,
+        counts,
+        kpis,
+        auditLineSeries: lineSeries,
+        goalRows: goalVsRows.map((r) => ({
+          label: r.label,
+          realText: r.realText,
+          goalText: r.goalText
+        }))
+      };
 
       writeSnapshot(months, {
         conformity,

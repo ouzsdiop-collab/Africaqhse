@@ -12,7 +12,8 @@ import {
   updatePermitStatus
 } from '../services/ptw.service.js';
 import { getLinksFor, linkModules } from '../services/moduleLinks.service.js';
-import { saveElementAsPdf } from '../utils/html2pdfExport.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
+import { assembleQhsePdfDocument, downloadQhseChromePdf } from '../utils/qhsePdfChrome.js';
 
 const PTW_TYPES = [
   'travail en hauteur',
@@ -649,38 +650,30 @@ export function renderPermits() {
     pdfBtn.textContent = 'Export PDF';
     pdfBtn.addEventListener('click', async () => {
       try {
-        const wrap = document.createElement('div');
-        wrap.innerHTML = `
-          <h2>PTW ${it.id}</h2>
-          <p><strong>Type:</strong> ${it.type}</p>
-          <p><strong>Zone:</strong> ${it.zone || '—'}</p>
-          <p><strong>Responsable:</strong> ${responsible}</p>
-          <p><strong>Statut:</strong> ${statusLabel(it.status)}</p>
-          <p><strong>Expiration:</strong> ${expiryLabel(it)}</p>
-          <p><strong>Analyse risque:</strong> ${it.riskAnalysis || '—'}</p>
-          <p><strong>Checklist:</strong> ${(it.checklist || []).join(', ') || '—'}</p>
-          <p><strong>Signatures:</strong> ${
-            signatures.length ? signatures.map((s) => `${s.name} (${s.role})`).join(', ') : 'Aucune'
-          }</p>
+        const sigText = signatures.length
+          ? signatures.map((s) => `${s.name} (${s.role})`).join(', ')
+          : 'Aucune';
+        const body = `
+          <h1 class="qhse-chrome-h1">PERMIS DE TRAVAIL</h1>
+          <p class="qhse-chrome-muted"><strong>Réf.</strong> ${escapeHtml(String(it.id))}</p>
+          <table class="qhse-chrome-table" style="margin-top:12px">
+            <tbody>
+              <tr><td style="font-weight:700;width:32%">Type</td><td>${escapeHtml(String(it.type || '—'))}</td></tr>
+              <tr><td style="font-weight:700">Zone</td><td>${escapeHtml(String(it.zone || '—'))}</td></tr>
+              <tr><td style="font-weight:700">Responsable</td><td>${escapeHtml(String(responsible || '—'))}</td></tr>
+              <tr><td style="font-weight:700">Statut</td><td>${escapeHtml(statusLabel(it.status))}</td></tr>
+              <tr><td style="font-weight:700">Expiration</td><td>${escapeHtml(expiryLabel(it))}</td></tr>
+              <tr><td style="font-weight:700">Analyse risque</td><td>${escapeHtml(String(it.riskAnalysis || '—'))}</td></tr>
+              <tr><td style="font-weight:700">Checklist</td><td>${escapeHtml((it.checklist || []).join(', ') || '—')}</td></tr>
+              <tr><td style="font-weight:700">Signatures</td><td>${escapeHtml(sigText)}</td></tr>
+            </tbody>
+          </table>
         `;
-        Object.assign(wrap.style, {
-          position: 'fixed',
-          left: '-9999px',
-          top: '0',
-          width: '190mm',
-          padding: '14px 16px',
-          background: '#ffffff',
-          color: '#0f172a',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          fontSize: '11px',
-          lineHeight: '1.45'
+        const html = assembleQhsePdfDocument('Permis de travail', [body]);
+        await downloadQhseChromePdf(html, `PTW-${it.id}.pdf`, {
+          margin: [12, 10, 16, 10],
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         });
-        document.body.append(wrap);
-        try {
-          await saveElementAsPdf(wrap, `PTW-${it.id}.pdf`, { margin: [10, 12, 12, 12] });
-        } finally {
-          wrap.remove();
-        }
         showToast('PDF PTW généré.', 'success');
       } catch {
         showToast('Export PDF indisponible.', 'error');

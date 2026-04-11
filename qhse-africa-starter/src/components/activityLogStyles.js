@@ -195,6 +195,42 @@ const CSS = `
   outline:2px solid color-mix(in srgb, var(--palette-accent, #14b8a6) 50%, transparent);
   outline-offset:2px;
 }
+
+/* Mode clair — bandeau certifiabilité : contraste WCAG + séparation nette de la carte */
+[data-theme='light'] .activity-log-cert-strip{
+  margin:0 0 18px;
+  padding:14px 16px;
+  border-radius:14px;
+  border:1px solid color-mix(in srgb, var(--palette-accent, #0d9488) 32%, var(--color-border-tertiary, #e2e8f0));
+  background:linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--palette-accent, #14b8a6) 9%, var(--surface-2, #f1f5f9)) 0%,
+    var(--surface-1, #ffffff) 55%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 4px 16px rgba(15, 23, 42, 0.07);
+}
+[data-theme='light'] .activity-log-cert-badge{
+  color:#0f766e;
+  border-color:color-mix(in srgb, #0d9488 42%, var(--color-border-tertiary, #cbd5e1));
+  background:color-mix(in srgb, #0d9488 16%, #ffffff);
+}
+[data-theme='light'] .activity-log-cert-badge--subtle{
+  opacity:1;
+  color:#334155;
+  border-color:var(--color-border-tertiary, #cbd5e1);
+  background:var(--surface-2, #f1f5f9);
+}
+[data-theme='light'] .activity-log-cert-lead{
+  color:#475569;
+  font-weight:600;
+}
+[data-theme='light'] .activity-log-journal-tab--active{
+  color:#0f766e;
+  border-color:color-mix(in srgb, var(--palette-accent, #0d9488) 38%, var(--color-border-tertiary));
+  background:color-mix(in srgb, var(--palette-accent, #14b8a6) 14%, var(--surface-1, #ffffff));
+}
 `;
 
 export function ensureActivityLogStyles() {

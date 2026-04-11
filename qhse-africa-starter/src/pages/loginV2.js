@@ -83,6 +83,72 @@ function ensureLoginV2Styles() {
   color: rgba(203,213,225,.8);
   line-height: 1.5;
 }
+.lv2-stats-row {
+  display: flex;
+  gap: 24px;
+  margin: 28px 0 24px;
+}
+.lv2-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(82,148,247,.08);
+  border: 1px solid rgba(82,148,247,.15);
+  border-radius: 12px;
+  padding: 14px 20px;
+  min-width: 80px;
+  flex: 1;
+}
+.lv2-stat-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: rgba(82,148,247,.95);
+  letter-spacing: -.02em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.lv2-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(148,163,184,.6);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  text-align: center;
+}
+.lv2-testimonial {
+  background: rgba(255,255,255,.04);
+  border-left: 3px solid rgba(82,148,247,.5);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.lv2-testimonial-text {
+  font-size: 13px;
+  color: rgba(203,213,225,.8);
+  line-height: 1.6;
+  font-style: italic;
+  margin: 0 0 6px;
+}
+.lv2-testimonial-author {
+  font-size: 11px;
+  color: rgba(148,163,184,.5);
+  margin: 0;
+}
+.lv2-countries {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.lv2-flag {
+  font-size: 22px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.3));
+  cursor: default;
+  transition: transform 150ms;
+}
+.lv2-flag:hover {
+  transform: scale(1.2);
+}
 .lv2-gdpr {
   position: absolute;
   bottom: 24px; left: 32px;
@@ -101,6 +167,15 @@ function ensureLoginV2Styles() {
   color: rgba(148,163,184,.55);
   margin: 0 0 28px;
   line-height: 1.4;
+}
+.lv2-secure-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(148,163,184,.35);
+  margin: 10px 0 0;
 }
 .lv2-field {
   display: flex;
@@ -138,6 +213,20 @@ function ensureLoginV2Styles() {
 }
 .lv2-eye-btn:hover {
   color: rgba(148,163,184,.85);
+}
+.lv2-forgot-btn {
+  background: none;
+  border: none;
+  color: rgba(148,163,184,.55);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 150ms;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lv2-forgot-btn:hover {
+  color: rgba(82,148,247,.85);
 }
 .lv2-submit {
   width: 100%;
@@ -198,33 +287,76 @@ export function createLoginView({ onSuccess }) {
   const left = document.createElement('div');
   left.className = 'lv2-left';
   left.innerHTML = `
-    <div class="lv2-logo">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-      <span class="lv2-logo-name">QHSE Control</span>
-    </div>
-    <div class="lv2-left-main">
-      <h1 class="lv2-headline">Pilotez votre conformité QHSE</h1>
-      <p class="lv2-tagline">Incidents · Risques · Audits · Actions</p>
-      <div class="lv2-sep" aria-hidden="true"></div>
-      <div class="lv2-benefits">
-        <div class="lv2-benefit">
-          <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-          <span>Déclaration terrain en moins de 2 minutes</span>
-        </div>
-        <div class="lv2-benefit">
-          <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-          <span>Suivi ISO 45001 · 14001 · 9001 intégré</span>
-        </div>
-        <div class="lv2-benefit">
-          <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-          <span>Alertes et plans d'actions automatisés</span>
-        </div>
+  <div class="lv2-logo">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+         stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+    <span class="lv2-logo-name">QHSE Control</span>
+  </div>
+
+  <div class="lv2-left-main">
+    <h1 class="lv2-headline">Pilotez votre QHSE.<br>Depuis le terrain.</h1>
+    <p class="lv2-tagline">
+      La plateforme digitale conçue pour les entreprises africaines.
+    </p>
+    <div class="lv2-sep" aria-hidden="true"></div>
+
+    <div class="lv2-benefits">
+      <div class="lv2-benefit">
+        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+        <span>Déclaration terrain en <strong>moins de 2 minutes</strong>, même sans connexion</span>
+      </div>
+      <div class="lv2-benefit">
+        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+        <span>Conformité <strong>ISO 45001 · ISO 14001 · ISO 9001</strong> intégrée</span>
+      </div>
+      <div class="lv2-benefit">
+        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+        <span>Rapports PDF et alertes <strong>automatisés</strong> par email</span>
+      </div>
+      <div class="lv2-benefit">
+        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+        <span>Analyse des risques chimiques par <strong>IA</strong> (FDS en 1 clic)</span>
       </div>
     </div>
-    <p class="lv2-gdpr">Sécurité des accès · Journal d’audit · Multi-organisations</p>
-  `;
+
+    <div class="lv2-stats-row">
+      <div class="lv2-stat">
+        <span class="lv2-stat-num">5+</span>
+        <span class="lv2-stat-label">Pays couverts</span>
+      </div>
+      <div class="lv2-stat">
+        <span class="lv2-stat-num">100%</span>
+        <span class="lv2-stat-label">Hors connexion</span>
+      </div>
+      <div class="lv2-stat">
+        <span class="lv2-stat-num">IA</span>
+        <span class="lv2-stat-label">Intégrée</span>
+      </div>
+    </div>
+
+    <div class="lv2-testimonial">
+      <p class="lv2-testimonial-text">
+        "Nous avons réduit notre temps de reporting QHSE de 60 %
+        dès le premier mois d'utilisation."
+      </p>
+      <p class="lv2-testimonial-author">— Responsable QHSE, industrie minière, Sénégal</p>
+    </div>
+
+    <div class="lv2-countries">
+      <span class="lv2-flag" title="Sénégal">🇸🇳</span>
+      <span class="lv2-flag" title="Côte d'Ivoire">🇨🇮</span>
+      <span class="lv2-flag" title="Burkina Faso">🇧🇫</span>
+      <span class="lv2-flag" title="Mali">🇲🇱</span>
+      <span class="lv2-flag" title="Cameroun">🇨🇲</span>
+      <span class="lv2-flag" title="France">🇫🇷</span>
+      <span class="lv2-flag" title="Belgique">🇧🇪</span>
+    </div>
+  </div>
+
+  <p class="lv2-gdpr">Sécurité des accès · Journal d'audit · Multi-organisations</p>
+`;
 
   const leftMain = left.querySelector('.lv2-left-main');
   if (leftMain) {
@@ -247,21 +379,33 @@ export function createLoginView({ onSuccess }) {
     </div>
     <form class="lv2-form" novalidate>
       <p class="lv2-form-title">Connexion à votre espace</p>
-      <p class="lv2-form-sub">Entrez vos identifiants pour accéder au tableau de bord</p>
+      <p class="lv2-form-sub">Bienvenue sur QHSE Control — la plateforme QHSE dédiée à l'Afrique.</p>
       <label class="lv2-field">
         <span class="lv2-field-label">Adresse e-mail</span>
-        <input type="email" name="email" class="control-input lv2-input lv2-email" autocomplete="username" placeholder="vous@entreprise.com" />
+        <input type="email" name="email" class="control-input lv2-input lv2-email" autocomplete="username" placeholder="vous@votre-entreprise.com" />
       </label>
       <label class="lv2-field">
         <span class="lv2-field-label">Mot de passe</span>
         <div class="lv2-password-wrap">
-          <input type="password" name="password" class="control-input lv2-input lv2-password" autocomplete="current-password" />
+          <input type="password" name="password" class="control-input lv2-input lv2-password" autocomplete="current-password" placeholder="••••••••" />
           <button type="button" class="lv2-eye-btn" aria-label="Afficher le mot de passe">
             ${EYE_OPEN_SVG}
           </button>
         </div>
       </label>
+      <div style="text-align:right;margin-bottom:4px;margin-top:-8px">
+        <button type="button" class="lv2-forgot-btn">
+          Mot de passe oublié ?
+        </button>
+      </div>
       <button type="submit" class="btn btn-primary lv2-submit">Se connecter</button>
+      <p class="lv2-secure-note">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Connexion sécurisée · Données chiffrées
+      </p>
       <div class="lv2-org-panel" style="display:none;margin-top:16px;padding:12px;border-radius:10px;background:rgba(15,23,42,.06);border:1px solid rgba(15,23,42,.1)">
         <label class="lv2-field">
           <span class="lv2-field-label">Organisation</span>
@@ -279,6 +423,7 @@ export function createLoginView({ onSuccess }) {
   const passEl = inner.querySelector('.lv2-password');
   const submitBtn = inner.querySelector('.lv2-submit');
   const skipBtn = inner.querySelector('.lv2-demo-link');
+  const forgotBtn = inner.querySelector('.lv2-forgot-btn');
   const lv2EyeBtn = inner.querySelector('.lv2-eye-btn');
   const orgPanel = inner.querySelector('.lv2-org-panel');
   const orgSelect = inner.querySelector('.lv2-org-select');
@@ -384,6 +529,15 @@ export function createLoginView({ onSuccess }) {
       );
     });
   }
+
+  forgotBtn?.addEventListener('click', () => {
+    const email = String(emailEl?.value || '').trim();
+    const subject = encodeURIComponent('Reinitialisation mot de passe QHSE Control');
+    const body = encodeURIComponent(
+      `Bonjour,\n\nJe souhaite reinitialiser mon mot de passe.\n\nEmail du compte : ${email || '(a remplir)'}\n\nMerci.`
+    );
+    window.open(`mailto:support@qhsecontrol.com?subject=${subject}&body=${body}`, '_blank');
+  });
 
   skipBtn?.addEventListener('click', () => {
     window.location.hash = 'dashboard';

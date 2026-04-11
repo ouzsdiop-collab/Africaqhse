@@ -1,6 +1,6 @@
 import { prisma } from '../db.js';
 import { prismaTenantFilter } from '../lib/tenantScope.js';
-import * as reportService from '../services/report.service.js';
+import * as auditAutoReport from '../services/auditAutoReport.service.js';
 import * as emailService from '../services/email.service.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
 
@@ -11,7 +11,7 @@ function normalizeRouteId(raw) {
   return String(raw).trim();
 }
 
-async function loadAuditAndNonConformities(tenantId, rawParam) {
+async function loadAuditForReport(tenantId, rawParam) {
   const param = normalizeRouteId(rawParam);
   if (!param) {
     return null;
@@ -24,11 +24,7 @@ async function loadAuditAndNonConformities(tenantId, rawParam) {
     }
   });
   if (!audit) return null;
-  const nonConformities = await prisma.nonConformity.findMany({
-    where: { auditRef: audit.ref, ...tf },
-    orderBy: { createdAt: 'asc' }
-  });
-  return { audit, nonConformities };
+  return { audit };
 }
 
 function parseRecipientsFromBody(body) {
@@ -49,14 +45,12 @@ function filterValidEmails(addresses) {
 
 export async function getAuditReport(req, res, next) {
   try {
-    const loaded = await loadAuditAndNonConformities(req.qhseTenantId, req.params.id);
+    const loaded = await loadAuditForReport(req.qhseTenantId, req.params.id);
     if (!loaded) {
       return res.status(404).json({ error: 'Audit introuvable' });
     }
-    const { audit, nonConformities } = loaded;
-    const buffer = await reportService.generateAuditReport(audit, {
-      nonConformities
-    });
+    const { audit } = loaded;
+    const buffer = await auditAutoReport.generateAuditPdfReport(audit.id, req.qhseTenantId);
     const safeRef = String(audit.ref).replace(/[^a-zA-Z0-9._-]/g, '_');
     void writeAuditLog({
       userId: auditUserIdFromRequest(req),
@@ -82,11 +76,11 @@ export async function getAuditReport(req, res, next) {
  */
 export async function sendAuditReportEmail(req, res, next) {
   try {
-    const loaded = await loadAuditAndNonConformities(req.qhseTenantId, req.params.id);
+    const loaded = await loadAuditForReport(req.qhseTenantId, req.params.id);
     if (!loaded) {
       return res.status(404).json({ error: 'Audit introuvable' });
     }
-    const { audit, nonConformities } = loaded;
+    const { audit } = loaded;
 
     const rawList = parseRecipientsFromBody(req.body || {});
     const recipients = filterValidEmails(rawList);
@@ -108,9 +102,7 @@ export async function sendAuditReportEmail(req, res, next) {
       });
     }
 
-    const pdfBuffer = await reportService.generateAuditReport(audit, {
-      nonConformities
-    });
+    const pdfBuffer = await auditAutoReport.generateAuditPdfReport(audit.id, req.qhseTenantId);
     const safeRef = String(audit.ref).replace(/[^a-zA-Z0-9._-]/g, '_');
     const filename = `rapport-audit-${safeRef}.pdf`;
 

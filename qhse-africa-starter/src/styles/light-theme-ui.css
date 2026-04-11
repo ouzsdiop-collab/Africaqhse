@@ -1,7 +1,9 @@
 /**
- * Mode clair — contraste UI global (boutons, champs, shell).
- * Chargé après flat-app / premium-motion pour corriger les surcharges
- * qui affaiblissaient les .btn-primary (fond info pâle + texte foncé).
+ * Mode clair — contraste UI global (boutons, champs, shell, cartes, graphiques).
+ * Inclut une couche « pastilles sémantiques » : encre + fond dérivés des tokens
+ * (--color-*-text / --color-*-bg) pour aligner incidents, actions, risques, ISO,
+ * audits, PTW, produits, notifications, etc.
+ * Chargé après flat-app / premium-motion / enterprise-visual-tone.
  */
 
 /* ── Bouton primaire : texte blanc sur teal (lisible sur cartes claires) ── */
@@ -328,4 +330,444 @@ html[data-theme='light'] .dashboard-line-chart-wrap--analytics .dashboard-line-c
 
 html[data-theme='light'] .kpi-multi-line-wrap .dashboard-line-chart-grid--base {
   stroke: rgba(15, 23, 42, 0.1) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mode clair — pastilles & badges sémantiques (cohérence globale)
+   Même recette partout : encre foncée (tokens) sur fond pâle (tokens).
+   Les modules injectés avec hex « dark UI » sont surchargés ici.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── flat-app : .ds-badge & .badge & .status-pill ── */
+html[data-theme='light'] .ds-badge--danger {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .ds-badge--warn {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .ds-badge--ok {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+html[data-theme='light'] .badge.red,
+html[data-theme='light'] .badge.danger {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  box-shadow: none;
+}
+
+html[data-theme='light'] .badge.amber,
+html[data-theme='light'] .badge.warning {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .badge.green,
+html[data-theme='light'] .badge.success {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+html[data-theme='light'] .badge.info {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+html[data-theme='light'] .status-pill.success {
+  color: var(--color-success-text);
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+}
+
+html[data-theme='light'] .status-pill.warning {
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+}
+
+html[data-theme='light'] .status-pill.danger {
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+html[data-theme='light'] .status-pill.info {
+  color: var(--color-info-text);
+  border-color: var(--color-info-border);
+  background: var(--color-info-bg);
+}
+
+/* ── ISO (styles injectés) ── */
+html[data-theme='light'] .iso-points-doc-tag {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+}
+
+html[data-theme='light'] .iso-doc-state-summary__val--warn {
+  color: var(--color-warning-text);
+}
+
+html[data-theme='light'] .iso-doc-state-summary__val--bad {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .iso-doc-state-summary__val--ok {
+  color: var(--color-success-text);
+}
+
+/* ── Produits / conformité produit ── */
+html[data-theme='light'] .products-alert-pill--miss {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .products-alert-pill--exp {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .products-alert-pill--nc {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .products-detail-summary-val--red {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .products-detail-summary-val--amber {
+  color: var(--color-warning-text);
+}
+
+/* ── Notifications ── */
+html[data-theme='light'] .notif-tier-tag--critique {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+}
+
+html[data-theme='light'] .notif-tier-tag--attention {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+}
+
+html[data-theme='light'] .notif-tier-tag--info {
+  color: var(--color-text-secondary);
+  background: var(--surface-3);
+  border: 1px solid var(--color-border-secondary);
+}
+
+html[data-theme='light'] .notif-tier-tag--digest {
+  color: var(--color-violet-ink);
+  background: color-mix(in srgb, var(--color-violet) 12%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, var(--color-violet-border) 28%, var(--surface-1));
+}
+
+/* ── Actions & risques (qhsePilotageStyles) ── */
+html[data-theme='light'] .action-card__prio--danger {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .action-card__prio--warn {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .action-card__status--doing {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .action-card__prio-badge--crit {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .action-detail-dialog__pill--danger {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .action-detail-dialog__pill--warn {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .action-detail-prio-vis--haute {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .action-detail-prio-vis--critique {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .action-detail-prio-vis--normale {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+html[data-theme='light'] .action-detail-prio-vis--basse {
+  color: var(--color-text-secondary);
+  background: var(--surface-3);
+  border-color: var(--color-border-secondary);
+}
+
+html[data-theme='light'] .action-detail-dialog__pill--info {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+html[data-theme='light'] .action-detail-dialog__pill--ok {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+html[data-theme='light'] .action-card__prio-badge--low {
+  color: var(--color-text-secondary);
+  background: var(--surface-3);
+  border-color: var(--color-border-secondary);
+}
+
+html[data-theme='light'] .action-card__prio-badge--norm {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+html[data-theme='light'] .action-card__prio-badge--high {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .action-card__type-badge--corrective {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .action-card__type-badge--preventive {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+html[data-theme='light'] .action-card__type-badge--improvement {
+  color: var(--color-violet-ink);
+  background: color-mix(in srgb, var(--color-violet) 12%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--color-violet-border) 30%, var(--surface-1));
+}
+
+html[data-theme='light'] .action-card__due-badge--mini {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .risks-insights__kpi-item--alert .risks-insights__kpi-value {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .risks-matrix-details__summary-warn {
+  color: var(--color-warning-text);
+}
+
+html[data-theme='light'] .risk-register-row__tier-chip--t3 {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .risk-register-row__tier-chip--t4 {
+  color: color-mix(in srgb, var(--color-warning) 55%, #7c2d12);
+  background: color-mix(in srgb, var(--color-warning) 16%, var(--surface-1));
+  border: 1px solid var(--color-warning-border);
+}
+
+html[data-theme='light'] .risk-register-row__tier-chip--t5 {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+}
+
+html[data-theme='light'] .risk-matrix-priority-card--crit .risk-matrix-priority-card__value {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .risk-matrix-priority-card--warn .risk-matrix-priority-card__value {
+  color: var(--color-warning-text);
+}
+
+html[data-theme='light'] .risks-pilot-banner__kpi--crit .risks-pilot-banner__kpi-val {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .risks-pilot-banner__kpi--elev .risks-pilot-banner__kpi-val {
+  color: var(--color-warning-text);
+}
+
+html[data-theme='light'] .risks-pilot-banner__kpi--ok .risks-pilot-banner__kpi-val {
+  color: var(--color-success-text);
+}
+
+/* ── PTW ── */
+html[data-theme='light'] .ptw-net-badge--offline {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .ptw-net-badge--pending {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .ptw-status--pending {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .ptw-status--expired {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .ptw-chip--critical {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+/* ── Audits + cockpit (auditPlusStyles) — texte violet lisible sur fond clair ── */
+html[data-theme='light'] .audit-cockpit-ia__badge,
+html[data-theme='light'] .audit-cockpit-notifs__ia-pill {
+  color: var(--color-violet-ink);
+  background: color-mix(in srgb, var(--color-violet) 12%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--color-violet-border) 32%, var(--surface-1));
+}
+
+html[data-theme='light'] .audit-cockpit-ia__insight,
+html[data-theme='light'] .audit-premium-assistant__insight {
+  color: var(--color-violet-ink);
+  background: color-mix(in srgb, var(--color-violet) 10%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--color-violet-border) 28%, var(--surface-1));
+}
+
+html[data-theme='light'] .audit-cockpit-pill--on {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .audit-cockpit-pill--ok {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+html[data-theme='light'] .audit-cockpit-prio h4,
+html[data-theme='light'] .audit-nc-block h5,
+html[data-theme='light'] .audit-nc-card__ref {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .audit-human-status--pending {
+  color: var(--color-warning-text);
+}
+
+html[data-theme='light'] .audit-human-status--validated {
+  color: var(--color-success-text);
+}
+
+html[data-theme='light'] .audit-human-status--adjusted {
+  color: var(--color-info-text);
+}
+
+html[data-theme='light'] .audit-human-status--rejected {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .audit-proof-badge--present {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+html[data-theme='light'] .audit-proof-badge--missing {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .audit-proof-badge--verify {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+html[data-theme='light'] .audit-doc-compliance-strip--bad {
+  color: var(--color-danger-text);
+}
+
+html[data-theme='light'] .audit-doc-compliance-strip--warn {
+  color: var(--color-warning-text);
+}
+
+html[data-theme='light'] .audit-field-toggles button.is-on.conforme {
+  color: var(--color-success-text) !important;
+  background: var(--color-success-bg) !important;
+  border-color: var(--color-success-border) !important;
+}
+
+html[data-theme='light'] .audit-field-toggles button.is-on.nonconforme {
+  color: var(--color-danger-text) !important;
+  background: var(--color-danger-bg) !important;
+  border-color: var(--color-danger-border) !important;
+}
+
+/* ── Cockpit dashboard premium (badges gravité) ── */
+html[data-theme='light'] .dcp-badge--critique {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+html[data-theme='light'] .dcp-badge--moyen {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
 }

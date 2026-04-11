@@ -43,6 +43,7 @@ import {
   saveRisksListCache
 } from '../utils/risksRegisterModel.js';
 import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
+import { downloadRisksRegisterPdf } from '../services/qhseReportsPdf.service.js';
 
 export { openRiskCreateDialog } from '../components/riskFormDialog.js';
 export { openRiskDialog } from '../components/riskSheetModal.js';
@@ -1368,6 +1369,24 @@ export function renderRisks() {
     }
   });
   register.querySelector('.risks-page__panel-actions')?.append(exportBtnRisks);
+
+  const exportPdfRisks = document.createElement('button');
+  exportPdfRisks.type = 'button';
+  exportPdfRisks.textContent = 'Export PDF';
+  exportPdfRisks.className = 'btn btn-secondary btn-sm';
+  exportPdfRisks.setAttribute('aria-label', 'Exporter le registre risques en PDF');
+  exportPdfRisks.addEventListener('click', async () => {
+    try {
+      await downloadRisksRegisterPdf(localRisks, {
+        siteLabel: appState.currentSite || undefined
+      });
+      showToast('PDF registre risques généré.', 'success');
+    } catch (e) {
+      console.error(e);
+      showToast('Export PDF impossible.', 'error');
+    }
+  });
+  register.querySelector('.risks-page__panel-actions')?.append(exportPdfRisks);
 
   const matrixSection = document.createElement('section');
   matrixSection.className =

@@ -20,6 +20,10 @@ import {
 } from '../components/dashboardCharts.js';
 import { createAnalyticsQuadInsightSection } from '../components/analyticsQuadAiInsight.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import {
+  downloadAnalyticsPeriodicPdf,
+  downloadAnalyticsSummaryPdf
+} from '../services/qhseReportsPdf.service.js';
 
 const ANALYTICS_LIST_CAP = 5;
 
@@ -602,14 +606,30 @@ function buildPeriodicSummaryGrid(summary) {
 }
 
 function mountPeriodicReportingBlock(periodicCard) {
+  let periodicPdfPayload = null;
   const periodSel = periodicCard.querySelector('.analytics-periodic-period');
   const startIn = periodicCard.querySelector('.analytics-periodic-start');
   const endIn = periodicCard.querySelector('.analytics-periodic-end');
   const siteSel = periodicCard.querySelector('.analytics-periodic-site');
   const assigneeSel = periodicCard.querySelector('.analytics-periodic-assignee');
   const loadBtn = periodicCard.querySelector('.analytics-periodic-load');
+  const pdfPeriodBtn = periodicCard.querySelector('.analytics-periodic-pdf');
   const resultsHost = periodicCard.querySelector('.analytics-periodic-results');
   const statusLine = periodicCard.querySelector('.analytics-periodic-status');
+
+  pdfPeriodBtn?.addEventListener('click', async () => {
+    if (!periodicPdfPayload) {
+      showToast('Chargez d’abord le reporting périodique.', 'warning');
+      return;
+    }
+    try {
+      await downloadAnalyticsPeriodicPdf(periodicPdfPayload.data, periodicPdfPayload.meta);
+      showToast('PDF reporting périodique généré.', 'info');
+    } catch (e) {
+      console.error(e);
+      showToast('Export PDF impossible.', 'error');
+    }
+  });
 
   (async function fillFilters() {
     siteSel.innerHTML = '<option value="">— Tous sites —</option>';
@@ -676,6 +696,8 @@ function mountPeriodicReportingBlock(periodicCard) {
     }
 
     loadBtn.disabled = true;
+    if (pdfPeriodBtn) pdfPeriodBtn.disabled = true;
+    periodicPdfPayload = null;
     statusLine.textContent = 'Chargement…';
     resultsHost.replaceChildren();
     try {
@@ -699,6 +721,8 @@ function mountPeriodicReportingBlock(periodicCard) {
       }
       const data = await res.json();
       const meta = data.meta || {};
+      periodicPdfPayload = { data, meta };
+      if (pdfPeriodBtn) pdfPeriodBtn.disabled = false;
       statusLine.textContent = `Période : ${formatFrDate(meta.startDate)} → ${formatFrDate(meta.endDate)} · généré ${formatFrDateTime(meta.generatedAt)}`;
 
       const metaNote = document.createElement('p');
@@ -930,6 +954,9 @@ export function renderAnalytics() {
   ensureQhsePilotageStyles();
   ensureDashboardStyles();
 
+  /** @type {Record<string, unknown> | null} */
+  let lastAnalyticsSummary = null;
+
   const page = document.createElement('section');
   page.className = 'page-stack analytics-cockpit-page';
 
@@ -955,7 +982,27 @@ export function renderAnalytics() {
   metaHero.className = 'analytics-page-meta';
   metaHero.setAttribute('aria-live', 'polite');
   metaHero.textContent = 'Chargement…';
-  heroCopy.append(kicker, title, lead);
+  const pdfSummaryBtn = document.createElement('button');
+  pdfSummaryBtn.type = 'button';
+  pdfSummaryBtn.className = 'btn btn-secondary';
+  pdfSummaryBtn.textContent = 'Exporter PDF synthèse';
+  pdfSummaryBtn.style.marginTop = '12px';
+  pdfSummaryBtn.disabled = true;
+  pdfSummaryBtn.addEventListener('click', async () => {
+    if (!lastAnalyticsSummary) {
+      showToast('Chargez la synthèse d’abord.', 'warning');
+      return;
+    }
+    try {
+      await downloadAnalyticsSummaryPdf(lastAnalyticsSummary);
+      showToast('PDF synthèse généré.', 'info');
+    } catch (e) {
+      console.error(e);
+      showToast('Export PDF impossible.', 'error');
+    }
+  });
+
+  heroCopy.append(kicker, title, lead, pdfSummaryBtn);
   heroTop.append(heroCopy, metaHero);
   hero.append(heroTop);
 
@@ -1006,6 +1053,9 @@ export function renderAnalytics() {
       <button type="button" class="btn btn-primary analytics-periodic-load" style="min-height:44px;font-weight:700">
         Charger le reporting périodique
       </button>
+      <button type="button" class="btn btn-secondary analytics-periodic-pdf" disabled style="min-height:44px;font-weight:700">
+        Exporter PDF période
+      </button>
     </div>
     <p class="analytics-periodic-status" style="margin:10px 0 0;font-size:12px;color:var(--text3)"></p>
     <div class="analytics-periodic-results stack" style="margin-top:12px"></div>
@@ -1033,6 +1083,8 @@ export function renderAnalytics() {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
+      lastAnalyticsSummary = data;
+      pdfSummaryBtn.disabled = false;
 
       metaHero.textContent = `Mise à jour ${formatFrDateTime(data.generatedAt)} · ${data.export?.documentTitle ?? 'Synthèse QHSE'}`;
 

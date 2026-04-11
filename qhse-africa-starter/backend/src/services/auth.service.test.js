@@ -4,9 +4,6 @@ import jwt from 'jsonwebtoken';
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     refreshToken: {
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      delete: vi.fn(),
       deleteMany: vi.fn()
     },
     user: {
@@ -137,88 +134,59 @@ describe('auth.service', () => {
   });
 
   describe('issueRefreshToken', () => {
-    it('persiste un jeton et retourne la valeur hex', async () => {
-      prismaMock.refreshToken.create.mockResolvedValueOnce({});
-      const t = await authService.issueRefreshToken('u1');
-      expect(t).toMatch(/^[a-f0-9]{64}$/);
-      expect(prismaMock.refreshToken.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId: 'u1',
-          token: t,
-          expiresAt: expect.any(Date)
-        })
-      });
-    });
-  });
-
-  describe('rotateRefreshToken', () => {
-    it('rejette un jeton vide', async () => {
-      await expect(authService.rotateRefreshToken('')).rejects.toMatchObject({
-        code: 'REFRESH_INVALID'
-      });
-    });
-
-    it('rejette un jeton inconnu ou expiré', async () => {
-      prismaMock.refreshToken.findUnique.mockResolvedValueOnce(null);
-      await expect(authService.rotateRefreshToken('abc')).rejects.toMatchObject({
-        code: 'REFRESH_INVALID'
-      });
-
-      prismaMock.refreshToken.findUnique.mockResolvedValueOnce({
-        id: 'rt1',
-        userId: 'u1',
-        expiresAt: new Date('2000-01-01'),
-        user: {
-          id: 'u1',
-          name: 'N',
-          email: 'n@test',
-          role: 'ADMIN'
-        }
-      });
-      await expect(authService.rotateRefreshToken('old')).rejects.toMatchObject({
-        code: 'REFRESH_INVALID'
-      });
-    });
-
-    it('rotation : supprime l’ancien, émet nouveaux jetons', async () => {
+    it('retourne un JWT refresh (stateless, sans persistance DB)', () => {
       vi.stubEnv('JWT_SECRET', '0123456789abcdef');
       vi.stubEnv('NODE_ENV', 'test');
 
-      prismaMock.refreshToken.findUnique.mockResolvedValueOnce({
-        id: 'rt-old',
-        userId: 'u1',
-        expiresAt: new Date('2099-01-01'),
-        user: {
-          id: 'u1',
-          name: 'N',
-          email: 'n@test',
-          role: 'qhse'
-        }
-      });
-      prismaMock.refreshToken.delete.mockResolvedValueOnce({});
-      prismaMock.refreshToken.create.mockResolvedValueOnce({});
+      const user = {
+        id: 'u1',
+        name: 'N',
+        email: 'n@test',
+        role: 'ADMIN'
+      };
+      const t = authService.issueRefreshToken(user);
+      expect(typeof t).toBe('string');
+      expect(t.split('.')).toHaveLength(3);
+      const payload = jwt.decode(t);
+      expect(payload).toMatchObject({ sub: 'u1', type: 'refresh' });
+    });
+  });
 
-      const out = await authService.rotateRefreshToken('valid-token');
-      expect(prismaMock.refreshToken.delete).toHaveBeenCalledWith({ where: { id: 'rt-old' } });
-      expect(out.refreshToken).toMatch(/^[a-f0-9]{64}$/);
-      expect(typeof out.accessToken).toBe('string');
-      const payload = jwt.decode(out.accessToken);
-      expect(payload).toMatchObject({ sub: 'u1', role: 'QHSE' });
+  describe('verifyRefreshToken', () => {
+    it('retourne le payload si le jeton est un refresh valide', () => {
+      vi.stubEnv('JWT_SECRET', '0123456789abcdef');
+      vi.stubEnv('NODE_ENV', 'test');
+      const token = authService.issueRefreshToken({
+        id: 'u1',
+        name: 'N',
+        email: 'n@test',
+        role: 'ADMIN'
+      });
+      const payload = authService.verifyRefreshToken(token);
+      expect(payload).not.toBeNull();
+      expect(payload.sub).toBe('u1');
+      expect(payload.type).toBe('refresh');
+    });
+
+    it('retourne null si le jeton est invalide ou est un access token', () => {
+      vi.stubEnv('JWT_SECRET', '0123456789abcdef');
+      vi.stubEnv('NODE_ENV', 'test');
+      expect(authService.verifyRefreshToken('not.a.jwt')).toBeNull();
+      const access = authService.issueAccessToken({
+        id: 'u1',
+        name: 'N',
+        email: 'n@test',
+        role: 'ADMIN'
+      });
+      expect(authService.verifyRefreshToken(access)).toBeNull();
     });
   });
 
   describe('revokeRefreshToken', () => {
-    it('ne fait rien si jeton vide', async () => {
+    it('no-op stateless : ne touche pas à la base', async () => {
       await authService.revokeRefreshToken('');
+      await authService.revokeRefreshToken('any-token');
       expect(prismaMock.refreshToken.deleteMany).not.toHaveBeenCalled();
-    });
-
-    it('supprime les lignes correspondantes', async () => {
-      prismaMock.refreshToken.deleteMany.mockResolvedValueOnce({ count: 1 });
-      await authService.revokeRefreshToken(' tok ');
-      expect(prismaMock.refreshToken.deleteMany).toHaveBeenCalledWith({
-        where: { token: 'tok' }
-      });
     });
   });
 

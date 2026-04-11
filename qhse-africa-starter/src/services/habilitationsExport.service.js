@@ -1,11 +1,16 @@
 /**
  * Exports registre habilitations (CSV / XLSX / PDF) — génération côté navigateur.
- * Respecte les lignes passées (déjà filtrées par l’écran).
+ * PDF : gabarit premium QHSE Control Africa (bandeau #1D9E75, pied de page confidentiel).
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
-import { saveElementAsPdf } from '../utils/html2pdfExport.js';
-import { HABILITATIONS_STATUS_LABEL } from '../data/habilitationsDemo.js';
+import {
+  assembleQhsePdfDocument,
+  chunkRowsForPdf,
+  downloadQhseChromePdf,
+  QHSE_PDF_EMPTY_MESSAGE
+} from '../utils/qhsePdfChrome.js';
+import { HABILITATIONS_STATUS_LABEL, habDaysUntil } from '../data/habilitationsDemo.js';
 
 const CSV_COLS = [
   'collaborateur',
@@ -56,6 +61,85 @@ function rowsToPlainObjects(rows) {
   }));
 }
 
+function daysUntilRow(r) {
+  return habDaysUntil(r.expiration);
+}
+
+/** @param {string} statutKey */
+function habStatusBadgeClass(statutKey) {
+  if (statutKey === 'expiree') return { bg: '#fee2e2', fg: '#991b1b', label: HABILITATIONS_STATUS_LABEL.expiree };
+  if (statutKey === 'expire_bientot')
+    return { bg: '#ffedd5', fg: '#c2410c', label: HABILITATIONS_STATUS_LABEL.expire_bientot };
+  if (statutKey === 'suspendue')
+    return { bg: '#fef3c7', fg: '#b45309', label: HABILITATIONS_STATUS_LABEL.suspendue };
+  if (statutKey === 'incomplete')
+    return { bg: '#fce7f3', fg: '#9d174d', label: HABILITATIONS_STATUS_LABEL.incomplete };
+  if (statutKey === 'en_attente')
+    return { bg: '#e0e7ff', fg: '#3730a3', label: HABILITATIONS_STATUS_LABEL.en_attente };
+  return { bg: '#dcfce7', fg: '#166534', label: HABILITATIONS_STATUS_LABEL.valide };
+}
+
+/** @param {Record<string, unknown>} r */
+function habBadgeForRow(r) {
+  const st = String(r.statut || '');
+  const d = daysUntilRow(r);
+  if (st === 'expiree' || d < 0) return habStatusBadgeClass('expiree');
+  if (st === 'expire_bientot' || (d >= 0 && d <= 30)) return habStatusBadgeClass('expire_bientot');
+  return habStatusBadgeClass(st === 'valide' ? 'valide' : st);
+}
+
+/** @param {Record<string, unknown>[]} rows */
+function computeHabilitationsSummary(rows) {
+  const total = rows.length;
+  const expired = rows.filter((r) => r.statut === 'expiree' || daysUntilRow(r) < 0).length;
+  const renew30 = rows.filter((r) => {
+    const d = daysUntilRow(r);
+    return d >= 0 && d <= 30;
+  }).length;
+  return { total, expired, renew30 };
+}
+
+/** @param {Record<string, unknown>[]} rows */
+function criticalAlertRows(rows) {
+  const out = [];
+  rows.forEach((r) => {
+    const d = daysUntilRow(r);
+    const critical =
+      r.statut === 'expiree' ||
+      d < 0 ||
+      (d >= 0 && d <= 7) ||
+      !r.justificatif ||
+      r.statut === 'suspendue';
+    if (critical) out.push({ ...r, _d: d });
+  });
+  const seen = new Set();
+  return out.filter((r) => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+}
+
+/** @param {Record<string, unknown>[]} rows */
+function computeByType(rows) {
+  const types = [...new Set(rows.map((r) => String(r.type || '—')))];
+  return types
+    .map((type) => {
+      const bucket = rows.filter((r) => String(r.type || '—') === type);
+      const nonConf = bucket.filter((r) =>
+        ['expiree', 'suspendue', 'incomplete'].includes(String(r.statut))
+      ).length;
+      const score = bucket.length ? Math.round(((bucket.length - nonConf) / bucket.length) * 100) : 0;
+      return { type, score, total: bucket.length, nonConf };
+    })
+    .sort((a, b) => b.total - a.total);
+}
+
+/** @param {Record<string, unknown>[]} rows */
+function nonConformiteRows(rows) {
+  return rows.filter((r) => ['expiree', 'suspendue', 'incomplete'].includes(String(r.statut)));
+}
+
 /** @param {Record<string, unknown>[]} rows */
 export function downloadHabilitationsCsv(rows, filename = 'habilitations-export') {
   const data = rowsToPlainObjects(rows);
@@ -84,6 +168,63 @@ export async function downloadHabilitationsXlsx(rows, filename = 'habilitations-
   XLSX.writeFile(wb, `${filename.replace(/[^\w-]+/g, '_')}.xlsx`);
 }
 
+function buildRegistreTableHtml(rows) {
+  const head = `<tr>
+    <th>Collaborateur</th><th>Poste</th><th>Type</th><th>Site</th><th>Expiration</th><th>Statut</th>
+  </tr>`;
+  if (!rows.length) {
+    return `<p class="qhse-chrome-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+  }
+  const body = rows
+    .map((r) => {
+      const b = habBadgeForRow(r);
+      return `<tr>
+        <td>${escapeHtml(String(r.collaborateur ?? ''))}</td>
+        <td>${escapeHtml(String(r.poste ?? ''))}</td>
+        <td>${escapeHtml(String(r.type ?? ''))}</td>
+        <td>${escapeHtml(String(r.site ?? ''))}</td>
+        <td>${escapeHtml(String(r.expiration ?? ''))}</td>
+        <td><span class="qhse-chrome-badge" style="background:${b.bg};color:${b.fg}">${escapeHtml(b.label)}</span></td>
+      </tr>`;
+    })
+    .join('');
+  return `<table class="qhse-chrome-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+function buildAlertsSectionHtml(rows) {
+  const crit = criticalAlertRows(rows).slice(0, 25);
+  if (!crit.length) {
+    return `<h2 class="qhse-chrome-h2">Alertes expiration</h2><p class="qhse-chrome-muted">Aucune alerte critique dans ce périmètre.</p>`;
+  }
+  const lines = crit
+    .map((r) => {
+      const d = r._d;
+      const reason =
+        r.statut === 'expiree' || d < 0
+          ? 'Expirée'
+          : d <= 7
+            ? `Échéance ≤ 7 j (${d} j)`
+            : !r.justificatif
+              ? 'Justificatif manquant'
+              : r.statut === 'suspendue'
+                ? 'Suspendue'
+                : 'À surveiller';
+      return `<tr>
+        <td>${escapeHtml(String(r.collaborateur ?? ''))}</td>
+        <td>${escapeHtml(String(r.type ?? ''))}</td>
+        <td>${escapeHtml(String(r.expiration ?? ''))}</td>
+        <td>${escapeHtml(reason)}</td>
+      </tr>`;
+    })
+    .join('');
+  return `<h2 class="qhse-chrome-h2">Alertes expiration</h2>
+    <p class="qhse-chrome-muted">Priorisez ces fiches (extrait ${crit.length} max.).</p>
+    <table class="qhse-chrome-table">
+      <thead><tr><th>Collaborateur</th><th>Type</th><th>Expiration</th><th>Motif</th></tr></thead>
+      <tbody>${lines}</tbody>
+    </table>`;
+}
+
 /**
  * @param {{
  *   title: string;
@@ -93,35 +234,47 @@ export async function downloadHabilitationsXlsx(rows, filename = 'habilitations-
  * }} opts
  */
 export function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, rows }) {
-  const data = rowsToPlainObjects(rows);
-  const thead = `<tr>${CSV_COLS.map((c) => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-  const tbody = data
-    .map(
-      (row) =>
-        `<tr>${CSV_COLS.map((k) => `<td>${escapeHtml(String(row[k] ?? ''))}</td>`).join('')}</tr>`
-    )
-    .join('');
-  const dateStr = new Date().toLocaleString('fr-FR', {
-    dateStyle: 'long',
-    timeStyle: 'short'
-  });
-  return `
-<div class="hab-pdf-root">
-  <header class="hab-pdf-header">
-    <div class="hab-pdf-logo" aria-hidden="true">◈ QHSE Control</div>
-    <div>
-      <h1 class="hab-pdf-title">${escapeHtml(title)}</h1>
-      ${subtitle ? `<p class="hab-pdf-sub">${escapeHtml(subtitle)}</p>` : ''}
-      <p class="hab-pdf-meta">Édition : ${escapeHtml(dateStr)}</p>
-      <p class="hab-pdf-filters"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
+  const summary = computeHabilitationsSummary(rows);
+  const h1 = title.toLowerCase().includes('alerte')
+    ? 'RAPPORT ALERTES HABILITATIONS'
+    : title.toLowerCase().includes('fiche')
+      ? 'FICHE HABILITATIONS'
+      : 'REGISTRE DES HABILITATIONS';
+
+  const docTitle =
+    h1 === 'RAPPORT ALERTES HABILITATIONS'
+      ? 'Alertes habilitations'
+      : h1 === 'FICHE HABILITATIONS'
+        ? 'Fiche habilitations'
+        : 'Registre des Habilitations';
+
+  const summaryHtml = `
+    <h1 class="qhse-chrome-h1">${escapeHtml(h1)}</h1>
+    ${subtitle ? `<p class="qhse-chrome-muted">${escapeHtml(subtitle)}</p>` : ''}
+    <p class="qhse-chrome-muted"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
+    <div class="qhse-chrome-kpi-grid">
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${summary.total}</div><div class="qhse-chrome-kpi-lbl">Total</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#991b1b">${summary.expired}</div><div class="qhse-chrome-kpi-lbl">Expirées</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#c2410c">${summary.renew30}</div><div class="qhse-chrome-kpi-lbl">À renouveler ≤ 30 j</div></div>
     </div>
-  </header>
-  <table class="hab-pdf-table">
-    <thead>${thead}</thead>
-    <tbody>${tbody}</tbody>
-  </table>
-  <footer class="hab-pdf-footer">Document généré localement — à conserver selon votre politique documentaire.</footer>
-</div>`;
+    ${buildAlertsSectionHtml(rows)}
+  `;
+
+  const chunks = chunkRowsForPdf(rows, 18);
+  const pageBodies = [];
+  chunks.forEach((chunk, idx) => {
+    if (idx === 0) {
+      pageBodies.push(`${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml(chunk)}`);
+    } else {
+      pageBodies.push(`<h2 class="qhse-chrome-h2">Tableau détaillé (suite)</h2>${buildRegistreTableHtml(chunk)}`);
+    }
+  });
+
+  if (pageBodies.length === 0) {
+    pageBodies.push(`${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml([])}`);
+  }
+
+  return assembleQhsePdfDocument(docTitle, pageBodies);
 }
 
 /**
@@ -135,88 +288,108 @@ export function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, r
  */
 export async function downloadHabilitationsPdf(opts) {
   const html = buildHabilitationsPdfHtml(opts);
-  const host = document.createElement('div');
-  host.className = 'hab-pdf-host-hidden';
-  host.innerHTML = html;
-  Object.assign(host.style, {
-    position: 'fixed',
-    left: '-9999px',
-    top: '0',
-    width: '190mm',
-    padding: '8px',
-    background: '#0f172a',
-    color: '#e2e8f0',
-    fontFamily: 'Inter, system-ui, sans-serif',
-    fontSize: '10px'
-  });
-  document.body.append(host);
-
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
-  try {
-    await saveElementAsPdf(host, `${safeName}.pdf`, {
-      margin: [10, 10, 10, 10],
-      html2canvas: { backgroundColor: '#0f172a' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    });
-  } finally {
-    host.remove();
-  }
-}
-
-/** KPI + par site pour export « conformité » */
-export function buildConformitePdfHtml({ filtersText, kpis, bySite }) {
-  const dateStr = new Date().toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
-  const siteRows = (bySite || [])
-    .map(
-      (b) =>
-        `<tr><td>${escapeHtml(b.site)}</td><td>${b.score}%</td><td>${b.total}</td><td>${b.nonConf}</td></tr>`
-    )
-    .join('');
-  return `
-<div class="hab-pdf-root">
-  <header class="hab-pdf-header">
-    <div class="hab-pdf-logo">◈ QHSE Control</div>
-    <div>
-      <h1 class="hab-pdf-title">Synthèse conformité habilitations</h1>
-      <p class="hab-pdf-meta">Édition : ${escapeHtml(dateStr)}</p>
-      <p class="hab-pdf-filters"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
-    </div>
-  </header>
-  <div class="hab-pdf-kpis">
-    <p><strong>Actives :</strong> ${kpis.actifs} · <strong>Expirées :</strong> ${kpis.expirees} · <strong>&lt; 30 j :</strong> ${kpis.exp30}</p>
-    <p><strong>Non conformes :</strong> ${kpis.nonConformes} · <strong>Taux :</strong> ${kpis.taux}% · <strong>Blocages critiques :</strong> ${kpis.blocCrit}</p>
-  </div>
-  <table class="hab-pdf-table">
-    <thead><tr><th>Site</th><th>Score</th><th>Total hab.</th><th>Non conformes</th></tr></thead>
-    <tbody>${siteRows}</tbody>
-  </table>
-  <footer class="hab-pdf-footer">Document généré localement — à conserver selon votre politique documentaire.</footer>
-</div>`;
-}
-
-export async function downloadHabilitationsConformitePdf({ filtersText, kpis, bySite, filename }) {
-  const host = document.createElement('div');
-  host.innerHTML = buildConformitePdfHtml({ filtersText, kpis, bySite });
-  Object.assign(host.style, {
-    position: 'fixed',
-    left: '-9999px',
-    top: '0',
-    width: '190mm',
-    padding: '12px',
-    background: '#0f172a',
-    color: '#e2e8f0',
-    fontFamily: 'Inter, system-ui, sans-serif',
-    fontSize: '10px'
+  await downloadQhseChromePdf(html, `${safeName}.pdf`, {
+    margin: [12, 10, 16, 10],
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   });
-  document.body.append(host);
+}
+
+/**
+ * @param {{
+ *   filtersText: string;
+ *   kpis: Record<string, number>;
+ *   bySite: { site: string; score: number; total: number; nonConf: number }[];
+ *   rows?: Record<string, unknown>[];
+ * }} opts
+ */
+export function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }) {
+  const docTitle = 'Rapport de conformité Habilitations';
+  const taux = Math.round(Number(kpis.taux) || 0);
+  const byType = computeByType(rows);
+  const ncList = nonConformiteRows(rows).slice(0, 40);
+
+  const gauge = `
+    <h1 class="qhse-chrome-h1">RAPPORT DE CONFORMITÉ HABILITATIONS</h1>
+    <p class="qhse-chrome-muted"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
+    <h2 class="qhse-chrome-h2">Taux de conformité global</h2>
+    <p><span class="qhse-chrome-gauge-track"><span class="qhse-chrome-gauge-fill" style="width:${Math.min(100, Math.max(0, taux))}%"></span></span>
+    <strong style="margin-left:10px;font-size:14pt">${taux} %</strong></p>
+    <div class="qhse-chrome-kpi-grid">
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.actifs ?? 0}</div><div class="qhse-chrome-kpi-lbl">Actives</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.expirees ?? 0}</div><div class="qhse-chrome-kpi-lbl">Expirées</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.exp30 ?? 0}</div><div class="qhse-chrome-kpi-lbl">&lt; 30 j</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.nonConformes ?? 0}</div><div class="qhse-chrome-kpi-lbl">Non conformes</div></div>
+    </div>
+  `;
+
+  const typeRows = byType.length
+    ? byType
+        .map(
+          (t) =>
+            `<tr><td>${escapeHtml(t.type)}</td><td>${t.total}</td><td>${t.nonConf}</td><td><strong>${t.score} %</strong></td></tr>`
+        )
+        .join('')
+    : `<tr><td colspan="4" class="qhse-chrome-muted">—</td></tr>`;
+
+  const typeTable = `
+    <h2 class="qhse-chrome-h2">Taux par type d’habilitation</h2>
+    <table class="qhse-chrome-table">
+      <thead><tr><th>Type</th><th>Total</th><th>Non conformes</th><th>Taux</th></tr></thead>
+      <tbody>${typeRows}</tbody>
+    </table>
+  `;
+
+  const siteRows = (bySite || []).length
+    ? (bySite || [])
+        .map(
+          (b) =>
+            `<tr><td>${escapeHtml(b.site)}</td><td>${b.score}%</td><td>${b.total}</td><td>${b.nonConf}</td></tr>`
+        )
+        .join('')
+    : `<tr><td colspan="4" class="qhse-chrome-muted">—</td></tr>`;
+
+  const siteTable = `
+    <h2 class="qhse-chrome-h2">Synthèse par site</h2>
+    <table class="qhse-chrome-table">
+      <thead><tr><th>Site</th><th>Score</th><th>Total</th><th>Non conformes</th></tr></thead>
+      <tbody>${siteRows}</tbody>
+    </table>
+  `;
+
+  const ncRows = ncList.length
+    ? ncList
+        .map(
+          (r) =>
+            `<tr><td>${escapeHtml(String(r.collaborateur ?? ''))}</td><td>${escapeHtml(String(r.type ?? ''))}</td><td>${escapeHtml(String(HABILITATIONS_STATUS_LABEL[r.statut] || r.statut || ''))}</td><td>${escapeHtml(String(r.expiration ?? ''))}</td></tr>`
+        )
+        .join('')
+    : `<tr><td colspan="4" class="qhse-chrome-muted">Aucune non-conformité structurée dans ce périmètre.</td></tr>`;
+
+  const ncSection = `
+    <h2 class="qhse-chrome-h2">Liste des non-conformités</h2>
+    <table class="qhse-chrome-table">
+      <thead><tr><th>Collaborateur</th><th>Type</th><th>Statut</th><th>Expiration</th></tr></thead>
+      <tbody>${ncRows}</tbody>
+    </table>
+  `;
+
+  const page1 = `${gauge}${typeTable}`;
+  const page2 = `${siteTable}${ncSection}`;
+  return assembleQhsePdfDocument(docTitle, [page1, page2]);
+}
+
+export async function downloadHabilitationsConformitePdf({
+  filtersText,
+  kpis,
+  bySite,
+  rows = [],
+  filename
+}) {
+  const html = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
-  try {
-    await saveElementAsPdf(host, `${safeName}.pdf`, {
-      margin: [10, 10, 10, 10],
-      html2canvas: { backgroundColor: '#0f172a' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    });
-  } finally {
-    host.remove();
-  }
+  await downloadQhseChromePdf(html, `${safeName}.pdf`, {
+    margin: [12, 10, 16, 10],
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  });
 }

@@ -4357,10 +4357,57 @@ const CSS = `
 .dashboard-pilotage-assistant__rec-title{grid-column:2;font-weight:700;font-size:14px;line-height:1.3}
 .dashboard-pilotage-assistant__rec-detail{grid-column:2;font-size:12px;color:var(--text2);line-height:1.45}
 .dashboard-pilotage-assistant__rec-cta{grid-column:2;font-size:11px;font-weight:700;color:#a5b4fc}
-.dashboard-pilotage-assistant__anomalies{margin-top:16px;padding-top:14px;border-top:1px solid rgba(148,163,184,.1)}
-.dashboard-pilotage-assistant__anomaly-list{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--text2)}
-.dashboard-pilotage-assistant__anomaly--err{color:#fecaca}
-.dashboard-pilotage-assistant__anomaly--warn{color:#fde68a}
+.dashboard-pilotage-assistant__anomalies{margin-top:18px;padding-top:16px;border-top:1px solid color-mix(in srgb,var(--color-border-tertiary) 70%,transparent)}
+.dashboard-pilotage-assistant__anomalies .dashboard-pilotage-assistant__h{margin-bottom:12px}
+.dashboard-pilotage-assistant__anomaly-panel{
+  padding:14px 14px 12px;border-radius:14px;
+  border:1px solid color-mix(in srgb,var(--color-border-tertiary) 85%,transparent);
+  background:color-mix(in srgb,var(--color-background-secondary) 88%,transparent);
+  box-shadow:0 1px 0 color-mix(in srgb,white 6%,transparent) inset;
+}
+.dashboard-pilotage-assistant__anomaly-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.dashboard-pilotage-assistant__anomaly{
+  margin:0;padding:11px 12px 11px 14px;border-radius:12px;
+  border:1px solid color-mix(in srgb,var(--color-border-tertiary) 75%,transparent);
+  border-left:3px solid transparent;
+  background:color-mix(in srgb,var(--color-background-primary) 70%,transparent);
+  font-size:13px;line-height:1.55;color:var(--text2);
+}
+.dashboard-pilotage-assistant__anomaly--err{
+  border-left-color:color-mix(in srgb,var(--palette-danger,#ef4444) 85%,transparent);
+  background:color-mix(in srgb,rgba(239,68,68,.14) 35%,var(--color-background-primary));
+  color:#fecaca;
+}
+.dashboard-pilotage-assistant__anomaly--warn{
+  border-left-color:color-mix(in srgb,var(--palette-warning,#f59e0b) 80%,transparent);
+  background:color-mix(in srgb,rgba(245,158,11,.12) 30%,var(--color-background-primary));
+  color:#fde68a;
+}
+/* Analyse IA hebdo — même famille visuelle que les cartes dashboard */
+.dashboard-ai-insight{margin-top:24px}
+.dashboard-ai-insight__card{
+  margin:0;padding:0;overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--palette-accent,#14b8a6) 22%,var(--color-border-tertiary));
+  background:linear-gradient(
+    145deg,
+    color-mix(in srgb,var(--color-background-primary) 94%,var(--palette-accent,#14b8a6) 5%) 0%,
+    var(--color-background-primary) 52%,
+    color-mix(in srgb,var(--color-background-secondary) 92%,var(--color-primary) 4%) 100%
+  );
+  box-shadow:0 12px 40px -28px rgba(0,0,0,.45);
+}
+.dashboard-ai-insight__shell{display:flex;align-items:stretch;min-height:0}
+.dashboard-ai-insight__rail{
+  width:4px;flex-shrink:0;
+  background:linear-gradient(180deg,var(--palette-accent,#14b8a6),var(--color-primary,#3b82f6));
+  opacity:.95;
+}
+.dashboard-ai-insight__content{padding:18px 20px 20px 18px;min-width:0;flex:1}
+.dashboard-ai-insight__kicker{margin:0 0 12px;color:var(--app-accent,var(--color-text-info))}
+.dashboard-ai-insight__body{
+  margin:0;font-size:14px;line-height:1.65;color:var(--color-text-secondary);
+  white-space:pre-wrap;word-break:break-word;
+}
 `;
 
 export function ensureDashboardStyles() {
