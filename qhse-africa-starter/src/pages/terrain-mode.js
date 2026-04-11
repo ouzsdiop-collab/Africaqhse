@@ -7,7 +7,7 @@ export async function renderTerrainMode(container) {
   container.innerHTML = `
     <div class="offline-banner" id="terrain-offline-banner">
       Hors connexion — vos donnees seront synchronisees a la reconnexion
-    </div>
+      </div>
     <div style="padding:16px;max-width:480px;margin:auto">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
         <h1 style="margin:0;font-size:20px;font-weight:700">Mode terrain</h1>

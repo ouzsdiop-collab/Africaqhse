@@ -145,7 +145,10 @@
   display: block;
 }
 
-:is([data-display-mode="simple"], [data-display-mode="terrain"]) .page-stack--actions-premium .actions-filter-toolbar .actions-filter-group:last-child {
+:is([data-display-mode="simple"], [data-display-mode="terrain"])
+  .page-stack--actions-premium
+  .actions-filter-toolbar__primary
+  .actions-filter-group:last-child {
   display: none;
 }
 

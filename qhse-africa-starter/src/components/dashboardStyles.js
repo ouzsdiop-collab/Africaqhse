@@ -567,43 +567,17 @@ const CSS = `
     box-shadow:0 8px 32px rgba(239,91,107,.22);
   }
 }
-/* KPI cartes */
-.dashboard-kpi-card{
-  border:1px solid rgba(148,163,184,.14);
-  background:linear-gradient(165deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.02) 100%);
-  box-shadow:0 4px 20px rgba(0,0,0,.1),0 1px 0 rgba(255,255,255,.04) inset;
-  transition:border-color .2s ease,box-shadow .2s ease,transform .15s ease;
-}
-@media (prefers-reduced-motion:no-preference){
-  .dashboard-kpi-card:hover{
-    border-color:rgba(20,184,166,.22);
-    box-shadow:0 8px 28px rgba(0,0,0,.14);
-    transform:translateY(-1px);
-  }
-}
-/* KPI cliquables — même ADN, état actif + focus visible */
+/* KPI : complété par dashboard-visual.css (accent gauche) — ici focus clavier seulement */
 .dashboard-kpi-card--interactive{
   cursor:pointer;
   position:relative;
 }
 .dashboard-kpi-card--interactive:focus{
   outline:none;
-  border-color:rgba(20,184,166,.45)!important;
-  box-shadow:0 0 0 2px rgba(20,184,166,.35),0 8px 28px rgba(0,0,0,.16);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--palette-accent,#14b8a6) 38%,transparent);
 }
 .dashboard-kpi-card--interactive:focus:not(:focus-visible){
-  box-shadow:0 4px 20px rgba(0,0,0,.1),0 1px 0 rgba(255,255,255,.04) inset;
-  border-color:rgba(148,163,184,.14);
-}
-@media (prefers-reduced-motion:no-preference){
-  .dashboard-kpi-card--interactive:hover{
-    border-color:rgba(20,184,166,.32);
-    box-shadow:0 10px 32px rgba(0,0,0,.16);
-    transform:translateY(-2px);
-  }
-}
-.dashboard-kpi-card--interactive .metric-note{
-  opacity:.92;
+  box-shadow:none;
 }
 /* Dialog détail KPI — dark theme, scroll interne */
 .kpi-detail-dialog{
@@ -1641,18 +1615,24 @@ const CSS = `
   padding:6px 0 2px;
 }
 .dashboard-toggle-btn{
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:10px;
+  max-width:min(100%,520px);
   background:none;
   border:1px solid rgba(255,255,255,.1);
-  border-radius:20px;padding:6px 18px;
+  border-radius:14px;padding:10px 16px;
   color:var(--text2,rgba(255,255,255,.5));
   font-size:12px;cursor:pointer;
   transition:border-color 150ms,color 150ms;
+  text-align:left;
 }
+.dashboard-toggle-inner{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;flex:1}
+.dashboard-toggle-label{font-weight:600;color:var(--text,rgba(255,255,255,.88));font-size:13px}
+.dashboard-toggle-hint{font-size:10px;line-height:1.35;opacity:.72;color:var(--text2,rgba(255,255,255,.55))}
 .dashboard-toggle-btn:hover{
   border-color:rgba(255,255,255,.2);
   color:var(--text,rgba(255,255,255,.85));
 }
+.dashboard-toggle-btn:hover .dashboard-toggle-hint{opacity:.85}
 [data-display-mode="simple"] .dashboard-toggle-row{
   display:none;
 }
@@ -4022,8 +4002,8 @@ const CSS = `
   outline: none;
 }
 .kpi-perf-main-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  transform: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--palette-accent, #14b8a6) 10%, transparent);
 }
 .kpi-perf-main-card:active {
   transform: translateY(0);
@@ -4045,16 +4025,13 @@ const CSS = `
   border-color: rgba(45, 212, 191, 0.18);
 }
 .kpi-perf-main-card--tone-red {
-  box-shadow: 0 0 0 1px rgba(239, 91, 107, 0.12),
-    0 4px 22px rgba(239, 91, 107, 0.08);
+  box-shadow: none;
 }
 .kpi-perf-main-card--tone-amber {
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.14),
-    0 4px 20px rgba(245, 158, 11, 0.07);
+  box-shadow: none;
 }
 .kpi-perf-main-card--tone-green {
-  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.12),
-    0 2px 16px rgba(52, 211, 153, 0.06);
+  box-shadow: none;
 }
 .kpi-perf-main-insight {
   margin: 10px 0 0;

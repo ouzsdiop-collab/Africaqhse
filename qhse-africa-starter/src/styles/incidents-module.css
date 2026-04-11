@@ -1146,6 +1146,23 @@
   background: var(--color-background-secondary);
 }
 
+.incidents-compact-filters .incidents-filter-export-slot {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+@media (max-width: 719px) {
+  .incidents-compact-filters .incidents-filter-export-slot {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .incidents-compact-filters .incidents-filter-export-slot .btn {
+    width: 100%;
+  }
+}
+
 .incidents-compact-filters__grid {
   display: flex;
   flex-wrap: wrap;
@@ -1814,7 +1831,7 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
-  padding: 11px 12px 12px;
+  padding: 9px 12px 10px;
   border-bottom: 1px solid var(--color-border-tertiary);
   background: rgba(0, 0, 0, 0.1);
   position: sticky;
@@ -1833,7 +1850,7 @@
 }
 
 .incidents-table-premium tbody td {
-  padding: 12px 12px;
+  padding: 10px 12px;
   vertical-align: middle;
   border-bottom: 1px solid rgba(148, 163, 184, 0.08);
 }

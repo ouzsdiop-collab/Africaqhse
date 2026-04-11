@@ -27,9 +27,12 @@ export function createQhseKpiStrip(items) {
       const interactive = typeof onClick === 'function' && kpiKey;
       const card = interactive ? document.createElement('button') : document.createElement('div');
       if (interactive) card.type = 'button';
-      card.className = 'metric-card card-soft';
+      const toneClass =
+        tone === 'red' ? 'red' : tone === 'amber' ? 'amber' : tone === 'green' ? 'green' : 'blue';
+      card.className =
+        'metric-card card-soft dashboard-kpi-card dashboard-kpi-card--tone-' + toneClass;
       if (interactive) {
-        card.classList.add('metric-card--kpi-click');
+        card.classList.add('metric-card--kpi-click', 'dashboard-kpi-card--interactive');
         card.setAttribute('aria-pressed', selected ? 'true' : 'false');
         if (selected) card.classList.add('metric-card--kpi-click--on');
       }
@@ -40,19 +43,19 @@ export function createQhseKpiStrip(items) {
       lbl.textContent = label;
 
       const val = document.createElement('div');
-      const toneClass =
-        tone === 'red' ? 'red' : tone === 'amber' ? 'amber' : tone === 'green' ? 'green' : 'blue';
       val.className = `metric-value ${toneClass}`;
       val.textContent = String(value);
 
-      card.append(lbl, val);
-
+      const stack = document.createElement('div');
+      stack.className = 'dashboard-kpi-card__stack';
+      stack.append(lbl, val);
       if (hint) {
-        const note = document.createElement('div');
-        note.className = 'metric-note';
+        const note = document.createElement('p');
+        note.className = 'metric-note metric-note--kpi';
         note.textContent = hint;
-        card.append(note);
+        stack.append(note);
       }
+      card.append(stack);
 
       if (interactive) {
         card.addEventListener('click', () => onClick(kpiKey));

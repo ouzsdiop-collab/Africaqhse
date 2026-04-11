@@ -130,6 +130,11 @@
   transform: translateY(-1px);
 }
 
+/* KPI harmonisés : pas de translation (évite effet « carte jouet ») */
+.dashboard-kpi-card.metric-card:hover {
+  transform: none;
+}
+
 /* —— Boutons : feedback tactile discret —— */
 .btn {
   transition:

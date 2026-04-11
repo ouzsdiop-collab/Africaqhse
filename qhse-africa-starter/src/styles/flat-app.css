@@ -1213,13 +1213,14 @@ p,
 }
 
 [data-theme='dark'] .metric-card {
-  background: linear-gradient(
-    162deg,
-    color-mix(in srgb, var(--color-background-primary) 88%, rgb(165, 212, 255)) 0%,
-    color-mix(in srgb, var(--color-background-primary) 92%, black) 100%
-  );
+  background: var(--color-background-primary);
   border-color: var(--color-border-tertiary);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
+}
+
+[data-theme='dark'] .metric-card.dashboard-kpi-card {
+  /* Ton spécifique porté par dashboard-visual */
+  background: color-mix(in srgb, var(--color-background-primary) 96%, var(--kpi-accent, var(--color-text-info)) 4%);
 }
 
 .metric-label {
@@ -1227,10 +1228,11 @@ p,
 }
 
 .metric-value {
-  font-size: 32px;
-  font-weight: 500;
-  line-height: 1.2;
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 600;
+  line-height: 1.15;
   color: var(--color-text-info);
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-value.red {
@@ -1250,9 +1252,9 @@ p,
 }
 
 .metric-note {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.7;
+  line-height: 1.45;
   color: var(--color-text-tertiary);
 }
 

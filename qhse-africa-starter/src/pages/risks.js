@@ -14,6 +14,7 @@ import { createRiskManagerReadingCard } from '../components/riskManagerReading.j
 import { activityLogStore } from '../data/activityLog.js';
 import { appState } from '../utils/state.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { buildActionDefaultsFromCriticalRisk } from '../utils/qhseAssistantFormSuggestions.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createPermit } from '../services/ptw.service.js';
@@ -21,367 +22,46 @@ import { linkModules } from '../services/moduleLinks.service.js';
 import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
 
+/* Extraction : intent dashboard + modèle registre risques (API, cache, analyses) + bloc IA Mistral — évite ~350 lignes dupliquées. */
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import {
+  incidentsLinkedToRiskFromRows,
+  buildEvolutionSeriesFromRisks,
+  countRiskLevels,
+  riskTierBucket,
+  countRisksWithoutGp,
+  hasActionLinked,
+  countRiskElevesOnly,
+  countRiskMaitrises,
+  countRiskSansAction,
+  computeGlobalRiskAnalysis,
+  sortRisksByPriority,
+  levelToNum,
+  mapApiRiskToUi,
+  fetchRisksApi,
+  readRisksListCache,
+  saveRisksListCache
+} from '../utils/risksRegisterModel.js';
+import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
+
 export { openRiskCreateDialog } from '../components/riskFormDialog.js';
 export { openRiskDialog } from '../components/riskSheetModal.js';
 export { openRiskDetail } from '../components/riskDetailPanel.js';
-
-const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
-
-/** Marqueur `[Risque lié: …]` dans la description d’incident (aligné API incidents). */
-const RISK_LINK_RE = /\[Risque lié:\s*([^\]]+?)\]/gi;
-
-function normalizeRiskLinkTitle(t) {
-  return String(t || '')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-function descriptionLinksToRisk(description, riskTitle) {
-  const wanted = normalizeRiskLinkTitle(riskTitle);
-  if (!wanted || typeof description !== 'string') return false;
-  RISK_LINK_RE.lastIndex = 0;
-  let m;
-  while ((m = RISK_LINK_RE.exec(description)) !== null) {
-    if (normalizeRiskLinkTitle(m[1]) === wanted) return true;
-  }
-  return false;
-}
-
-/**
- * Incidents dont la description référence le titre du risque (pas de mock session).
- * @param {Array<{ description?: string, ref?: string, type?: string, status?: string, createdAt?: string }>} rows
- * @param {string} riskTitle
- */
-function incidentsLinkedToRiskFromRows(rows, riskTitle) {
-  return (Array.isArray(rows) ? rows : [])
-    .filter((r) => descriptionLinksToRisk(r?.description, riskTitle))
-    .map((r) => ({
-      ref: r.ref || '—',
-      type: r.type || '—',
-      status: r.status || '—',
-      date: r.createdAt
-        ? new Date(r.createdAt).toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          })
-        : '—'
-    }));
-}
-
-function consumeDashboardIntent() {
-  try {
-    const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    localStorage.removeItem(DASHBOARD_INTENT_KEY);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-const MONTH_SHORT_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-
-/**
- * Histogramme mensuel : nb. fiches critiques + score moyen G×P (données registre chargées).
- * @param {Array<{ meta?: string, updatedAt?: string }>} uiRisks
- */
-function buildEvolutionSeriesFromRisks(uiRisks, maxMonths = 6) {
-  if (!Array.isArray(uiRisks) || !uiRisks.length) return [];
-  /** @type {Map<string, { crit: number, sumGp: number, n: number }>} */
-  const byMonth = new Map();
-  uiRisks.forEach((r) => {
-    const gp = parseRiskMatrixGp(r.meta);
-    const product = gp ? gp.g * gp.p : 0;
-    const crit = riskTierBucket(r) === 'critique' ? 1 : 0;
-    const dStr = r.updatedAt || '';
-    const d = dStr ? new Date(String(dStr)) : null;
-    if (!d || Number.isNaN(d.getTime())) return;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const cur = byMonth.get(key) || { crit: 0, sumGp: 0, n: 0 };
-    cur.crit += crit;
-    if (product > 0) {
-      cur.sumGp += product;
-      cur.n += 1;
-    }
-    byMonth.set(key, cur);
-  });
-  const keys = [...byMonth.keys()].sort();
-  const tail = keys.slice(-maxMonths);
-  return tail.map((k) => {
-    const parts = k.split('-');
-    const monthNum = Number(parts[1]) || 1;
-    const agg = byMonth.get(k) || { crit: 0, sumGp: 0, n: 0 };
-    const avgScore = agg.n > 0 ? Math.round((agg.sumGp / agg.n) * 10) / 10 : 0;
-    return {
-      m: MONTH_SHORT_FR[monthNum - 1] || k,
-      crit: agg.crit,
-      avgScore: avgScore > 0 ? avgScore : 0
-    };
-  });
-}
-
-function countRiskLevels(list) {
-  let critique = 0;
-  let eleve = 0;
-  let modere = 0;
-  list.forEach((r) => {
-    const crit = riskCriticalityFromMeta(r.meta);
-    if (crit) {
-      if (crit.tier >= 5) critique += 1;
-      else if (crit.tier >= 3) eleve += 1;
-      else modere += 1;
-      return;
-    }
-    const s = String(r.status).toLowerCase();
-    if (s.includes('critique')) critique += 1;
-    else if (s.includes('très') && s.includes('élev')) eleve += 1;
-    else if (s.includes('élevé') || s.includes('eleve')) eleve += 1;
-    else modere += 1;
-  });
-  return { critique, eleve, modere };
-}
-
-/** @typedef {'critique'|'eleve'|'modere'} RiskTierBucket */
-
-/** @param {{ meta?: string, status?: string }} r */
-function riskTierBucket(r) {
-  const crit = riskCriticalityFromMeta(r.meta);
-  if (crit) {
-    if (crit.tier >= 5) return 'critique';
-    if (crit.tier >= 3) return 'eleve';
-    return 'modere';
-  }
-  const s = String(r.status).toLowerCase();
-  if (s.includes('critique')) return 'critique';
-  if (s.includes('très') && s.includes('élev')) return 'eleve';
-  if (s.includes('élevé') || s.includes('eleve')) return 'eleve';
-  return 'modere';
-}
-
-/** @param {Array<{ title?: string, meta?: string, status?: string }>} list */
-function countRisksWithoutGp(list) {
-  return list.filter((r) => !parseRiskMatrixGp(r.meta)).length;
-}
-
-function hasActionLinked(r) {
-  return r?.actionLinked != null && typeof r.actionLinked === 'object';
-}
-
-/** @param {Array<object>} list */
-function countRiskElevesOnly(list) {
-  return list.filter((r) => riskTierBucket(r) === 'eleve').length;
-}
-
-function countRiskMaitrises(list) {
-  return list.filter((r) => r.pilotageState === 'traite').length;
-}
-
-function countRiskSansAction(list) {
-  return list.filter((r) => !hasActionLinked(r)).length;
-}
-
-/**
- * Analyse globale (lecture seule — pas d’écriture).
- * @param {Array<{ title?: string, meta?: string, status?: string, pilotageState?: string, trend?: string }>} list
- */
-function computeGlobalRiskAnalysis(list) {
-  /** @type {{ level: 'info'|'warn'|'err', text: string }[]} */
-  const findings = [];
-  const sans = countRiskSansAction(list);
-  if (sans > 0) {
-    findings.push({
-      level: 'warn',
-      text: `${sans} risque(s) sans action liée — prioriser le rattachement au registre actions.`
-    });
-  }
-  const unplaced = countRisksWithoutGp(list);
-  if (unplaced > 0) {
-    findings.push({
-      level: 'info',
-      text: `${unplaced} fiche(s) sans position G×P explicite sur la matrice.`
-    });
-  }
-  list.forEach((r) => {
-    const gp = parseRiskMatrixGp(r.meta);
-    const crit = riskCriticalityFromMeta(r.meta);
-    const st = String(r.status || '').toLowerCase();
-    if (gp && crit && crit.tier >= 4 && (st.includes('faible') || st.includes('modéré') || st.includes('modere'))) {
-      findings.push({
-        level: 'err',
-        text: `Incohérence possible : « ${r.title || 'Sans titre'} » — palier ${crit.label} vs libellé de statut modeste.`
-      });
-    }
-    if (gp) {
-      const prod = gp.g * gp.p;
-      if (prod >= 16 && r.trend === 'stable' && r.pilotageState === 'actif' && crit && crit.tier >= 4) {
-        findings.push({
-          level: 'warn',
-          text: `Sous-évaluation / veille : « ${r.title || 'Sans titre'} » — score G×P ${prod} mais tendance stable ; confirmer le pilotage.`
-        });
-      }
-    }
-  });
-  const seen = new Set();
-  return findings.filter((f) => {
-    if (seen.has(f.text)) return false;
-    seen.add(f.text);
-    return true;
-  });
-}
-
-/** @param {Array<{ title?: string, meta?: string, status?: string }>} list */
-function sortRisksByPriority(list) {
-  return [...list].sort((a, b) => {
-    const ca = riskCriticalityFromMeta(a.meta);
-    const cb = riskCriticalityFromMeta(b.meta);
-    const ta = ca?.tier ?? 0;
-    const tb = cb?.tier ?? 0;
-    if (tb !== ta) return tb - ta;
-    const pa = ca?.product ?? 0;
-    const pb = cb?.product ?? 0;
-    return pb - pa;
-  });
-}
-
-function levelToNum(v) {
-  const s = String(v || '').toLowerCase();
-  if (s.includes('élev') || s.includes('elev') || s === '5' || s === '4') return 5;
-  if (s.includes('faible') || s === '1' || s === '2') return 2;
-  return 3;
-}
-
-function mapApiRiskToUi(row) {
-  const gRaw = Number(row?.gravity ?? row?.severity ?? row?.level ?? 3);
-  const pRaw = Number(row?.probability ?? 3);
-  const g = Number.isFinite(gRaw) && gRaw > 0 ? Math.max(1, Math.min(5, Math.round(gRaw))) : 3;
-  const p = Number.isFinite(pRaw) && pRaw > 0 ? Math.max(1, Math.min(5, Math.round(pRaw))) : 3;
-  /* Ne pas utiliser row.gp (produit G×P, ex. 15) comme meta : le parseur attend « G3 × P5 ». */
-  const meta = `G${g} × P${p}`;
-  const tier = riskTierFromGp(g, p);
-  const statusLabel = row?.status ? String(row.status) : riskLevelLabelFromTier(tier);
-  return {
-    id: row?.id || null,
-    title: String(row?.title || 'Sans titre'),
-    type: String(row?.category || ''),
-    detail: String(row?.description || ''),
-    status: statusLabel,
-    tone: tier >= 5 ? 'red' : tier >= 3 ? 'amber' : 'blue',
-    meta,
-    responsible: String(row?.responsible || row?.owner || 'À désigner'),
-    actionLinked: row?.actionLinked ?? null,
-    pilotageState: /clos|ferm|trait|ma[iî]tris/i.test(statusLabel) ? 'traite' : 'actif',
-    updatedAt: row?.updatedAt ? String(row.updatedAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
-    trend: row?.trend || 'stable'
-  };
-}
-
-function attachRiskMistralMitigationSection(inner, risk) {
-  inner.querySelectorAll('[data-qhse-mistral-risk]').forEach((el) => el.remove());
-  const host = document.createElement('div');
-  host.setAttribute('data-qhse-mistral-risk', '1');
-  host.style.marginTop = '12px';
-
-  const aiBtn = document.createElement('button');
-  aiBtn.type = 'button';
-  aiBtn.textContent = 'Suggestions de prevention IA';
-  aiBtn.className = 'btn btn-primary btn-sm';
-  aiBtn.style.marginTop = '12px';
-
-  let aiLoading = false;
-  aiBtn.addEventListener('click', async () => {
-    if (aiLoading) return;
-    aiLoading = true;
-    aiBtn.textContent = 'Analyse en cours...';
-    aiBtn.disabled = true;
-    const gp = parseRiskMatrixGp(risk.meta);
-    const payload = {
-      title: risk.title,
-      category: risk.type || '',
-      probability: gp?.p ?? 'N/A',
-      severity: gp?.g ?? 'N/A',
-      description: String(risk.detail || '').trim() || 'Non precise'
-    };
-    try {
-      const res = await qhseFetch('/api/ai/risk-mitigation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error('api');
-      const { suggestion } = await res.json();
-      const box = document.createElement('div');
-      box.style.cssText =
-        'margin-top:12px;padding:16px;background:var(--surface-2,#eff6ff);border-left:3px solid var(--color-primary,#3b82f6);border-radius:8px;font-size:13px;line-height:1.6;color:var(--text-primary,#1e293b);white-space:pre-wrap';
-      box.textContent = suggestion;
-      aiBtn.parentNode.insertBefore(box, aiBtn.nextSibling);
-      aiBtn.style.display = 'none';
-    } catch {
-      aiBtn.textContent = 'Erreur — Reessayer';
-      aiBtn.disabled = false;
-      aiLoading = false;
-    }
-  });
-
-  host.append(aiBtn);
-  inner.append(host);
-}
-
-async function fetchRisksApi(filters = {}) {
-  const qs = new URLSearchParams();
-  qs.set('limit', '500');
-  if (filters.status) qs.set('status', String(filters.status));
-  if (filters.category) qs.set('category', String(filters.category));
-  if (filters.q) qs.set('q', String(filters.q));
-  const res = await qhseFetch(withSiteQuery(`/api/risks?${qs.toString()}`));
-  if (res.status === 401) {
-    showToast('Session expirée — reconnectez-vous pour charger les risques.', 'warning');
-    throw new Error('401');
-  }
-  if (res.status === 403) {
-    showToast('Accès au registre des risques refusé pour ce profil.', 'warning');
-    throw new Error('403');
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const msg =
-      body && typeof body === 'object' && typeof body.error === 'string' && body.error.trim()
-        ? body.error.trim()
-        : `Erreur ${res.status}`;
-    throw new Error(msg);
-  }
-  const raw = await res.json().catch(() => []);
-  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' && Array.isArray(raw.items) ? raw.items : [];
-  return list.map((row) => mapApiRiskToUi(row && typeof row === 'object' ? row : {}));
-}
-
-const RISKS_LIST_CACHE_KEY = 'qhse.cache.risks.list.v1';
-
-function readRisksListCache() {
-  try {
-    const raw = localStorage.getItem(RISKS_LIST_CACHE_KEY);
-    if (!raw) return null;
-    const j = JSON.parse(raw);
-    return Array.isArray(j?.rows) ? j.rows : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveRisksListCache(rows) {
-  try {
-    localStorage.setItem(RISKS_LIST_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
-  } catch {
-    /* ignore */
-  }
-}
 
 export function renderRisks() {
   ensureQhsePilotageStyles();
 
   const page = document.createElement('section');
   page.className = 'page-stack risks-page risks-page--premium';
+
+  const { bar: risksPageViewBar } = mountPageViewModeSwitch({
+    pageId: 'risks',
+    pageRoot: page,
+    hintEssential:
+      'Lecture pilotage : synthèse direction, priorités et registre compact — matrice, analyses et IA masqués.',
+    hintAdvanced:
+      'Matrice G×P, répartition par palier, analyse globale, tendances API, assistant IA et options complètes.'
+  });
 
   if (!isOnline()) {
     const banner = document.createElement('div');
@@ -405,6 +85,17 @@ export function renderRisks() {
 
   /** @type {Array<{ description?: string, ref?: string, type?: string, status?: string, createdAt?: string }>} */
   let incidentRowsRaw = [];
+
+  const LS_RISKS_TABLE_COLS = 'qhse.risks.tableCols';
+  function readRisksTableColumnMode() {
+    try {
+      const v = localStorage.getItem(LS_RISKS_TABLE_COLS);
+      return v === 'full' ? 'full' : 'essential';
+    } catch {
+      return 'essential';
+    }
+  }
+  let risksTableColumnMode = readRisksTableColumnMode();
 
   async function refreshIncidentLinks() {
     if (!isOnline()) {
@@ -1112,13 +803,6 @@ export function renderRisks() {
     `;
     barWrap.append(bar, barLegend);
 
-    const tierRow = document.createElement('div');
-    tierRow.className = 'risks-insights__tier-row';
-    tierRow.setAttribute('role', 'group');
-    tierRow.setAttribute('aria-label', 'Filtrer le registre par palier');
-    const tierLabel = document.createElement('span');
-    tierLabel.className = 'risks-insights__tier-label';
-    tierLabel.textContent = 'Filtrer le registre';
     const tierPills = document.createElement('div');
     tierPills.className = 'risks-insights__tier-pills';
 
@@ -1146,9 +830,24 @@ export function renderRisks() {
     addTierPill('critique', `Critiques (${critique})`);
     addTierPill('eleve', `Élevés (${eleve})`);
     addTierPill('modere', `Modérés & faibles (${modere})`);
-    tierRow.append(tierLabel, tierPills);
 
-    insightsHost.append(head, barWrap, tierRow);
+    const tierInner = document.createElement('div');
+    tierInner.className = 'risks-insights__tier-row';
+    tierInner.setAttribute('role', 'group');
+    tierInner.setAttribute('aria-label', 'Filtrer le registre par palier');
+    tierInner.append(tierPills);
+
+    const tierAdv = document.createElement('details');
+    tierAdv.className = 'qhse-filter-advanced risks-insights__tier-adv';
+    const tierAdvSum = document.createElement('summary');
+    tierAdvSum.className = 'qhse-filter-advanced__summary';
+    tierAdvSum.textContent = 'Filtrer par palier (critique, élevé, modéré)';
+    const tierAdvBody = document.createElement('div');
+    tierAdvBody.className = 'qhse-filter-advanced__body';
+    tierAdvBody.append(tierInner);
+    tierAdv.append(tierAdvSum, tierAdvBody);
+
+    insightsHost.append(head, barWrap, tierAdv);
   }
 
   /** @param {HTMLButtonElement} btn */
@@ -1269,11 +968,14 @@ export function renderRisks() {
           void openPreventiveActionFromRisks(title);
         },
         onCreatePtwFromRisk: (title) => createPtwFromRisk(title),
-        onSheetBodyReady: (innerEl, riskRow) => attachRiskMistralMitigationSection(innerEl, riskRow)
+        onSheetBodyReady: (innerEl, riskRow) => attachRiskMistralMitigationSection(innerEl, riskRow),
+        tableColumnMode: risksTableColumnMode
       });
       const tr = frag.firstElementChild;
+      const adminSlot = tr?.querySelector('[data-risk-admin-actions]');
       const tdAction = tr?.querySelector('.risk-register-table-row__action');
-      if (tdAction && r?.id) {
+      const adminTarget = adminSlot || tdAction;
+      if (adminTarget && r?.id) {
         const bTreat = document.createElement('button');
         bTreat.type = 'button';
         bTreat.className = 'risk-register-table-row__act-nav';
@@ -1310,7 +1012,7 @@ export function renderRisks() {
             showToast(err instanceof Error ? err.message : 'Suppression impossible', 'error');
           }
         });
-        tdAction.append(bTreat, bClose, bDel);
+        adminTarget.append(bTreat, bClose, bDel);
       }
       listStack.append(frag);
     });
@@ -1526,7 +1228,7 @@ export function renderRisks() {
         <div class="section-kicker">Registre des risques</div>
         <h3>Tableau compact</h3>
         <p class="content-card-lead risks-page__panel-lead">
-          Ligne = synthèse · clic = fiche (modal). Filtres : cartes du haut, paliers ci-dessous ou matrice G×P.
+          Vue compacte par défaut : criticité, G×P et responsable sous le libellé — détail complet au clic ou via « Colonnes complètes ».
         </p>
       </div>
       <div class="risks-page__panel-actions">
@@ -1541,33 +1243,82 @@ export function renderRisks() {
     <div class="risks-page__list-region"></div>
   `;
   const listRegion = register.querySelector('.risks-page__list-region');
+
   const table = document.createElement('table');
-  table.className = 'risks-register-premium-table';
+  table.className =
+    'risks-register-premium-table qhse-data-table' +
+    (risksTableColumnMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
   const caption = document.createElement('caption');
   caption.className = 'risks-register-premium-table__caption';
-  caption.textContent = 'Registre des risques — clic sur une ligne pour ouvrir la fiche';
+  caption.textContent = 'Registre — ligne = synthèse, clic = fiche complète';
   const colgroup = document.createElement('colgroup');
   colgroup.innerHTML = `
     <col class="risks-register-col risks-register-col--risk" />
-    <col class="risks-register-col risks-register-col--crit" />
-    <col class="risks-register-col risks-register-col--gp" />
+    <col class="risks-register-col risks-register-col--crit qhse-col-adv" />
+    <col class="risks-register-col risks-register-col--gp qhse-col-adv" />
     <col class="risks-register-col risks-register-col--status" />
-    <col class="risks-register-col risks-register-col--owner" />
+    <col class="risks-register-col risks-register-col--owner qhse-col-adv" />
     <col class="risks-register-col risks-register-col--action" />
   `;
   const thead = document.createElement('thead');
-  thead.innerHTML = `
-    <tr>
-      <th scope="col">Risque</th>
-      <th scope="col">Criticité</th>
-      <th scope="col">G×P</th>
-      <th scope="col">Statut</th>
-      <th scope="col">Responsable</th>
-      <th scope="col">Action</th>
-    </tr>
-  `;
+  const thr = document.createElement('tr');
+  [
+    ['Risque', false],
+    ['Criticité', true],
+    ['G×P', true],
+    ['Statut', false],
+    ['Resp.', true],
+    ['Pilotage', false]
+  ].forEach(([label, adv]) => {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.textContent = label;
+    if (adv) th.classList.add('qhse-col-adv');
+    thr.append(th);
+  });
+  thead.append(thr);
   table.append(caption, colgroup, thead, listStack);
-  listRegion.append(activeFiltersBar, table);
+
+  const tableToolbar = document.createElement('div');
+  tableToolbar.className = 'qhse-table-toolbar risks-register-table-toolbar';
+  const tableToolbarMeta = document.createElement('span');
+  tableToolbarMeta.className = 'qhse-table-toolbar__meta';
+  tableToolbarMeta.textContent =
+    'Tri par criticité conservé — liaisons et boutons d’état dans « Liens & actions » sur chaque ligne.';
+  const tableToolbarActions = document.createElement('div');
+  tableToolbarActions.className = 'qhse-table-toolbar__actions';
+  const risksColToggle = document.createElement('button');
+  risksColToggle.type = 'button';
+  risksColToggle.className = 'btn btn-secondary btn-sm';
+  risksColToggle.setAttribute(
+    'aria-pressed',
+    risksTableColumnMode === 'full' ? 'true' : 'false'
+  );
+  risksColToggle.textContent =
+    risksTableColumnMode === 'full' ? 'Vue compacte' : 'Colonnes complètes';
+  risksColToggle.title = 'Afficher criticité, G×P et responsable en colonnes dédiées';
+  risksColToggle.addEventListener('click', () => {
+    risksTableColumnMode = risksTableColumnMode === 'full' ? 'essential' : 'full';
+    try {
+      localStorage.setItem(LS_RISKS_TABLE_COLS, risksTableColumnMode);
+    } catch {
+      /* ignore */
+    }
+    risksColToggle.setAttribute(
+      'aria-pressed',
+      risksTableColumnMode === 'full' ? 'true' : 'false'
+    );
+    risksColToggle.textContent =
+      risksTableColumnMode === 'full' ? 'Vue compacte' : 'Colonnes complètes';
+    table.className =
+      'risks-register-premium-table qhse-data-table' +
+      (risksTableColumnMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
+    renderList();
+  });
+  tableToolbarActions.append(risksColToggle);
+  tableToolbar.append(tableToolbarMeta, tableToolbarActions);
+
+  listRegion.append(activeFiltersBar, tableToolbar, table);
 
   register.querySelector('.risks-preventive-action-btn').addEventListener('click', () => {
     void openPreventiveActionFromRisks('');
@@ -1619,11 +1370,12 @@ export function renderRisks() {
   register.querySelector('.risks-page__panel-actions')?.append(exportBtnRisks);
 
   const matrixSection = document.createElement('section');
-  matrixSection.className = 'risks-page__matrix-section risks-page__matrix-section--hero';
+  matrixSection.className =
+    'risks-page__matrix-section risks-page__matrix-section--hero qhse-page-advanced-only';
   matrixSection.append(matrixCard);
 
   const secondaryDetails = document.createElement('details');
-  secondaryDetails.className = 'risks-page__secondary';
+  secondaryDetails.className = 'risks-page__secondary qhse-page-advanced-only';
   const secondarySum = document.createElement('summary');
   secondarySum.className = 'risks-page__secondary-summary';
   secondarySum.innerHTML =
@@ -1633,13 +1385,21 @@ export function renderRisks() {
   secondaryBody.append(evolutionHost, proofsHost);
   secondaryDetails.append(secondarySum, secondaryBody);
 
+  insightsHost.classList.add('qhse-page-advanced-only');
+  analysisHost.classList.add('qhse-page-advanced-only');
+  iaHost.classList.add('qhse-page-advanced-only');
+
+  const risksModeGuide = createSimpleModeGuide({
+    title: 'Risques — prioriser avant la matrice',
+    hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
+    nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
+  });
+  risksModeGuide.classList.add('qhse-page-advanced-only');
+
   page.append(
     offlineCacheBanner,
-    createSimpleModeGuide({
-      title: 'Risques — prioriser avant la matrice',
-      hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
-      nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
-    }),
+    risksPageViewBar,
+    risksModeGuide,
     managerHost,
     pilotHost,
     matrixSection,

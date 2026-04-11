@@ -1,4 +1,5 @@
 import { showToast } from '../components/toast.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { ensureSensitiveAccess } from '../components/sensitiveAccessGate.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
@@ -177,8 +178,16 @@ export function renderImports() {
   const page = document.createElement('section');
   page.className = 'page-stack';
 
+  const { bar: importsPageViewBar } = mountPageViewModeSwitch({
+    pageId: 'imports',
+    pageRoot: page,
+    hintEssential:
+      'Fichier + analyse + brouillon de préremplissage — feuille de route, sortie brute et historique masqués.',
+    hintAdvanced: 'Feuille de route imports, aperçu JSON brut complet et historique des traitements.'
+  });
+
   const roadmap = document.createElement('article');
-  roadmap.className = 'content-card card-soft';
+  roadmap.className = 'content-card card-soft qhse-page-advanced-only';
   roadmap.style.marginBottom = '14px';
   roadmap.style.border = '1px solid rgba(125,211,252,.22)';
   roadmap.style.background = 'linear-gradient(135deg,rgba(56,189,248,.08),rgba(255,255,255,.02))';
@@ -194,7 +203,7 @@ export function renderImports() {
       </div>
     </div>
   `;
-  page.append(roadmap);
+  page.append(importsPageViewBar, roadmap);
   const ctxBanner = createImportContextBanner();
   if (ctxBanner) page.append(ctxBanner);
 
@@ -231,6 +240,7 @@ export function renderImports() {
   btn.textContent = 'Analyser le fichier';
 
   const out = document.createElement('pre');
+  out.className = 'qhse-page-advanced-only';
   out.setAttribute('aria-live', 'polite');
   out.style.cssText =
     'margin-top:16px;padding:12px;border-radius:8px;background:rgba(0,0,0,.04);font-size:12px;line-height:1.45;overflow:auto;max-height:min(52vh,420px);white-space:pre-wrap;word-break:break-word;color:var(--text2)';
@@ -478,7 +488,7 @@ export function renderImports() {
   });
 
   const historyCard = document.createElement('article');
-  historyCard.className = 'content-card card-soft';
+  historyCard.className = 'content-card card-soft qhse-page-advanced-only';
   historyCard.style.marginTop = '14px';
   historyCard.innerHTML = `
     <div class="content-card-head">

@@ -56,8 +56,10 @@ export function computeRiskRowAlerts(r) {
  * @param {(riskTitle: string) => void} [opts.onCreatePreventiveAction]
  * @param {(riskTitle: string) => void} [opts.onCreatePtwFromRisk]
  * @param {(inner: HTMLElement, risk: object) => void} [opts.onSheetBodyReady]
+ * @param {'essential'|'full'} [opts.tableColumnMode]
  */
 export function createRiskRegisterRow(risk, opts = {}) {
+  const tableColumnMode = opts.tableColumnMode === 'full' ? 'full' : 'essential';
   const linkedIncidents = Array.isArray(opts.linkedIncidents) ? opts.linkedIncidents : [];
   const incidentsLinkNote =
     typeof opts.incidentsLinkNote === 'string'
@@ -109,6 +111,17 @@ export function createRiskRegisterRow(risk, opts = {}) {
     w.title = 'Tendance à la hausse ou état de dérive — vérifier le pilotage.';
     tdName.append(w);
   }
+  if (tableColumnMode === 'essential') {
+    const bits = [];
+    if (crit) bits.push(crit.label);
+    if (gp) bits.push(`G${gp.g}×P${gp.p}`);
+    const own = dash(risk.responsible);
+    if (own !== '—') bits.push(own);
+    const meta = document.createElement('div');
+    meta.className = 'risk-register-table-row__meta-inline';
+    meta.textContent = bits.length ? bits.join(' · ') : '—';
+    tdName.append(meta);
+  }
 
   const tdCrit = document.createElement('td');
   tdCrit.className = 'risk-register-table-row__crit';
@@ -117,6 +130,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
   } else {
     tdCrit.innerHTML = `<span class="risk-register-table-row__crit-na">${escapeHtml(dash(risk.meta))}</span>`;
   }
+  if (tableColumnMode === 'essential') tdCrit.classList.add('qhse-col-adv');
 
   const tdGp = document.createElement('td');
   tdGp.className = 'risk-register-table-row__gp';
@@ -126,6 +140,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
     'G×P = Gravité × Probabilité (1 à 25). On multiplie deux notes : plus le produit est élevé, plus la priorité de traitement augmente sur la matrice (ISO 45001 / 14001).';
   gpAbbr.textContent = gp ? `G${gp.g}×P${gp.p}` : '—';
   tdGp.append(gpAbbr);
+  if (tableColumnMode === 'essential') tdGp.classList.add('qhse-col-adv');
 
   const tdStatus = document.createElement('td');
   tdStatus.className = 'risk-register-table-row__status';
@@ -137,33 +152,28 @@ export function createRiskRegisterRow(risk, opts = {}) {
   const tdOwner = document.createElement('td');
   tdOwner.className = 'risk-register-table-row__owner';
   tdOwner.textContent = dash(risk.responsible);
+  if (tableColumnMode === 'essential') tdOwner.classList.add('qhse-col-adv');
 
   const tdAction = document.createElement('td');
   tdAction.className = 'risk-register-table-row__action';
   const al = risk.actionLinked;
-  if (al && typeof al === 'object') {
-    tdAction.innerHTML = `<span class="risk-register-table-row__act-ref">${escapeHtml(dash(al.ref))}</span><span class="risk-register-table-row__act-meta">${escapeHtml(dash(al.status))} · ${escapeHtml(dash(al.due))}</span><span class="risk-register-table-row__act-owner">${escapeHtml(dash(al.owner))}</span>`;
-    const goAct = document.createElement('button');
-    goAct.type = 'button';
-    goAct.className = 'risk-register-table-row__act-nav';
-    goAct.textContent = 'Actions';
-    goAct.title = 'Ouvrir le module Plan d’actions';
-    goAct.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.location.hash = 'actions';
-    });
-    tdAction.append(goAct);
-  } else {
-    tdAction.innerHTML = '<span class="risk-register-table-row__act-none">—</span>';
-    const hint = document.createElement('span');
-    hint.className = 'risk-register-table-row__act-hint';
-    hint.textContent = 'À lier';
-    tdAction.append(hint);
-  }
+
+  const primaryAct = document.createElement('div');
+  primaryAct.className = 'risk-register-table-row__act-primary';
+
+  const more = document.createElement('details');
+  more.className = 'risk-register-row__more';
+  const moreSum = document.createElement('summary');
+  moreSum.className = 'risk-register-row__more-summary';
+  moreSum.textContent = 'Liens & actions';
+  const moreBody = document.createElement('div');
+  moreBody.className = 'risk-register-row__more-body';
+
   const rel = document.createElement('div');
   rel.className = 'risk-register-table-row__act-meta';
-  rel.textContent = `Vue 360°: ${relLinks.length} lien(s)`;
-  tdAction.append(rel);
+  rel.textContent = `Vue 360° : ${relLinks.length} lien(s)`;
+  moreBody.append(rel);
+
   if (alerts.criticalNoAction && typeof opts.onCreatePreventiveAction === 'function') {
     const autoBtn = document.createElement('button');
     autoBtn.type = 'button';
@@ -173,7 +183,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
       e.stopPropagation();
       opts.onCreatePreventiveAction(String(risk.title || ''));
     });
-    tdAction.append(autoBtn);
+    moreBody.append(autoBtn);
   }
   if (typeof opts.onCreatePtwFromRisk === 'function') {
     const ptwBtn = document.createElement('button');
@@ -184,13 +194,45 @@ export function createRiskRegisterRow(risk, opts = {}) {
       e.stopPropagation();
       opts.onCreatePtwFromRisk(String(risk.title || ''));
     });
-    tdAction.append(ptwBtn);
+    moreBody.append(ptwBtn);
   }
+
+  const adminSlot = document.createElement('div');
+  adminSlot.setAttribute('data-risk-admin-actions', '');
+  moreBody.append(adminSlot);
+
+  more.append(moreSum, moreBody);
+
+  if (al && typeof al === 'object') {
+    const refEl = document.createElement('span');
+    refEl.className = 'risk-register-table-row__act-ref';
+    refEl.textContent = dash(al.ref);
+    const line = document.createElement('span');
+    line.className = 'risk-register-table-row__act-meta';
+    line.textContent = `${dash(al.status)} · ${dash(al.due)}`;
+    const goAct = document.createElement('button');
+    goAct.type = 'button';
+    goAct.className = 'risk-register-table-row__act-nav';
+    goAct.textContent = 'Plan d’actions';
+    goAct.title = 'Ouvrir le module Plan d’actions';
+    goAct.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.location.hash = 'actions';
+    });
+    primaryAct.append(refEl, line, goAct);
+  } else {
+    const none = document.createElement('span');
+    none.className = 'risk-register-table-row__act-none';
+    none.textContent = 'Sans action liée';
+    primaryAct.append(none);
+  }
+
+  tdAction.append(primaryAct, more);
 
   tr.append(tdName, tdCrit, tdGp, tdStatus, tdOwner, tdAction);
 
   function openSheet(e) {
-    if (e.target.closest('button,a')) return;
+    if (e.target.closest('button,a,summary,details')) return;
     openRiskDetail(risk, {
       linkedIncidents,
       incidentsLinkNote,

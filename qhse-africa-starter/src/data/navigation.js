@@ -4,40 +4,53 @@ export const siteOptions = [
   'Vue groupe multi-sites'
 ];
 
+/**
+ * Navigation latérale — 5 familles (usage responsable QHSE : pilotage → risques → conformité → terrain → admin).
+ * Les `id` de page et l’ordre des items préservent le routage (#hash) et les permissions ; seule l’exposition change.
+ * `collapsible` : sections repliables pour réduire le bruit quand un périmètre n’est pas utilisé au quotidien.
+ */
 export const navigationGroups = [
   {
     label: 'Pilotage',
+    collapsible: true,
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: '◫' },
-      { id: 'analytics', label: 'Analytics / Synthèse', icon: '≈' },
+      { id: 'analytics', label: 'Analytics & synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
-      { id: 'activity-log', label: 'Journal', icon: '≣' }
+      { id: 'activity-log', label: 'Journal', icon: '≣' },
+      /* IA regroupée au pilotage : aide à la revue / synthèse, pas un « silo » produit séparé. */
+      { id: 'ai-center', label: 'Centre IA', icon: '✦' }
     ]
   },
   {
-    label: 'Opérations',
+    label: 'Maîtrise des risques',
+    collapsible: true,
     items: [
-      { id: 'audits', label: 'Audits', icon: '☑' },
-      { id: 'incidents', label: 'Incidents', icon: '!' },
-      { id: 'permits', label: 'Permits to Work', icon: '⌁' },
       { id: 'risks', label: 'Risques', icon: '△' },
-      { id: 'actions', label: 'Actions', icon: '✓' }
+      { id: 'actions', label: 'Plan d’actions', icon: '✓' }
     ]
   },
   {
     label: 'Conformité',
+    collapsible: true,
     items: [
-      { id: 'iso', label: 'ISO & Conformité', icon: '◎' },
+      { id: 'iso', label: 'ISO & conformité', icon: '◎' },
+      { id: 'audits', label: 'Audits', icon: '☑' },
       { id: 'products', label: 'Produits / FDS', icon: '⚗' },
       { id: 'habilitations', label: 'Habilitations', icon: '⛑' }
     ]
   },
   {
-    label: 'IA',
-    items: [{ id: 'ai-center', label: 'Centre IA', icon: '✦' }]
+    label: 'Opérations',
+    collapsible: true,
+    items: [
+      { id: 'incidents', label: 'Incidents', icon: '!' },
+      { id: 'permits', label: 'Permits to work', icon: '⌁' }
+    ]
   },
   {
-    label: 'Paramètres',
+    label: 'Administration',
+    collapsible: false,
     items: [{ id: 'settings', label: 'Paramètres', icon: '⚙' }]
   }
 ];
@@ -53,7 +66,7 @@ const NAV_ORPHAN_SEARCH_ITEMS = [];
 export const pageTopbarById = {
   'terrain-mode': {
     title: 'Mode terrain',
-    kicker: 'Opérations',
+    kicker: 'Opérations terrain',
     subtitle: 'Accès direct aux actions essentielles chantier, sans complexité.',
     cta: { label: 'Déclarer incident', pageId: 'incidents' }
   },
@@ -72,25 +85,25 @@ export const pageTopbarById = {
   },
   incidents: {
     title: 'Incidents terrain',
-    kicker: 'Opérations',
+    kicker: 'Opérations terrain',
     subtitle: 'Suivi des événements, investigations et plans de correction.',
     cta: { label: 'Aller au plan d’actions', pageId: 'actions' }
   },
   permits: {
     title: 'Permits to Work',
-    kicker: 'Opérations',
+    kicker: 'Opérations terrain',
     subtitle: 'Gestion terrain des permis de travail: création, checklist sécurité, validations et signatures.',
     cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
   risks: {
     title: 'Registre des risques',
-    kicker: 'Opérations',
+    kicker: 'Maîtrise des risques',
     subtitle: 'Cartographie, criticité et traitements associés.',
     cta: { label: 'Plan d’actions', pageId: 'actions' }
   },
   actions: {
     title: 'Plan d’actions',
-    kicker: 'Opérations',
+    kicker: 'Maîtrise des risques',
     subtitle: 'Pilotez les actions correctives, préventives et le suivi des échéances.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }
   },
@@ -102,7 +115,7 @@ export const pageTopbarById = {
   },
   audits: {
     title: 'Audits & conformité',
-    kicker: 'Opérations',
+    kicker: 'Conformité',
     subtitle: 'Audits planifiés, constats et preuves documentaires.',
     cta: { label: 'Produits / FDS', pageId: 'products' }
   },
@@ -140,7 +153,7 @@ export const pageTopbarById = {
   },
   'ai-center': {
     title: 'Centre IA',
-    kicker: 'IA',
+    kicker: 'Pilotage',
     subtitle: 'Assistants et analyses pilotées pour accélérer vos revues QHSE.',
     cta: { label: 'Retour dashboard', pageId: 'dashboard' }
   },
@@ -153,7 +166,7 @@ export const pageTopbarById = {
   },
   settings: {
     title: 'Paramètres & configuration',
-    kicker: 'Paramètres',
+    kicker: 'Administration',
     subtitle:
       'Organisation, sécurité des accès, alertes, notifications, exports et options d’affichage — centralisez vos préférences métier.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }

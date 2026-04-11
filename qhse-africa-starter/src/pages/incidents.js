@@ -21,6 +21,7 @@ import {
 } from '../components/incidentDetailPanel.js';
 import { openIncidentAiAnalysis as openIncidentAiAnalysisPanel } from '../components/incidentAiAnalysisPanel.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import {
   ensureUsersCached,
   getCachedUsersForActionsList,
@@ -37,6 +38,8 @@ import {
 } from '../components/incidentsConsultationPanels.js';
 import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
+/* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
 function incidentOperationalPhase(status) {
   const s = String(status || '').toLowerCase();
@@ -57,25 +60,23 @@ function incidentPhaseLabel(status) {
 }
 
 const LIST_SUB_DEFAULT =
-  'Tri : gravité critique en tête, puis plus récents. Carte = titre, type, gravité, date, statut.';
+  'Tri : criticité puis date. Clic ligne ou « Ouvrir » → détail à droite.';
+
+const LS_INCIDENTS_TABLE_COLS = 'qhse.incidents.tableCols';
+
+function readIncidentsTableColumnMode() {
+  try {
+    const v = localStorage.getItem(LS_INCIDENTS_TABLE_COLS);
+    return v === 'full' ? 'full' : 'essential';
+  } catch {
+    return 'essential';
+  }
+}
 
 /** Statuts proposés pour le select rapide (libre côté API si autre valeur en base). */
 const STATUS_PRESETS = ['Nouveau', 'En cours', 'Investigation', 'Clôturé'];
 
 const INCIDENTS_STATES_STYLE_ID = 'qhse-incidents-states-styles';
-const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
-
-function consumeDashboardIntent() {
-  try {
-    const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    localStorage.removeItem(DASHBOARD_INTENT_KEY);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
 
 function ensureIncidentsStatesStyles() {
   if (document.getElementById(INCIDENTS_STATES_STYLE_ID)) return;
@@ -267,6 +268,15 @@ export function renderIncidents(onAddLog) {
   const page = document.createElement('section');
   page.className = 'page-stack incidents-page incidents-page--premium';
 
+  const { bar: incidentsPageViewBar } = mountPageViewModeSwitch({
+    pageId: 'incidents',
+    pageRoot: page,
+    hintEssential:
+      'Vue terrain : en-tête, déclaration, priorités et registre — pilotage détaillé, analytics et journal masqués.',
+    hintAdvanced:
+      'Pilotage complet : tuiles synthèse, tendances, journal local et options étendues du registre.'
+  });
+
   if (!isOnline()) {
     const banner = document.createElement('div');
     banner.style.cssText =
@@ -289,6 +299,8 @@ export function renderIncidents(onAddLog) {
   let filterSeverity = '';
   let filterStatus = '';
   let filterSite = '';
+  let filterText = '';
+  let incidentsTableColumnMode = readIncidentsTableColumnMode();
   const dashboardIntent = consumeDashboardIntent();
 
   function renderFilteredList() {
@@ -322,7 +334,7 @@ export function renderIncidents(onAddLog) {
   pageIntro.append(introTitles);
 
   const pilotageBlock = document.createElement('section');
-  pilotageBlock.className = 'incidents-pilotage-block';
+  pilotageBlock.className = 'incidents-pilotage-block qhse-page-advanced-only';
   pilotageBlock.setAttribute('aria-labelledby', 'incidents-pilotage-heading');
 
   const pilotageHead = document.createElement('div');
@@ -446,6 +458,12 @@ export function renderIncidents(onAddLog) {
 
   function filterIncidents(list) {
     return list.filter((inc) => {
+      const q = filterText.trim().toLowerCase();
+      if (q) {
+        const hay = `${inc.ref || ''} ${inc.title || ''} ${inc.type || ''} ${inc.site || ''} ${inc.status || ''} ${inc.description || ''}`
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       if (filterSeverity && inc.severity !== filterSeverity) return false;
       if (filterStatus && String(inc.status || '').trim() !== filterStatus) {
         return false;
@@ -507,8 +525,27 @@ export function renderIncidents(onAddLog) {
   const compactFilters = document.createElement('div');
   compactFilters.className = 'incidents-compact-filters';
 
-  const filtersBar = document.createElement('div');
-  filtersBar.className = 'incidents-compact-filters__grid';
+  const filterStrip = document.createElement('div');
+  filterStrip.className = 'qhse-filter-strip';
+
+  const primaryRow = document.createElement('div');
+  primaryRow.className = 'qhse-filter-strip__primary';
+
+  const searchLab = document.createElement('label');
+  searchLab.className = 'qhse-filter-search';
+  const searchLabSpan = document.createElement('span');
+  searchLabSpan.textContent = 'Recherche';
+  const searchInp = document.createElement('input');
+  searchInp.type = 'search';
+  searchInp.className = 'control-input';
+  searchInp.placeholder = 'Réf., titre, type, site…';
+  searchInp.setAttribute('aria-label', 'Filtrer le registre incidents');
+  searchInp.autocomplete = 'off';
+  searchInp.addEventListener('input', () => {
+    filterText = searchInp.value;
+    renderFilteredList();
+  });
+  searchLab.append(searchLabSpan, searchInp);
 
   const statusLab = document.createElement('label');
   const statusLabSpan = document.createElement('span');
@@ -618,24 +655,11 @@ export function renderIncidents(onAddLog) {
     showToast('Filtre auto Dashboard appliqué : incidents récents (30 jours).', 'info');
   }
 
-  const filtersChunkViews = document.createElement('div');
-  filtersChunkViews.className = 'incidents-compact-filters__chunk';
-  filtersChunkViews.setAttribute('aria-label', 'Vues rapides');
-  filtersChunkViews.append(statusLab, dateLab);
-
-  const filtersChunkRefine = document.createElement('div');
-  filtersChunkRefine.className =
-    'incidents-compact-filters__chunk incidents-compact-filters__chunk--refine';
-  filtersChunkRefine.setAttribute('aria-label', 'Filtres précis');
-  filtersChunkRefine.append(filSevLab, filStLab, filSiteLab);
-
-  const filtersChunkExport = document.createElement('div');
-  filtersChunkExport.className = 'incidents-compact-filters__chunk';
-  filtersChunkExport.setAttribute('aria-label', 'Export');
   const exportBtnInc = document.createElement('button');
   exportBtnInc.type = 'button';
   exportBtnInc.textContent = 'Export Excel';
   exportBtnInc.className = 'btn btn-secondary btn-sm';
+  exportBtnInc.setAttribute('aria-label', 'Exporter le registre incidents');
   exportBtnInc.addEventListener('click', async () => {
     try {
       const res = await qhseFetch(withSiteQuery('/api/export/incidents'));
@@ -656,10 +680,25 @@ export function renderIncidents(onAddLog) {
       showToast('Erreur réseau', 'error');
     }
   });
-  filtersChunkExport.append(exportBtnInc);
 
-  filtersBar.append(filtersChunkViews, filtersChunkRefine, filtersChunkExport);
-  compactFilters.append(filtersBar);
+  const exportWrap = document.createElement('div');
+  exportWrap.className = 'incidents-filter-export-slot';
+  exportWrap.append(exportBtnInc);
+
+  primaryRow.append(searchLab, statusLab, dateLab, exportWrap);
+
+  const advDetails = document.createElement('details');
+  advDetails.className = 'qhse-filter-advanced';
+  const advSummary = document.createElement('summary');
+  advSummary.className = 'qhse-filter-advanced__summary';
+  advSummary.textContent = 'Filtres précis (gravité, statut catalogue, site)';
+  const advBody = document.createElement('div');
+  advBody.className = 'qhse-filter-advanced__body';
+  advBody.append(filSevLab, filStLab, filSiteLab);
+  advDetails.append(advSummary, advBody);
+
+  filterStrip.append(primaryRow, advDetails);
+  compactFilters.append(filterStrip);
 
   let slideOver;
   let quick;
@@ -684,9 +723,45 @@ export function renderIncidents(onAddLog) {
   listTitleRow.append(listHeading, listCount);
   const listLead = document.createElement('p');
   listLead.className = 'incidents-registry-lead';
-  listLead.textContent =
-    'Tableau sur toute la largeur : filtres ci-dessus, tri par criticité. Ligne ou « Voir » → fiche détaillée sous le registre.';
-  listColHead.append(listTitleRow, listLead);
+  listLead.textContent = LIST_SUB_DEFAULT;
+
+  const tableToolbar = document.createElement('div');
+  tableToolbar.className = 'qhse-table-toolbar';
+  const tableToolbarMeta = document.createElement('span');
+  tableToolbarMeta.className = 'qhse-table-toolbar__meta';
+  tableToolbarMeta.textContent =
+    'Vue par défaut : colonnes Incident, Statut, Date et actions — gravité et site regroupés sous le titre.';
+  const tableToolbarActions = document.createElement('div');
+  tableToolbarActions.className = 'qhse-table-toolbar__actions';
+  const colToggleBtn = document.createElement('button');
+  colToggleBtn.type = 'button';
+  colToggleBtn.className = 'btn btn-secondary btn-sm';
+  colToggleBtn.setAttribute(
+    'aria-pressed',
+    incidentsTableColumnMode === 'full' ? 'true' : 'false'
+  );
+  colToggleBtn.textContent =
+    incidentsTableColumnMode === 'full' ? 'Vue compacte' : 'Colonnes complètes';
+  colToggleBtn.title = 'Afficher gravité et site en colonnes dédiées (export visuel complet)';
+  colToggleBtn.addEventListener('click', () => {
+    incidentsTableColumnMode = incidentsTableColumnMode === 'full' ? 'essential' : 'full';
+    try {
+      localStorage.setItem(LS_INCIDENTS_TABLE_COLS, incidentsTableColumnMode);
+    } catch {
+      /* ignore */
+    }
+    colToggleBtn.setAttribute(
+      'aria-pressed',
+      incidentsTableColumnMode === 'full' ? 'true' : 'false'
+    );
+    colToggleBtn.textContent =
+      incidentsTableColumnMode === 'full' ? 'Vue compacte' : 'Colonnes complètes';
+    refreshList();
+  });
+  tableToolbarActions.append(colToggleBtn);
+  tableToolbar.append(tableToolbarMeta, tableToolbarActions);
+
+  listColHead.append(listTitleRow, listLead, tableToolbar);
 
   const listHost = document.createElement('div');
   listHost.className = 'incidents-list-host';
@@ -730,7 +805,7 @@ export function renderIncidents(onAddLog) {
 
   const journalCard = document.createElement('article');
   journalCard.className =
-    'content-card card-soft incidents-premium-card incidents-journal-card';
+    'content-card card-soft incidents-premium-card incidents-journal-card qhse-page-advanced-only';
   const journalHead = document.createElement('div');
   journalHead.className = 'content-card-head content-card-head--tight';
   journalHead.innerHTML = `
@@ -759,13 +834,17 @@ export function renderIncidents(onAddLog) {
   `;
   registryShell.append(registryZoneTitle, compactFilters, split);
 
+  const incidentsModeGuide = createSimpleModeGuide({
+    title: 'Incidents — lire vite, agir sûr',
+    hint: 'En-tête : pilotage et priorités ; déclarez depuis le bloc action ; le registre sert à parcourir les fiches.',
+    nextStep: 'Déclarer si besoin, sinon parcourir les priorités puis le tableau de consultation.'
+  });
+  incidentsModeGuide.classList.add('qhse-page-advanced-only');
+
   page.append(
     offlineCacheBanner,
-    createSimpleModeGuide({
-      title: 'Incidents — lire vite, agir sûr',
-      hint: 'En-tête : pilotage et priorités ; déclarez depuis le bloc action ; le registre sert à parcourir les fiches.',
-      nextStep: 'Déclarer si besoin, sinon parcourir les priorités puis le tableau de consultation.'
-    }),
+    incidentsPageViewBar,
+    incidentsModeGuide,
     pageIntro,
     pilotageBlock,
     quickActionsCard,
@@ -1004,12 +1083,22 @@ export function renderIncidents(onAddLog) {
     const scroll = document.createElement('div');
     scroll.className = 'incidents-table-scroll';
     const table = document.createElement('table');
-    table.className = 'incidents-table-premium';
+    table.className =
+      'incidents-table-premium qhse-data-table' +
+      (incidentsTableColumnMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
     const thead = document.createElement('thead');
     const thr = document.createElement('tr');
-    ['Incident', 'Gravité', 'Statut', 'Date', 'Site', ''].forEach((lab) => {
+    [
+      { t: 'Incident', adv: false },
+      { t: 'Gravité', adv: true },
+      { t: 'Statut', adv: false },
+      { t: 'Date', adv: false },
+      { t: 'Site', adv: true },
+      { t: '', adv: false }
+    ].forEach(({ t, adv }) => {
       const th = document.createElement('th');
-      th.textContent = lab;
+      th.textContent = t;
+      if (adv) th.classList.add('qhse-col-adv');
       thr.append(th);
     });
     thead.append(thr);
@@ -1026,7 +1115,7 @@ export function renderIncidents(onAddLog) {
             },
             canWriteActions
           },
-          { isStatusClosed }
+          { isStatusClosed, columnMode: incidentsTableColumnMode }
         )
       );
     });

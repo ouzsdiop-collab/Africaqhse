@@ -29,6 +29,7 @@ import { showToast } from './components/toast.js';
 import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
+import './styles/ui-density-saas.css';
 
 ensureProductionDemoModeOff();
 initTheme();

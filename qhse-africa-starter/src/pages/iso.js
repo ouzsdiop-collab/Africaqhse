@@ -26,7 +26,6 @@ import {
   getImportedDocumentProofs,
   addImportedDocumentProof
 } from '../data/conformityStore.js';
-import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
 import {
   computeAuditReadiness,
   createAuditReadinessBanner,
@@ -36,6 +35,9 @@ import { buildIsoCopilotSuggestions } from '../components/isoCopilotSuggestions.
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
+/* Préférences colonnes table exigences ISO — localStorage centralisé dans isoTablePreferences.js */
+import { readIsoReqColumnMode, LS_ISO_REQ_TABLE_COLS } from '../utils/isoTablePreferences.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 
 /** Normes — cartes allégées (statut + une phrase). */
 const NORMS_LITE = [
@@ -180,6 +182,12 @@ function createDocumentStateSummaryBlock() {
   return { root, update };
 }
 
+/** Ouvre le volet Documents (second niveau) avant scroll — liens depuis priorités / bannières. */
+function ensureIsoDocsPanelOpen() {
+  const wrap = document.querySelector('.iso-page .iso-l2-disclosure--docs');
+  if (wrap instanceof HTMLDetailsElement) wrap.open = true;
+}
+
 function createIsoRegistryComplianceBanner() {
   const root = document.createElement('div');
   root.className = 'iso-registry-doc-impact';
@@ -200,6 +208,7 @@ function createIsoRegistryComplianceBanner() {
       </div>
     `;
     root.querySelector('.iso-registry-doc-impact__link')?.addEventListener('click', () => {
+      ensureIsoDocsPanelOpen();
       document.querySelector('.iso-page .iso-docs-hub-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
@@ -853,11 +862,16 @@ function createRequirementsTable(ctx, registryDocImpact) {
 
   /** @type {'all'|'gap'|'partial'|'nc'|'ok'} */
   let statusFilter = 'all';
+  let isoReqColMode = readIsoReqColumnMode();
 
-  const filterBar = document.createElement('div');
-  filterBar.className = 'iso-req-filter-bar';
-  filterBar.setAttribute('role', 'group');
-  filterBar.setAttribute('aria-label', 'Filtrer les exigences par statut');
+  const filterHost = document.createElement('div');
+  filterHost.className = 'iso-req-filter-bar qhse-filter-strip';
+  filterHost.setAttribute('role', 'group');
+  filterHost.setAttribute('aria-label', 'Filtrer les exigences par statut');
+
+  const filterPrimary = document.createElement('div');
+  filterPrimary.className = 'qhse-filter-strip__primary';
+
   const mkFilterBtn = (key, label) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -866,7 +880,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
     b.textContent = label;
     b.addEventListener('click', () => {
       statusFilter = key;
-      filterBar.querySelectorAll('.iso-req-filter-btn').forEach((el) => {
+      filterHost.querySelectorAll('.iso-req-filter-btn').forEach((el) => {
         el.classList.toggle('iso-req-filter-btn--active', el.dataset.filter === key);
       });
       renderRows();
@@ -875,25 +889,70 @@ function createRequirementsTable(ctx, registryDocImpact) {
   };
   const fAll = mkFilterBtn('all', 'Toutes');
   const fGap = mkFilterBtn('gap', 'Écarts');
+  const fOk = mkFilterBtn('ok', 'Conformes');
   const fPartial = mkFilterBtn('partial', 'Partiels');
   const fNc = mkFilterBtn('nc', 'Non conformes');
-  const fOk = mkFilterBtn('ok', 'Conformes');
   fAll.classList.add('iso-req-filter-btn--active');
-  filterBar.append(fAll, fGap, fPartial, fNc, fOk);
+
+  const filterAdv = document.createElement('details');
+  filterAdv.className = 'qhse-filter-advanced';
+  const filterAdvSum = document.createElement('summary');
+  filterAdvSum.className = 'qhse-filter-advanced__summary';
+  filterAdvSum.textContent = 'Filtres fins (partiel / NC seule)';
+  const filterAdvBody = document.createElement('div');
+  filterAdvBody.className = 'qhse-filter-advanced__body';
+  filterAdvBody.append(fPartial, fNc);
+  filterAdv.append(filterAdvSum, filterAdvBody);
+
+  filterPrimary.append(fAll, fGap, fOk);
+  filterHost.append(filterPrimary, filterAdv);
 
   const table = document.createElement('div');
-  table.className = 'iso-table iso-req-table';
+  table.className =
+    'iso-table iso-req-table qhse-data-table' +
+    (isoReqColMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
 
   const head = document.createElement('div');
   head.className = 'iso-table-head';
-  head.innerHTML = `
-    <span>Exigence</span>
-    <span>Statut</span>
-    <span>Action</span>
-    <span>Responsable</span>
-    <span>Preuve documentaire</span>
-  `;
+  [
+    ['Exigence', false],
+    ['Statut', false],
+    ['Action', false],
+    ['Resp.', true],
+    ['Preuve', true]
+  ].forEach(([text, adv]) => {
+    const sp = document.createElement('span');
+    sp.textContent = text;
+    if (adv) sp.classList.add('qhse-col-adv');
+    head.append(sp);
+  });
   table.append(head);
+
+  const isoToolbar = document.createElement('div');
+  isoToolbar.className = 'iso-req-toolbar';
+  const isoToolbarMeta = document.createElement('span');
+  isoToolbarMeta.className = 'qhse-table-toolbar__meta';
+  isoToolbarMeta.textContent =
+    'Par défaut : exigence, statut, action — responsable et preuve dans « Colonnes complètes » ou au détail.';
+  const isoColBtn = document.createElement('button');
+  isoColBtn.type = 'button';
+  isoColBtn.className = 'btn btn-secondary btn-sm';
+  isoColBtn.setAttribute('aria-pressed', isoReqColMode === 'full' ? 'true' : 'false');
+  isoColBtn.textContent = isoReqColMode === 'full' ? 'Vue compacte' : 'Colonnes complètes';
+  isoColBtn.addEventListener('click', () => {
+    isoReqColMode = isoReqColMode === 'full' ? 'essential' : 'full';
+    try {
+      localStorage.setItem(LS_ISO_REQ_TABLE_COLS, isoReqColMode);
+    } catch {
+      /* ignore */
+    }
+    isoColBtn.setAttribute('aria-pressed', isoReqColMode === 'full' ? 'true' : 'false');
+    isoColBtn.textContent = isoReqColMode === 'full' ? 'Vue compacte' : 'Colonnes complètes';
+    table.className =
+      'iso-table iso-req-table qhse-data-table' +
+      (isoReqColMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
+  });
+  isoToolbar.append(isoToolbarMeta, isoColBtn);
 
   function renderRows() {
     table.querySelectorAll('.iso-table-row').forEach((el) => el.remove());
@@ -954,11 +1013,11 @@ function createRequirementsTable(ctx, registryDocImpact) {
       });
 
       const owner = document.createElement('span');
-      owner.className = 'iso-cell-muted';
+      owner.className = 'iso-cell-muted qhse-col-adv';
       owner.textContent = row.owner;
 
       const proof = document.createElement('span');
-      proof.className = 'iso-cell-muted iso-evidence-cell';
+      proof.className = 'iso-cell-muted iso-evidence-cell qhse-col-adv';
       proof.style.whiteSpace = 'pre-line';
       proof.textContent = formatEvidenceWithImports(row.evidence, row.id);
 
@@ -969,7 +1028,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
 
   renderRows();
   ctx.refreshTable = renderRows;
-  wrap.append(registryDocImpact.root, filterBar, table);
+  wrap.append(registryDocImpact.root, filterHost, isoToolbar, table);
   return wrap;
 }
 
@@ -1284,6 +1343,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     let hDetail = 'Consolider exigences et preuves avant la prochaine visite audit.';
     /** @type {() => void} */
     let hOn = () => {
+      ensureIsoDocsPanelOpen();
       document.querySelector('.iso-page .iso-docs-priority')?.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
@@ -1361,6 +1421,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
             docLines.length > 1 ? ` · +${docLines.length - 1} autre(s)` : ''
           }`;
     appendPriorityRow('Documents & preuves', docDetail, 'Ouvrir documents', () => {
+      ensureIsoDocsPanelOpen();
       document.querySelector('.iso-page .iso-docs-priority')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
@@ -1525,6 +1586,35 @@ function createReviewBlock() {
   return grid;
 }
 
+/**
+ * Panneau second niveau (élément HTML details natif) — détail métier replié par défaut, zéro perte de fonction.
+ * @param {string} titleText
+ * @param {string} hintText
+ * @param {Node | Node[]} content
+ * @param {string} [extraClass]
+ */
+function wrapIsoL2Disclosure(titleText, hintText, content, extraClass = '') {
+  const det = document.createElement('details');
+  det.className = `iso-l2-disclosure ${extraClass}`.trim();
+  const sum = document.createElement('summary');
+  sum.className = 'iso-l2-disclosure__summary';
+  const t = document.createElement('span');
+  t.className = 'iso-l2-disclosure__title';
+  t.textContent = titleText;
+  const h = document.createElement('span');
+  h.className = 'iso-l2-disclosure__hint';
+  h.textContent = hintText;
+  sum.append(t, h);
+  const body = document.createElement('div');
+  body.className = 'iso-l2-disclosure__body';
+  const nodes = Array.isArray(content) ? content : [content];
+  nodes.forEach((n) => {
+    if (n) body.append(n);
+  });
+  det.append(sum, body);
+  return det;
+}
+
 export function renderIso(onAddLog) {
   ensureIsoPageStyles();
   ensureQhsePilotageStyles();
@@ -1532,6 +1622,16 @@ export function renderIso(onAddLog) {
 
   const page = document.createElement('section');
   page.className = 'page-stack iso-page iso-page--hub iso-page--cockpit iso-page--conformite-premium';
+
+  const { bar: isoPageViewBar } = mountPageViewModeSwitch({
+    pageId: 'iso',
+    pageRoot: page,
+    hintEssential:
+      'Lecture terrain : préparation audit, synthèse, priorités et registre des exigences — normes, assistant et graphiques masqués.',
+    hintAdvanced:
+      'Pilotage complet : cartographie normes, assistant conformité, graphique du registre et revue de direction.'
+  });
+
   const isoMixChartHosts = { req: null };
   const isoNav = pageTopbarById.iso;
 
@@ -1753,6 +1853,7 @@ export function renderIso(onAddLog) {
     grid.replaceChildren();
     buildIsoCopilotSuggestions({
       onScrollTo: (sel) => {
+        if (sel && String(sel).includes('iso-docs')) ensureIsoDocsPanelOpen();
         document.querySelector(`.iso-page ${sel}`)?.scrollIntoView({
           behavior: 'smooth',
           block: 'start'
@@ -2004,7 +2105,14 @@ export function renderIso(onAddLog) {
   mainCol.append(reqCard);
   const asideCol = document.createElement('div');
   asideCol.className = 'iso-pilotage-aside iso-register-docs-col iso-register-docs-col--docs';
-  asideCol.append(docsCard);
+  /* Documentation détaillée = second niveau : registre d’exigences reste visible en colonne principale. */
+  const docsDisclosure = wrapIsoL2Disclosure(
+    'Documents, preuves & liste maîtrisée',
+    'Synthèse conformité, preuves, priorités et tableau documents — tout le flux métier conservé.',
+    docsCard,
+    'iso-l2-disclosure--docs'
+  );
+  asideCol.append(docsDisclosure);
   layout.append(mainCol, asideCol);
 
   const normsHub = document.createElement('div');
@@ -2013,7 +2121,14 @@ export function renderIso(onAddLog) {
 
   const focusZone = document.createElement('div');
   focusZone.className = 'iso-focus-zone';
-  focusZone.append(normsHub, aiSpotlight);
+  /* IA = aide à la revue, pas lecture immédiate : même composant, accès au clic. */
+  const assistantDisclosure = wrapIsoL2Disclosure(
+    'Assistant conformité',
+    'Suggestions et raccourcis — validation humaine inchangée.',
+    aiSpotlight,
+    'iso-l2-disclosure--assistant'
+  );
+  focusZone.append(normsHub, assistantDisclosure);
 
   const focusIntro = document.createElement('div');
   focusIntro.className = 'iso-zone-header iso-focus-zone-intro';
@@ -2024,12 +2139,18 @@ export function renderIso(onAddLog) {
   `;
 
   const focusWrap = document.createElement('div');
-  focusWrap.className = 'iso-focus-wrap';
+  focusWrap.className = 'iso-focus-wrap qhse-page-advanced-only';
   focusWrap.append(focusIntro, focusZone);
 
   const secondaryZone = document.createElement('div');
   secondaryZone.className = 'iso-secondary-zone';
-  secondaryZone.append(layout, reviewCard);
+  const reviewDisclosure = wrapIsoL2Disclosure(
+    'Revue de direction — synthèse',
+    'Indicateurs agrégés pour comité — ouvrir pour le détail.',
+    reviewCard,
+    'iso-l2-disclosure--review'
+  );
+  secondaryZone.append(layout, reviewDisclosure);
 
   const secondaryWrap = document.createElement('div');
   secondaryWrap.className = 'iso-secondary-wrap';
@@ -2075,18 +2196,22 @@ export function renderIso(onAddLog) {
     <p class="iso-zone-header__desc">Répartition des statuts d’exigences — cohérente avec le tableau et les filtres ci-dessous.</p>
   `;
   insightsZone.append(insightsHead, isoMixRow);
+  /* Graphique redondant avec le tableau : disponible sans encombrer le premier écran. */
+  const insightsDisclosure = wrapIsoL2Disclosure(
+    'Graphique · répartition des exigences',
+    'Même données que le registre — ouvrir pour la vue visuelle.',
+    insightsZone,
+    'iso-l2-disclosure--insights'
+  );
+  insightsDisclosure.classList.add('qhse-page-advanced-only');
 
   page.append(
-    createSimpleModeGuide({
-      title: 'Conformité — par où commencer',
-      hint: 'Le score et les écarts en tête donnent la santé globale ; les priorités listent ce qui mérite une action maintenant.',
-      nextStep: 'Étape suivante : traiter les priorités, puis les normes ci-dessous — le registre détaillé reste accessible en défilant ou en mode Expert.'
-    }),
+    isoPageViewBar,
     auditReadinessEl,
     heroCard,
     priorityShell,
     focusWrap,
-    insightsZone,
+    insightsDisclosure,
     secondaryWrap
   );
   return page;

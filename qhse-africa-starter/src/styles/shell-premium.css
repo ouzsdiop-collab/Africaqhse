@@ -36,14 +36,14 @@
   pointer-events: none;
 }
 
-/* Dashboard : sections pilot en pile — léger souffle supplémentaire */
+/* Dashboard : sections pilot en pile — séparateur discret (évite l’effet « quatre cadres empilés »). */
 .page-stack.dashboard-page > .dashboard-pilot-block {
   margin-block: 0;
 }
 
 .page-stack.dashboard-page > .dashboard-pilot-block + .dashboard-pilot-block {
-  padding-top: clamp(4px, 0.6vw, 10px);
-  border-top: 1px solid color-mix(in srgb, var(--color-border-secondary) 45%, transparent);
+  padding-top: clamp(6px, 0.8vw, 12px);
+  border-top: 1px solid color-mix(in srgb, var(--color-border-secondary) 30%, transparent);
 }
 
 /* —— Zone principale : lien visuel avec la sidebar —— */
@@ -111,15 +111,6 @@
 
 .page-intro__actions .btn {
   font-weight: 600;
-}
-
-/* —— Dashboard : intro shell sous le guide mode simple —— */
-.dashboard-page-shell-intro {
-  margin-bottom: 0.15rem;
-}
-
-.dashboard-page-shell-intro .page-intro__desc {
-  margin-top: 0.65rem;
 }
 
 /* —— Tableaux : en-têtes plus nets —— */

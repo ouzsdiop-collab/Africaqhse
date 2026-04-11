@@ -239,11 +239,12 @@ export function refreshIncidentsPrioritiesStrip(prioritiesHost, opts) {
 /**
  * @param {object} inc — ligne affichée (avec title)
  * @param {{ onSelect: (i: object) => void; onDetail: (i: object) => void; onCreateAction: (i: object) => void | Promise<void>; canWriteActions: boolean }} handlers
- * @param {{ isStatusClosed: (st: string) => boolean }} helpers
+ * @param {{ isStatusClosed: (st: string) => boolean; columnMode?: 'essential' | 'full' }} helpers
  */
 export function buildIncidentTableRow(inc, handlers, helpers) {
   const { onSelect, onDetail, onCreateAction, canWriteActions } = handlers;
   const { isStatusClosed } = helpers;
+  const columnMode = helpers.columnMode === 'full' ? 'full' : 'essential';
 
   const tr = document.createElement('tr');
   tr.className = 'incidents-table-row';
@@ -272,6 +273,20 @@ export function buildIncidentTableRow(inc, handlers, helpers) {
     tdTitle.append(crit);
   }
   tdTitle.append(refSmall);
+  if (columnMode === 'essential') {
+    const sevLabel =
+      inc.severity === 'critique'
+        ? 'Critique'
+        : inc.severity === 'faible'
+          ? 'Faible'
+          : inc.severity === 'moyen'
+            ? 'Moyen'
+            : String(inc.severity || '—');
+    const meta = document.createElement('div');
+    meta.className = 'incidents-table-meta';
+    meta.textContent = `${sevLabel} · ${inc.site || '—'}`;
+    tdTitle.append(meta);
+  }
 
   const tdSev = document.createElement('td');
   tdSev.className = 'incidents-table-cell';
@@ -280,6 +295,7 @@ export function buildIncidentTableRow(inc, handlers, helpers) {
   badgeSev.textContent =
     inc.severity.charAt(0).toUpperCase() + inc.severity.slice(1);
   tdSev.append(badgeSev);
+  if (columnMode === 'essential') tdSev.classList.add('qhse-col-adv');
 
   const tdSt = document.createElement('td');
   tdSt.className = 'incidents-table-cell';
@@ -295,21 +311,24 @@ export function buildIncidentTableRow(inc, handlers, helpers) {
   const tdSite = document.createElement('td');
   tdSite.className = 'incidents-table-cell';
   tdSite.textContent = inc.site;
+  if (columnMode === 'essential') tdSite.classList.add('qhse-col-adv');
 
   const tdAct = document.createElement('td');
   tdAct.className = 'incidents-table-cell incidents-table-cell--acts';
   const btnDetail = document.createElement('button');
   btnDetail.type = 'button';
-  btnDetail.className = 'btn btn-secondary incidents-table-btn';
-  btnDetail.textContent = 'Voir';
+  btnDetail.className = 'btn btn-secondary btn-sm incidents-table-btn';
+  btnDetail.textContent = 'Ouvrir';
+  btnDetail.title = 'Afficher la fiche dans le panneau latéral';
   btnDetail.addEventListener('click', (e) => {
     e.stopPropagation();
     onDetail(inc);
   });
   const btnAction = document.createElement('button');
   btnAction.type = 'button';
-  btnAction.className = 'btn btn-primary incidents-table-btn';
-  btnAction.textContent = 'Traiter';
+  btnAction.className = 'btn btn-primary btn-sm incidents-table-btn';
+  btnAction.textContent = 'Action';
+  btnAction.title = 'Créer ou lier une action corrective';
   btnAction.hidden = !canWriteActions;
   btnAction.addEventListener('click', (e) => {
     e.stopPropagation();

@@ -1,4 +1,3 @@
-import { pageTopbarById } from '../data/navigation.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { createDashboardTodayBlock } from '../components/dashboardTodayBlock.js';
 import { appState } from '../utils/state.js';
@@ -32,7 +31,7 @@ import { createDashboardPriorityNow } from '../components/dashboardPriorityNow.j
 import { createDashboardPilotageAssistant } from '../components/dashboardPilotageAssistant.js';
 import { buildAssistantSnapshot } from '../services/qhsePilotageIntelligence.service.js';
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
-import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { createKpiDetailDrawer } from '../components/kpiDetailDrawer.js';
 import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
 import {
@@ -51,6 +50,21 @@ import {
   computeHabilitationsBySite,
   computeHabilitationsKpis
 } from '../data/habilitationsDemo.js';
+
+/* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats — voir utils/dashboard*.js */
+import { pushDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { fetchJsonList, fetchJsonListWithRetry, qhseFetchWithNetworkRetry } from '../utils/dashboardFetchHelpers.js';
+import {
+  toneByValue,
+  safeNum,
+  trimTrailingZeroAuditScores,
+  computeDeltaLabel,
+  guessImpactedSite,
+  buildOperationalTiles,
+  normalizeDashboardPayload,
+  buildMistralDashboardStatsPayload,
+  formatDashboardCount
+} from '../utils/dashboardMetrics.js';
 
 function getCssVar(name, fallback = '') {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
@@ -222,7 +236,12 @@ function ensureDashboardDecisionStyles() {
 .dashboard-decision-insight--prio .dashboard-decision-insight-list li::before{
   background:linear-gradient(180deg,#fb923c,#f97316);
 }
-.dashboard-kpi-card--crit{box-shadow:0 0 0 1px rgba(239,68,68,.28),0 0 22px rgba(239,68,68,.16)}
+/* État critique : lisible sans halo « démo » — renforce bordure gauche + léger fond. */
+.dashboard-kpi-card--crit.metric-card{
+  border-left-color:var(--color-text-danger,#ef4444)!important;
+  background:color-mix(in srgb,var(--color-danger-bg,rgba(239,68,68,.12)) 18%,var(--color-background-primary))!important;
+  box-shadow:none!important;
+}
 .dashboard-ops-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .dashboard-ops-card{padding:12px;border-radius:12px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);display:grid;gap:6px;cursor:pointer}
 .dashboard-ops-card__k{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
@@ -243,141 +262,46 @@ function ensureDashboardDecisionStyles() {
 .dashboard-hab-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .dashboard-kpi-subline{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text3);padding-top:3px}
 .dashboard-kpi-subline__delta{font-weight:700}
+/* Blocs pilot : surface plus « papier » que « vitrine » — hiérarchie portée par le titre, pas par triple ombre. */
 .dashboard-pilot-block{
   position:relative;
   display:grid;
   gap:clamp(12px,1.5vw,16px);
-  padding:clamp(14px,2vw,22px);
-  border-radius:16px;
-  border:1px solid color-mix(in srgb, var(--palette-accent, #14b8a6) 14%, var(--color-border-tertiary));
-  background:
-    linear-gradient(
-      155deg,
-      color-mix(in srgb, var(--color-background-secondary) 97%, var(--palette-accent, #14b8a6)) 0%,
-      color-mix(in srgb, var(--color-background-primary) 94%, #0f172a) 48%,
-      color-mix(in srgb, var(--color-background-secondary) 92%, #0ea5e9) 100%
-    );
+  padding:clamp(14px,2vw,20px);
+  border-radius:14px;
+  border:1px solid color-mix(in srgb, var(--palette-accent, #14b8a6) 8%, var(--color-border-tertiary));
+  background:color-mix(in srgb, var(--color-background-secondary) 94%, var(--color-background-primary));
   box-shadow:
-    0 0 0 1px color-mix(in srgb, white 5%, transparent) inset,
-    0 1px 0 color-mix(in srgb, var(--palette-accent, #14b8a6) 12%, transparent) inset,
-    0 24px 48px -28px rgba(0,0,0,.55),
-    0 8px 24px -12px rgba(15,23,42,.35);
+    0 0 0 1px color-mix(in srgb, white 3%, transparent) inset,
+    0 16px 40px -32px rgba(0,0,0,.48);
 }
 .dashboard-pilot-block::before{
   content:'';
   position:absolute;
-  left:0;right:0;top:0;height:3px;
+  left:0;right:0;top:0;height:2px;
   background:linear-gradient(90deg,
-    color-mix(in srgb, var(--palette-accent, #14b8a6) 85%, transparent),
-    color-mix(in srgb, #0ea5e9 70%, transparent),
-    transparent 72%);
-  opacity:.95;
+    color-mix(in srgb, var(--palette-accent, #14b8a6) 50%, transparent),
+    transparent 68%);
+  opacity:.62;
   pointer-events:none;
 }
 .dashboard-pilot-block > .dashboard-section-head:first-child{
-  margin:-4px -6px 4px -6px;
-  padding:0 4px 14px 18px;
-  border-bottom:1px solid color-mix(in srgb, var(--color-border-tertiary) 75%, transparent);
-  background:linear-gradient(180deg,
-    color-mix(in srgb, var(--palette-accent, #14b8a6) 6%, transparent) 0%,
-    transparent 100%);
-  border-radius:12px 12px 0 0;
+  margin:-2px -4px 4px -4px;
+  padding:0 4px 12px 16px;
+  border-bottom:1px solid color-mix(in srgb, var(--color-border-tertiary) 62%, transparent);
+  background:transparent;
+  border-radius:10px 10px 0 0;
 }
 .dashboard-pilot-block > .dashboard-section-head:first-child::before{
-  opacity:1;
-  height:70%;
+  opacity:.72;
+  height:62%;
+  width:2px;
 }
 @media (max-width:1200px){.dashboard-ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:980px){.dashboard-decision-alerts{grid-template-columns:1fr}.dashboard-decision-grid{grid-template-columns:1fr}}
 @media (max-width:640px){.dashboard-ops-grid{grid-template-columns:1fr}.dashboard-hab-grid{grid-template-columns:1fr}}
 `;
   document.head.append(el);
-}
-
-function toneByValue(value, warn = 1, crit = 3) {
-  const n = Number(value) || 0;
-  if (n >= crit) return 'red';
-  if (n >= warn) return 'orange';
-  return 'green';
-}
-
-function safeNum(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-/** Évite des mois « vides » en bout de série (labels sans barres). */
-function trimTrailingZeroAuditScores(series) {
-  const out = [...series];
-  while (out.length > 1) {
-    const last = out[out.length - 1];
-    const v = last != null ? Number(last.value) : 0;
-    if (!Number.isFinite(v) || v <= 0) out.pop();
-    else break;
-  }
-  return out;
-}
-
-const DC_CHART_FONT = { family: "'Inter', system-ui, sans-serif", size: 11 };
-
-function computeDeltaLabel(value) {
-  const current = Number(value) || 0;
-  const baseline = Math.max(0, current + ((current % 4) - 2));
-  const delta = current - baseline;
-  const sign = delta > 0 ? '+' : '';
-  return `Variation: ${sign}${delta} vs période`;
-}
-
-function guessImpactedSite(rows = []) {
-  const hit = rows.find((r) => r?.site || r?.siteId || r?.owner);
-  return String(hit?.site || hit?.siteId || hit?.owner || 'N/A');
-}
-
-function buildOperationalTiles({ stats, incidents, actions, audits, ncs, permits, docs }) {
-  const criticalInc = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
-  const overdueActions = safeNum(stats?.overdueActions);
-  const permitsActive = Array.isArray(permits)
-    ? permits.filter((p) => String(p?.status || '').toLowerCase() !== 'closed').length
-    : 0;
-  const docsReview = Array.isArray(docs)
-    ? docs.filter((d) => {
-        const due = d?.expiresAt ? new Date(d.expiresAt) : null;
-        if (!due || Number.isNaN(due.getTime())) return false;
-        return due.getTime() < Date.now() + 1000 * 60 * 60 * 24 * 30;
-      }).length
-    : 0;
-  const auditScores = (Array.isArray(audits) ? audits : [])
-    .map((a) => safeNum(a?.score, NaN))
-    .filter((x) => Number.isFinite(x));
-  const complianceMultiSites = auditScores.length
-    ? Math.round(auditScores.reduce((a, b) => a + b, 0) / auditScores.length)
-    : 76;
-  const subcontractors = Math.max(3, Math.min(22, Math.round((safeNum(stats?.actions) + safeNum(stats?.incidents)) / 3))) ;
-  const habilitationsSoon = Math.max(1, Math.min(18, Math.round((Array.isArray(incidents) ? incidents.length : 0) / 2)));
-  return [
-    { k: 'Incidents', v: safeNum(stats?.incidents), d: 'Déclarés sur le périmètre', tone: toneByValue(stats?.incidents, 4, 9), page: 'incidents' },
-    { k: 'Risques critiques', v: criticalInc, d: 'Priorité terrain immédiate', tone: toneByValue(criticalInc, 1, 3), page: 'risks' },
-    { k: 'Actions en retard', v: overdueActions, d: 'À traiter < 48h', tone: toneByValue(overdueActions, 1, 4), page: 'actions' },
-    { k: 'Audits', v: Array.isArray(audits) ? audits.length : 0, d: 'Audits récents et planifiés', tone: toneByValue((Array.isArray(ncs) ? ncs.filter(isNcOpen).length : 0), 1, 4), page: 'audits' },
-    { k: 'Permis actifs', v: permitsActive, d: 'PTW terrain en cours', tone: toneByValue(permitsActive, 3, 8), page: 'permits' },
-    { k: 'FDS à réviser', v: docsReview, d: 'Échéance < 30 jours', tone: toneByValue(docsReview, 1, 3), page: 'products' },
-    { k: 'Conformité multi-sites', v: `${complianceMultiSites}%`, d: 'Moyenne audits du groupe', tone: complianceMultiSites >= 80 ? 'green' : complianceMultiSites >= 65 ? 'orange' : 'red', page: 'iso' },
-    { k: 'Sous-traitants', v: subcontractors, d: 'Actifs sur opérations', tone: toneByValue(subcontractors, 10, 18), page: 'sites' },
-    { k: 'Habilitations futures', v: habilitationsSoon, d: 'Échéances à anticiper', tone: toneByValue(habilitationsSoon, 4, 10), page: 'settings' }
-  ];
-}
-
-function pushDashboardIntent(intent) {
-  try {
-    const payload = JSON.stringify({
-      ...intent,
-      at: new Date().toISOString()
-    });
-    localStorage.setItem('qhse.dashboard.intent', payload);
-    localStorage.setItem('qhse.dashboard.intent.last', payload);
-  } catch {
-    // no-op
-  }
 }
 
 function upsertKpiFilterModal() {
@@ -398,102 +322,6 @@ const kpiDashboardLists = { incidents: [], actions: [], audits: [], ncs: [], doc
 /** @type {{ open: (k: string) => void; element: HTMLDialogElement } | null} */
 let kpiDetailDrawerSingleton = null;
 
-function formatDateForMeta(iso) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  } catch {
-    return '—';
-  }
-}
-
-function formatDashboardCount(v) {
-  return typeof v === 'number' && !Number.isNaN(v) ? String(v) : '—';
-}
-
-/** Bandeau titre cockpit — aligné sur pageTopbarById.dashboard (cohérence topbar / page). */
-function createDashboardShellIntro() {
-  const dashMeta = pageTopbarById.dashboard;
-  if (!dashMeta) return null;
-  const pageIntro = document.createElement('div');
-  pageIntro.className = 'page-intro module-page-hero dashboard-page-shell-intro';
-  const inner = document.createElement('div');
-  inner.className = 'module-page-hero__inner';
-  if (dashMeta.kicker) {
-    const k = document.createElement('p');
-    k.className = 'page-intro__kicker section-kicker';
-    k.textContent = dashMeta.kicker;
-    inner.append(k);
-  }
-  const h = document.createElement('h1');
-  h.className = 'page-intro__title';
-  h.textContent = dashMeta.title;
-  inner.append(h);
-  if (dashMeta.subtitle) {
-    const p = document.createElement('p');
-    p.className = 'page-intro__desc';
-    p.textContent = dashMeta.subtitle;
-    inner.append(p);
-  }
-  if (dashMeta.cta?.label && dashMeta.cta?.pageId) {
-    const actions = document.createElement('div');
-    actions.className = 'page-intro__actions';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-primary';
-    btn.textContent = dashMeta.cta.label;
-    btn.addEventListener('click', () => {
-      window.location.hash = dashMeta.cta.pageId;
-    });
-    actions.append(btn);
-    inner.append(actions);
-  }
-  pageIntro.append(inner);
-  return pageIntro;
-}
-
-function normalizeDashboardPayload(raw) {
-  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  return {
-    incidents: asDashboardCount(raw.incidents),
-    actions: asDashboardCount(raw.actions),
-    overdueActions: asDashboardCount(raw.overdueActions),
-    nonConformities: asDashboardCount(raw.nonConformities),
-    criticalIncidents: Array.isArray(raw.criticalIncidents) ? raw.criticalIncidents : [],
-    overdueActionItems: Array.isArray(raw.overdueActionItems) ? raw.overdueActionItems : []
-  };
-}
-
-function buildMistralDashboardStatsPayload(lastStats, audits, risks) {
-  const critSrc = lastStats?.criticalIncidents;
-  const criticalIncidents = Array.isArray(critSrc) ? critSrc.length : Number(critSrc) || 0;
-  let avgAuditScore = 'N/A';
-  if (Array.isArray(audits) && audits.length) {
-    const scores = audits.map((a) => Number(a.score)).filter((n) => Number.isFinite(n));
-    if (scores.length) {
-      avgAuditScore = String(Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
-    }
-  }
-  let risksOpen = 0;
-  if (Array.isArray(risks)) {
-    risksOpen = risks.filter((r) => {
-      const s = String(r?.status || '').toLowerCase();
-      return !/clos|ferm|trait|ma[iî]tris/i.test(s);
-    }).length;
-  }
-  return {
-    incidents: asDashboardCount(lastStats?.incidents),
-    criticalIncidents,
-    risksOpen,
-    actionsOverdue: asDashboardCount(lastStats?.overdueActions),
-    avgAuditScore
-  };
-}
-
 async function loadDashboardInsight(stats) {
   const zone = document.getElementById('dashboard-ai-insight');
   if (!zone) return;
@@ -513,52 +341,6 @@ async function loadDashboardInsight(stats) {
   } catch {
     zone.innerHTML = '';
   }
-}
-
-async function fetchJsonList(path) {
-  try {
-    const res = await qhseFetch(withSiteQuery(path));
-    if (!res.ok) return null;
-    const j = await res.json().catch(() => null);
-    return Array.isArray(j) ? j : null;
-  } catch (err) {
-    console.warn('[dashboard] fetchJsonList', path, err);
-    return null;
-  }
-}
-
-/**
- * Quelques tentatives — le serveur peut redémarrer (node --watch) ou être lent au démarrage.
- * @param {string} path
- * @param {{ attempts?: number; delayMs?: number }} [opts]
- */
-async function fetchJsonListWithRetry(path, { attempts = 4, delayMs = 300 } = {}) {
-  for (let i = 0; i < attempts; i += 1) {
-    const data = await fetchJsonList(path);
-    if (data != null) return data;
-    if (i < attempts - 1) {
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-  }
-  return null;
-}
-
-/**
- * Plusieurs tentatives si le réseau échoue (démarrage concurrent api + web avec `npm run dev`).
- */
-async function qhseFetchWithNetworkRetry(path, { attempts = 8, delayMs = 350 } = {}) {
-  let lastErr;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await qhseFetch(path);
-    } catch (err) {
-      lastErr = err;
-      if (i < attempts - 1) {
-        await new Promise((r) => setTimeout(r, delayMs));
-      }
-    }
-  }
-  throw lastErr;
 }
 
 function makeChartCard(kicker, title, lead, extraCardClass = '') {
@@ -712,17 +494,14 @@ export function renderDashboard() {
   const page = document.createElement('section');
   page.className = 'page-stack dashboard-page';
 
-  const shellIntro = createDashboardShellIntro();
-
-  const simpleGuide = createSimpleModeGuide({
-    title: 'Vue du jour — l’essentiel en premier',
-    hint: 'Lecture du haut vers le bas : signaux critiques, score QHSE, cockpit, actions immédiates — puis indicateurs détaillés.',
-    nextStep: 'Dépliez « Indicateurs & graphiques » pour la synthèse système et les courbes ; l’activité récente reste en bas de page.'
+  const { bar: pageViewBar } = mountPageViewModeSwitch({
+    pageId: 'dashboard',
+    pageRoot: page,
+    hintEssential:
+      'Vue direction : en-tête, signaux, indicateurs et priorités du jour — analyses étendues et graphiques complémentaires masqués.',
+    hintAdvanced:
+      'Pilotage complet : volet « Analyses & modules détaillés », graphiques, cockpit, habilitations, activité et assistant.'
   });
-  page.prepend(simpleGuide);
-  if (shellIntro) {
-    page.insertBefore(shellIntro, simpleGuide);
-  }
 
   const bandCeo = document.createElement('div');
   bandCeo.className = 'dashboard-band dashboard-band--ceo';
@@ -751,11 +530,12 @@ export function renderDashboard() {
   bandCriticalAlerts.append(alertsSection);
 
   const decisionAlertsBand = document.createElement('section');
-  decisionAlertsBand.className = 'dashboard-section';
+  /* Même métrique que les cartes KPI + sous-lignes « variation » non métier : réservé à la vue avancée. */
+  decisionAlertsBand.className = 'dashboard-section qhse-page-advanced-only';
   const decisionAlerts = document.createElement('div');
   decisionAlerts.className = 'dashboard-decision-alerts';
   decisionAlertsBand.append(
-    makeSectionHeader('Décision', 'Alertes critiques dynamiques', 'Synthèse prioritaire en temps réel.'),
+    makeSectionHeader('Signaux', 'Trois priorités à surveiller', 'Cliquez pour ouvrir le détail filtré.'),
     decisionAlerts
   );
   let lastStats = {
@@ -775,9 +555,9 @@ export function renderDashboard() {
   opsGrid.className = 'dashboard-ops-grid';
   opsCockpitSection.append(
     makeSectionHeader(
-      'Pilotage opérationnel',
-      'Cockpit terrain & conformité',
-      'Vision DG/QHSE/site: incidents, risques, audits, permis, documents et capacités terrain.'
+      'Tuiles',
+      'Pilotage opérationnel étendu',
+      'Neuf indicateurs — même logique qu’avant ; replacés ici pour alléger l’écran principal.'
     ),
     opsGrid
   );
@@ -815,6 +595,7 @@ export function renderDashboard() {
   });
 
   const bandToday = document.createElement('div');
+  /* Reste sur la surface exécutive : modes simple/terrain s’appuient sur ce bandeau (displayModes.css). */
   bandToday.className = 'dashboard-band dashboard-band--today-snapshot';
   bandToday.append(todayBlock);
 
@@ -870,24 +651,28 @@ export function renderDashboard() {
   bandShortcuts.append(shortcutsSection);
 
   const extendedSection = document.createElement('div');
-  extendedSection.className = 'dashboard-extended';
-  const savedState = localStorage.getItem('dashboard-extended');
-  extendedSection.dataset.expanded = savedState ?? 'true';
+  extendedSection.className = 'dashboard-extended qhse-page-advanced-only';
+  /* Première visite : replié pour réduire la charge cognitive ; si l’utilisateur a déjà choisi, on respecte localStorage. */
+  const savedExtended = localStorage.getItem('dashboard-extended');
+  const isInitiallyExpanded = savedExtended === 'true';
+  extendedSection.dataset.expanded = isInitiallyExpanded ? 'true' : 'false';
 
   const toggleRow = document.createElement('div');
-  toggleRow.className = 'dashboard-toggle-row';
+  toggleRow.className = 'dashboard-toggle-row qhse-page-advanced-only';
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
   toggleBtn.className = 'dashboard-toggle-btn';
   toggleBtn.innerHTML = `
-  <span class="dashboard-toggle-label">Indicateurs & graphiques</span>
+  <span class="dashboard-toggle-inner">
+    <span class="dashboard-toggle-label">Analyses & modules détaillés</span>
+    <span class="dashboard-toggle-hint">Graphiques, vue décisionnelle, cockpit, tuiles, habilitations, activité…</span>
+  </span>
   <span class="dashboard-toggle-icon" aria-hidden="true">▾</span>
 `;
   toggleRow.append(toggleBtn);
 
-  const initExpanded = localStorage.getItem('dashboard-extended') ?? 'true';
   const toggleIcon = toggleBtn.querySelector('.dashboard-toggle-icon');
-  if (toggleIcon) toggleIcon.textContent = initExpanded === 'true' ? '▾' : '▸';
+  if (toggleIcon) toggleIcon.textContent = isInitiallyExpanded ? '▾' : '▸';
 
   toggleBtn.addEventListener('click', () => {
     const isExpanded = extendedSection.dataset.expanded === 'true';
@@ -959,9 +744,10 @@ export function renderDashboard() {
     kpiDetailDrawerSingleton.element.id = 'qhse-kpi-detail-dialog';
     document.body.append(kpiDetailDrawerSingleton.element);
   }
-  const { kpiStickyWrap, kpiValues, kpiNotes, dismissKpiSkeleton } = renderKpiCards({
+  const { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, dismissKpiSkeleton } = renderKpiCards({
     onOpenDetail: (key) => kpiDetailDrawerSingleton?.open(key)
   });
+  kpiGrid.classList.add('dashboard-kpi-grid--executive');
 
   const kpiPriorityLine = document.createElement('p');
   kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
@@ -981,7 +767,7 @@ export function renderDashboard() {
   if (kpiQuick) kpiFoot.append(kpiQuick);
 
   kpiSection.append(
-    makeSectionHeader('Vue d’ensemble', 'Indicateurs clés', null),
+    makeSectionHeader('Priorités', 'Cinq indicateurs clés', 'Le détail et les listes complètes : volet « Analyses & modules » ou clic sur une carte.'),
     kpiStickyWrap,
     kpiPriorityLine,
     ...(kpiQuick ? [kpiFoot] : [])
@@ -1023,7 +809,12 @@ export function renderDashboard() {
     })
   );
 
-  chartsGrid.append(lineCard.card, typeCard.card, mixCard.card, auditScoreCard.card, pilotLoadCard.card);
+  /* Graphe principal au premier niveau : tendance incidents (complément dans le volet). */
+  const primaryChartSection = document.createElement('section');
+  primaryChartSection.className = 'dashboard-section dashboard-section--primary-chart';
+  primaryChartSection.append(lineCard.card);
+
+  chartsGrid.append(typeCard.card, mixCard.card, auditScoreCard.card, pilotLoadCard.card);
 
   const chartsGlobalActs = document.createElement('div');
   chartsGlobalActs.className = 'dashboard-charts-global-actions';
@@ -1037,7 +828,7 @@ export function renderDashboard() {
   if (chartsQuickRow) chartsGlobalActs.append(chartsQuickRow);
 
   chartsSection.append(
-    makeSectionHeader('Analyses', 'Graphiques', null),
+    makeSectionHeader('Complément', 'Autres graphiques', 'Répartition, audits et charge — la tendance principale est au-dessus du volet.'),
     disclaimer,
     chartsGrid,
     ...(chartsQuickRow ? [chartsGlobalActs] : [])
@@ -1100,14 +891,6 @@ export function renderDashboard() {
   side.append(iaBlock, priorityBlock);
   decisionGrid.append(decisionChartCard, side);
   decisionSection.append(decisionGrid);
-
-  const bandSituation = document.createElement('div');
-  bandSituation.className = 'dashboard-band dashboard-band--situation';
-  bandSituation.append(systemSection, kpiSection);
-
-  const bandTrends = document.createElement('div');
-  bandTrends.className = 'dashboard-band dashboard-band--analysis';
-  bandTrends.append(chartsSection);
 
   const activitySection = document.createElement('section');
   activitySection.className = 'dashboard-section';
@@ -1557,58 +1340,40 @@ export function renderDashboard() {
     });
   }
 
-  extendedSection.append(bandSituation, bandTrends);
-
-  const blockPilotage = document.createElement('section');
-  blockPilotage.className = 'dashboard-pilot-block';
-  blockPilotage.append(
-    makeSectionHeader('Pilotage global', 'Vue direction & QHSE', 'KPI pilotants, synthèse système et plan de priorités.'),
+  /* Profondeur métier : tout le reste derrière le volet (données & updateDecisionAlerts inchangés). */
+  extendedSection.append(
     opsCockpitSection,
-    bandCeo,
-    bandShortcuts
-  );
-  const blockExposition = document.createElement('section');
-  blockExposition.className = 'dashboard-pilot-block';
-  blockExposition.append(
-    makeSectionHeader('Exposition terrain', 'Niveau de risque opérationnel', 'Incidents critiques, conformité habilitations, priorités terrain.'),
-    decisionAlertsBand,
+    bandShortcuts,
     habilitationsSection,
-    bandPriority,
-    bandCriticalAlerts
-  );
-  const blockAlertes = document.createElement('section');
-  blockAlertes.className = 'dashboard-pilot-block';
-  blockAlertes.append(
-    makeSectionHeader('Alertes & échéances', 'Points chauds à traiter', 'Échéances immédiates et flux des activités récentes.'),
-    bandToday,
-    bandActivity,
-    bandSecondary
-  );
-  const blockAnalyse = document.createElement('section');
-  blockAnalyse.className = 'dashboard-pilot-block';
-  blockAnalyse.append(
-    makeSectionHeader('Analyse & tendances', 'Données décisionnelles', 'Graphiques interactifs, assistant et analyses de dérive.'),
+    bandCriticalAlerts,
+    systemSection,
+    chartsSection,
     decisionSection,
     bandAnalysisLecture,
-    toggleRow,
-    extendedSection,
     bandCockpit,
-    cockpitPremium.root
+    cockpitPremium.root,
+    bandActivity,
+    bandSecondary,
+    bandAssistant
+  );
+
+  const executiveBand = document.createElement('div');
+  executiveBand.className = 'dashboard-executive-surface';
+  executiveBand.append(
+    bandCeo,
+    decisionAlertsBand,
+    kpiSection,
+    primaryChartSection,
+    bandPriority,
+    bandToday
   );
 
   const dashboardAiInsight = document.createElement('div');
   dashboardAiInsight.id = 'dashboard-ai-insight';
+  dashboardAiInsight.className = 'qhse-page-advanced-only';
   dashboardAiInsight.style.marginTop = '24px';
 
-  page.append(
-    connectivitySlot,
-    blockPilotage,
-    blockExposition,
-    blockAlertes,
-    blockAnalyse,
-    bandAssistant,
-    dashboardAiInsight
-  );
+  page.append(connectivitySlot, pageViewBar, executiveBand, toggleRow, extendedSection, dashboardAiInsight);
 
   ceoHero.update({
     stats: lastStats,
@@ -1661,7 +1426,6 @@ export function renderDashboard() {
   function applyStatsToKpis(data) {
     kpiValues.incidents.textContent = formatDashboardCount(data.incidents);
     kpiValues.actionsLate.textContent = formatDashboardCount(data.overdueActions);
-    kpiValues.actions.textContent = formatDashboardCount(data.actions);
     const lateTone = toneByValue(data.overdueActions, 1, 3);
     const incTone = toneByValue(data.incidents, 3, 8);
     [kpiValues.actionsLate?.parentElement, kpiValues.incidents?.parentElement].forEach((el) => {

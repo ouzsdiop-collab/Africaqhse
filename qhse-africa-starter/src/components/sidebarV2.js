@@ -16,13 +16,36 @@ import { TERRAIN_ALLOWED_PAGE_IDS } from '../utils/terrainModePages.js';
 
 const STYLE_ID = 'qhse-sidebar-v2-styles';
 
+/** État repliable des familles de navigation (préférence locale, sans impact routing). */
+const NAV_GROUPS_EXPANDED_KEY = 'qhse-nav-groups-expanded';
+
+function readNavGroupsExpanded() {
+  try {
+    const raw = localStorage.getItem(NAV_GROUPS_EXPANDED_KEY);
+    if (!raw) return {};
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' ? o : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeNavGroupsExpanded(/** @type {Record<string, boolean>} */ map) {
+  try {
+    localStorage.setItem(NAV_GROUPS_EXPANDED_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}
+
 function ensureSidebarV2Styles() {
   if (document.getElementById(STYLE_ID)) return;
   const el = document.createElement('style');
   el.id = STYLE_ID;
+  /* UI density (2026) : navigation latérale = repère discret, pas second écran décoratif. */
   el.textContent = `
 .sidebar-v2 {
-  width: 272px;
+  width: 258px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -32,14 +55,9 @@ function ensureSidebarV2Styles() {
   top: 0;
   align-self: flex-start;
   z-index: var(--z-sidebar);
-  background: linear-gradient(
-    168deg,
-    color-mix(in srgb, var(--color-surface) 94%, var(--palette-accent, #14b8a6) 4%) 0%,
-    color-mix(in srgb, var(--color-surface) 98%, var(--color-subtle)) 42%,
-    color-mix(in srgb, var(--color-surface) 92%, var(--color-subtle)) 100%
-  );
-  border-right: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
-  box-shadow: var(--shadow-sm), inset -1px 0 0 color-mix(in srgb, var(--color-border) 28%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 97%, var(--palette-accent, #14b8a6) 3%);
+  border-right: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--color-border) 22%, transparent);
   font-family: var(--font-body);
 }
 .sidebar-v2__brand {
@@ -117,17 +135,17 @@ function ensureSidebarV2Styles() {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--space-3) var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-3);
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
 }
 .sidebar-v2__group {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 .sidebar-v2__group + .sidebar-v2__group {
-  margin-top: var(--space-2);
-  padding-top: var(--space-5);
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  margin-top: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 42%, transparent);
 }
 .sidebar-v2__nav-divider {
   height: 0;
@@ -144,6 +162,54 @@ function ensureSidebarV2Styles() {
 .sidebar-v2__group:last-child {
   margin-bottom: 0;
 }
+.sidebar-v2__group-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2) 0;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font: inherit;
+  text-align: left;
+  transition:
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-v2__group-toggle:hover {
+  background: color-mix(in srgb, var(--color-subtle) 72%, transparent);
+  color: var(--color-text-secondary);
+}
+.sidebar-v2__group-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-border) 45%, transparent);
+}
+.sidebar-v2__group-toggle[aria-expanded='true'] {
+  color: var(--color-text-secondary);
+}
+.sidebar-v2__group-chevron {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.72;
+  letter-spacing: 0;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+}
+.sidebar-v2__group-toggle:hover .sidebar-v2__group-chevron,
+.sidebar-v2__group-toggle:focus-visible .sidebar-v2__group-chevron {
+  opacity: 0.95;
+}
+.sidebar-v2__group-body {
+  margin: 0;
+  padding: 0;
+}
 .sidebar-v2__group-label {
   margin: 0 0 var(--space-2) var(--space-2);
   font-size: 9px;
@@ -153,6 +219,11 @@ function ensureSidebarV2Styles() {
   text-transform: uppercase;
   color: var(--color-text-muted);
   opacity: 0.78;
+}
+.sidebar-v2__group-toggle .sidebar-v2__group-label {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 .sidebar-v2__items {
   display: flex;
@@ -202,12 +273,11 @@ function ensureSidebarV2Styles() {
     width 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar-v2__item:hover {
-  background: linear-gradient(
-    96deg,
-    color-mix(in srgb, var(--color-subtle) 78%, var(--color-primary-bg)) 0%,
-    color-mix(in srgb, var(--color-subtle) 92%, var(--color-surface)) 100%
-  );
+  background: color-mix(in srgb, var(--color-subtle) 88%, var(--color-surface));
   color: var(--color-text);
+}
+.sidebar-v2__item:active {
+  transform: scale(0.992);
 }
 .sidebar-v2__item:focus-visible {
   outline: none;
@@ -216,14 +286,8 @@ function ensureSidebarV2Styles() {
 .sidebar-v2__item--active {
   color: var(--color-text);
   font-weight: 600;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-primary-bg) 92%, var(--color-surface)) 0%,
-    color-mix(in srgb, var(--color-primary-bg) 72%, var(--color-surface)) 100%
-  );
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-primary-border) 46%, transparent),
-    0 6px 18px color-mix(in srgb, var(--color-primary-text) 14%, transparent);
+  background: color-mix(in srgb, var(--color-primary-bg) 82%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary-border) 40%, transparent);
 }
 .sidebar-v2__item--active::before {
   height: 72%;
@@ -737,8 +801,13 @@ function ensureSidebarV2Styles() {
 @media (prefers-reduced-motion: reduce) {
   .sidebar-v2__item,
   .sidebar-v2__item::before,
-  .sidebar-v2__footer-shortcut {
+  .sidebar-v2__footer-shortcut,
+  .sidebar-v2__group-toggle,
+  .sidebar-v2__group-chevron {
     transition-duration: 0.01ms !important;
+  }
+  .sidebar-v2__item:active {
+    transform: none;
   }
 }
 `;
@@ -1104,11 +1173,15 @@ export function createSidebar({
   /** @type {Map<string, HTMLSpanElement>} */
   const navBadgeEls = new Map();
 
+  const navGroupsExpandedSnapshot = readNavGroupsExpanded();
+
   navigationGroups.forEach((group, groupIndex) => {
     const list = document.createElement('div');
     list.className = 'sidebar-v2__items';
 
     const role = getSessionUser()?.role;
+    /** @type {string[]} */
+    const visibleItemIds = [];
 
     group.items.forEach((item) => {
       if (terrainMode && !terrainVisiblePages.has(item.id)) return;
@@ -1124,6 +1197,7 @@ export function createSidebar({
       ) {
         return;
       }
+      visibleItemIds.push(item.id);
       const link = document.createElement('a');
       link.href = `#${item.id}`;
       const isActive = currentPage === item.id;
@@ -1163,28 +1237,67 @@ export function createSidebar({
 
     const section = document.createElement('section');
     section.className = 'sidebar-v2__group';
-    const title = document.createElement('p');
-    title.className = 'sidebar-v2__group-label';
-    title.textContent = group.label;
-    section.append(title, list);
-    nav.append(section);
 
-    if (groupIndex === 2) {
-      const split = document.createElement('div');
-      split.className = 'sidebar-v2__nav-divider';
-      split.setAttribute('role', 'presentation');
-      nav.append(split);
+    const containsActive = visibleItemIds.includes(currentPage);
+    const useCollapsible = group.collapsible === true;
+
+    if (!useCollapsible) {
+      const title = document.createElement('p');
+      title.className = 'sidebar-v2__group-label';
+      title.textContent = group.label;
+      section.append(title, list);
+    } else {
+      /* Ouvert si page courante dans le groupe, sinon préférence locale (défaut : ouvert). */
+      const savedOpen = navGroupsExpandedSnapshot[group.label];
+      const isOpen = containsActive || savedOpen !== false;
+
+      const gid = `nav-group-${groupIndex}`;
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'sidebar-v2__group-toggle';
+      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      toggle.setAttribute('aria-controls', gid);
+      toggle.id = `${gid}-btn`;
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'sidebar-v2__group-label';
+      labelSpan.textContent = group.label;
+
+      const chevron = document.createElement('span');
+      chevron.className = 'sidebar-v2__group-chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      chevron.textContent = isOpen ? '▾' : '▸';
+
+      toggle.append(labelSpan, chevron);
+
+      const body = document.createElement('div');
+      body.className = 'sidebar-v2__group-body';
+      body.id = gid;
+      if (!isOpen) body.hidden = true;
+      body.append(list);
+
+      toggle.addEventListener('click', () => {
+        const open = toggle.getAttribute('aria-expanded') === 'true';
+        const next = !open;
+        toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+        chevron.textContent = next ? '▾' : '▸';
+        body.hidden = !next;
+        const state = readNavGroupsExpanded();
+        state[group.label] = next;
+        writeNavGroupsExpanded(state);
+      });
+
+      section.append(toggle, body);
     }
+
+    nav.append(section);
   });
 
   const shortcutsHost = aside.querySelector('.sidebar-v2__footer-shortcuts');
   const shortcutsWrap = aside.querySelector('.sidebar-v2__footer-secondary');
   if (shortcutsHost && shortcutsWrap) {
-    const shortcutSpecs = [
-      { pageId: 'activity-log', label: 'Journal', iconId: 'activity-log' },
-      { pageId: 'settings', label: 'Paramètres', iconId: 'settings' },
-      { pageId: 'iso', label: 'Sécurité', iconId: 'iso' }
-    ];
+    /* Plus de doublons avec le menu : tout passe par les 5 familles métier. */
+    const shortcutSpecs = [];
     const roleForShortcuts = getSessionUser()?.role;
     shortcutSpecs.forEach((spec) => {
       if (!canAccessNavPage(roleForShortcuts, spec.pageId)) return;

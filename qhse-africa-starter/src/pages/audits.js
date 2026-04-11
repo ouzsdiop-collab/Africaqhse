@@ -15,6 +15,7 @@ import { createAuditFieldMode } from '../components/auditFieldMode.js';
 import { fetchUsers } from '../services/users.service.js';
 import { readImportDraft } from '../utils/importDraft.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import {
   ensureAuditPremiumSaaSStyles,
   createAuditTerrainWorkflowStrip,
@@ -37,20 +38,8 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { linkModules } from '../services/moduleLinks.service.js';
 import { createAuditImportDraftSection, openAuditDialog } from '../components/auditFormDialog.js';
 import { openAuditResult } from '../components/auditResultPanel.js';
-
-const DASHBOARD_INTENT_KEY = 'qhse.dashboard.intent';
-
-function consumeDashboardIntent() {
-  try {
-    const raw = localStorage.getItem(DASHBOARD_INTENT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    localStorage.removeItem(DASHBOARD_INTENT_KEY);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
+/* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
 /** Constantes cockpit Audits (extrait illustratif — complété par l’API quand disponible). */
 const AUDITS_RETARD_COUNT = 2;
@@ -936,6 +925,15 @@ export function renderAudits() {
   const page = document.createElement('section');
   page.className =
     'page-stack audit-products-page audit-plus-page audit-cockpit-page audit-premium-page';
+
+  const { bar: auditsPageViewBar } = mountPageViewModeSwitch({
+    pageId: 'audits',
+    pageRoot: page,
+    hintEssential:
+      'Vue synthèse : score, workflow et priorités critiques — checklist terrain, exports et options expertes en vue avancée.',
+    hintAdvanced:
+      'Parcours complet : avancement constats, plan d’action, traçabilité, preuves, mode terrain et exports CSV/PDF.'
+  });
 
   /** Ajustement local du score affiché (pas d’écriture serveur sur cet écran). */
   let scoreAdjust = 0;
@@ -2103,6 +2101,10 @@ export function renderAudits() {
   fieldMode.element.classList.add('audit-expert-hide-direction');
   tierActions.append(notifCard, iaCard, proofsCard, fieldMode.element, mainActions);
 
+  const auditsAdvancedStack = document.createElement('div');
+  auditsAdvancedStack.className = 'qhse-page-advanced-only';
+  auditsAdvancedStack.append(tierProgress, tierActions);
+
   const tierNavHost = heroCard.querySelector('[data-audit-tier-nav]');
   if (tierNavHost) {
     [
@@ -2129,15 +2131,15 @@ export function renderAudits() {
     hint: 'Le bandeau du haut résume le dernier audit ; la zone « Critiques » liste ce qui bloque la conformité.',
     nextStep: 'Ensuite : traiter les constats ouverts, puis le suivi d’avancement — le détail technique reste en mode Expert.'
   });
-  auditGuideEl.classList.add('audit-expert-hide-direction');
+  auditGuideEl.classList.add('audit-expert-hide-direction', 'qhse-page-advanced-only');
 
   page.append(
+    auditsPageViewBar,
     auditGuideEl,
     ...(importDraftEl ? [importDraftEl] : []),
     tierScore,
     tierCritical,
-    tierProgress,
-    tierActions
+    auditsAdvancedStack
   );
 
   queueMicrotask(() => {

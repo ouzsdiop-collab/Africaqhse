@@ -13,6 +13,7 @@ import { withSiteQuery } from '../utils/siteFilter.js';
 import { getSessionUserId, getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
+import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import {
   appendActionHistory,
   getActionOverlay,
@@ -360,6 +361,9 @@ function buildFilterToolbar(users, refs, opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'actions-filter-toolbar actions-filter-toolbar--premium';
 
+  const primary = document.createElement('div');
+  primary.className = 'actions-filter-toolbar__primary';
+
   const g2 = document.createElement('div');
   g2.className = 'actions-filter-group';
   const l2 = document.createElement('label');
@@ -480,7 +484,19 @@ function buildFilterToolbar(users, refs, opts = {}) {
   });
   gExp.append(exportBtnAct);
 
-  wrap.append(g2, g3, g4, g5, gExp);
+  primary.append(g2, g3, gExp);
+
+  const adv = document.createElement('details');
+  adv.className = 'qhse-filter-advanced actions-filter-toolbar__advanced';
+  const advSum = document.createElement('summary');
+  advSum.className = 'qhse-filter-advanced__summary';
+  advSum.textContent = 'Priorité, prévention & affinage';
+  const advBody = document.createElement('div');
+  advBody.className = 'qhse-filter-advanced__body';
+  advBody.append(g4, g5);
+  adv.append(advSum, advBody);
+
+  wrap.append(primary, adv);
 
   refs.view = selView;
   refs.status = selStatus;
@@ -495,6 +511,15 @@ export function renderActions() {
 
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--actions-premium';
+
+  const { bar: actionsPageViewBar } = mountPageViewModeSwitch({
+    pageId: 'actions',
+    pageRoot: page,
+    hintEssential:
+      'Vue terrain : synthèse, filtres principaux et kanban — lecture direction / synthèse manager masquée.',
+    hintAdvanced:
+      'Pilotage complet : synthèse direction, filtres étendus et options d’affichage du tableau.'
+  });
 
   if (!isOnline()) {
     const banner = document.createElement('div');
@@ -514,7 +539,7 @@ export function renderActions() {
   offlineCacheBanner.textContent = '📡 Mode hors connexion — données en cache';
 
   const managerHost = document.createElement('div');
-  managerHost.className = 'actions-manager-reading-host';
+  managerHost.className = 'actions-manager-reading-host qhse-page-advanced-only';
 
   const main = document.createElement('article');
   main.className = 'content-card card-soft actions-page__main-card';
@@ -978,13 +1003,17 @@ export function renderActions() {
     });
   });
 
+  const actionsModeGuide = createSimpleModeGuide({
+    title: 'Plan d’actions — par où commencer ?',
+    hint: 'Les filtres avancés sont réduits : gardez « Responsable » et « Statut » pour cadrer votre liste.',
+    nextStep: 'Action principale : traiter d’abord les retards, puis les cartes « À lancer ».'
+  });
+  actionsModeGuide.classList.add('qhse-page-advanced-only');
+
   page.append(
     offlineCacheBanner,
-    createSimpleModeGuide({
-      title: 'Plan d’actions — par où commencer ?',
-      hint: 'Les filtres avancés sont réduits : gardez « Responsable » et « Statut » pour cadrer votre liste.',
-      nextStep: 'Action principale : traiter d’abord les retards, puis les cartes « À lancer ».'
-    }),
+    actionsPageViewBar,
+    actionsModeGuide,
     managerHost,
     main
   );

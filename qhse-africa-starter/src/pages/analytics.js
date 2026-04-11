@@ -504,11 +504,13 @@ function buildKpiGrid(counts, kpis) {
 
   items.forEach((kpi) => {
     const card = document.createElement('article');
-    card.className = 'metric-card card-soft';
+    card.className = `metric-card card-soft dashboard-kpi-card dashboard-kpi-card--tone-${kpi.tone}`;
     card.innerHTML = `
-      <div class="metric-label">${escapeHtml(kpi.label)}</div>
-      <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
-      <div class="metric-note">${escapeHtml(kpi.note)}</div>
+      <div class="dashboard-kpi-card__stack">
+        <div class="metric-label">${escapeHtml(kpi.label)}</div>
+        <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
+        <p class="metric-note metric-note--kpi">${escapeHtml(kpi.note)}</p>
+      </div>
     `;
     grid.append(card);
   });
@@ -586,11 +588,13 @@ function buildPeriodicSummaryGrid(summary) {
   ];
   items.forEach((kpi) => {
     const card = document.createElement('article');
-    card.className = 'metric-card card-soft';
+    card.className = `metric-card card-soft dashboard-kpi-card dashboard-kpi-card--tone-${kpi.tone}`;
     card.innerHTML = `
-      <div class="metric-label">${escapeHtml(kpi.label)}</div>
-      <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
-      <div class="metric-note">${escapeHtml(kpi.note)}</div>
+      <div class="dashboard-kpi-card__stack">
+        <div class="metric-label">${escapeHtml(kpi.label)}</div>
+        <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
+        <p class="metric-note metric-note--kpi">${escapeHtml(kpi.note)}</p>
+      </div>
     `;
     grid.append(card);
   });

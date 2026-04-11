@@ -1,18 +1,13 @@
 import { createDashboardKpiCard } from './dashboardKpiCard.js';
 import { createSkeletonCard } from '../utils/designSystem.js';
 
+/** 5 KPI « above the fold » — notes courtes ; détail = drawer au clic. */
 export const DASHBOARD_KPI_SPECS = [
-  { key: 'incidents', label: 'Incidents', note: 'Total déclarés (périmètre)', tone: 'amber' },
-  { key: 'ncOpen', label: 'NC ouvertes', note: 'Non clos — détail après chargement', tone: 'amber' },
-  {
-    key: 'actionsLate',
-    label: 'Actions en retard',
-    note: 'Échéance dépassée ou statut « retard » (hors clôturées)',
-    tone: 'red'
-  },
-  { key: 'actions', label: 'Actions (total)', note: 'En base sur le périmètre', tone: 'blue' },
-  { key: 'auditScore', label: 'Score moyen audits', note: 'Moyenne sur audits récents', tone: 'green' },
-  { key: 'auditsN', label: 'Audits (liste)', note: 'Nombre sur cette vue', tone: 'blue' }
+  { key: 'incidents', label: 'Incidents', note: 'Périmètre courant', tone: 'amber' },
+  { key: 'ncOpen', label: 'NC ouvertes', note: 'Non clos', tone: 'amber' },
+  { key: 'actionsLate', label: 'Actions en retard', note: 'Hors clôturées', tone: 'red' },
+  { key: 'auditScore', label: 'Score audits', note: 'Moyenne', tone: 'green' },
+  { key: 'auditsN', label: 'Audits', note: 'Cette vue', tone: 'blue' }
 ];
 
 /**
@@ -36,8 +31,6 @@ export function renderKpiCards(opts) {
       value: '—',
       note: spec.note,
       tone: spec.tone,
-      deltaLabel: 'Variation: —',
-      impactLabel: 'Site impacté: —',
       kpiKey: spec.key,
       onOpen: (key) => onOpenDetail(key)
     });
@@ -54,7 +47,7 @@ export function renderKpiCards(opts) {
   kpiStickyInner.className = 'dashboard-kpi-sticky-inner';
   const kpiSkeletonLayer = document.createElement('div');
   kpiSkeletonLayer.className = 'kpi-grid dashboard-kpi-grid dashboard-kpi-skeleton-layer';
-  for (let i = 0; i < 4; i++) kpiSkeletonLayer.append(createSkeletonCard(4));
+  for (let i = 0; i < 5; i++) kpiSkeletonLayer.append(createSkeletonCard(4));
   kpiStickyInner.append(kpiGrid, kpiSkeletonLayer);
   kpiStickyWrap.append(kpiStickyInner);
 
