@@ -66,6 +66,8 @@ import {
   formatDashboardCount
 } from '../utils/dashboardMetrics.js';
 
+const DC_CHART_FONT = 'Inter, system-ui, sans-serif';
+
 function getCssVar(name, fallback = '') {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
