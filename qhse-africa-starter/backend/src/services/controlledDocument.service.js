@@ -9,7 +9,7 @@ import { isRequireAuthEnabled } from '../lib/securityConfig.js';
 import { readControlledFileBuffer, saveControlledFile, deleteControlledFile } from './documentStorage.service.js';
 import { addWatermarkToPdf } from './documentWatermark.service.js';
 
-const CLASSIFICATIONS = new Set(['normal', 'sensible', 'critique']);
+const CLASSIFICATIONS = new Set(['normal', 'sensible', 'critique', 'confidentiel']);
 
 const RENEW_DAYS = 30;
 
@@ -59,11 +59,20 @@ export function canAccessControlledDocument(user, classification, need = 'read')
   const verb = need === 'write' ? 'write' : 'read';
   if (!can(role, 'controlled_documents', verb)) return false;
   const c = normalizeClassification(classification);
-  if (c === 'critique') {
+  if (c === 'critique' || c === 'confidentiel') {
     return role === 'ADMIN' || role === 'QHSE';
   }
   if (c === 'sensible') {
-    return ['ADMIN', 'QHSE', 'DIRECTION', 'ASSISTANT', 'TERRAIN'].includes(role);
+    return [
+      'ADMIN',
+      'QHSE',
+      'DIRECTION',
+      'MANAGER',
+      'AUDITEUR',
+      'ASSISTANT',
+      'TERRAIN',
+      'OPERATEUR'
+    ].includes(role);
   }
   return true;
 }
@@ -231,6 +240,9 @@ export async function updateControlledDocumentMeta(tenantId, id, patch) {
   }
   if (patch.type != null && String(patch.type).trim()) {
     data.type = String(patch.type).trim().slice(0, 120);
+  }
+  if ('classification' in patch) {
+    data.classification = normalizeClassification(patch.classification);
   }
   if (Object.keys(data).length === 0) {
     const err = new Error('Aucun champ à mettre à jour');

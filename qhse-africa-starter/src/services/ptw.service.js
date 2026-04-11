@@ -1,39 +1,10 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
-const STORAGE_KEY = 'qhse.ptw.permits.v1';
+import { withSiteQuery } from '../utils/siteFilter.js';
+
 const SYNC_QUEUE_KEY = 'qhse.ptw.signatures.syncQueue.v1';
 
-/**
- * @typedef {'pending'|'open'|'validated'|'in_progress'|'closed'} PtwStatus
- */
-
-/**
- * @returns {Array<Record<string, any>>}
- */
-function readRaw() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * @param {Array<Record<string, any>>} items
- */
-function writeRaw(items) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
-
-/**
- * @returns {boolean}
- */
-function isOnline() {
-  if (typeof navigator === 'undefined') return true;
-  return navigator.onLine !== false;
-}
+/** @type {Array<Record<string, any>>} */
+let permitsCache = [];
 
 /**
  * @returns {Array<Record<string, any>>}
@@ -57,6 +28,14 @@ function writeQueue(queue) {
 }
 
 /**
+ * @returns {boolean}
+ */
+function isOnline() {
+  if (typeof navigator === 'undefined') return true;
+  return navigator.onLine !== false;
+}
+
+/**
  * @param {Record<string, any>} permit
  * @param {string} event
  * @param {Record<string, any>} [meta]
@@ -71,10 +50,172 @@ function appendAuditTrail(permit, event, meta = {}) {
 }
 
 /**
+ * @param {Record<string, any>} row
+ */
+function upsertCacheRow(row) {
+  if (!row || !row.id) return;
+  const i = permitsCache.findIndex((p) => p && p.id === row.id);
+  if (i >= 0) permitsCache[i] = row;
+  else permitsCache.unshift(row);
+}
+
+/**
+ * @param {Record<string, any>} permit
+ */
+function apiBodyFromPermit(permit) {
+  const body = { ...permit };
+  delete body.id;
+  delete body.ref;
+  delete body.synced;
+  delete body.syncState;
+  delete body.syncPendingCount;
+  delete body.createdAt;
+  delete body.updatedAt;
+  return body;
+}
+
+/**
+ * Charge les permis depuis l’API et fusionne avec les fiches locales non synchronisées.
+ * @returns {Promise<void>}
+ */
+export async function refreshPermitsFromApi() {
+  try {
+    const res = await qhseFetch(withSiteQuery('/api/ptw'));
+    if (!res.ok) return;
+    const rows = await res.json().catch(() => null);
+    if (!Array.isArray(rows)) return;
+    const locals = permitsCache.filter((p) => p && p.synced === false);
+    const merged = [...rows];
+    for (const l of locals) {
+      if (!rows.some((r) => r && r.id === l.id)) merged.push(l);
+    }
+    permitsCache = merged;
+  } catch {
+    /* hors-ligne */
+  }
+}
+
+/**
+ * @returns {Promise<{ flushed: number; pending: number }>}
+ */
+export async function flushSyncQueue() {
+  if (!isOnline()) return { flushed: 0, pending: readQueue().length };
+  const q = readQueue();
+  if (!q.length) return { flushed: 0, pending: 0 };
+  /** @type {Map<string, string>} */
+  const idMap = new Map();
+  const remaining = [];
+  let flushed = 0;
+
+  for (const item of q) {
+    if (item && item.kind === 'create' && item.body) {
+      try {
+        const res = await qhseFetch(withSiteQuery('/api/ptw'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.body)
+        });
+        if (!res.ok) {
+          remaining.push(item);
+          continue;
+        }
+        const row = await res.json();
+        const tempId = typeof item.tempId === 'string' ? item.tempId : '';
+        if (tempId && row.id) idMap.set(tempId, row.id);
+        permitsCache = permitsCache.filter((p) => p && p.id !== tempId);
+        upsertCacheRow(row);
+        flushed += 1;
+      } catch {
+        remaining.push(item);
+      }
+      continue;
+    }
+
+    if (item && item.kind === 'sign' && item.permitId && item.role && item.data) {
+      const mapped = idMap.get(item.permitId) || item.permitId;
+      try {
+        const res = await qhseFetch(`/api/ptw/${encodeURIComponent(mapped)}/sign`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: item.role,
+            name: item.data.name,
+            signatureDataUrl: item.data.signatureDataUrl || '',
+            userId: item.data.userId || '',
+            userLabel: item.data.userLabel || ''
+          })
+        });
+        if (!res.ok) {
+          remaining.push(item);
+          continue;
+        }
+        const row = await res.json();
+        upsertCacheRow(row);
+        flushed += 1;
+      } catch {
+        remaining.push(item);
+      }
+      continue;
+    }
+
+    if (item && item.permitId && item.signatureId) {
+      const pid = idMap.get(item.permitId) || item.permitId;
+      const p = permitsCache.find((x) => x && x.id === pid);
+      const sig = p?.signatures?.find((s) => s && s.id === item.signatureId);
+      if (!p || !sig) {
+        remaining.push(item);
+        continue;
+      }
+      try {
+        const res = await qhseFetch(`/api/ptw/${encodeURIComponent(pid)}/sign`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: sig.role,
+            name: sig.name,
+            signatureDataUrl: sig.signatureDataUrl || '',
+            userId: sig.userId || '',
+            userLabel: sig.userLabel || ''
+          })
+        });
+        if (!res.ok) {
+          remaining.push(item);
+          continue;
+        }
+        const row = await res.json();
+        upsertCacheRow(row);
+        sig.syncStatus = 'synced';
+        flushed += 1;
+      } catch {
+        remaining.push(item);
+      }
+      continue;
+    }
+
+    remaining.push(item);
+  }
+
+  writeQueue(remaining);
+  return { flushed, pending: remaining.length };
+}
+
+function installOnlineFlushOnce() {
+  if (typeof window === 'undefined' || window.__qhsePtwOnlineFlush) return;
+  window.__qhsePtwOnlineFlush = true;
+  window.addEventListener('online', () => {
+    void flushSyncQueue();
+  });
+}
+
+installOnlineFlushOnce();
+
+/**
  * @returns {Array<Record<string, any>>}
  */
 export function listPermits() {
-  return readRaw().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  return [...permitsCache].sort((a, b) =>
+    String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+  );
 }
 
 /**
@@ -87,13 +228,12 @@ export function listPermits() {
  *  checklist: string[];
  *  epi: string[];
  *  safetyConditions: string[];
- *  status: PtwStatus;
+ *  status: string;
  * }} payload
  */
-export function createPermit(payload) {
+export async function createPermit(payload) {
   const now = new Date().toISOString();
   const permit = {
-    id: `ptw_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     type: payload.type,
     description: payload.description,
     zone: payload.zone,
@@ -110,20 +250,48 @@ export function createPermit(payload) {
     closedBy: '',
     validations: {
       supervisor: { signed: false, name: '', signedAt: '', signatureDataUrl: '' },
-      qhse: { signed: false, name: '', signedAt: '', signatureDataUrl: '' }
+      qhse: { signed: false, name: '', signedAt: '', signatureDataUrl: '' },
+      responsable: { signed: false, name: '', signedAt: '', signatureDataUrl: '' }
     },
     signatures: [],
     synced: false,
-    syncState: 'synced',
+    syncState: 'local',
     syncPendingCount: 0,
     auditTrail: [],
     createdAt: now,
     updatedAt: now
   };
   appendAuditTrail(permit, 'permit_created', { status: permit.status });
-  const items = readRaw();
-  items.push(permit);
-  writeRaw(items);
+
+  if (isOnline()) {
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/ptw'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiBodyFromPermit(permit))
+      });
+      if (res.ok) {
+        const row = await res.json();
+        upsertCacheRow(row);
+        return row;
+      }
+    } catch {
+      /* file d’attente terrain */
+    }
+  }
+
+  const tempId = `ptw_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  permit.id = tempId;
+  permit.ref = `LOCAL-${tempId}`;
+  permitsCache.push(permit);
+  const queue = readQueue();
+  queue.push({
+    kind: 'create',
+    tempId,
+    body: apiBodyFromPermit(permit),
+    queuedAt: now
+  });
+  writeQueue(queue);
   return permit;
 }
 
@@ -131,30 +299,38 @@ export function createPermit(payload) {
  * @param {string} id
  * @param {Record<string, any>} patch
  */
-export function patchPermit(id, patch) {
-  const items = readRaw();
-  const hit = items.find((x) => x.id === id);
+export async function patchPermit(id, patch) {
+  const hit = permitsCache.find((x) => x && x.id === id);
   if (!hit) return null;
   Object.assign(hit, patch || {});
   hit.updatedAt = new Date().toISOString();
   appendAuditTrail(hit, 'permit_patched', { keys: Object.keys(patch || {}) });
-  writeRaw(items);
+
+  if (isOnline() && hit.synced !== false) {
+    try {
+      const res = await qhseFetch(`/api/ptw/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch || {})
+      });
+      if (res.ok) {
+        const row = await res.json();
+        upsertCacheRow(row);
+        return row;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   return hit;
 }
 
 /**
  * @param {string} id
- * @param {PtwStatus} status
+ * @param {string} status
  */
-export function updatePermitStatus(id, status) {
-  const items = readRaw();
-  const hit = items.find((x) => x.id === id);
-  if (!hit) return null;
-  hit.status = status;
-  hit.updatedAt = new Date().toISOString();
-  appendAuditTrail(hit, 'status_updated', { status });
-  writeRaw(items);
-  return hit;
+export async function updatePermitStatus(id, status) {
+  return patchPermit(id, { status });
 }
 
 /**
@@ -162,9 +338,8 @@ export function updatePermitStatus(id, status) {
  * @param {'supervisor'|'qhse'|'responsable'|string} role
  * @param {{ name: string; signatureDataUrl?: string; userId?: string; userLabel?: string }} data
  */
-export function signPermit(id, role, data) {
-  const items = readRaw();
-  const hit = items.find((x) => x.id === id);
+export async function signPermit(id, role, data) {
+  const hit = permitsCache.find((x) => x && x.id === id);
   if (!hit) return null;
   const online = isOnline();
   const signedAt = new Date().toISOString();
@@ -192,10 +367,50 @@ export function signPermit(id, role, data) {
     };
   }
 
-  if (!online) {
+  let signedViaApi = false;
+  if (online && hit.synced !== false) {
+    try {
+      const res = await qhseFetch(`/api/ptw/${encodeURIComponent(id)}/sign`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role,
+          name: data.name || '',
+          signatureDataUrl: data.signatureDataUrl || '',
+          userId: data.userId || '',
+          userLabel: data.userLabel || ''
+        })
+      });
+      if (res.ok) {
+        const row = await res.json();
+        upsertCacheRow(row);
+        signedViaApi = true;
+      }
+    } catch {
+      /* file d’attente */
+    }
+  }
+
+  if (!signedViaApi) {
     const queue = readQueue();
-    queue.push({ permitId: id, signatureId, queuedAt: signedAt });
+    queue.push({
+      kind: 'sign',
+      permitId: id,
+      role,
+      data: {
+        name: data.name || '',
+        signatureDataUrl: data.signatureDataUrl || '',
+        userId: data.userId || '',
+        userLabel: data.userLabel || ''
+      },
+      signatureId,
+      queuedAt: signedAt
+    });
     writeQueue(queue);
+  }
+
+  if (signedViaApi) {
+    return permitsCache.find((x) => x && x.id === id) || hit;
   }
 
   const bothSigned = hit.validations.supervisor?.signed && hit.validations.qhse?.signed;
@@ -208,7 +423,6 @@ export function signPermit(id, role, data) {
     syncStatus: online ? 'synced' : 'pending_sync'
   });
   hit.updatedAt = new Date().toISOString();
-  writeRaw(items);
   return hit;
 }
 
@@ -219,66 +433,9 @@ export function getSyncState() {
   };
 }
 
+/**
+ * @deprecated Utiliser {@link flushSyncQueue} (async).
+ */
 export function syncPendingSignatures() {
-  if (!isOnline()) return { synced: 0, pending: readQueue().length };
-  const queue = readQueue();
-  if (!queue.length) return { synced: 0, pending: 0 };
-  const items = readRaw();
-  let synced = 0;
-  queue.forEach((q) => {
-    const permit = items.find((x) => x.id === q.permitId);
-    if (!permit || !Array.isArray(permit.signatures)) return;
-    const sig = permit.signatures.find((s) => s.id === q.signatureId);
-    if (!sig || sig.syncStatus === 'synced') return;
-    sig.syncStatus = 'synced';
-    synced += 1;
-    appendAuditTrail(permit, 'signature_synced', {
-      signatureId: sig.id,
-      role: sig.role,
-      signedBy: sig.name || ''
-    });
-    permit.syncPendingCount = permit.signatures.filter((s) => s.syncStatus === 'pending_sync').length;
-    permit.syncState = permit.syncPendingCount > 0 ? 'pending_sync' : 'synced';
-    permit.updatedAt = new Date().toISOString();
-  });
-  writeRaw(items);
-  writeQueue([]);
-  return { synced, pending: 0 };
-}
-
-export async function syncPermitsToApi() {
-  if (!isOnline()) return { synced: 0, pending: listPermits().filter((p) => !p?.synced).length };
-  const items = readRaw();
-  const unsynced = items.filter((p) => !p?.synced);
-  if (!unsynced.length) return { synced: 0, pending: 0 };
-  let synced = 0;
-  for (const permit of unsynced) {
-    const owner =
-      permit?.validations?.supervisor?.name ||
-      permit?.team ||
-      permit?.closedBy ||
-      'Responsable PTW';
-    try {
-      const res = await qhseFetch('/api/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: String(permit?.type || 'Permis de travail'),
-          detail: JSON.stringify(permit),
-          status: 'À lancer',
-          owner
-        })
-      });
-      if (!res.ok) continue;
-      permit.synced = true;
-      permit.syncState = permit.syncPendingCount > 0 ? 'pending_sync' : 'synced';
-      permit.updatedAt = new Date().toISOString();
-      appendAuditTrail(permit, 'permit_synced_to_api', { endpoint: '/api/actions' });
-      synced += 1;
-    } catch {
-      // Keep local mode intact: skip and retry later.
-    }
-  }
-  writeRaw(items);
-  return { synced, pending: items.filter((p) => !p?.synced).length };
+  return { synced: 0, pending: readQueue().length };
 }

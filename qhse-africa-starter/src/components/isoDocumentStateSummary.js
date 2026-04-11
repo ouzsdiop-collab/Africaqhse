@@ -2,18 +2,18 @@
  * Bloc résumé état documents ISO — extrait de pages/iso.js.
  */
 
-import { computeDocumentRegistrySummary } from '../data/conformityStore.js';
+import { computeDocumentRegistrySummary } from '../services/documentRegistry.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 export function createDocumentStateSummaryBlock() {
   const wrap = document.createElement('div');
   wrap.className = 'iso-doc-summary';
-  const summary = computeDocumentRegistrySummary();
+  const summary = computeDocumentRegistrySummary([]);
   const total = summary.total || 0;
-  const ok = summary.conforme || 0;
-  const partial = summary.partiel || 0;
-  const ko = summary.non_conforme || 0;
-  const pending = summary.pending || 0;
+  const ok = summary.valide || 0;
+  const partial = summary.aRenouveler || 0;
+  const ko = summary.expire || 0;
+  const pending = summary.sans || 0;
   wrap.innerHTML = `
     <div class="iso-doc-summary__grid">
       <div class="iso-doc-summary__item">

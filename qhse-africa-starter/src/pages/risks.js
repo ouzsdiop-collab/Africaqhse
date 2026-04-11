@@ -165,7 +165,7 @@ export function renderRisks() {
     });
   }
 
-  function createPtwFromRisk(riskTitle) {
+  async function createPtwFromRisk(riskTitle) {
     const t = String(riskTitle || '').trim();
     if (!t) return;
     const type = /électri/i.test(t)
@@ -175,7 +175,7 @@ export function renderRisks() {
         : /confin/i.test(t)
           ? 'espace confiné'
           : 'travail en hauteur';
-    const permit = createPermit({
+    const permit = await createPermit({
       type,
       description: `PTW généré depuis risque: ${t}`,
       zone: appState.currentSite || 'Zone opérationnelle',
@@ -968,7 +968,7 @@ export function renderRisks() {
         onCreatePreventiveAction: (title) => {
           void openPreventiveActionFromRisks(title);
         },
-        onCreatePtwFromRisk: (title) => createPtwFromRisk(title),
+        onCreatePtwFromRisk: (title) => void createPtwFromRisk(title),
         onSheetBodyReady: (innerEl, riskRow) => attachRiskMistralMitigationSection(innerEl, riskRow),
         tableColumnMode: risksTableColumnMode
       });

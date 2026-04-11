@@ -7,7 +7,16 @@ import {
 } from '../lib/validation.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
 
-const ROLES = new Set(['ADMIN', 'QHSE', 'DIRECTION', 'ASSISTANT', 'TERRAIN']);
+const ROLES = new Set([
+  'ADMIN',
+  'QHSE',
+  'DIRECTION',
+  'MANAGER',
+  'OPERATEUR',
+  'AUDITEUR',
+  'TERRAIN',
+  'ASSISTANT'
+]);
 
 function isValidRole(role) {
   return typeof role === 'string' && ROLES.has(role.trim().toUpperCase());

@@ -3,6 +3,11 @@ import multer from 'multer';
 import * as controller from '../controllers/controlledDocuments.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
 import { controlledDocumentUploadLimiter } from '../middleware/apiRateLimit.middleware.js';
+import { validateBody } from '../lib/validation.js';
+import {
+  createControlledDocumentSchema,
+  patchControlledDocumentSchema
+} from '../validation/controlledDocumentSchemas.js';
 import { prisma } from '../db.js';
 import { parseFdsDocument } from '../services/documentClassification.service.js';
 
@@ -64,6 +69,7 @@ router.post(
   controlledDocumentUploadLimiter,
   requirePermission('controlled_documents', 'write'),
   controller.uploadSingleControlledFile,
+  validateBody(createControlledDocumentSchema),
   controller.create
 );
 
@@ -219,6 +225,7 @@ router.post(
 router.patch(
   '/:id',
   requirePermission('controlled_documents', 'write'),
+  validateBody(patchControlledDocumentSchema),
   controller.patchMeta
 );
 

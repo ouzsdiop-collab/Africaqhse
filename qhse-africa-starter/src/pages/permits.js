@@ -3,12 +3,12 @@ import { showToast } from '../components/toast.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import {
   createPermit,
+  flushSyncQueue,
   getSyncState,
   listPermits,
   patchPermit,
+  refreshPermitsFromApi,
   signPermit,
-  syncPermitsToApi,
-  syncPendingSignatures,
   updatePermitStatus
 } from '../services/ptw.service.js';
 import { getLinksFor, linkModules } from '../services/moduleLinks.service.js';
@@ -403,50 +403,52 @@ export function renderPermits() {
       renderWizard();
     });
     wizardCard.querySelector('[data-next]').addEventListener('click', () => {
-      readStepFields();
-      if (state.step === 1 && !state.draft.type) return showToast('Choisir un type.', 'error');
-      if (
-        state.step === 2 &&
-        (!state.draft.zone || !state.draft.description || !state.draft.team || !state.draft.date)
-      ) {
-        return showToast('Compléter les infos rapides.', 'error');
-      }
-      if (state.step === 4) {
-        const m = state.draft.mandatory;
-        if (!m.epi || !m.zoneSecure || !m.authorization) {
-          return showToast('Checklist sécurité obligatoire à compléter.', 'error');
+      void (async () => {
+        readStepFields();
+        if (state.step === 1 && !state.draft.type) return showToast('Choisir un type.', 'error');
+        if (
+          state.step === 2 &&
+          (!state.draft.zone || !state.draft.description || !state.draft.team || !state.draft.date)
+        ) {
+          return showToast('Compléter les infos rapides.', 'error');
         }
-      }
-      if (state.step < 7) {
-        state.step += 1;
-        renderWizard();
-        return;
-      }
-      const permit = createPermit({
-        type: state.draft.type,
-        description: state.draft.description,
-        zone: state.draft.zone,
-        date: state.draft.date,
-        team: state.draft.team,
-        checklist: state.draft.checklist.map((x) => (x.checked ? `${x.label} (OK)` : `${x.label} (NOK)`)),
-        epi: state.draft.epi,
-        safetyConditions: state.draft.safetyConditions,
-        riskAnalysis: state.draft.riskAnalysis,
-        validationMode: state.draft.validationMode,
-        status: 'pending'
-      });
-      Object.entries(state.draft.signatures).forEach(([role, sig]) => {
-        if (!sig?.name) return;
-        signPermit(permit.id, role, {
-          name: sig.name,
-          signatureDataUrl: sig.signatureDataUrl,
-          userId: getSessionUser()?.id || '',
-          userLabel: getSessionUser()?.name || ''
+        if (state.step === 4) {
+          const m = state.draft.mandatory;
+          if (!m.epi || !m.zoneSecure || !m.authorization) {
+            return showToast('Checklist sécurité obligatoire à compléter.', 'error');
+          }
+        }
+        if (state.step < 7) {
+          state.step += 1;
+          renderWizard();
+          return;
+        }
+        const permit = await createPermit({
+          type: state.draft.type,
+          description: state.draft.description,
+          zone: state.draft.zone,
+          date: state.draft.date,
+          team: state.draft.team,
+          checklist: state.draft.checklist.map((x) => (x.checked ? `${x.label} (OK)` : `${x.label} (NOK)`)),
+          epi: state.draft.epi,
+          safetyConditions: state.draft.safetyConditions,
+          riskAnalysis: state.draft.riskAnalysis,
+          validationMode: state.draft.validationMode,
+          status: 'pending'
         });
-      });
-      showToast('Permis créé.', 'success');
-      wizardCard.hidden = true;
-      renderLists();
+        for (const [role, sig] of Object.entries(state.draft.signatures)) {
+          if (!sig?.name) continue;
+          await signPermit(permit.id, role, {
+            name: sig.name,
+            signatureDataUrl: sig.signatureDataUrl,
+            userId: getSessionUser()?.id || '',
+            userLabel: getSessionUser()?.name || ''
+          });
+        }
+        showToast('Permis créé.', 'success');
+        wizardCard.hidden = true;
+        await renderLists();
+      })();
     });
 
     if (state.step === 6) {
@@ -487,27 +489,29 @@ export function renderPermits() {
       quickCard.hidden = true;
     });
     quickCard.querySelector('[data-q-create]').addEventListener('click', () => {
-      const type = quickCard.querySelector('[data-q="type"]').value;
-      const zone = quickCard.querySelector('[data-q="zone"]').value.trim();
-      const team = quickCard.querySelector('[data-q="team"]').value.trim();
-      if (!zone || !team) return showToast('Zone et responsable requis.', 'error');
-      const baseChecks = TYPE_CHECKLIST[type] || [];
-      createPermit({
-        type,
-        zone,
-        team,
-        description: `PTW terrain rapide (${type})`,
-        date: new Date().toISOString().slice(0, 10),
-        checklist: baseChecks.map((x) => `${x} (OK)`),
-        epi: ['Casque', 'Gants'],
-        safetyConditions: ['Zone sécurisée'],
-        riskAnalysis: TYPE_RISK_HINTS[type] || 'Risque standard terrain.',
-        validationMode: 'simple',
-        status: 'pending'
-      });
-      showToast('PTW créé en mode ultra-rapide.', 'success');
-      quickCard.hidden = true;
-      renderLists();
+      void (async () => {
+        const type = quickCard.querySelector('[data-q="type"]').value;
+        const zone = quickCard.querySelector('[data-q="zone"]').value.trim();
+        const team = quickCard.querySelector('[data-q="team"]').value.trim();
+        if (!zone || !team) return showToast('Zone et responsable requis.', 'error');
+        const baseChecks = TYPE_CHECKLIST[type] || [];
+        await createPermit({
+          type,
+          zone,
+          team,
+          description: `PTW terrain rapide (${type})`,
+          date: new Date().toISOString().slice(0, 10),
+          checklist: baseChecks.map((x) => `${x} (OK)`),
+          epi: ['Casque', 'Gants'],
+          safetyConditions: ['Zone sécurisée'],
+          riskAnalysis: TYPE_RISK_HINTS[type] || 'Risque standard terrain.',
+          validationMode: 'simple',
+          status: 'pending'
+        });
+        showToast('PTW créé en mode ultra-rapide.', 'success');
+        quickCard.hidden = true;
+        await renderLists();
+      })();
     });
   }
 
@@ -572,8 +576,10 @@ export function renderPermits() {
     const actions = document.createElement('div');
     actions.className = 'ptw-item-actions';
     const status = createStatusSelect(it.status, (v) => {
-      updatePermitStatus(it.id, v);
-      renderLists();
+      void (async () => {
+        await updatePermitStatus(it.id, v);
+        await renderLists();
+      })();
     });
     actions.append(status);
     const closeBtn = document.createElement('button');
@@ -581,11 +587,13 @@ export function renderPermits() {
     closeBtn.className = 'btn btn-secondary';
     closeBtn.textContent = 'Clôturer';
     closeBtn.addEventListener('click', () => {
-      const closer = window.prompt('Validation clôture terrain (nom) ?', '');
-      if (!closer) return;
-      patchPermit(it.id, { closedBy: closer, closedAt: new Date().toISOString() });
-      updatePermitStatus(it.id, 'closed');
-      renderLists();
+      void (async () => {
+        const closer = window.prompt('Validation clôture terrain (nom) ?', '');
+        if (!closer) return;
+        await patchPermit(it.id, { closedBy: closer, closedAt: new Date().toISOString() });
+        await updatePermitStatus(it.id, 'closed');
+        await renderLists();
+      })();
     });
     actions.append(closeBtn);
     const toAction = document.createElement('button');
@@ -639,10 +647,12 @@ export function renderPermits() {
     activateBtn.className = 'btn btn-secondary';
     activateBtn.textContent = 'Activer PTW';
     activateBtn.addEventListener('click', () => {
-      patchPermit(it.id, { activatedAt: new Date().toISOString() });
-      updatePermitStatus(it.id, 'in_progress');
-      showToast('PTW activé.', 'success');
-      renderLists();
+      void (async () => {
+        await patchPermit(it.id, { activatedAt: new Date().toISOString() });
+        await updatePermitStatus(it.id, 'in_progress');
+        showToast('PTW activé.', 'success');
+        await renderLists();
+      })();
     });
     const pdfBtn = document.createElement('button');
     pdfBtn.type = 'button';
@@ -698,25 +708,27 @@ export function renderPermits() {
     });
     signPanel.querySelector('[data-inline-clear]').addEventListener('click', () => signTools.clear());
     signPanel.querySelector('[data-inline-save]').addEventListener('click', () => {
-      const role = signPanel.querySelector('[data-inline-role]').value;
-      const n = signPanel.querySelector('[data-inline-name]').value.trim();
-      if (!n) return showToast('Nom du signataire requis.', 'error');
-      signPermit(it.id, role, {
-        name: n,
-        signatureDataUrl: signTools.dataUrl(),
-        userId: getSessionUser()?.id || '',
-        userLabel: getSessionUser()?.name || ''
-      });
-      showToast('PTW signé.', 'success');
-      renderLists();
+      void (async () => {
+        const role = signPanel.querySelector('[data-inline-role]').value;
+        const n = signPanel.querySelector('[data-inline-name]').value.trim();
+        if (!n) return showToast('Nom du signataire requis.', 'error');
+        await signPermit(it.id, role, {
+          name: n,
+          signatureDataUrl: signTools.dataUrl(),
+          userId: getSessionUser()?.id || '',
+          userLabel: getSessionUser()?.name || ''
+        });
+        showToast('PTW signé.', 'success');
+        await renderLists();
+      })();
     });
     return row;
   }
 
-  function renderLists() {
-    const syncResult = syncPendingSignatures();
-    if (syncResult.synced > 0) {
-      showToast(`${syncResult.synced} signature(s) synchronisée(s).`, 'success');
+  async function renderLists() {
+    const syncResult = await flushSyncQueue();
+    if (syncResult.flushed > 0) {
+      showToast(`${syncResult.flushed} opération(s) synchronisée(s).`, 'success');
     }
     const openHost = inProgressCard.querySelector('[data-open-items]');
     const closedHost = closedCard.querySelector('[data-closed-items]');
@@ -788,16 +800,21 @@ export function renderPermits() {
     renderQuickCreate();
   });
 
-  window.addEventListener('online', () => renderLists());
-  window.addEventListener('offline', () => renderLists());
-  void syncPermitsToApi()
+  window.addEventListener('online', () => {
+    void flushSyncQueue().then(() => renderLists());
+  });
+  window.addEventListener('offline', () => {
+    void renderLists();
+  });
+  void refreshPermitsFromApi()
+    .then(() => flushSyncQueue())
     .then((r) => {
-      if (r?.synced > 0) showToast(`${r.synced} permis synchronisé(s).`, 'success');
-      renderLists();
+      if (r?.flushed > 0) showToast(`${r.flushed} opération(s) synchronisée(s).`, 'success');
+      return renderLists();
     })
     .catch(() => {
-      // Keep UI fully offline-first.
+      void renderLists();
     });
-  renderLists();
+  void renderLists();
   return page;
 }

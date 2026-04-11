@@ -142,33 +142,33 @@ async function main() {
    * USINE-ABJ : concassage, lixiviation, laboratoire, stockage réactifs.
    * EXPL-BON : forage reconnaissance, géotech, hors chaîne usine.
    */
-  const SITE_MINE = 'SODEMI_MINE_YAKRO';
-  const SITE_USINE = 'SODEMI_USINE_ABJ';
-  const SITE_EXPL = 'SODEMI_EXPLORATION_BON';
+  const KATIOLA_MINE_YAKRO = 'KATIOLA_MINE_YAKRO';
+  const KATIOLA_USINE_ABJ = 'KATIOLA_USINE_ABJ';
+  const KATIOLA_EXPLORATION_BON = 'KATIOLA_EXPLORATION_BON';
 
   await prisma.site.create({
     data: {
-      id: SITE_MINE,
+      id: KATIOLA_MINE_YAKRO,
       tenantId: null,
-      name: 'Mine à ciel ouvert — Yakro (extraction & forage)',
+      name: 'Katiola Mining — Site Extraction Yakouro',
       code: 'MINE-YAKRO',
       address: "Front d'exploitation aurifère — forage, extraction et transport stériles"
     }
   });
   await prisma.site.create({
     data: {
-      id: SITE_USINE,
+      id: KATIOLA_USINE_ABJ,
       tenantId: null,
-      name: 'Usine traitement — Abidjan (concassage & lixiviation)',
+      name: 'Katiola Mining — Usine Traitement Abidjan',
       code: 'USINE-ABJ',
       address: 'Unité de traitement du minerai, bassins, atelier lixiviation et laboratoire'
     }
   });
   await prisma.site.create({
     data: {
-      id: SITE_EXPL,
+      id: KATIOLA_EXPLORATION_BON,
       tenantId: null,
-      name: 'Camp exploration — Bondoukou (forage reconnaissance)',
+      name: 'Katiola Mining — Zone Exploration Bondoukou',
       code: 'EXPL-BON',
       address: 'Plateformes de forage exploration, géotechnique et hydrogéologie'
     }
@@ -198,7 +198,7 @@ async function main() {
       gravity: 5,
       status: 'open',
       owner: qhse?.name ?? 'QHSE',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       ref: 'RSK-2026-02',
@@ -209,7 +209,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: extraction?.name ?? 'QHSE',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       ref: 'RSK-2026-03',
@@ -220,7 +220,7 @@ async function main() {
       gravity: 5,
       status: 'open',
       owner: qhse?.name ?? 'QHSE',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       ref: 'RSK-2026-04',
@@ -231,7 +231,7 @@ async function main() {
       gravity: 5,
       status: 'mitigation',
       owner: forage?.name ?? 'Forage',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       ref: 'RSK-2026-05',
@@ -242,7 +242,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: terrain?.name ?? 'Terrain',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       ref: 'RSK-2026-06',
@@ -253,7 +253,7 @@ async function main() {
       gravity: 3,
       status: 'open',
       owner: direction?.name ?? 'Direction',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       ref: 'RSK-2026-07',
@@ -264,7 +264,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: concassage?.name ?? 'Assistant',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       ref: 'RSK-2026-08',
@@ -275,7 +275,7 @@ async function main() {
       gravity: 3,
       status: 'open',
       owner: assistant?.name ?? 'Assistant',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       ref: 'RSK-2026-09',
@@ -286,7 +286,7 @@ async function main() {
       gravity: 3,
       status: 'open',
       owner: forage?.name ?? 'Forage',
-      siteId: SITE_EXPL
+      siteId: KATIOLA_EXPLORATION_BON
     },
     {
       ref: 'RSK-2026-10',
@@ -297,7 +297,7 @@ async function main() {
       gravity: 2,
       status: 'mitigation',
       owner: terrain?.name ?? 'Terrain',
-      siteId: SITE_EXPL
+      siteId: KATIOLA_EXPLORATION_BON
     },
     {
       ref: 'RSK-2026-11',
@@ -308,7 +308,7 @@ async function main() {
       gravity: 4,
       status: 'open',
       owner: forage?.name ?? 'Forage',
-      siteId: SITE_EXPL
+      siteId: KATIOLA_EXPLORATION_BON
     }
   ];
 
@@ -338,7 +338,7 @@ async function main() {
       ref: 'INC-2026-001',
       type: 'Engin / circulation',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'critique',
       status: 'Investigation',
       days: 18,
@@ -349,7 +349,7 @@ async function main() {
       ref: 'INC-2026-002',
       type: 'Accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'critique',
       status: 'En cours',
       days: 35,
@@ -360,7 +360,7 @@ async function main() {
       ref: 'INC-2026-003',
       type: 'Environnement',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'critique',
       status: 'Clôturé',
       days: 52,
@@ -371,7 +371,7 @@ async function main() {
       ref: 'INC-2026-004',
       type: 'Accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'critique',
       status: 'Clôturé',
       days: 78,
@@ -382,7 +382,7 @@ async function main() {
       ref: 'INC-2026-005',
       type: 'Engin / circulation',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'critique',
       status: 'Clôturé',
       days: 112,
@@ -393,7 +393,7 @@ async function main() {
       ref: 'INC-2026-006',
       type: 'Quasi-accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'moyen',
       status: 'Nouveau',
       days: 8,
@@ -404,7 +404,7 @@ async function main() {
       ref: 'INC-2026-007',
       type: 'Accident',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'moyen',
       status: 'En cours',
       days: 14,
@@ -415,7 +415,7 @@ async function main() {
       ref: 'INC-2026-008',
       type: 'Environnement',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'moyen',
       status: 'En cours',
       days: 22,
@@ -426,7 +426,7 @@ async function main() {
       ref: 'INC-2026-009',
       type: 'Quasi-accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'moyen',
       status: 'Investigation',
       days: 41,
@@ -437,7 +437,7 @@ async function main() {
       ref: 'INC-2026-010',
       type: 'Accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'moyen',
       status: 'Clôturé',
       days: 55,
@@ -448,7 +448,7 @@ async function main() {
       ref: 'INC-2026-011',
       type: 'Environnement',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'moyen',
       status: 'Clôturé',
       days: 63,
@@ -459,7 +459,7 @@ async function main() {
       ref: 'INC-2026-012',
       type: 'Accident',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'moyen',
       status: 'Clôturé',
       days: 71,
@@ -470,7 +470,7 @@ async function main() {
       ref: 'INC-2026-013',
       type: 'Quasi-accident',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'moyen',
       status: 'Clôturé',
       days: 88,
@@ -481,7 +481,7 @@ async function main() {
       ref: 'INC-2026-014',
       type: 'Environnement',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'moyen',
       status: 'Clôturé',
       days: 95,
@@ -492,7 +492,7 @@ async function main() {
       ref: 'INC-2026-015',
       type: 'Accident',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'moyen',
       status: 'Clôturé',
       days: 108,
@@ -503,7 +503,7 @@ async function main() {
       ref: 'INC-2026-016',
       type: 'Quasi-accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'faible',
       status: 'Clôturé',
       days: 32,
@@ -514,7 +514,7 @@ async function main() {
       ref: 'INC-2026-017',
       type: 'Autre',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'faible',
       status: 'Clôturé',
       days: 48,
@@ -525,7 +525,7 @@ async function main() {
       ref: 'INC-2026-018',
       type: 'Environnement',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'faible',
       status: 'En cours',
       days: 59,
@@ -536,7 +536,7 @@ async function main() {
       ref: 'INC-2026-019',
       type: 'Quasi-accident',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       severity: 'faible',
       status: 'Clôturé',
       days: 75,
@@ -547,7 +547,7 @@ async function main() {
       ref: 'INC-2026-020',
       type: 'Autre',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       severity: 'faible',
       status: 'En cours',
       days: 90,
@@ -558,7 +558,7 @@ async function main() {
       ref: 'INC-2026-021',
       type: 'Quasi-accident',
       site: E,
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       severity: 'moyen',
       status: 'Investigation',
       days: 11,
@@ -569,7 +569,7 @@ async function main() {
       ref: 'INC-2026-023',
       type: 'Engin / circulation',
       site: E,
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       severity: 'critique',
       status: 'En cours',
       days: 6,
@@ -580,7 +580,7 @@ async function main() {
       ref: 'INC-2026-022',
       type: 'Environnement',
       site: E,
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       severity: 'faible',
       status: 'En cours',
       days: 26,
@@ -609,7 +609,7 @@ async function main() {
     {
       ref: 'AUD-2026-101',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 61,
       status: 'Terminé',
       days: 45,
@@ -629,7 +629,7 @@ async function main() {
     {
       ref: 'AUD-2026-102',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 74,
       status: 'Terminé',
       days: 62,
@@ -644,7 +644,7 @@ async function main() {
     {
       ref: 'AUD-2026-103',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 82,
       status: 'Terminé',
       days: 78,
@@ -659,7 +659,7 @@ async function main() {
     {
       ref: 'AUD-2026-104',
       site: S,
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       score: 88,
       status: 'Terminé',
       days: 91,
@@ -674,7 +674,7 @@ async function main() {
     {
       ref: 'AUD-2026-105',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 79,
       status: 'Terminé',
       days: 110,
@@ -689,7 +689,7 @@ async function main() {
     {
       ref: 'AUD-2026-106',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 71,
       status: 'Terminé',
       days: 130,
@@ -704,7 +704,7 @@ async function main() {
     {
       ref: 'AUD-2026-107',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 68,
       status: 'Terminé',
       days: 155,
@@ -720,7 +720,7 @@ async function main() {
     {
       ref: 'AUD-2026-108',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 0,
       status: 'Planifié',
       days: -18,
@@ -735,7 +735,7 @@ async function main() {
     {
       ref: 'AUD-2026-109',
       site: M,
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       score: 0,
       status: 'Planifié',
       days: -35,
@@ -750,7 +750,7 @@ async function main() {
     {
       ref: 'AUD-2026-110',
       site: E,
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       score: 76,
       status: 'Terminé',
       days: 33,
@@ -790,7 +790,7 @@ async function main() {
         'Référentiel : ISO 45001 — Article 10.2.\nCriticité : majeure.\nStatut métier : En cours.\nLié audit : AUD-2026-103 (ISO 14001 — déchets / effluents).',
       status: 'open',
       auditRef: 'AUD-2026-103',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       title: 'Périmètre sécurité tirs non conforme distances réglementaires',
@@ -798,7 +798,7 @@ async function main() {
         'Référentiel : code minier national — Article 87 (réf. démo).\nCriticité : majeure.\nStatut métier : En cours.',
       status: 'open',
       auditRef: 'AUD-2026-105',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       title: 'Formation PRAP non dispensée — 8 agents manutention',
@@ -806,28 +806,28 @@ async function main() {
         'Référentiel : ISO 45001 — Article 7.2.\nCriticité : mineure.\nStatut métier : En cours.\nLié audit : AUD-2026-107 (SST).',
       status: 'open',
       auditRef: 'AUD-2026-107',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       title: 'Plan urgence cyanure non validé par autorité compétente',
       detail: 'Référentiel : réglementation nationale mines.\nCriticité : majeure.\nClôturé après validation obtenue.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-104',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       title: 'Absence affichage consignes sécurité atelier mécanique',
       detail: 'Référentiel : ISO 45001 — Article 7.4.\nCriticité : mineure.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-107',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       title: 'Registre déchets dangereux incomplet — T3 2025',
       detail: 'Référentiel : ISO 14001 — Article 8.1.\nCriticité : mineure.',
       status: 'Clôturé',
       auditRef: 'AUD-2026-103',
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       title: 'Registre visites médicales équipes forage exploration incomplet',
@@ -835,7 +835,7 @@ async function main() {
         'Référentiel : ISO 45001 — Article 7.2.\nCriticité : mineure.\nStatut métier : En cours.\nLié audit : AUD-2026-110 (SST camp exploration).',
       status: 'open',
       auditRef: 'AUD-2026-110',
-      siteId: SITE_EXPL
+      siteId: KATIOLA_EXPLORATION_BON
     }
   ];
 
@@ -866,7 +866,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(12),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 20
     },
     {
@@ -876,7 +876,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysAgo(8),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 25
     },
     {
@@ -886,7 +886,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(5),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 55
     },
     {
@@ -896,7 +896,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(3),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 42
     },
     {
@@ -906,7 +906,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(7),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 50
     },
     {
@@ -916,7 +916,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(10),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 30
     },
     {
@@ -926,7 +926,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(4),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 9
     },
     {
@@ -936,7 +936,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(2),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 78
     },
     {
@@ -946,7 +946,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(15),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 5
     },
     {
@@ -956,7 +956,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(21),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 4
     },
     {
@@ -966,7 +966,7 @@ async function main() {
       owner: direction?.name ?? 'Direction Site',
       assigneeId: direction?.id,
       dueDate: daysFromNow(30),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 3
     },
     {
@@ -976,7 +976,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(18),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 2
     },
     {
@@ -986,7 +986,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysFromNow(12),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 96
     },
     {
@@ -996,7 +996,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(25),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 40
     },
     {
@@ -1006,7 +1006,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysFromNow(10),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 1
     },
     {
@@ -1016,7 +1016,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(35),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 8
     },
     {
@@ -1026,7 +1026,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(8),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 52
     },
     {
@@ -1036,7 +1036,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysFromNow(20),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 59
     },
     {
@@ -1046,7 +1046,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysFromNow(28),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 6
     },
     {
@@ -1056,7 +1056,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysFromNow(40),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 10
     },
     {
@@ -1066,7 +1066,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(45),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 12
     },
     {
@@ -1076,7 +1076,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysFromNow(42),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 7
     },
     {
@@ -1086,7 +1086,7 @@ async function main() {
       owner: extraction?.name ?? 'QHSE',
       assigneeId: extraction?.id,
       dueDate: daysAgo(45),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 52
     },
     {
@@ -1096,7 +1096,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysAgo(62),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 80
     },
     {
@@ -1106,7 +1106,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(70),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 75
     },
     {
@@ -1116,7 +1116,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(28),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 33
     },
     {
@@ -1126,7 +1126,7 @@ async function main() {
       owner: concassage?.name ?? 'Assistant',
       assigneeId: concassage?.id,
       dueDate: daysAgo(80),
-      siteId: SITE_USINE,
+      siteId: KATIOLA_USINE_ABJ,
       daysCreated: 89
     },
     {
@@ -1136,7 +1136,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(95),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 112
     },
     {
@@ -1146,7 +1146,7 @@ async function main() {
       owner: assistant?.name ?? 'Assistant Qualité',
       assigneeId: assistant?.id,
       dueDate: daysAgo(110),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 115
     },
     {
@@ -1156,7 +1156,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysAgo(120),
-      siteId: SITE_MINE,
+      siteId: KATIOLA_MINE_YAKRO,
       daysCreated: 125
     },
     {
@@ -1166,7 +1166,7 @@ async function main() {
       owner: qhse?.name ?? 'Responsable QHSE',
       assigneeId: qhse?.id,
       dueDate: daysAgo(6),
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       daysCreated: 34
     },
     {
@@ -1176,7 +1176,7 @@ async function main() {
       owner: forage?.name ?? 'Forage',
       assigneeId: forage?.id,
       dueDate: daysFromNow(14),
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       daysCreated: 27
     },
     {
@@ -1186,7 +1186,7 @@ async function main() {
       owner: terrain?.name ?? 'Terrain',
       assigneeId: terrain?.id,
       dueDate: daysFromNow(22),
-      siteId: SITE_EXPL,
+      siteId: KATIOLA_EXPLORATION_BON,
       daysCreated: 5
     }
   ];
@@ -1208,14 +1208,14 @@ async function main() {
   }
 
   const habilitationSeeds = [
-    { user: adminUser, siteId: SITE_MINE, type: 'Accès général', level: 'complet' },
-    { user: qhse, siteId: SITE_MINE, type: 'Coordination QHSE groupe', level: 'N3' },
-    { user: direction, siteId: SITE_MINE, type: 'Direction site extraction', level: null },
-    { user: assistant, siteId: SITE_USINE, type: 'Qualité & documents usine', level: null },
-    { user: terrain, siteId: SITE_EXPL, type: 'Encadrement camp exploration', level: null },
-    { user: extraction, siteId: SITE_MINE, type: 'Extraction / engins', level: 'N2' },
-    { user: forage, siteId: SITE_EXPL, type: 'Forage exploration', level: 'N2' },
-    { user: concassage, siteId: SITE_USINE, type: 'Concassage & maintenance usine', level: null }
+    { user: adminUser, siteId: KATIOLA_MINE_YAKRO, type: 'Accès général', level: 'complet' },
+    { user: qhse, siteId: KATIOLA_MINE_YAKRO, type: 'Coordination QHSE groupe', level: 'N3' },
+    { user: direction, siteId: KATIOLA_MINE_YAKRO, type: 'Direction site extraction', level: null },
+    { user: assistant, siteId: KATIOLA_USINE_ABJ, type: 'Qualité & documents usine', level: null },
+    { user: terrain, siteId: KATIOLA_EXPLORATION_BON, type: 'Encadrement camp exploration', level: null },
+    { user: extraction, siteId: KATIOLA_MINE_YAKRO, type: 'Extraction / engins', level: 'N2' },
+    { user: forage, siteId: KATIOLA_EXPLORATION_BON, type: 'Forage exploration', level: 'N2' },
+    { user: concassage, siteId: KATIOLA_USINE_ABJ, type: 'Concassage & maintenance usine', level: null }
   ];
   for (const h of habilitationSeeds) {
     if (!h.user?.id) continue;
@@ -1239,37 +1239,37 @@ async function main() {
       name: 'Gasoil — stock carburant engins mine',
       supplier: 'Total Énergies CI',
       casNumber: null,
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       name: 'Lubrifiant hydraulique ISO VG 46',
       supplier: 'Shell',
       casNumber: null,
-      siteId: SITE_MINE
+      siteId: KATIOLA_MINE_YAKRO
     },
     {
       name: 'Solution cyanure — lixiviation (usage encadré)',
       supplier: 'ProChem Afrique',
       casNumber: '143-33-9',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       name: 'Acide chlorhydrique technique 32 %',
       supplier: 'LabSupply CI',
       casNumber: '7647-01-0',
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       name: 'Réactif analyse or — digestion',
       supplier: 'LabSupply CI',
       casNumber: null,
-      siteId: SITE_USINE
+      siteId: KATIOLA_USINE_ABJ
     },
     {
       name: 'Gasoil — convois exploration',
       supplier: 'Total Énergies CI',
       casNumber: null,
-      siteId: SITE_EXPL
+      siteId: KATIOLA_EXPLORATION_BON
     }
   ];
   for (const p of productsSeed) {
@@ -1287,7 +1287,7 @@ async function main() {
   }
 
   console.log(
-    '[seed] 3 sites (SODEMI_MINE_YAKRO, SODEMI_USINE_ABJ, SODEMI_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits.'
+    '[seed] 3 sites (KATIOLA_MINE_YAKRO, KATIOLA_USINE_ABJ, KATIOLA_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits.'
   );
   console.log(
     '[seed] Ordre de purge : relations puis risks avant sites (FK). tenantId null partout (mono-tenant).'

@@ -12,6 +12,8 @@ import { canAccessNavPage } from './utils/permissionsUi.js';
 import { activityLogStore } from './data/activityLog.js';
 import { notificationsStore, loadNotificationsFromApi } from './data/notifications.js';
 import { refreshDocComplianceNotifications } from './services/documentRegistry.service.js';
+import { refreshConformityStatusCacheFromApi } from './data/conformityStore.js';
+import { flushSyncQueue, refreshPermitsFromApi } from './services/ptw.service.js';
 import {
   buildPresentationFeed,
   countUnreadPresentation,
@@ -803,6 +805,8 @@ async function boot() {
     }
     Promise.all([
       loadNotificationsFromApi(),
+      refreshConformityStatusCacheFromApi(),
+      refreshPermitsFromApi(),
       refreshDocComplianceNotifications(),
       refreshNotificationSmartContext()
     ])
@@ -875,6 +879,7 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('online', () => {
   void registerTerrainBackgroundSync();
   void syncTerrainIncidentQueue().catch(() => {});
+  void flushSyncQueue();
 });
 window.addEventListener('online', () => {
   import('./services/terrainOffline.service.js')

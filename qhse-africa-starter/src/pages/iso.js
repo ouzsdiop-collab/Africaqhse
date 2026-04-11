@@ -19,6 +19,7 @@ import {
   getNormById,
   setRequirementStatus,
   computeComplianceSummary,
+  refreshConformityStatusCacheFromApi,
   DOCUMENT_ATTENTION,
   AUDITS_TO_SCHEDULE,
   CONFORMITY_NORMS,
@@ -2112,6 +2113,8 @@ export function renderIso(onAddLog) {
   }
 
   pilotageCtx.refreshPilotage = refreshPilotage;
+
+  void refreshConformityStatusCacheFromApi().then(() => refreshPilotage());
 
   const reqCard = document.createElement('article');
   reqCard.className = 'content-card card-soft iso-req-hub-card';

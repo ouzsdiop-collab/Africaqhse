@@ -238,7 +238,8 @@ export async function patchMeta(req, res, next) {
       expiresAt: body.expiresAt,
       responsible: body.responsible,
       name: body.name,
-      type: body.type
+      type: body.type,
+      classification: body.classification
     });
     await writeAuditLog({
       tenantId: req.qhseTenantId,

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as controller from '../controllers/users.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
 import { isRequireAuthEnabled } from '../lib/securityConfig.js';
+import { validateBody } from '../lib/validation.js';
+import { createUserSchema, patchUserSchema } from '../validation/userSchemas.js';
 
 const router = Router();
 
@@ -31,8 +33,18 @@ function requireUserPatchPermission(req, res, next) {
 }
 
 router.get('/', requirePermission('users', 'read'), controller.getAll);
-router.post('/', requirePermission('users', 'write'), controller.create);
-router.patch('/:id', requireUserPatchPermission, controller.patchById);
+router.post(
+  '/',
+  requirePermission('users', 'write'),
+  validateBody(createUserSchema),
+  controller.create
+);
+router.patch(
+  '/:id',
+  validateBody(patchUserSchema),
+  requireUserPatchPermission,
+  controller.patchById
+);
 router.delete('/:id', requirePermission('users', 'write'), controller.remove);
 router.get('/:id', requirePermission('users', 'read'), controller.getById);
 

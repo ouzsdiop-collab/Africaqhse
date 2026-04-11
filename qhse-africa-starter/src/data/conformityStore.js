@@ -1,9 +1,74 @@
 /**
- * Référentiel et exigences — données initiales + persistance locale du statut (sans API).
- * Clé localStorage : statut par id d’exigence uniquement.
+ * Référentiel et exigences — données initiales + statuts ISO via API (`/api/conformity`) avec cache mémoire.
+ * Preuves importées : toujours localStorage (`qhse-iso-imported-proofs-v1`).
  */
-const STORAGE_KEY = 'qhse-conformity-status-v1';
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { appState } from '../utils/state.js';
+
 const IMPORTED_PROOFS_STORAGE_KEY = 'qhse-iso-imported-proofs-v1';
+
+const CACHE_KEY_SEP = '\n';
+
+/** @type {Map<string, ConformityStatus>} */
+let conformityStatusCache = new Map();
+
+/**
+ * @param {string} requirementId
+ * @param {string} siteId — id site ou chaîne vide = périmètre global (sans site)
+ */
+function conformityCacheKey(requirementId, siteId) {
+  const s = siteId != null && String(siteId).trim() ? String(siteId).trim() : '';
+  return `${requirementId}${CACHE_KEY_SEP}${s}`;
+}
+
+/**
+ * @param {unknown} st
+ * @returns {st is ConformityStatus}
+ */
+function isValidConformityStatus(st) {
+  return st === 'conforme' || st === 'partiel' || st === 'non_conforme';
+}
+
+/**
+ * Charge les statuts depuis l’API et remplace le cache mémoire.
+ * @returns {Promise<void>}
+ */
+export async function refreshConformityStatusCacheFromApi() {
+  try {
+    const res = await qhseFetch('/api/conformity');
+    if (!res.ok) return;
+    const rows = await res.json().catch(() => []);
+    if (!Array.isArray(rows)) return;
+    const next = new Map();
+    for (const row of rows) {
+      if (!row || typeof row.requirementId !== 'string') continue;
+      const st = row.status;
+      if (!isValidConformityStatus(st)) continue;
+      const sid = row.siteId != null && String(row.siteId).trim() ? String(row.siteId).trim() : '';
+      next.set(conformityCacheKey(row.requirementId, sid), st);
+    }
+    conformityStatusCache = next;
+  } catch {
+    /* hors-ligne / erreur réseau */
+  }
+}
+
+/**
+ * @param {string} requirementId
+ * @returns {ConformityStatus | undefined}
+ */
+function getCachedRequirementStatus(requirementId) {
+  const active = appState.activeSiteId?.trim() || '';
+  if (active) {
+    const k = conformityCacheKey(requirementId, active);
+    const st = conformityStatusCache.get(k);
+    if (isValidConformityStatus(st)) return st;
+  }
+  const globalK = conformityCacheKey(requirementId, '');
+  const g = conformityStatusCache.get(globalK);
+  if (isValidConformityStatus(g)) return g;
+  return undefined;
+}
 
 /** @typedef {'present' | 'verify' | 'missing'} ImportedProofStatus */
 
@@ -237,34 +302,13 @@ export const REQUIREMENTS_SEED = [
   }
 ];
 
-function loadOverrides() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveOverrides(/** @type {Record<string, { status: ConformityStatus }>} */ data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    /* ignore quota */
-  }
-}
-
 /**
  * @returns {Array<ConformityRequirementSeed & { status: ConformityStatus }>}
  */
 export function getRequirements() {
-  const overrides = loadOverrides();
   return REQUIREMENTS_SEED.map((r) => {
-    const st = overrides[r.id]?.status;
-    const status =
-      st === 'conforme' || st === 'partiel' || st === 'non_conforme' ? st : r.defaultStatus;
+    const st = getCachedRequirementStatus(r.id);
+    const status = isValidConformityStatus(st) ? st : r.defaultStatus;
     return {
       ...r,
       status
@@ -277,10 +321,15 @@ export function getRequirements() {
  * @param {ConformityStatus} status
  */
 export function setRequirementStatus(requirementId, status) {
-  if (status !== 'conforme' && status !== 'partiel' && status !== 'non_conforme') return;
-  const overrides = loadOverrides();
-  overrides[requirementId] = { status };
-  saveOverrides(overrides);
+  if (!isValidConformityStatus(status)) return;
+  const active = appState.activeSiteId?.trim() || '';
+  conformityStatusCache.set(conformityCacheKey(requirementId, active), status);
+  const siteId = active || null;
+  void qhseFetch(`/api/conformity/${encodeURIComponent(requirementId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, siteId })
+  }).catch(() => {});
 }
 
 export function getNormById(normId) {

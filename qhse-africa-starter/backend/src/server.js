@@ -35,6 +35,8 @@ import habilitationsRouter from './routes/habilitations.routes.js';
 import settingsRouter from './routes/settings.routes.js';
 import excelExportRouter from './routes/excelExport.routes.js';
 import fdsParserRouter from './routes/fdsParser.routes.js';
+import conformityRouter from './routes/conformity.routes.js';
+import ptwRouter from './routes/ptw.routes.js';
 import { attachRequestUser } from './middleware/requestUser.middleware.js';
 import { attachRequestId } from './middleware/requestId.middleware.js';
 import {
@@ -130,6 +132,8 @@ app.use('/api/habilitations', habilitationsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/export', excelExportRouter);
 app.use('/api/fds', fdsParserRouter);
+app.use('/api/conformity', conformityRouter);
+app.use('/api/ptw', ptwRouter);
 
 // Swagger UI — desactive en production si besoin
 if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true') {

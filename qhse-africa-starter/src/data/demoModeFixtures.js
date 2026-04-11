@@ -1,10 +1,10 @@
 /**
- * Jeu de données d’exploration — scénario cohérent (Mine Kassa, audit en cours, incidents récents, NC, actions).
+ * Jeu de données d’exploration — scénario cohérent (Katiola Mining, audit en cours, incidents récents, NC, actions).
  * Utilisé lorsque le mode exploration local est actif (voir demoModeFetch.js).
  */
 
 export const DEMO_SITE_ID = 'site-demo-kassa';
-export const DEMO_SITE_LABEL = 'Mine Kassa — RDC';
+export const DEMO_SITE_LABEL = 'Katiola Mining — Site Yakouro';
 
 /** @type {object[]} */
 export const demoSites = [

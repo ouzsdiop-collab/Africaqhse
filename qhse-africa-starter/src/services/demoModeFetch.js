@@ -200,7 +200,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
     const siteLabel =
       typeof body.site === 'string' && body.site.trim()
         ? body.site.trim()
-        : demoSites.find((s) => s.id === siteId)?.name || 'Mine Kassa — RDC';
+        : demoSites.find((s) => s.id === siteId)?.name || 'Katiola Mining — Site Yakouro';
     const row = {
       id,
       ref,
@@ -337,7 +337,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
       accidentsAvecArret: 2,
       joursPerdus: 12,
       heuresTravaillees: 1080000,
-      periode: `Année ${yLabel} — Mine Kassa (démo)`,
+      periode: `Année ${yLabel} — Katiola (démo)`,
       objectifTF: 2,
       objectifTG: 0.5,
       tfPrev: 2.31,

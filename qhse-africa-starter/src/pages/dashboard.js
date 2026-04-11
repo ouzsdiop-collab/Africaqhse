@@ -43,7 +43,7 @@ import {
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { Chart, registerables } from 'chart.js';
 import { initDashboardCharts } from '../components/dashboardCharts.js';
-import { listPermits } from '../services/ptw.service.js';
+import { listPermits, refreshPermitsFromApi } from '../services/ptw.service.js';
 import { renderKpiCards } from '../components/dashboardKpiCards.js';
 import { createDashboardTfTgMiniRow } from '../components/tfTgKpi.js';
 import {
@@ -1690,6 +1690,7 @@ export function renderDashboard() {
     kpiDashboardLists.ncs = ncs;
     kpiDashboardLists.docs = docs;
 
+    await refreshPermitsFromApi();
     refreshCharts(incidents, actions, audits, ncs);
     updateDecisionAlerts(lastStats, incidents, actions, ncs, audits);
     applyEnrichmentKpis(ncs, audits, lastStats.nonConformities);

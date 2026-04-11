@@ -342,3 +342,42 @@ model Product {
   @@index([casNumber])
   @@map("products")
 }
+
+/// Statut de conformité ISO par exigence (optionnellement par site).
+model ConformityStatus {
+  id            String   @id @default(cuid())
+  tenantId      String?
+  requirementId String
+  status        String
+  siteId        String?
+  updatedAt     DateTime @updatedAt
+  userId        String?
+
+  @@unique([tenantId, requirementId, siteId])
+  @@index([tenantId])
+  @@index([requirementId])
+  @@index([siteId])
+  @@map("conformity_statuses")
+}
+
+/// Permis de travail — persistance API + signatures JSON.
+model PermitToWork {
+  id             String    @id @default(cuid())
+  tenantId       String?
+  ref            String
+  siteId         String?
+  type           String
+  status         String    @default("pending")
+  assignedTo     String?
+  validFrom      DateTime?
+  validUntil     DateTime?
+  signaturesJson Json      @default("[]")
+  payload        Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([tenantId, ref])
+  @@index([siteId])
+  @@index([status])
+  @@map("permits_to_work")
+}
