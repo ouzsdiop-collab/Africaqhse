@@ -543,23 +543,29 @@ export function renderActions() {
 
   const main = document.createElement('article');
   main.className = 'content-card card-soft actions-page__main-card';
-  main.innerHTML = `
-    <div class="content-card-head content-card-head--split">
-      <div>
-        <div class="section-kicker">Pilotage QHSE</div>
-        <h3>Plan d’actions</h3>
-        <p class="content-card-lead content-card-lead--narrow">
-          Vue synthèse puis colonnes : retards en premier, cliquez une carte pour le détail.
-        </p>
-        <p class="qhse-simple-alt-lead">
-          Commencez par la colonne « En retard », puis ouvrez une carte pour voir quoi faire.
-        </p>
-      </div>
-      <button type="button" class="btn btn-primary actions-create-btn btn--pilotage-cta">
-        Créer une action
-      </button>
-    </div>
-  `;
+  const mainHead = document.createElement('div');
+  mainHead.className = 'content-card-head content-card-head--split';
+  const mainHeadIntro = document.createElement('div');
+  const mainKicker = document.createElement('div');
+  mainKicker.className = 'section-kicker';
+  mainKicker.textContent = 'Pilotage QHSE';
+  const mainH3 = document.createElement('h3');
+  mainH3.textContent = 'Plan d’actions';
+  const mainLead = document.createElement('p');
+  mainLead.className = 'content-card-lead content-card-lead--narrow';
+  mainLead.textContent =
+    'Vue synthèse puis colonnes : retards en premier, cliquez une carte pour le détail.';
+  const mainAltLead = document.createElement('p');
+  mainAltLead.className = 'qhse-simple-alt-lead';
+  mainAltLead.textContent =
+    'Commencez par la colonne « En retard », puis ouvrez une carte pour voir quoi faire.';
+  mainHeadIntro.append(mainKicker, mainH3, mainLead, mainAltLead);
+  const mainCreateBtn = document.createElement('button');
+  mainCreateBtn.type = 'button';
+  mainCreateBtn.className = 'btn btn-primary actions-create-btn btn--pilotage-cta';
+  mainCreateBtn.textContent = 'Créer une action';
+  mainHead.append(mainHeadIntro, mainCreateBtn);
+  main.append(mainHead);
 
   const lead = main.querySelector('.content-card-lead');
   const summaryEl = document.createElement('p');

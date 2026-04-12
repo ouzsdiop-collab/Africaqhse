@@ -856,6 +856,14 @@ function navIconFor(id) {
   return NAV_ICON_SVG[id] || NAV_ICON_SVG.dashboard;
 }
 
+/** Marquage SVG interne uniquement (icônes menu) — pas de données utilisateur. */
+function mountTrustedSvgChild(host, svgMarkup) {
+  host.replaceChildren();
+  const doc = new DOMParser().parseFromString(String(svgMarkup).trim(), 'text/html');
+  const el = doc.body.firstElementChild;
+  if (el) host.append(el);
+}
+
 export function createSidebar({
   currentPage,
   onNavigate,
@@ -871,38 +879,76 @@ export function createSidebar({
   aside.className = 'sidebar-v2';
   aside.id = 'qhse-shell-sidebar';
 
-  aside.innerHTML = `
-    <nav class="sidebar-v2__terrain-dock" aria-label="Navigation terrain mobile"></nav>
-    <div class="sidebar-v2__brand">
-      <div class="sidebar-v2__brand-mark" aria-hidden="true">${SHIELD_LOGO_SVG}</div>
-      <div class="sidebar-v2__brand-text">
-        <span class="sidebar-v2__brand-title">QHSE Control</span>
-        <span class="sidebar-v2__brand-badge" title="Exploration sans compte : données d’illustration">Essai</span>
-      </div>
-    </div>
-    <nav class="sidebar-v2__nav" role="navigation" aria-label="Menu principal"></nav>
-    <div class="sidebar-v2__footer sidebar-v2__footer--compact">
-      <div class="sidebar-v2__footer-identity">
-        <span class="visually-hidden">Compte et périmètre</span>
-        <div class="sidebar-v2__block sidebar-v2__block--account">
-          <div class="shell-account-slot"></div>
-        </div>
-        <div class="sidebar-v2__block">
-          <div class="sidebar-v2__context context-card"></div>
-        </div>
-      </div>
-      <div class="sidebar-v2__footer-secondary">
-        <span class="visually-hidden">Raccourcis</span>
-        <div class="sidebar-v2__footer-shortcuts" role="toolbar" aria-label="Raccourcis module"></div>
-      </div>
-      <p class="sidebar-v2__status" aria-live="polite">
-        <span class="sidebar-v2__status-dot" aria-hidden="true"></span>
-        <span>Prêt · local</span>
-      </p>
-    </div>
-  `;
+  const terrainDock = document.createElement('nav');
+  terrainDock.className = 'sidebar-v2__terrain-dock';
+  terrainDock.setAttribute('aria-label', 'Navigation terrain mobile');
 
-  const terrainDock = aside.querySelector('.sidebar-v2__terrain-dock');
+  const brand = document.createElement('div');
+  brand.className = 'sidebar-v2__brand';
+  const brandMark = document.createElement('div');
+  brandMark.className = 'sidebar-v2__brand-mark';
+  brandMark.setAttribute('aria-hidden', 'true');
+  mountTrustedSvgChild(brandMark, SHIELD_LOGO_SVG);
+  const brandText = document.createElement('div');
+  brandText.className = 'sidebar-v2__brand-text';
+  const brandTitle = document.createElement('span');
+  brandTitle.className = 'sidebar-v2__brand-title';
+  brandTitle.textContent = 'QHSE Control';
+  const brandBadge = document.createElement('span');
+  brandBadge.className = 'sidebar-v2__brand-badge';
+  brandBadge.title = 'Exploration sans compte : données d’illustration';
+  brandBadge.textContent = 'Essai';
+  brandText.append(brandTitle, brandBadge);
+  brand.append(brandMark, brandText);
+
+  const mainNav = document.createElement('nav');
+  mainNav.className = 'sidebar-v2__nav';
+  mainNav.setAttribute('role', 'navigation');
+  mainNav.setAttribute('aria-label', 'Menu principal');
+
+  const footer = document.createElement('div');
+  footer.className = 'sidebar-v2__footer sidebar-v2__footer--compact';
+  const footerIdentity = document.createElement('div');
+  footerIdentity.className = 'sidebar-v2__footer-identity';
+  const fh1 = document.createElement('span');
+  fh1.className = 'visually-hidden';
+  fh1.textContent = 'Compte et périmètre';
+  const blockAccount = document.createElement('div');
+  blockAccount.className = 'sidebar-v2__block sidebar-v2__block--account';
+  const accountSlot = document.createElement('div');
+  accountSlot.className = 'shell-account-slot';
+  blockAccount.append(accountSlot);
+  const blockCtx = document.createElement('div');
+  blockCtx.className = 'sidebar-v2__block';
+  const contextCard = document.createElement('div');
+  contextCard.className = 'sidebar-v2__context context-card';
+  blockCtx.append(contextCard);
+  footerIdentity.append(fh1, blockAccount, blockCtx);
+
+  const footerSecondary = document.createElement('div');
+  footerSecondary.className = 'sidebar-v2__footer-secondary';
+  const fh2 = document.createElement('span');
+  fh2.className = 'visually-hidden';
+  fh2.textContent = 'Raccourcis';
+  const shortcutsToolbar = document.createElement('div');
+  shortcutsToolbar.className = 'sidebar-v2__footer-shortcuts';
+  shortcutsToolbar.setAttribute('role', 'toolbar');
+  shortcutsToolbar.setAttribute('aria-label', 'Raccourcis module');
+  footerSecondary.append(fh2, shortcutsToolbar);
+
+  const statusP = document.createElement('p');
+  statusP.className = 'sidebar-v2__status';
+  statusP.setAttribute('aria-live', 'polite');
+  const statusDot = document.createElement('span');
+  statusDot.className = 'sidebar-v2__status-dot';
+  statusDot.setAttribute('aria-hidden', 'true');
+  const statusTxt = document.createElement('span');
+  statusTxt.textContent = 'Prêt · local';
+  statusP.append(statusDot, statusTxt);
+
+  footer.append(footerIdentity, footerSecondary, statusP);
+  aside.append(terrainDock, brand, mainNav, footer);
+
   if (terrainDock && terrainMode) {
     const dockSpec = [
       { id: 'terrain-mode', label: 'Accueil', iconId: 'dashboard' },
@@ -910,7 +956,7 @@ export function createSidebar({
       { id: 'risks', label: 'Risque', iconId: 'risks' },
       { id: 'settings', label: 'Profil', iconId: 'settings' }
     ];
-    terrainDock.textContent = '';
+    terrainDock.replaceChildren();
     dockSpec.forEach((spec) => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -922,7 +968,7 @@ export function createSidebar({
       btn.title = spec.label;
       const iconWrap = document.createElement('span');
       iconWrap.className = 'sidebar-v2__terrain-dock__icon';
-      iconWrap.innerHTML = navIconFor(spec.iconId);
+      mountTrustedSvgChild(iconWrap, navIconFor(spec.iconId));
       const lab = document.createElement('span');
       lab.textContent = spec.label;
       btn.append(iconWrap, lab);
@@ -932,14 +978,13 @@ export function createSidebar({
   }
 
   if (typeof onExpertMobileDrawerClose === 'function') {
-    const brand = aside.querySelector('.sidebar-v2__brand');
     const closeDrawer = document.createElement('button');
     closeDrawer.type = 'button';
     closeDrawer.className = 'sidebar-v2__drawer-close';
     closeDrawer.setAttribute('aria-label', 'Fermer le menu');
     closeDrawer.textContent = '×';
     closeDrawer.addEventListener('click', () => onExpertMobileDrawerClose());
-    brand?.append(closeDrawer);
+    brand.append(closeDrawer);
   }
 
   const select = document.createElement('select');
@@ -971,7 +1016,7 @@ export function createSidebar({
   }
 
   async function loadContextSiteOptions() {
-    select.innerHTML = '';
+    select.replaceChildren();
     const groupe = document.createElement('option');
     groupe.value = '';
     groupe.textContent = 'Vue groupe (tous sites)';
@@ -1168,8 +1213,6 @@ export function createSidebar({
 
   mountAuthProfile();
 
-  const nav = aside.querySelector('.sidebar-v2__nav');
-
   /** @type {Map<string, HTMLSpanElement>} */
   const navBadgeEls = new Map();
 
@@ -1207,7 +1250,7 @@ export function createSidebar({
 
       const iconWrap = document.createElement('span');
       iconWrap.className = 'sidebar-v2__item-icon';
-      iconWrap.innerHTML = navIconFor(item.id);
+      mountTrustedSvgChild(iconWrap, navIconFor(item.id));
 
       const text = document.createElement('span');
       text.className = 'sidebar-v2__item-text';
@@ -1290,7 +1333,7 @@ export function createSidebar({
       section.append(toggle, body);
     }
 
-    nav.append(section);
+    mainNav.append(section);
   });
 
   const shortcutsHost = aside.querySelector('.sidebar-v2__footer-shortcuts');
@@ -1315,7 +1358,7 @@ export function createSidebar({
       }
       const iconWrap = document.createElement('span');
       iconWrap.className = 'sidebar-v2__footer-shortcut-icon';
-      iconWrap.innerHTML = navIconFor(spec.iconId);
+      mountTrustedSvgChild(iconWrap, navIconFor(spec.iconId));
       btn.append(iconWrap);
       btn.addEventListener('click', () => onNavigate(spec.pageId));
       shortcutsHost.append(btn);

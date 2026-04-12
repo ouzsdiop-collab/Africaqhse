@@ -209,23 +209,35 @@ function createAuditIntelligentNotificationsCard(opts) {
 
   const head = document.createElement('div');
   head.className = 'content-card-head content-card-head--split audit-cockpit-notifs__head';
-  head.innerHTML = `
-    <div>
-      <div class="section-kicker">Pilotage</div>
-      <h3 id="audit-cockpit-notifs-title">Alertes planning</h3>
-      <p class="content-card-lead audit-cockpit-notifs__lead">
-        Échéances et relances — <strong>aucun envoi auto</strong> sans clic.
-      </p>
-    </div>
-    <div class="audit-cockpit-notifs__badges" aria-label="Synthèse alertes">
-      <span class="badge blue audit-cockpit-notifs__count">${items.length} alerte(s)</span>
-      ${
-        unreadish
-          ? `<span class="badge amber audit-cockpit-notifs__prio">${unreadish} à traiter</span>`
-          : `<span class="badge green audit-cockpit-notifs__prio">Situation stable</span>`
-      }
-    </div>
-  `;
+  const headIntro = document.createElement('div');
+  const notifKicker = document.createElement('div');
+  notifKicker.className = 'section-kicker';
+  notifKicker.textContent = 'Pilotage';
+  const notifH3 = document.createElement('h3');
+  notifH3.id = 'audit-cockpit-notifs-title';
+  notifH3.textContent = 'Alertes planning';
+  const notifLead = document.createElement('p');
+  notifLead.className = 'content-card-lead audit-cockpit-notifs__lead';
+  notifLead.append(
+    document.createTextNode('Échéances et relances — '),
+    Object.assign(document.createElement('strong'), { textContent: 'aucun envoi auto' }),
+    document.createTextNode(' sans clic.')
+  );
+  headIntro.append(notifKicker, notifH3, notifLead);
+  const badgesWrap = document.createElement('div');
+  badgesWrap.className = 'audit-cockpit-notifs__badges';
+  badgesWrap.setAttribute('aria-label', 'Synthèse alertes');
+  const countBadge = document.createElement('span');
+  countBadge.className = 'badge blue audit-cockpit-notifs__count';
+  countBadge.textContent = `${items.length} alerte(s)`;
+  badgesWrap.append(countBadge);
+  const prioBadge = document.createElement('span');
+  prioBadge.className = unreadish
+    ? 'badge amber audit-cockpit-notifs__prio'
+    : 'badge green audit-cockpit-notifs__prio';
+  prioBadge.textContent = unreadish ? `${unreadish} à traiter` : 'Situation stable';
+  badgesWrap.append(prioBadge);
+  head.append(headIntro, badgesWrap);
 
   const list = document.createElement('div');
   list.className = 'audit-cockpit-notifs__list';
@@ -825,13 +837,26 @@ function createPlanningTable() {
     line.tabIndex = 0;
     line.setAttribute('aria-label', `Aller au pilotage — ${row.ref}`);
     const stClass = statutBadgeClass(row.statut);
-    line.innerHTML = `
-      <span class="audit-plan-ref" data-label="Réf.">${escapeHtml(row.ref)}</span>
-      <span data-label="Site">${escapeHtml(row.site)}</span>
-      <span data-label="Auditeur">${escapeHtml(row.auditeur)}</span>
-      <span data-label="Date">${escapeHtml(row.date)}</span>
-      <span data-label="Statut"><span class="badge ${stClass}">${escapeHtml(row.statut)}</span></span>
-    `;
+    const cRef = document.createElement('span');
+    cRef.className = 'audit-plan-ref';
+    cRef.dataset.label = 'Réf.';
+    cRef.textContent = row.ref;
+    const cSite = document.createElement('span');
+    cSite.dataset.label = 'Site';
+    cSite.textContent = row.site;
+    const cAud = document.createElement('span');
+    cAud.dataset.label = 'Auditeur';
+    cAud.textContent = row.auditeur;
+    const cDate = document.createElement('span');
+    cDate.dataset.label = 'Date';
+    cDate.textContent = row.date;
+    const cStatWrap = document.createElement('span');
+    cStatWrap.dataset.label = 'Statut';
+    const cStatBadge = document.createElement('span');
+    cStatBadge.className = `badge ${stClass}`;
+    cStatBadge.textContent = row.statut;
+    cStatWrap.append(cStatBadge);
+    line.append(cRef, cSite, cAud, cDate, cStatWrap);
     const pdfWrap = document.createElement('span');
     pdfWrap.setAttribute('data-label', 'Rapport');
     const pdfBtn = document.createElement('button');
@@ -1279,51 +1304,70 @@ export async function renderAudits() {
   const conformitySummary = document.createElement('div');
   conformitySummary.className = 'audit-iso-conformity-row';
   conformitySummary.setAttribute('aria-label', 'Résumé de conformité — constats checklist');
-  conformitySummary.innerHTML = `
-    <div class="audit-iso-conformity-card audit-iso-conformity-card--ok">
-      <span class="audit-iso-conformity-card__lbl">Conformes</span>
-      <span class="audit-iso-conformity-card__val">${checklistConformeCount}</span>
-      <span class="audit-iso-conformity-card__hint">Points checklist</span>
-    </div>
-    <div class="audit-iso-conformity-card audit-iso-conformity-card--partial">
-      <span class="audit-iso-conformity-card__lbl">Partiels</span>
-      <span class="audit-iso-conformity-card__val">${checklistPartialCount}</span>
-      <span class="audit-iso-conformity-card__hint">Déclarés sur l’extrait</span>
-    </div>
-    <div class="audit-iso-conformity-card audit-iso-conformity-card--nc">
-      <span class="audit-iso-conformity-card__lbl">Non-conformités</span>
-      <span class="audit-iso-conformity-card__val">${checklistNcPoints}</span>
-      <span class="audit-iso-conformity-card__hint">Constats checklist</span>
-    </div>
-    <div class="audit-iso-conformity-card audit-iso-conformity-card--act">
-      <span class="audit-iso-conformity-card__lbl">Actions générées</span>
-      <span class="audit-iso-conformity-card__val">${auditActionsGeneratedCount}</span>
-      <span class="audit-iso-conformity-card__hint">Pilotage sur cet extrait</span>
-    </div>
-  `;
+  function mkConformityCard(cardCls, lbl, val, hint) {
+    const card = document.createElement('div');
+    card.className = `audit-iso-conformity-card ${cardCls}`;
+    const l = document.createElement('span');
+    l.className = 'audit-iso-conformity-card__lbl';
+    l.textContent = lbl;
+    const v = document.createElement('span');
+    v.className = 'audit-iso-conformity-card__val';
+    v.textContent = String(val);
+    const h = document.createElement('span');
+    h.className = 'audit-iso-conformity-card__hint';
+    h.textContent = hint;
+    card.append(l, v, h);
+    return card;
+  }
+  conformitySummary.append(
+    mkConformityCard('audit-iso-conformity-card--ok', 'Conformes', checklistConformeCount, 'Points checklist'),
+    mkConformityCard(
+      'audit-iso-conformity-card--partial',
+      'Partiels',
+      checklistPartialCount,
+      'Déclarés sur l’extrait'
+    ),
+    mkConformityCard(
+      'audit-iso-conformity-card--nc',
+      'Non-conformités',
+      checklistNcPoints,
+      'Constats checklist'
+    ),
+    mkConformityCard(
+      'audit-iso-conformity-card--act',
+      'Actions générées',
+      auditActionsGeneratedCount,
+      'Pilotage sur cet extrait'
+    )
+  );
 
   const strategicKpis = document.createElement('div');
   strategicKpis.className = 'audit-strategic-kpis';
   strategicKpis.setAttribute('aria-label', 'Indicateurs stratégiques');
-  strategicKpis.innerHTML = `
-    <div class="audit-strategic-kpi">
-      <span class="audit-strategic-kpi__lbl">Audits en cours</span>
-      <span class="audit-strategic-kpi__val">${countPlannedByStatut('en cours')}</span>
-    </div>
-    <div class="audit-strategic-kpi">
-      <span class="audit-strategic-kpi__lbl">Planifiés</span>
-      <span class="audit-strategic-kpi__val">${PLANNED_AUDITS.length}</span>
-      <span class="audit-strategic-kpi__hint">Registre planification</span>
-    </div>
-    <div class="audit-strategic-kpi">
-      <span class="audit-strategic-kpi__lbl">NC ouvertes</span>
-      <span class="audit-strategic-kpi__val">${NC_OUVERTES_COUNT}</span>
-    </div>
-    <div class="audit-strategic-kpi">
-      <span class="audit-strategic-kpi__lbl">Actions en retard</span>
-      <span class="audit-strategic-kpi__val">${ACTIONS_RETARD_COUNT}</span>
-    </div>
-  `;
+  function mkStrategicKpi(lbl, val, hint) {
+    const k = document.createElement('div');
+    k.className = 'audit-strategic-kpi';
+    const l = document.createElement('span');
+    l.className = 'audit-strategic-kpi__lbl';
+    l.textContent = lbl;
+    const v = document.createElement('span');
+    v.className = 'audit-strategic-kpi__val';
+    v.textContent = String(val);
+    k.append(l, v);
+    if (hint) {
+      const hi = document.createElement('span');
+      hi.className = 'audit-strategic-kpi__hint';
+      hi.textContent = hint;
+      k.append(hi);
+    }
+    return k;
+  }
+  strategicKpis.append(
+    mkStrategicKpi('Audits en cours', countPlannedByStatut('en cours')),
+    mkStrategicKpi('Planifiés', PLANNED_AUDITS.length, 'Registre planification'),
+    mkStrategicKpi('NC ouvertes', NC_OUVERTES_COUNT),
+    mkStrategicKpi('Actions en retard', ACTIONS_RETARD_COUNT)
+  );
 
   const exportIsoBar = document.createElement('div');
   exportIsoBar.className = 'audit-iso-export-bar';
@@ -1447,7 +1491,15 @@ export async function renderAudits() {
     const cur = Math.round(Math.max(0, Math.min(100, Number(LAST_AUDIT.score) || 0)));
     const d = cur - cockpitPrevScore;
     const sign = d > 0 ? '+' : '';
-    deltaStrip.innerHTML = `<strong>${escapeHtml(sign)}${escapeHtml(d)} pts</strong> vs audit précédent (${escapeHtml(cockpitPrevScore)}% → ${escapeHtml(cur)}%).`;
+    deltaStrip.replaceChildren();
+    const dStrong = document.createElement('strong');
+    dStrong.textContent = `${sign}${d} pts`;
+    deltaStrip.append(
+      dStrong,
+      document.createTextNode(
+        ` vs audit précédent (${cockpitPrevScore}% → ${cur}%).`
+      )
+    );
   }
   auditTrendBody.append(deltaStrip);
   auditTrendCard.append(auditTrendBody);
@@ -1857,12 +1909,19 @@ export async function renderAudits() {
   AUDIT_TRACE_ROWS.forEach((tr) => {
     const li = document.createElement('li');
     li.className = 'audit-iso-trace-item';
-    li.innerHTML = `
-      <div class="audit-iso-trace-item__who">${escapeHtml(tr.who)}</div>
-      <div class="audit-iso-trace-item__when">${escapeHtml(tr.when)}</div>
-      <div class="audit-iso-trace-item__action">${escapeHtml(tr.action)}</div>
-      <div class="audit-iso-trace-item__comment">${escapeHtml(tr.comment)}</div>
-    `;
+    const tw = document.createElement('div');
+    tw.className = 'audit-iso-trace-item__who';
+    tw.textContent = tr.who;
+    const twh = document.createElement('div');
+    twh.className = 'audit-iso-trace-item__when';
+    twh.textContent = tr.when;
+    const ta = document.createElement('div');
+    ta.className = 'audit-iso-trace-item__action';
+    ta.textContent = tr.action;
+    const tc = document.createElement('div');
+    tc.className = 'audit-iso-trace-item__comment';
+    tc.textContent = tr.comment;
+    li.append(tw, twh, ta, tc);
     traceList.append(li);
   });
   traceCard.append(traceList);

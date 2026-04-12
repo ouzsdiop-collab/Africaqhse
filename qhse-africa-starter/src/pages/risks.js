@@ -369,7 +369,16 @@ export function renderRisks() {
       d.className = `risks-pilot-banner__kpi ${cls} risks-pilot-banner__kpi--click`;
       if (bannerKpiFilter === key) d.classList.add('risks-pilot-banner__kpi--filter-on');
       d.dataset.kpiFilter = key;
-      d.innerHTML = `<span class="risks-pilot-banner__kpi-val">${escapeHtml(val)}</span><span class="risks-pilot-banner__kpi-lbl">${escapeHtml(lbl)}</span><span class="risks-pilot-banner__kpi-hint">${escapeHtml(hint)}</span>`;
+      const kpiVal = document.createElement('span');
+      kpiVal.className = 'risks-pilot-banner__kpi-val';
+      kpiVal.textContent = val;
+      const kpiLbl = document.createElement('span');
+      kpiLbl.className = 'risks-pilot-banner__kpi-lbl';
+      kpiLbl.textContent = lbl;
+      const kpiHint = document.createElement('span');
+      kpiHint.className = 'risks-pilot-banner__kpi-hint';
+      kpiHint.textContent = hint;
+      d.append(kpiVal, kpiLbl, kpiHint);
       d.addEventListener('click', () => {
         bannerKpiFilter = bannerKpiFilter === key ? null : key;
         tierFilter = null;
@@ -395,7 +404,13 @@ export function renderRisks() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'risks-priority-premium__line';
-    b.innerHTML = `<span class="risks-priority-premium__line-title">${escapeHtml(String(r.title || ''))}</span><span class="risks-priority-premium__line-sub">${escapeHtml(gpTxt)} · ${escapeHtml(String(badge))}</span>`;
+    const lineTitle = document.createElement('span');
+    lineTitle.className = 'risks-priority-premium__line-title';
+    lineTitle.textContent = String(r.title || '');
+    const lineSub = document.createElement('span');
+    lineSub.className = 'risks-priority-premium__line-sub';
+    lineSub.textContent = `${gpTxt} · ${badge}`;
+    b.append(lineTitle, lineSub);
     b.addEventListener('click', () => {
       document
         .querySelector('.risks-register-premium-table')
@@ -490,18 +505,33 @@ export function renderRisks() {
       row.className = 'risks-evolution-chart__row';
       const hCrit = (pt.crit / maxCrit) * 100;
       const hAvg = maxAvg > 0 ? (pt.avgScore / maxAvg) * 100 : 0;
-      row.innerHTML = `
-        <span class="risks-evolution-chart__lbl">${escapeHtml(pt.m)}</span>
-        <div class="risks-evolution-chart__bars">
-          <div class="risks-evolution-chart__bar-wrap" title="Critiques : ${pt.crit}">
-            <span class="risks-evolution-chart__bar risks-evolution-chart__bar--crit" style="height:${hCrit}%"></span>
-            <span class="risks-evolution-chart__bar-val">${pt.crit}</span>
-          </div>
-          <div class="risks-evolution-chart__bar-wrap" title="Score moyen G×P : ${pt.avgScore}">
-            <span class="risks-evolution-chart__bar risks-evolution-chart__bar--avg" style="height:${hAvg}%"></span>
-            <span class="risks-evolution-chart__bar-val">${pt.avgScore}</span>
-          </div>
-        </div>`;
+      const evLbl = document.createElement('span');
+      evLbl.className = 'risks-evolution-chart__lbl';
+      evLbl.textContent = pt.m;
+      const evBars = document.createElement('div');
+      evBars.className = 'risks-evolution-chart__bars';
+      const evWrapCrit = document.createElement('div');
+      evWrapCrit.className = 'risks-evolution-chart__bar-wrap';
+      evWrapCrit.title = `Critiques : ${pt.crit}`;
+      const evBarCrit = document.createElement('span');
+      evBarCrit.className = 'risks-evolution-chart__bar risks-evolution-chart__bar--crit';
+      evBarCrit.style.height = `${hCrit}%`;
+      const evValCrit = document.createElement('span');
+      evValCrit.className = 'risks-evolution-chart__bar-val';
+      evValCrit.textContent = String(pt.crit);
+      evWrapCrit.append(evBarCrit, evValCrit);
+      const evWrapAvg = document.createElement('div');
+      evWrapAvg.className = 'risks-evolution-chart__bar-wrap';
+      evWrapAvg.title = `Score moyen G×P : ${pt.avgScore}`;
+      const evBarAvg = document.createElement('span');
+      evBarAvg.className = 'risks-evolution-chart__bar risks-evolution-chart__bar--avg';
+      evBarAvg.style.height = `${hAvg}%`;
+      const evValAvg = document.createElement('span');
+      evValAvg.className = 'risks-evolution-chart__bar-val';
+      evValAvg.textContent = String(pt.avgScore);
+      evWrapAvg.append(evBarAvg, evValAvg);
+      evBars.append(evWrapCrit, evWrapAvg);
+      row.append(evLbl, evBars);
       chartHost.append(row);
     });
     const leg = document.createElement('div');
@@ -538,14 +568,26 @@ export function renderRisks() {
     if (!lines.length) {
       const li = document.createElement('li');
       li.className = 'risks-proofs-item';
-      li.innerHTML =
-        '<span class="risks-proofs-item__kind">—</span><span class="risks-proofs-item__label">Aucune preuve de liaison incident ↔ risque sur les données chargées. Ajoutez le marqueur dans la description d’incident ou vérifiez le chargement des listes.</span>';
+      const pk = document.createElement('span');
+      pk.className = 'risks-proofs-item__kind';
+      pk.textContent = '—';
+      const pl = document.createElement('span');
+      pl.className = 'risks-proofs-item__label';
+      pl.textContent =
+        'Aucune preuve de liaison incident ↔ risque sur les données chargées. Ajoutez le marqueur dans la description d’incident ou vérifiez le chargement des listes.';
+      li.append(pk, pl);
       ul.append(li);
     } else {
       lines.slice(0, 40).forEach((d) => {
         const li = document.createElement('li');
         li.className = 'risks-proofs-item';
-        li.innerHTML = `<span class="risks-proofs-item__kind">${escapeHtml(d.kind)}</span><span class="risks-proofs-item__label">${escapeHtml(d.label)}</span>`;
+        const sk = document.createElement('span');
+        sk.className = 'risks-proofs-item__kind';
+        sk.textContent = d.kind;
+        const sl = document.createElement('span');
+        sl.className = 'risks-proofs-item__label';
+        sl.textContent = d.label;
+        li.append(sk, sl);
         ul.append(li);
       });
     }
@@ -572,8 +614,22 @@ export function renderRisks() {
   function showIaAssistantResult(title, lines) {
     if (!iaResultEl) return;
     iaResultEl.hidden = false;
-    const ul = lines.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
-    iaResultEl.innerHTML = `<strong class="risks-ia-premium__result-title">${escapeHtml(title)}</strong><ul class="risks-ia-premium__result-list">${ul}</ul><p class="risks-ia-premium__result-hint">Aucune écriture automatique — validez manuellement dans le registre ou les actions.</p>`;
+    iaResultEl.replaceChildren();
+    const iaTitle = document.createElement('strong');
+    iaTitle.className = 'risks-ia-premium__result-title';
+    iaTitle.textContent = title;
+    const iaUl = document.createElement('ul');
+    iaUl.className = 'risks-ia-premium__result-list';
+    lines.forEach((t) => {
+      const iaLi = document.createElement('li');
+      iaLi.textContent = t;
+      iaUl.append(iaLi);
+    });
+    const iaHint = document.createElement('p');
+    iaHint.className = 'risks-ia-premium__result-hint';
+    iaHint.textContent =
+      'Aucune écriture automatique — validez manuellement dans le registre ou les actions.';
+    iaResultEl.append(iaTitle, iaUl, iaHint);
   }
 
   const iaBtnSpecs = [
@@ -774,13 +830,19 @@ export function renderRisks() {
 
     const head = document.createElement('div');
     head.className = 'risks-insights__head risks-insights__head--compact';
-    head.innerHTML = `
-      <div class="risks-insights__intro">
-        <div class="section-kicker">Pilotage</div>
-        <h3 class="risks-insights__title">Répartition & filtres registre</h3>
-        <p class="risks-insights__lead">${unplaced} fiche(s) sans G×P — paliers ci-dessous pour filtrer le tableau.</p>
-      </div>
-  `;
+    const insIntro = document.createElement('div');
+    insIntro.className = 'risks-insights__intro';
+    const insKicker = document.createElement('div');
+    insKicker.className = 'section-kicker';
+    insKicker.textContent = 'Pilotage';
+    const insH3 = document.createElement('h3');
+    insH3.className = 'risks-insights__title';
+    insH3.textContent = 'Répartition & filtres registre';
+    const insLead = document.createElement('p');
+    insLead.className = 'risks-insights__lead';
+    insLead.textContent = `${unplaced} fiche(s) sans G×P — paliers ci-dessous pour filtrer le tableau.`;
+    insIntro.append(insKicker, insH3, insLead);
+    head.append(insIntro);
 
     const barWrap = document.createElement('div');
     barWrap.className = 'risks-insights__bar-wrap';
@@ -790,19 +852,35 @@ export function renderRisks() {
     if (n === 0) {
       bar.innerHTML = '<div class="risks-insights__bar-seg risks-insights__bar-seg--empty" style="width:100%"></div>';
     } else {
-      bar.innerHTML = `
-        <div class="risks-insights__bar-seg risks-insights__bar-seg--crit" style="width:${pct(critique)}%" title="Critiques : ${critique}"></div>
-        <div class="risks-insights__bar-seg risks-insights__bar-seg--elev" style="width:${pct(eleve)}%" title="Élevés : ${eleve}"></div>
-        <div class="risks-insights__bar-seg risks-insights__bar-seg--mod" style="width:${pct(modere)}%" title="Modérés / faibles : ${modere}"></div>
-      `;
+      const mkInsightSeg = (extraCls, widthPct, titleText) => {
+        const seg = document.createElement('div');
+        seg.className = `risks-insights__bar-seg ${extraCls}`;
+        seg.style.width = `${widthPct}%`;
+        seg.title = titleText;
+        return seg;
+      };
+      bar.append(
+        mkInsightSeg('risks-insights__bar-seg--crit', pct(critique), `Critiques : ${critique}`),
+        mkInsightSeg('risks-insights__bar-seg--elev', pct(eleve), `Élevés : ${eleve}`),
+        mkInsightSeg('risks-insights__bar-seg--mod', pct(modere), `Modérés / faibles : ${modere}`)
+      );
     }
     const barLegend = document.createElement('div');
     barLegend.className = 'risks-insights__bar-legend';
-    barLegend.innerHTML = `
-      <span><i class="risks-insights__dot risks-insights__dot--crit"></i>Critiques <strong>${critique}</strong></span>
-      <span><i class="risks-insights__dot risks-insights__dot--elev"></i>Élevés <strong>${eleve}</strong></span>
-      <span><i class="risks-insights__dot risks-insights__dot--mod"></i>Modérés &amp; faibles <strong>${modere}</strong></span>
-    `;
+    const mkLegendLine = (dotCls, labelBeforeStrong, count) => {
+      const sp = document.createElement('span');
+      const dot = document.createElement('i');
+      dot.className = `risks-insights__dot ${dotCls}`;
+      const strong = document.createElement('strong');
+      strong.textContent = String(count);
+      sp.append(dot, document.createTextNode(`${labelBeforeStrong} `), strong);
+      return sp;
+    };
+    barLegend.append(
+      mkLegendLine('risks-insights__dot--crit', 'Critiques', critique),
+      mkLegendLine('risks-insights__dot--elev', 'Élevés', eleve),
+      mkLegendLine('risks-insights__dot--mod', 'Modérés & faibles', modere)
+    );
     barWrap.append(bar, barLegend);
 
     const tierPills = document.createElement('div');

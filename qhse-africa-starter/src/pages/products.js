@@ -586,14 +586,6 @@ function makeProductId() {
   return `prd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 /**
  * @param {object} product
  * @param {{ onDetail?: (p: object) => void; onFds?: (p: object) => void }} [handlers]
@@ -611,26 +603,44 @@ function createProductRow(product, handlers = {}) {
 
   const main = document.createElement('div');
   main.className = 'products-row-main';
-  const docLine =
-    product.fdsFileName && String(product.fdsFileName).trim()
-      ? `<p class="products-row-doc">Pièce jointe : ${esc(product.fdsFileName)}</p>`
-      : '<p class="products-row-doc products-row-doc--warn">Pas de fichier — fiche = données saisies</p>';
-  const validLine =
-    product.fdsValidUntil && String(product.fdsValidUntil).trim()
-      ? `<p class="products-row-validity ${isFdsExpired(product) ? 'products-row-validity--late' : ''}">Validité FDS : ${esc(product.fdsValidUntil)}</p>`
-      : '';
-  const pills =
-    alerts.length > 0
-      ? `<div class="products-row-pills">${alerts.map((a) => `<span class="products-alert-pill ${a.cls}">${esc(a.t)}</span>`).join('')}</div>`
-      : '';
-  main.innerHTML = `
-    <strong class="products-row-title">${esc(product.name)}</strong>
-    <p class="products-row-sub">CAS ${esc(product.cas)} · ${esc(product.site)}</p>
-    <p class="products-row-rev">FDS révisée ${esc(product.revision)}</p>
-    ${validLine}
-    ${docLine}
-    ${pills}
-  `;
+  const titleEl = document.createElement('strong');
+  titleEl.className = 'products-row-title';
+  titleEl.textContent = product.name;
+  main.append(titleEl);
+  const subEl = document.createElement('p');
+  subEl.className = 'products-row-sub';
+  subEl.textContent = `CAS ${product.cas} · ${product.site}`;
+  main.append(subEl);
+  const revEl = document.createElement('p');
+  revEl.className = 'products-row-rev';
+  revEl.textContent = `FDS révisée ${product.revision}`;
+  main.append(revEl);
+  if (product.fdsValidUntil && String(product.fdsValidUntil).trim()) {
+    const vp = document.createElement('p');
+    vp.className = `products-row-validity${isFdsExpired(product) ? ' products-row-validity--late' : ''}`;
+    vp.textContent = `Validité FDS : ${product.fdsValidUntil}`;
+    main.append(vp);
+  }
+  const docP = document.createElement('p');
+  if (product.fdsFileName && String(product.fdsFileName).trim()) {
+    docP.className = 'products-row-doc';
+    docP.textContent = `Pièce jointe : ${product.fdsFileName}`;
+  } else {
+    docP.className = 'products-row-doc products-row-doc--warn';
+    docP.textContent = 'Pas de fichier — fiche = données saisies';
+  }
+  main.append(docP);
+  if (alerts.length > 0) {
+    const pillsWrap = document.createElement('div');
+    pillsWrap.className = 'products-row-pills';
+    for (const a of alerts) {
+      const sp = document.createElement('span');
+      sp.className = `products-alert-pill ${a.cls}`;
+      sp.textContent = a.t;
+      pillsWrap.append(sp);
+    }
+    main.append(pillsWrap);
+  }
 
   const ghsCodes =
     Array.isArray(product.ghsCodes) && product.ghsCodes.length
@@ -686,9 +696,19 @@ function createProductRow(product, handlers = {}) {
   return row;
 }
 
-function ulFromLines(items) {
-  if (!items || !items.length) return '<li>—</li>';
-  return items.map((t) => `<li>${esc(t)}</li>`).join('');
+function fillDetailListUl(ul, items) {
+  ul.replaceChildren();
+  if (!items || !items.length) {
+    const li = document.createElement('li');
+    li.textContent = '—';
+    ul.append(li);
+    return;
+  }
+  for (const t of items) {
+    const li = document.createElement('li');
+    li.textContent = String(t);
+    ul.append(li);
+  }
 }
 
 function renderProductDetail(product, host) {
@@ -700,89 +720,237 @@ function renderProductDetail(product, host) {
     ? String(product.fdsFileName)
     : 'Aucun fichier lié — ajoutez la FDS signée.';
   const valid = product.fdsValidUntil ? String(product.fdsValidUntil) : '—';
-  const validWarn = isFdsExpired(product) ? ' products-detail-valid--expired' : '';
+  const validExpired = isFdsExpired(product);
   const dSum = dangerTone(product.danger);
   const hasAtt = !!(product.fdsFileName && String(product.fdsFileName).trim());
 
-  art.innerHTML = `
-    <div class="content-card-head content-card-head--split">
-      <div>
-        <div class="section-kicker">Fiche produit / substance</div>
-        <h3 class="products-detail-title">${esc(product.name)}</h3>
-        <p class="products-detail-meta">CAS ${esc(product.cas)} · ${esc(product.site)} · Révision ${esc(product.revision)}</p>
-        <p class="products-detail-valid${validWarn}">Validité FDS (indicative) : ${esc(valid)}</p>
-      </div>
-      <div class="products-detail-head-actions">
-        <button type="button" class="btn btn-secondary products-detail-copy">Copier synthèse</button>
-        <button type="button" class="text-button products-detail-close" style="font-weight:700">Fermer</button>
-      </div>
-    </div>
-    <div class="products-detail-summary" role="region" aria-label="Synthèse">
-      <div class="products-detail-summary-item">
-        <span class="products-detail-summary-lbl">Criticité</span>
-        <span class="products-detail-summary-val products-detail-summary-val--${esc(dSum.cls)}">${esc(dSum.label)}</span>
-      </div>
-      <div class="products-detail-summary-item">
-        <span class="products-detail-summary-lbl">Validité</span>
-        <span class="products-detail-summary-val${validWarn}">${esc(valid)}</span>
-      </div>
-      <div class="products-detail-summary-item">
-        <span class="products-detail-summary-lbl">Pièce jointe</span>
-        <span class="products-detail-summary-val">${hasAtt ? 'Oui' : 'Non'}</span>
-      </div>
-    </div>
-    <p class="products-detail-exploit-note" role="note">
-      <strong>Fiche exploitable :</strong> dangers, EPI, stockage et secours ci-dessous servent au terrain et au pilotage. Le fichier PDF/image n’est qu’une référence (hébergement selon votre déploiement).
-    </p>
-    <div class="products-detail-body">
-      <section class="products-detail-block products-detail-block--general">
-        <h4>Infos générales</h4>
-        <p class="products-detail-text"><strong>Référence document :</strong> ${esc(fdsName)}</p>
-        <p class="products-detail-text"><strong>Validation humaine (registre) :</strong> ${product.fdsHumanValidated ? 'Oui' : 'Non — à compléter'}</p>
-      </section>
-      <section class="products-detail-block">
-        <h4>Dangers &amp; CLP</h4>
-        <p class="products-detail-text"><strong>Mot-signal :</strong> ${esc(product.signalWord || '—')}</p>
-        <p class="products-detail-text">${esc(product.hazards || '—')}</p>
-        <div class="products-picto-chips">${(product.fdsPictograms || []).length ? (product.fdsPictograms || []).map((x) => `<span class="products-picto-chip">${esc(x)}</span>`).join('') : '<span class="products-detail-muted">—</span>'}</div>
-      </section>
-      <section class="products-detail-block">
-        <h4>EPI recommandés</h4>
-        <ul class="products-detail-list">${ulFromLines(product.fdsEpi)}</ul>
-      </section>
-      <section class="products-detail-block">
-        <h4>Mesures &amp; stockage</h4>
-        <p class="products-detail-text"><strong>Stockage :</strong> ${esc(product.fdsStorage || '—')}</p>
-        <p class="products-detail-text"><strong>Prévention :</strong> ${esc(product.fdsMeasures || '—')}</p>
-      </section>
-      <section class="products-detail-block products-detail-block--urgent">
-        <h4>Urgence &amp; secours</h4>
-        <p class="products-detail-text products-detail-urgency">${esc(product.fdsRescue || '—')}</p>
-      </section>
-      <section class="products-detail-block products-detail-block--ia">
-        <h4>Analyse IA (indicative)</h4>
-        <p class="products-detail-note">Pistes générées par l’assistant — à recouper avec la FDS ; aucune décision automatique.</p>
-        <p class="products-detail-subh">Incohérences signalées</p>
-        <ul class="products-detail-list">${ulFromLines(product.iaInconsistencies)}</ul>
-        <p class="products-detail-subh">Actions suggérées</p>
-        <ul class="products-detail-list">${ulFromLines(product.iaSuggestedActions)}</ul>
-      </section>
-      <section class="products-detail-block products-detail-block--modules">
-        <h4>Risques, incidents &amp; actions</h4>
-        <p class="products-detail-text products-detail-module-hint">Même sans lien automatique, utilisez le <strong>CAS ${esc(
-          product.cas
-        )}</strong> ou le <strong>nom produit</strong> dans la recherche de chaque module.</p>
-        <p class="products-detail-text"><strong>Risques (registre local) :</strong></p>
-        <ul class="products-detail-list">${ulFromLines(product.risksLinked)}</ul>
-        <p class="products-detail-text"><strong>Incidents :</strong> ${esc(product.incidentsHint || 'Voir le registre incidents.')}</p>
-        <div class="products-detail-module-btns">
-          <button type="button" class="btn btn-secondary products-goto-risks">Risques</button>
-          <button type="button" class="btn btn-secondary products-goto-incidents">Incidents</button>
-          <button type="button" class="btn btn-secondary products-goto-actions">Actions</button>
-        </div>
-      </section>
-    </div>
-  `;
+  const head = document.createElement('div');
+  head.className = 'content-card-head content-card-head--split';
+  const headLeft = document.createElement('div');
+  const kicker = document.createElement('div');
+  kicker.className = 'section-kicker';
+  kicker.textContent = 'Fiche produit / substance';
+  const h3 = document.createElement('h3');
+  h3.className = 'products-detail-title';
+  h3.textContent = product.name;
+  const meta = document.createElement('p');
+  meta.className = 'products-detail-meta';
+  meta.textContent = `CAS ${product.cas} · ${product.site} · Révision ${product.revision}`;
+  const validP = document.createElement('p');
+  validP.className = `products-detail-valid${validExpired ? ' products-detail-valid--expired' : ''}`;
+  validP.textContent = `Validité FDS (indicative) : ${valid}`;
+  headLeft.append(kicker, h3, meta, validP);
+
+  const headActions = document.createElement('div');
+  headActions.className = 'products-detail-head-actions';
+  const btnCopy = document.createElement('button');
+  btnCopy.type = 'button';
+  btnCopy.className = 'btn btn-secondary products-detail-copy';
+  btnCopy.textContent = 'Copier synthèse';
+  const btnClose = document.createElement('button');
+  btnClose.type = 'button';
+  btnClose.className = 'text-button products-detail-close';
+  btnClose.style.fontWeight = '700';
+  btnClose.textContent = 'Fermer';
+  headActions.append(btnCopy, btnClose);
+  head.append(headLeft, headActions);
+
+  const summary = document.createElement('div');
+  summary.className = 'products-detail-summary';
+  summary.setAttribute('role', 'region');
+  summary.setAttribute('aria-label', 'Synthèse');
+
+  const critItem = document.createElement('div');
+  critItem.className = 'products-detail-summary-item';
+  const critLbl = document.createElement('span');
+  critLbl.className = 'products-detail-summary-lbl';
+  critLbl.textContent = 'Criticité';
+  const critVal = document.createElement('span');
+  critVal.className = `products-detail-summary-val products-detail-summary-val--${dSum.cls}`;
+  critVal.textContent = dSum.label;
+  critItem.append(critLbl, critVal);
+
+  const valItem = document.createElement('div');
+  valItem.className = 'products-detail-summary-item';
+  const valLbl = document.createElement('span');
+  valLbl.className = 'products-detail-summary-lbl';
+  valLbl.textContent = 'Validité';
+  const valSpan = document.createElement('span');
+  valSpan.className = `products-detail-summary-val${validExpired ? ' products-detail-valid--expired' : ''}`;
+  valSpan.textContent = valid;
+  valItem.append(valLbl, valSpan);
+
+  const attItem = document.createElement('div');
+  attItem.className = 'products-detail-summary-item';
+  const attLbl = document.createElement('span');
+  attLbl.className = 'products-detail-summary-lbl';
+  attLbl.textContent = 'Pièce jointe';
+  const attVal = document.createElement('span');
+  attVal.className = 'products-detail-summary-val';
+  attVal.textContent = hasAtt ? 'Oui' : 'Non';
+  attItem.append(attLbl, attVal);
+  summary.append(critItem, valItem, attItem);
+
+  const exploitNote = document.createElement('p');
+  exploitNote.className = 'products-detail-exploit-note';
+  exploitNote.setAttribute('role', 'note');
+  const sn = document.createElement('strong');
+  sn.textContent = 'Fiche exploitable :';
+  exploitNote.append(sn, document.createTextNode(' dangers, EPI, stockage et secours ci-dessous servent au terrain et au pilotage. Le fichier PDF/image n’est qu’une référence (hébergement selon votre déploiement).'));
+
+  const body = document.createElement('div');
+  body.className = 'products-detail-body';
+
+  const secGen = document.createElement('section');
+  secGen.className = 'products-detail-block products-detail-block--general';
+  const h4g = document.createElement('h4');
+  h4g.textContent = 'Infos générales';
+  const pRef = document.createElement('p');
+  pRef.className = 'products-detail-text';
+  const sr = document.createElement('strong');
+  sr.textContent = 'Référence document :';
+  pRef.append(sr, document.createTextNode(` ${fdsName}`));
+  const pHum = document.createElement('p');
+  pHum.className = 'products-detail-text';
+  const sh = document.createElement('strong');
+  sh.textContent = 'Validation humaine (registre) :';
+  pHum.append(sh, document.createTextNode(` ${product.fdsHumanValidated ? 'Oui' : 'Non — à compléter'}`));
+  secGen.append(h4g, pRef, pHum);
+
+  const secDang = document.createElement('section');
+  secDang.className = 'products-detail-block';
+  const h4d = document.createElement('h4');
+  h4d.textContent = 'Dangers & CLP';
+  const pSig = document.createElement('p');
+  pSig.className = 'products-detail-text';
+  const ss = document.createElement('strong');
+  ss.textContent = 'Mot-signal :';
+  pSig.append(ss, document.createTextNode(` ${product.signalWord || '—'}`));
+  const pHaz = document.createElement('p');
+  pHaz.className = 'products-detail-text';
+  pHaz.textContent = product.hazards || '—';
+  const pictoWrap = document.createElement('div');
+  pictoWrap.className = 'products-picto-chips';
+  const pictos = product.fdsPictograms || [];
+  if (pictos.length) {
+    for (const x of pictos) {
+      const chip = document.createElement('span');
+      chip.className = 'products-picto-chip';
+      chip.textContent = String(x);
+      pictoWrap.append(chip);
+    }
+  } else {
+    const muted = document.createElement('span');
+    muted.className = 'products-detail-muted';
+    muted.textContent = '—';
+    pictoWrap.append(muted);
+  }
+  secDang.append(h4d, pSig, pHaz, pictoWrap);
+
+  const secEpi = document.createElement('section');
+  secEpi.className = 'products-detail-block';
+  const h4e = document.createElement('h4');
+  h4e.textContent = 'EPI recommandés';
+  const ulEpi = document.createElement('ul');
+  ulEpi.className = 'products-detail-list';
+  fillDetailListUl(ulEpi, product.fdsEpi);
+  secEpi.append(h4e, ulEpi);
+
+  const secSto = document.createElement('section');
+  secSto.className = 'products-detail-block';
+  const h4s = document.createElement('h4');
+  h4s.textContent = 'Mesures & stockage';
+  const pSt = document.createElement('p');
+  pSt.className = 'products-detail-text';
+  const sst = document.createElement('strong');
+  sst.textContent = 'Stockage :';
+  pSt.append(sst, document.createTextNode(` ${product.fdsStorage || '—'}`));
+  const pPrev = document.createElement('p');
+  pPrev.className = 'products-detail-text';
+  const spv = document.createElement('strong');
+  spv.textContent = 'Prévention :';
+  pPrev.append(spv, document.createTextNode(` ${product.fdsMeasures || '—'}`));
+  secSto.append(h4s, pSt, pPrev);
+
+  const secUrg = document.createElement('section');
+  secUrg.className = 'products-detail-block products-detail-block--urgent';
+  const h4u = document.createElement('h4');
+  h4u.textContent = 'Urgence & secours';
+  const pUrg = document.createElement('p');
+  pUrg.className = 'products-detail-text products-detail-urgency';
+  pUrg.textContent = product.fdsRescue || '—';
+  secUrg.append(h4u, pUrg);
+
+  const secIa = document.createElement('section');
+  secIa.className = 'products-detail-block products-detail-block--ia';
+  const h4ia = document.createElement('h4');
+  h4ia.textContent = 'Analyse IA (indicative)';
+  const pNote = document.createElement('p');
+  pNote.className = 'products-detail-note';
+  pNote.textContent = 'Pistes générées par l’assistant — à recouper avec la FDS ; aucune décision automatique.';
+  const subInc = document.createElement('p');
+  subInc.className = 'products-detail-subh';
+  subInc.textContent = 'Incohérences signalées';
+  const ulInc = document.createElement('ul');
+  ulInc.className = 'products-detail-list';
+  fillDetailListUl(ulInc, product.iaInconsistencies);
+  const subAct = document.createElement('p');
+  subAct.className = 'products-detail-subh';
+  subAct.textContent = 'Actions suggérées';
+  const ulAct = document.createElement('ul');
+  ulAct.className = 'products-detail-list';
+  fillDetailListUl(ulAct, product.iaSuggestedActions);
+  secIa.append(h4ia, pNote, subInc, ulInc, subAct, ulAct);
+
+  const secMod = document.createElement('section');
+  secMod.className = 'products-detail-block products-detail-block--modules';
+  const h4m = document.createElement('h4');
+  h4m.textContent = 'Risques, incidents & actions';
+  const pHint = document.createElement('p');
+  pHint.className = 'products-detail-text products-detail-module-hint';
+  const strongCas = document.createElement('strong');
+  strongCas.textContent = `CAS ${product.cas}`;
+  const strongNom = document.createElement('strong');
+  strongNom.textContent = 'nom produit';
+  pHint.append(
+    document.createTextNode('Même sans lien automatique, utilisez le '),
+    strongCas,
+    document.createTextNode(' ou le '),
+    strongNom,
+    document.createTextNode(' dans la recherche de chaque module.')
+  );
+  const pRisksLbl = document.createElement('p');
+  pRisksLbl.className = 'products-detail-text';
+  const srl = document.createElement('strong');
+  srl.textContent = 'Risques (registre local) :';
+  pRisksLbl.append(srl);
+  const ulRisks = document.createElement('ul');
+  ulRisks.className = 'products-detail-list';
+  fillDetailListUl(ulRisks, product.risksLinked);
+  const pInc = document.createElement('p');
+  pInc.className = 'products-detail-text';
+  const sin = document.createElement('strong');
+  sin.textContent = 'Incidents :';
+  pInc.append(sin, document.createTextNode(` ${product.incidentsHint || 'Voir le registre incidents.'}`));
+  const modBtns = document.createElement('div');
+  modBtns.className = 'products-detail-module-btns';
+  const bR = document.createElement('button');
+  bR.type = 'button';
+  bR.className = 'btn btn-secondary products-goto-risks';
+  bR.textContent = 'Risques';
+  const bI = document.createElement('button');
+  bI.type = 'button';
+  bI.className = 'btn btn-secondary products-goto-incidents';
+  bI.textContent = 'Incidents';
+  const bA = document.createElement('button');
+  bA.type = 'button';
+  bA.className = 'btn btn-secondary products-goto-actions';
+  bA.textContent = 'Actions';
+  modBtns.append(bR, bI, bA);
+  secMod.append(h4m, pHint, pRisksLbl, ulRisks, pInc, modBtns);
+
+  body.append(secGen, secDang, secEpi, secSto, secUrg, secIa, secMod);
+  art.append(head, summary, exploitNote, body);
   art.querySelector('.products-detail-close')?.addEventListener('click', () => {
     host.replaceChildren();
     host.hidden = true;
@@ -866,51 +1034,102 @@ function buildKpiAndVizCard(products) {
   const dist = dangerDistribution(products);
   const alerts = computeAlerts(products);
   const maxBar = Math.max(dist.el, dist.mo, dist.fa, 1);
-  card.innerHTML = `
-    <div class="content-card-head">
-      <div>
-        <div class="section-kicker">Pilotage substances</div>
-        <h3>Vue d’ensemble</h3>
-        <p class="content-card-lead">Indicateurs calculés sur le registre affiché (navigateur ou API selon configuration).</p>
-      </div>
-    </div>
-    <div class="products-kpi-grid">
-      <div class="products-kpi-tile">
-        <span class="products-kpi-label">Produits</span>
-        <span class="products-kpi-val">${n}</span>
-      </div>
-      <div class="products-kpi-tile products-kpi-tile--alert">
-        <span class="products-kpi-label">Dangereux (élevé)</span>
-        <span class="products-kpi-val">${nd}</span>
-      </div>
-      <div class="products-kpi-tile">
-        <span class="products-kpi-label">Alertes actives</span>
-        <span class="products-kpi-val">${alerts.length}</span>
-      </div>
-    </div>
-    <div class="products-dist-block">
-      <h4 class="products-dist-title">Répartition des dangers</h4>
-      <div class="products-dist-bars" role="img" aria-label="Répartition danger élevé, moyen, faible">
-        <div class="products-dist-row"><span>Élevé</span><div class="products-dist-track"><i class="products-dist-fill products-dist-fill--el" style="width:${Math.round((dist.el / maxBar) * 100)}%"></i></div><span>${dist.el}</span></div>
-        <div class="products-dist-row"><span>Moyen</span><div class="products-dist-track"><i class="products-dist-fill products-dist-fill--mo" style="width:${Math.round((dist.mo / maxBar) * 100)}%"></i></div><span>${dist.mo}</span></div>
-        <div class="products-dist-row"><span>Faible</span><div class="products-dist-track"><i class="products-dist-fill products-dist-fill--fa" style="width:${Math.round((dist.fa / maxBar) * 100)}%"></i></div><span>${dist.fa}</span></div>
-      </div>
-    </div>
-    <div class="products-alerts-block">
-      <h4 class="products-alerts-title">Alertes</h4>
-      ${
-        alerts.length === 0
-          ? '<p class="products-alerts-empty">Aucune alerte sur le périmètre affiché.</p>'
-          : `<ul class="products-alerts-list">${alerts
-              .slice(0, 8)
-              .map(
-                (a) =>
-                  `<li><button type="button" class="products-alert-link" data-pid="${esc(a.product.id)}">${esc(a.text)}</button></li>`
-              )
-              .join('')}</ul>`
-      }
-    </div>
-  `;
+
+  const kpiHead = document.createElement('div');
+  kpiHead.className = 'content-card-head';
+  const kpiHeadInner = document.createElement('div');
+  const kpiKicker = document.createElement('div');
+  kpiKicker.className = 'section-kicker';
+  kpiKicker.textContent = 'Pilotage substances';
+  const kpiH3 = document.createElement('h3');
+  kpiH3.textContent = 'Vue d’ensemble';
+  const kpiLead = document.createElement('p');
+  kpiLead.className = 'content-card-lead';
+  kpiLead.textContent =
+    'Indicateurs calculés sur le registre affiché (navigateur ou API selon configuration).';
+  kpiHeadInner.append(kpiKicker, kpiH3, kpiLead);
+  kpiHead.append(kpiHeadInner);
+
+  const kpiGrid = document.createElement('div');
+  kpiGrid.className = 'products-kpi-grid';
+  function mkKpiTile(label, val, extraCls = '') {
+    const tile = document.createElement('div');
+    tile.className = `products-kpi-tile${extraCls ? ` ${extraCls}` : ''}`;
+    const lbl = document.createElement('span');
+    lbl.className = 'products-kpi-label';
+    lbl.textContent = label;
+    const v = document.createElement('span');
+    v.className = 'products-kpi-val';
+    v.textContent = String(val);
+    tile.append(lbl, v);
+    return tile;
+  }
+  kpiGrid.append(
+    mkKpiTile('Produits', n),
+    mkKpiTile('Dangereux (élevé)', nd, 'products-kpi-tile--alert'),
+    mkKpiTile('Alertes actives', alerts.length)
+  );
+
+  const distBlock = document.createElement('div');
+  distBlock.className = 'products-dist-block';
+  const distTitle = document.createElement('h4');
+  distTitle.className = 'products-dist-title';
+  distTitle.textContent = 'Répartition des dangers';
+  const distBars = document.createElement('div');
+  distBars.className = 'products-dist-bars';
+  distBars.setAttribute('role', 'img');
+  distBars.setAttribute('aria-label', 'Répartition danger élevé, moyen, faible');
+  function mkDistRow(label, count, fillCls) {
+    const row = document.createElement('div');
+    row.className = 'products-dist-row';
+    const lab = document.createElement('span');
+    lab.textContent = label;
+    const track = document.createElement('div');
+    track.className = 'products-dist-track';
+    const fill = document.createElement('i');
+    fill.className = `products-dist-fill ${fillCls}`;
+    fill.style.width = `${Math.round((count / maxBar) * 100)}%`;
+    track.append(fill);
+    const num = document.createElement('span');
+    num.textContent = String(count);
+    row.append(lab, track, num);
+    return row;
+  }
+  distBars.append(
+    mkDistRow('Élevé', dist.el, 'products-dist-fill--el'),
+    mkDistRow('Moyen', dist.mo, 'products-dist-fill--mo'),
+    mkDistRow('Faible', dist.fa, 'products-dist-fill--fa')
+  );
+  distBlock.append(distTitle, distBars);
+
+  const alertsBlock = document.createElement('div');
+  alertsBlock.className = 'products-alerts-block';
+  const alertsTitle = document.createElement('h4');
+  alertsTitle.className = 'products-alerts-title';
+  alertsTitle.textContent = 'Alertes';
+  alertsBlock.append(alertsTitle);
+  if (alerts.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'products-alerts-empty';
+    empty.textContent = 'Aucune alerte sur le périmètre affiché.';
+    alertsBlock.append(empty);
+  } else {
+    const ul = document.createElement('ul');
+    ul.className = 'products-alerts-list';
+    for (const a of alerts.slice(0, 8)) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'products-alert-link';
+      btn.dataset.pid = String(a.product.id);
+      btn.textContent = a.text;
+      li.append(btn);
+      ul.append(li);
+    }
+    alertsBlock.append(ul);
+  }
+
+  card.append(kpiHead, kpiGrid, distBlock, alertsBlock);
   return card;
 }
 
@@ -931,7 +1150,10 @@ function buildTerrainStrip(products, onOpenDetail) {
   const list = dangerous.length ? dangerous : products;
   let pick = list[0];
   if (!pick) {
-    wrap.innerHTML = `<p class="products-terrain-empty">Aucun produit enregistré.</p>`;
+    const emptyP = document.createElement('p');
+    emptyP.className = 'products-terrain-empty';
+    emptyP.textContent = 'Aucun produit enregistré.';
+    wrap.append(emptyP);
     return wrap;
   }
 
@@ -948,23 +1170,45 @@ function buildTerrainStrip(products, onOpenDetail) {
   grid.className = 'products-terrain-grid';
 
   function fillTerrainCells(host, p) {
+    host.replaceChildren();
     const epi = (p.fdsEpi && p.fdsEpi[0]) || '—';
     const rescue = p.fdsRescue || '';
-    host.innerHTML = `
-      <div class="products-terrain-cell products-terrain-cell--danger">
-        <span class="products-terrain-lbl">Danger</span>
-        <p class="products-terrain-val">${esc(dangerTone(p.danger).label)}</p>
-        <p class="products-terrain-mini">${esc(p.signalWord || '')}</p>
-      </div>
-      <div class="products-terrain-cell">
-        <span class="products-terrain-lbl">EPI (prioritaire)</span>
-        <p class="products-terrain-val">${esc(epi)}</p>
-      </div>
-      <div class="products-terrain-cell products-terrain-cell--urgent">
-        <span class="products-terrain-lbl">Urgence</span>
-        <p class="products-terrain-val">${esc(rescue.slice(0, 160))}${rescue.length > 160 ? '…' : ''}</p>
-      </div>
-    `;
+    const rescueShort = rescue.length > 160 ? `${rescue.slice(0, 160)}…` : rescue;
+
+    const c1 = document.createElement('div');
+    c1.className = 'products-terrain-cell products-terrain-cell--danger';
+    const l1 = document.createElement('span');
+    l1.className = 'products-terrain-lbl';
+    l1.textContent = 'Danger';
+    const v1 = document.createElement('p');
+    v1.className = 'products-terrain-val';
+    v1.textContent = dangerTone(p.danger).label;
+    const m1 = document.createElement('p');
+    m1.className = 'products-terrain-mini';
+    m1.textContent = p.signalWord || '';
+    c1.append(l1, v1, m1);
+
+    const c2 = document.createElement('div');
+    c2.className = 'products-terrain-cell';
+    const l2 = document.createElement('span');
+    l2.className = 'products-terrain-lbl';
+    l2.textContent = 'EPI (prioritaire)';
+    const v2 = document.createElement('p');
+    v2.className = 'products-terrain-val';
+    v2.textContent = epi;
+    c2.append(l2, v2);
+
+    const c3 = document.createElement('div');
+    c3.className = 'products-terrain-cell products-terrain-cell--urgent';
+    const l3 = document.createElement('span');
+    l3.className = 'products-terrain-lbl';
+    l3.textContent = 'Urgence';
+    const v3 = document.createElement('p');
+    v3.className = 'products-terrain-val';
+    v3.textContent = rescueShort;
+    c3.append(l3, v3);
+
+    host.append(c1, c2, c3);
   }
 
   head.append(kicker);

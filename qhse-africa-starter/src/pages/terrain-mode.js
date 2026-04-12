@@ -187,47 +187,75 @@ export async function renderTerrainMode(container) {
   // MES ACTIONS DU JOUR
   document.getElementById('btn-actions')?.addEventListener('click', async () => {
     const zone = document.getElementById('terrain-form-zone');
-    zone.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted,#64748b)">Chargement...</div>`;
+    if (!zone) return;
+    zone.replaceChildren();
+    const loadingWrap = document.createElement('div');
+    loadingWrap.style.cssText =
+      'padding:16px;text-align:center;color:var(--text-muted,#64748b)';
+    loadingWrap.textContent = 'Chargement...';
+    zone.append(loadingWrap);
     try {
       const userId = appState?.currentUser?.id;
       const url = userId ? `/api/actions?assigneeId=${userId}&status=open` : '/api/actions?status=open';
       const res = await qhseFetch(url);
       const { data: actions } = await res.json();
+      zone.replaceChildren();
       if (!actions?.length) {
-        zone.innerHTML = `<div style="padding:16px;text-align:center;color:#10b981;font-weight:600">Aucune action en cours</div>`;
+        const empty = document.createElement('div');
+        empty.style.cssText =
+          'padding:16px;text-align:center;color:#10b981;font-weight:600';
+        empty.textContent = 'Aucune action en cours';
+        zone.append(empty);
         return;
       }
-      zone.innerHTML = `
-        <div style="background:var(--surface-2,#f8fafc);border-radius:12px;padding:20px">
-          <p class="terrain-section-title">Mes actions (${actions.length})</p>
-          ${actions.slice(0,10).map(a => `
-            <div style="padding:12px 0;border-bottom:1px solid var(--border-color,#e2e8f0)">
-              <div style="font-weight:600;font-size:14px">${escapeHtml(a.title)}</div>
-              <div style="font-size:12px;color:var(--text-muted,#64748b);margin-top:4px">
-                Echeance : ${a.dueDate ? new Date(a.dueDate).toLocaleDateString('fr-FR') : 'N/A'}
-              </div>
-              <button class="btn-terrain btn-terrain--success" data-action-id="${a.id}"
-                style="margin-top:8px;min-height:40px;font-size:13px">
-                Marquer fait
-              </button>
-            </div>`).join('')}
-        </div>`;
-
-      zone.querySelectorAll('[data-action-id]').forEach(btn => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText =
+        'background:var(--surface-2,#f8fafc);border-radius:12px;padding:20px';
+      const title = document.createElement('p');
+      title.className = 'terrain-section-title';
+      title.textContent = `Mes actions (${actions.length})`;
+      wrap.append(title);
+      for (const a of actions.slice(0, 10)) {
+        const row = document.createElement('div');
+        row.style.cssText =
+          'padding:12px 0;border-bottom:1px solid var(--border-color,#e2e8f0)';
+        const tEl = document.createElement('div');
+        tEl.style.cssText = 'font-weight:600;font-size:14px';
+        tEl.textContent = a.title || '—';
+        const dueEl = document.createElement('div');
+        dueEl.style.cssText =
+          'font-size:12px;color:var(--text-muted,#64748b);margin-top:4px';
+        dueEl.textContent = `Echeance : ${
+          a.dueDate ? new Date(a.dueDate).toLocaleDateString('fr-FR') : 'N/A'
+        }`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-terrain btn-terrain--success';
+        btn.style.cssText = 'margin-top:8px;min-height:40px;font-size:13px';
+        btn.textContent = 'Marquer fait';
+        if (a.id != null) btn.dataset.actionId = String(a.id);
         btn.addEventListener('click', async () => {
           const id = btn.dataset.actionId;
-          await qhseFetch(`/api/actions/${id}`, {
+          if (!id) return;
+          await qhseFetch(`/api/actions/${encodeURIComponent(id)}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'done' })
           }).catch(() => {});
-          btn.closest('div[style]').style.opacity = '0.4';
+          row.style.opacity = '0.4';
           btn.textContent = 'Fait !';
           btn.disabled = true;
         });
-      });
+        row.append(tEl, dueEl, btn);
+        wrap.append(row);
+      }
+      zone.append(wrap);
     } catch {
-      zone.innerHTML = `<div style="padding:16px;color:#ef4444">Erreur de chargement</div>`;
+      zone.replaceChildren();
+      const err = document.createElement('div');
+      err.style.cssText = 'padding:16px;color:#ef4444';
+      err.textContent = 'Erreur de chargement';
+      zone.append(err);
     }
   });
 }

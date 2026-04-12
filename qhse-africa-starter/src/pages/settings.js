@@ -1544,7 +1544,11 @@ export function renderSettings() {
 
   async function loadUsers() {
     if (!usersListHost) return;
-    usersListHost.innerHTML = '<p class="settings-alert-meta">Chargement utilisateurs...</p>';
+    usersListHost.replaceChildren();
+    const loadingMsg = document.createElement('p');
+    loadingMsg.className = 'settings-alert-meta';
+    loadingMsg.textContent = 'Chargement utilisateurs...';
+    usersListHost.append(loadingMsg);
     try {
       const res = await qhseFetch('/api/users');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1555,7 +1559,13 @@ export function renderSettings() {
         row.className = 'settings-alert-row';
         const main = document.createElement('div');
         main.className = 'settings-alert-main';
-        main.innerHTML = `<p class="settings-alert-name">${u.name || '—'}</p><p class="settings-alert-meta">${u.email || ''}</p>`;
+        const nameP = document.createElement('p');
+        nameP.className = 'settings-alert-name';
+        nameP.textContent = u.name || '—';
+        const emailP = document.createElement('p');
+        emailP.className = 'settings-alert-meta';
+        emailP.textContent = u.email || '';
+        main.append(nameP, emailP);
         const actions = document.createElement('div');
         actions.className = 'settings-actions-bar';
         const roleSel = document.createElement('select');
@@ -1715,7 +1725,11 @@ export function renderSettings() {
         usersListHost.append(row);
       });
     } catch {
-      usersListHost.innerHTML = '<p class="settings-alert-meta">Chargement utilisateurs indisponible.</p>';
+      usersListHost.replaceChildren();
+      const errP = document.createElement('p');
+      errP.className = 'settings-alert-meta';
+      errP.textContent = 'Chargement utilisateurs indisponible.';
+      usersListHost.append(errP);
       showToast('Impossible de charger les utilisateurs.', 'warning');
     }
   }

@@ -9,7 +9,6 @@ import { getDisplayMode, setDisplayMode } from '../utils/displayMode.js';
 import { TERRAIN_ALLOWED_PAGE_IDS } from '../utils/terrainModePages.js';
 import { showToast } from './toast.js';
 import { isDemoMode } from '../services/demoMode.service.js';
-import { escapeHtml } from '../utils/escapeHtml.js';
 import { getActiveTenant } from '../data/sessionUser.js';
 import { getTheme, toggleTheme, THEME_CHANGED_EVENT } from '../utils/theme.js';
 import { syncNetworkIndicatorUi } from '../utils/networkStatus.js';
@@ -18,7 +17,17 @@ const STYLE_ID = 'qhse-topbar-v2-styles';
 
 const THEME_ICON_SUN = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
 const THEME_ICON_MOON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const TOPBAR_NAV_TOGGLE_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`;
+const TOPBAR_SEARCH_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`;
 const DASHBOARD_INTENT_LAST_KEY = 'qhse.dashboard.intent.last';
+
+/** Marquage SVG interne uniquement — pas de chaînes utilisateur. */
+function mountTrustedSvgChild(host, svgMarkup) {
+  host.replaceChildren();
+  const doc = new DOMParser().parseFromString(String(svgMarkup).trim(), 'text/html');
+  const el = doc.body.firstElementChild;
+  if (el) host.append(el);
+}
 
 function readDashboardIntentLast() {
   try {
@@ -748,67 +757,189 @@ export function createTopbar({
   const mode = getDisplayMode();
   const dashboardIntentLast = readDashboardIntentLast();
 
-  header.innerHTML = `
-    <div class="topbar-v2__inner">
-      <button type="button" class="topbar-v2__nav-toggle" data-tb2-nav-toggle aria-expanded="false" aria-controls="qhse-shell-sidebar" aria-label="Ouvrir le menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
-      <div class="topbar-v2__lead">
-        <div class="topbar-v2__title-row">
-          <p class="topbar-v2__page-title" data-tb2-page-title></p>
-        </div>
-        <div class="topbar-v2__breadcrumb" data-tb2-breadcrumb></div>
-        <p class="topbar-v2__tenant" data-tb2-tenant hidden></p>
-      </div>
-      <div class="topbar-v2__center">
-        <div class="shell-quick-search" role="search">
-          <label class="visually-hidden" for="tb2-shell-quick-search-input">Rechercher un module</label>
-          <span class="shell-search-icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          </span>
-          <input
-            id="tb2-shell-quick-search-input"
-            type="search"
-            class="shell-quick-search-input"
-            placeholder="Rechercher…"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <ul class="shell-quick-search-results" hidden></ul>
-        </div>
-      </div>
-      <div class="topbar-v2__trailing">
-        <span class="topbar-v2__demo-pill" hidden data-topbar-demo-pill title="Exploration : données d’illustration pour prise en main (hors production)">Essai</span>
-        <span class="topbar-v2__notif-wrap">
-          <button type="button" class="topbar-v2__notif notification-toggle" aria-label="Ouvrir les notifications${safeUnread ? ` — ${safeUnread} non lues` : ''}">
-            <span class="topbar-v2__notif-icon" aria-hidden="true">${ICON_BELL_SVG}</span>
-          </button>
-          <span class="topbar-v2__notif-badge${safeUnread ? ' topbar-v2__notif-badge--visible' : ''}" role="status" aria-live="polite" aria-atomic="true"${safeUnread ? ` aria-label="${notifBadgeAriaLabel}"` : ' aria-hidden="true"'} ${safeUnread ? '' : 'hidden'} data-notif-badge>${badgeLabel}</span>
-        </span>
-        <button type="button" class="topbar-v2__theme" data-theme-toggle title="Thème clair" aria-label="Activer le thème clair">
-          <span class="topbar-v2__theme-icon" aria-hidden="true"></span>
-        </button>
-        <div class="topbar-v2__quick-wrap">
-          <button type="button" class="topbar-v2__quick topbar-quick-add" aria-expanded="false" aria-haspopup="true" aria-controls="topbar-quick-menu" id="topbar-quick-btn">Créer</button>
-          <ul class="topbar-v2__quick-menu" id="topbar-quick-menu" role="menu" aria-labelledby="topbar-quick-btn" hidden></ul>
-        </div>
-        <button type="button" class="topbar-v2__ai topbar-ai-btn topbar-v2__ai--subtle" aria-label="Centre IA">
-          <span aria-hidden="true">✦</span>
-        </button>
-        <span id="network-indicator" title="Statut reseau"></span>
-        <button type="button" class="topbar-v2__profile-btn topbar-v2__avatar-wrap" aria-label="Ouvrir les paramètres">
-          <span class="topbar-v2__avatar" aria-hidden="true"></span>
-          <span class="visually-hidden topbar-v2__user-name"></span>
-        </button>
-        <div class="display-mode-switch" role="group" aria-label="Mode d'affichage">
-          <button type="button" class="display-mode-seg${mode === 'terrain' ? ' is-active' : ''}" data-set-mode="terrain" aria-pressed="${mode === 'terrain' ? 'true' : 'false'}" title="Menu réduit, focus opérations terrain">Terrain</button>
-          <button type="button" class="display-mode-seg${mode === 'expert' ? ' is-active' : ''}" data-set-mode="expert" aria-pressed="${mode === 'expert' ? 'true' : 'false'}" title="Tous les modules QHSE">Complet</button>
-        </div>
-      </div>
-    </div>
-  `;
+  const inner = document.createElement('div');
+  inner.className = 'topbar-v2__inner';
 
-  const demoPill = header.querySelector('[data-topbar-demo-pill]');
+  const shellNavToggleBtn = document.createElement('button');
+  shellNavToggleBtn.type = 'button';
+  shellNavToggleBtn.className = 'topbar-v2__nav-toggle';
+  shellNavToggleBtn.setAttribute('data-tb2-nav-toggle', '');
+  shellNavToggleBtn.setAttribute('aria-expanded', 'false');
+  shellNavToggleBtn.setAttribute('aria-controls', 'qhse-shell-sidebar');
+  shellNavToggleBtn.setAttribute('aria-label', 'Ouvrir le menu');
+  mountTrustedSvgChild(shellNavToggleBtn, TOPBAR_NAV_TOGGLE_SVG);
+
+  const lead = document.createElement('div');
+  lead.className = 'topbar-v2__lead';
+  const titleRow = document.createElement('div');
+  titleRow.className = 'topbar-v2__title-row';
+  const pageTitleEl = document.createElement('p');
+  pageTitleEl.className = 'topbar-v2__page-title';
+  pageTitleEl.setAttribute('data-tb2-page-title', '');
+  titleRow.append(pageTitleEl);
+  const breadcrumbHostEl = document.createElement('div');
+  breadcrumbHostEl.className = 'topbar-v2__breadcrumb';
+  breadcrumbHostEl.setAttribute('data-tb2-breadcrumb', '');
+  const tenantLineEl = document.createElement('p');
+  tenantLineEl.className = 'topbar-v2__tenant';
+  tenantLineEl.setAttribute('data-tb2-tenant', '');
+  tenantLineEl.hidden = true;
+  lead.append(titleRow, breadcrumbHostEl, tenantLineEl);
+
+  const center = document.createElement('div');
+  center.className = 'topbar-v2__center';
+  const searchHost = document.createElement('div');
+  searchHost.className = 'shell-quick-search';
+  searchHost.setAttribute('role', 'search');
+  const searchLbl = document.createElement('label');
+  searchLbl.className = 'visually-hidden';
+  searchLbl.htmlFor = 'tb2-shell-quick-search-input';
+  searchLbl.textContent = 'Rechercher un module';
+  const searchIconWrap = document.createElement('span');
+  searchIconWrap.className = 'shell-search-icon';
+  searchIconWrap.setAttribute('aria-hidden', 'true');
+  mountTrustedSvgChild(searchIconWrap, TOPBAR_SEARCH_ICON_SVG);
+  const quickSearchInput = document.createElement('input');
+  quickSearchInput.id = 'tb2-shell-quick-search-input';
+  quickSearchInput.type = 'search';
+  quickSearchInput.className = 'shell-quick-search-input';
+  quickSearchInput.placeholder = 'Rechercher…';
+  quickSearchInput.autocomplete = 'off';
+  quickSearchInput.spellcheck = false;
+  const quickSearchResults = document.createElement('ul');
+  quickSearchResults.className = 'shell-quick-search-results';
+  quickSearchResults.hidden = true;
+  searchHost.append(searchLbl, searchIconWrap, quickSearchInput, quickSearchResults);
+  center.append(searchHost);
+
+  const trailing = document.createElement('div');
+  trailing.className = 'topbar-v2__trailing';
+
+  const demoPill = document.createElement('span');
+  demoPill.className = 'topbar-v2__demo-pill';
+  demoPill.hidden = true;
+  demoPill.setAttribute('data-topbar-demo-pill', '');
+  demoPill.title = 'Exploration : données d’illustration pour prise en main (hors production)';
+  demoPill.textContent = 'Essai';
+
+  const notifWrap = document.createElement('span');
+  notifWrap.className = 'topbar-v2__notif-wrap';
+  const notifToggle = document.createElement('button');
+  notifToggle.type = 'button';
+  notifToggle.className = 'topbar-v2__notif notification-toggle';
+  notifToggle.setAttribute(
+    'aria-label',
+    'Ouvrir les notifications' + (safeUnread ? ` — ${safeUnread} non lues` : '')
+  );
+  const notifIconHost = document.createElement('span');
+  notifIconHost.className = 'topbar-v2__notif-icon';
+  notifIconHost.setAttribute('aria-hidden', 'true');
+  mountTrustedSvgChild(notifIconHost, ICON_BELL_SVG);
+  notifToggle.append(notifIconHost);
+
+  const notifBadgeEl = document.createElement('span');
+  notifBadgeEl.className =
+    'topbar-v2__notif-badge' + (safeUnread ? ' topbar-v2__notif-badge--visible' : '');
+  notifBadgeEl.setAttribute('role', 'status');
+  notifBadgeEl.setAttribute('aria-live', 'polite');
+  notifBadgeEl.setAttribute('aria-atomic', 'true');
+  notifBadgeEl.setAttribute('data-notif-badge', '');
+  if (safeUnread) {
+    notifBadgeEl.setAttribute('aria-label', notifBadgeAriaLabel);
+  } else {
+    notifBadgeEl.setAttribute('aria-hidden', 'true');
+    notifBadgeEl.hidden = true;
+  }
+  notifBadgeEl.textContent = badgeLabel;
+  notifWrap.append(notifToggle, notifBadgeEl);
+
+  const themeToggleBtn = document.createElement('button');
+  themeToggleBtn.type = 'button';
+  themeToggleBtn.className = 'topbar-v2__theme';
+  themeToggleBtn.setAttribute('data-theme-toggle', '');
+  themeToggleBtn.title = 'Thème clair';
+  themeToggleBtn.setAttribute('aria-label', 'Activer le thème clair');
+  const themeIconHostEl = document.createElement('span');
+  themeIconHostEl.className = 'topbar-v2__theme-icon';
+  themeIconHostEl.setAttribute('aria-hidden', 'true');
+  themeToggleBtn.append(themeIconHostEl);
+
+  const quickMenuWrap = document.createElement('div');
+  quickMenuWrap.className = 'topbar-v2__quick-wrap';
+  const quickAddBtn = document.createElement('button');
+  quickAddBtn.type = 'button';
+  quickAddBtn.className = 'topbar-v2__quick topbar-quick-add';
+  quickAddBtn.setAttribute('aria-expanded', 'false');
+  quickAddBtn.setAttribute('aria-haspopup', 'true');
+  quickAddBtn.setAttribute('aria-controls', 'topbar-quick-menu');
+  quickAddBtn.id = 'topbar-quick-btn';
+  quickAddBtn.textContent = 'Créer';
+  const quickMenuEl = document.createElement('ul');
+  quickMenuEl.className = 'topbar-v2__quick-menu';
+  quickMenuEl.id = 'topbar-quick-menu';
+  quickMenuEl.setAttribute('role', 'menu');
+  quickMenuEl.setAttribute('aria-labelledby', 'topbar-quick-btn');
+  quickMenuEl.hidden = true;
+  quickMenuWrap.append(quickAddBtn, quickMenuEl);
+
+  const aiCenterBtn = document.createElement('button');
+  aiCenterBtn.type = 'button';
+  aiCenterBtn.className = 'topbar-v2__ai topbar-ai-btn topbar-v2__ai--subtle';
+  aiCenterBtn.setAttribute('aria-label', 'Centre IA');
+  const aiGlyph = document.createElement('span');
+  aiGlyph.setAttribute('aria-hidden', 'true');
+  aiGlyph.textContent = '✦';
+  aiCenterBtn.append(aiGlyph);
+
+  const networkIndicator = document.createElement('span');
+  networkIndicator.id = 'network-indicator';
+  networkIndicator.title = 'Statut reseau';
+
+  const profileOpenBtn = document.createElement('button');
+  profileOpenBtn.type = 'button';
+  profileOpenBtn.className = 'topbar-v2__profile-btn topbar-v2__avatar-wrap';
+  profileOpenBtn.setAttribute('aria-label', 'Ouvrir les paramètres');
+  const avatarSpan = document.createElement('span');
+  avatarSpan.className = 'topbar-v2__avatar';
+  avatarSpan.setAttribute('aria-hidden', 'true');
+  const userNameSpan = document.createElement('span');
+  userNameSpan.className = 'visually-hidden topbar-v2__user-name';
+  profileOpenBtn.append(avatarSpan, userNameSpan);
+
+  const displayModeSwitch = document.createElement('div');
+  displayModeSwitch.className = 'display-mode-switch';
+  displayModeSwitch.setAttribute('role', 'group');
+  displayModeSwitch.setAttribute('aria-label', "Mode d'affichage");
+  const segTerrain = document.createElement('button');
+  segTerrain.type = 'button';
+  segTerrain.className = 'display-mode-seg' + (mode === 'terrain' ? ' is-active' : '');
+  segTerrain.setAttribute('data-set-mode', 'terrain');
+  segTerrain.setAttribute('aria-pressed', mode === 'terrain' ? 'true' : 'false');
+  segTerrain.title = 'Menu réduit, focus opérations terrain';
+  segTerrain.textContent = 'Terrain';
+  const segExpert = document.createElement('button');
+  segExpert.type = 'button';
+  segExpert.className = 'display-mode-seg' + (mode === 'expert' ? ' is-active' : '');
+  segExpert.setAttribute('data-set-mode', 'expert');
+  segExpert.setAttribute('aria-pressed', mode === 'expert' ? 'true' : 'false');
+  segExpert.title = 'Tous les modules QHSE';
+  segExpert.textContent = 'Complet';
+  displayModeSwitch.append(segTerrain, segExpert);
+
+  trailing.append(
+    demoPill,
+    notifWrap,
+    themeToggleBtn,
+    quickMenuWrap,
+    aiCenterBtn,
+    networkIndicator,
+    profileOpenBtn,
+    displayModeSwitch
+  );
+
+  inner.append(shellNavToggleBtn, lead, center, trailing);
+  header.append(inner);
+
   function syncDemoPill() {
     if (demoPill instanceof HTMLElement) {
       demoPill.hidden = !isDemoMode();
@@ -934,7 +1065,13 @@ export function createTopbar({
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'shell-search-result-btn';
-      btn.innerHTML = `<span class="shell-search-result-title">${escapeHtml(it.label)}</span><span class="shell-search-result-group">${escapeHtml(it.groupLabel)}</span>`;
+      const titleSp = document.createElement('span');
+      titleSp.className = 'shell-search-result-title';
+      titleSp.textContent = it.label;
+      const groupSp = document.createElement('span');
+      groupSp.className = 'shell-search-result-group';
+      groupSp.textContent = it.groupLabel;
+      btn.append(titleSp, groupSp);
       btn.addEventListener('click', () => {
         if (searchInput) searchInput.value = '';
         searchResults.hidden = true;
@@ -1030,11 +1167,11 @@ export function createTopbar({
     if (t === 'dark') {
       themeBtn.title = 'Activer le thème clair';
       themeBtn.setAttribute('aria-label', 'Activer le thème clair');
-      themeIconHost.innerHTML = THEME_ICON_SUN;
+      mountTrustedSvgChild(themeIconHost, THEME_ICON_SUN);
     } else {
       themeBtn.title = 'Activer le thème sombre';
       themeBtn.setAttribute('aria-label', 'Activer le thème sombre');
-      themeIconHost.innerHTML = THEME_ICON_MOON;
+      mountTrustedSvgChild(themeIconHost, THEME_ICON_MOON);
     }
   }
   if (themeBtn && themeIconHost) {
