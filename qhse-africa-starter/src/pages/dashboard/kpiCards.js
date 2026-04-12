@@ -47,7 +47,7 @@ export function updateKpiPriorityLine(refs, state) {
  * @param {() => unknown[]} refs.getNcListForKpi
  * @param {object} data — stats dashboard (même objet qu’avant : `lastStats` / payload normalisé)
  */
-export function applyStatsToKpis(refs, data) {
+function applyStatsToKpisWithRefs(refs, data) {
   const scopeHint = refs.getScopeEmptyLabel();
   const emptyHints = refs.kpiEmptyHints ?? {};
 
@@ -106,7 +106,7 @@ export function applyStatsToKpis(refs, data) {
  * @param {Record<string, HTMLElement | undefined>} [refs.kpiNotes]
  * @param {() => string} refs.getScopeEmptyLabel
  */
-export function applyEnrichmentKpis(refs, ncList, auditList, ncTotalAggregate) {
+function applyEnrichmentKpisWithRefs(refs, ncList, auditList, ncTotalAggregate) {
   const scopeHint = refs.getScopeEmptyLabel();
   const emptyHints = refs.kpiEmptyHints ?? {};
   if (Array.isArray(ncList)) {
@@ -159,4 +159,34 @@ export function applyEnrichmentKpis(refs, ncList, auditList, ncTotalAggregate) {
 export function dismissKpiSkeleton(kpiStickyWrap) {
   const layer = kpiStickyWrap?.querySelector('.dashboard-kpi-skeleton-layer');
   if (layer?.isConnected) layer.remove();
+}
+
+/**
+ * @param {object} kpiDomRefs — { kpiValues, kpiEmptyHints, kpiPriorityLine, … }
+ * @param {() => string} getScopeEmptyLabel
+ * @param {() => unknown[]} getNcListForKpi
+ * @param {object} data — stats (`lastStats` / payload normalisé)
+ */
+export function applyStatsToKpis(kpiDomRefs, getScopeEmptyLabel, getNcListForKpi, data) {
+  applyStatsToKpisWithRefs(
+    {
+      ...kpiDomRefs,
+      getScopeEmptyLabel,
+      getNcListForKpi
+    },
+    data
+  );
+}
+
+/**
+ * @param {object} kpiDomRefs — { kpiValues, kpiEmptyHints, kpiNotes, … }
+ * @param {() => string} getScopeEmptyLabel
+ */
+export function applyEnrichmentKpis(kpiDomRefs, getScopeEmptyLabel, ncList, auditList, ncTotalAggregate) {
+  applyEnrichmentKpisWithRefs(
+    { ...kpiDomRefs, getScopeEmptyLabel },
+    ncList,
+    auditList,
+    ncTotalAggregate
+  );
 }

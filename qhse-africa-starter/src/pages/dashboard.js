@@ -54,8 +54,8 @@ import {
 import { refreshCharts as refreshChartsModule } from './dashboard/chartsSection.js';
 import {
   updateKpiPriorityLine as patchKpiPriorityLineUi,
-  applyStatsToKpis as applyKpiStatsPatch,
-  applyEnrichmentKpis as applyKpiEnrichmentPatch,
+  applyStatsToKpis as applyStatsToKpisModule,
+  applyEnrichmentKpis as applyEnrichmentKpisModule,
   dismissKpiSkeleton as removeKpiSkeletonLayer
 } from './dashboard/kpiCards.js';
 
@@ -1476,24 +1476,18 @@ export function renderDashboard() {
   }
 
   function applyStatsToKpis(data) {
-    applyKpiStatsPatch(
-      {
-        ...kpiDomRefs,
-        getScopeEmptyLabel: dashboardKpiScopeEmptyLabel,
-        getNcListForKpi: () => dashboardNcListForKpi
-      },
+    return applyStatsToKpisModule(
+      kpiDomRefs,
+      dashboardKpiScopeEmptyLabel,
+      () => dashboardNcListForKpi,
       data
     );
   }
 
   function applyEnrichmentKpis(ncList, auditList, ncTotalAggregate) {
-    applyKpiEnrichmentPatch(
-      {
-        kpiValues: kpiDomRefs.kpiValues,
-        kpiEmptyHints: kpiDomRefs.kpiEmptyHints,
-        kpiNotes: kpiDomRefs.kpiNotes,
-        getScopeEmptyLabel: dashboardKpiScopeEmptyLabel
-      },
+    return applyEnrichmentKpisModule(
+      kpiDomRefs,
+      dashboardKpiScopeEmptyLabel,
       ncList,
       auditList,
       ncTotalAggregate
