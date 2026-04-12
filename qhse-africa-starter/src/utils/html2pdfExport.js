@@ -54,7 +54,7 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
   const base = {
     margin: [10, 12, 12, 12],
     filename,
-    image: { type: 'jpeg', quality: 0.97 },
+    image: { type: 'jpeg', quality: 0.98 },
     html2canvas: mergedCanvas,
     jsPDF: {
       unit: 'mm',
@@ -147,9 +147,25 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
 
     await waitForPaintAndLayout();
 
+    const sw = Math.max(794, Math.ceil(element.scrollWidth || element.getBoundingClientRect().width || 794));
+    const sh = Math.max(400, Math.ceil(element.scrollHeight || element.getBoundingClientRect().height || 1123));
+    const canvasHint = {
+      width: sw,
+      height: sh,
+      windowWidth: sw,
+      windowHeight: sh
+    };
+    const mergedOverrides =
+      overrides && typeof overrides.html2canvas === 'object'
+        ? {
+            ...overrides,
+            html2canvas: { ...canvasHint, ...overrides.html2canvas }
+          }
+        : { ...overrides, html2canvas: canvasHint };
+
     const mod = await import('html2pdf.js');
     const html2pdf = mod.default || mod;
-    const opt = buildHtml2PdfOptions(filename, overrides);
+    const opt = buildHtml2PdfOptions(filename, mergedOverrides);
     await html2pdf().set(opt).from(element).save();
   } finally {
     Object.keys(snapshot).forEach((k) => {

@@ -820,7 +820,7 @@ export function renderIncidents(onAddLog) {
   analyticsHead.innerHTML = `
     <div>
       <div class="section-kicker">Tendances</div>
-      <h3>Analytics</h3>
+      <h3>Analyses</h3>
       <p class="incidents-form-lead incidents-analytics-card__lead">
         Tendances sur le périmètre chargé — même source que le registre.
       </p>

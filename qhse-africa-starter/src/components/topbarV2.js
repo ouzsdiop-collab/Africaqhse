@@ -891,15 +891,15 @@ export function createTopbar({
   function dashboardIntentHint(intent) {
     if (!intent || intent.source !== 'dashboard') return '';
     if (intent.chart === 'risk_distribution' && intent.riskType) {
-      return `Contexte Dashboard: risque ${intent.riskType}`;
+      return `Contexte tableau de bord : risque ${intent.riskType}`;
     }
     if (intent.chart === 'incidents_trend') {
-      return 'Contexte Dashboard: incidents (tendance)';
+      return 'Contexte tableau de bord : incidents (tendance)';
     }
     if (intent.chart === 'qhse_score') {
       return intent.period
-        ? `Contexte Dashboard: score QHSE (${intent.period})`
-        : 'Contexte Dashboard: score QHSE';
+        ? `Contexte tableau de bord : score QHSE (${intent.period})`
+        : 'Contexte tableau de bord : score QHSE';
     }
     return '';
   }

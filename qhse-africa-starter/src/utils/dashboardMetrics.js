@@ -111,7 +111,7 @@ export function buildOperationalTiles({ stats, incidents, actions, audits, ncs, 
     {
       k: 'Permis actifs',
       v: permitsActive,
-      d: 'PTW terrain en cours',
+      d: 'Permis de travail terrain en cours',
       tone: toneByValue(permitsActive, 3, 8),
       page: 'permits'
     },

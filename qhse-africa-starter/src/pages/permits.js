@@ -109,6 +109,30 @@ function statusLabel(v) {
   return hit ? hit.label : v;
 }
 
+/** Libellé français pour rôle de signature (évite d’afficher la clé API en anglais). */
+function signatureRoleLabel(role) {
+  const hit = SIGN_ROLES.find((r) => r.value === role);
+  return hit ? hit.label : String(role || '—');
+}
+
+const MODULE_LABEL_FR = {
+  incidents: 'Incidents',
+  risks: 'Risques',
+  actions: 'Plan d’actions',
+  permits: 'Permis de travail',
+  audits: 'Audits',
+  iso: 'ISO & conformité',
+  products: 'Produits / FDS',
+  habilitations: 'Habilitations',
+  sites: 'Sites',
+  imports: 'Imports'
+};
+
+function moduleLabelFr(id) {
+  const k = String(id || '').trim();
+  return MODULE_LABEL_FR[k] || k || '—';
+}
+
 function statusTone(v) {
   const status = v === 'open' ? 'pending' : v;
   return `ptw-status--${status}`;
@@ -168,7 +192,7 @@ export function renderPermits() {
     <section class="page-intro module-page-hero">
       <div class="module-page-hero__inner">
         <p class="page-intro__kicker section-kicker">Opérations</p>
-        <h1 class="page-intro__title">Permis de travail (PTW)</h1>
+        <h1 class="page-intro__title">Permis de travail</h1>
         <p class="page-intro__desc">Création guidée en moins de 30 secondes, validations et suivi terrain.</p>
       </div>
     </section>
@@ -177,8 +201,8 @@ export function renderPermits() {
   const toolbar = document.createElement('div');
   toolbar.className = 'ptw-toolbar';
   toolbar.innerHTML = `
-    <button type="button" class="btn btn-primary ptw-create-btn">Créer un PTW terrain</button>
-    <button type="button" class="btn btn-secondary ptw-create-quick-btn">PTW ultra-rapide (30s)</button>
+    <button type="button" class="btn btn-primary ptw-create-btn">Créer un permis terrain</button>
+    <button type="button" class="btn btn-secondary ptw-create-quick-btn">Permis ultra-rapide (30 s)</button>
     <span class="ptw-net-badge" data-net-state>Mode en ligne</span>
     <span class="ptw-net-badge" data-sync-state>Synchronisation: 0 en attente</span>
   `;
@@ -188,9 +212,9 @@ export function renderPermits() {
   kpiCard.className = 'content-card card-soft ptw-card';
   kpiCard.innerHTML = `
     <div class="ptw-kpis">
-      <div class="ptw-kpi"><span class="ptw-kpi__label">PTW actifs</span><strong class="ptw-kpi__value" data-kpi-active>0</strong></div>
-      <div class="ptw-kpi"><span class="ptw-kpi__label">PTW en attente</span><strong class="ptw-kpi__value" data-kpi-pending>0</strong></div>
-      <div class="ptw-kpi"><span class="ptw-kpi__label">PTW expirés</span><strong class="ptw-kpi__value ptw-kpi__value--danger" data-kpi-expired>0</strong></div>
+      <div class="ptw-kpi"><span class="ptw-kpi__label">Permis actifs</span><strong class="ptw-kpi__value" data-kpi-active>0</strong></div>
+      <div class="ptw-kpi"><span class="ptw-kpi__label">Permis en attente</span><strong class="ptw-kpi__value" data-kpi-pending>0</strong></div>
+      <div class="ptw-kpi"><span class="ptw-kpi__label">Permis expirés</span><strong class="ptw-kpi__value ptw-kpi__value--danger" data-kpi-expired>0</strong></div>
     </div>
   `;
   page.append(kpiCard);
@@ -471,7 +495,7 @@ export function renderPermits() {
   function renderQuickCreate() {
     quickCard.innerHTML = `
       <div class="ptw-wizard-step">
-        <div class="ptw-step-head"><h3>PTW ultra-rapide (30s)</h3><span class="ptw-step-badge">mode terrain</span></div>
+        <div class="ptw-step-head"><h3>Permis ultra-rapide (30 s)</h3><span class="ptw-step-badge">mode terrain</span></div>
         <div class="ptw-fields">
           <label class="field"><span>Type</span>
             <select class="control-select" data-q="type">${PTW_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}</select>
@@ -499,7 +523,7 @@ export function renderPermits() {
           type,
           zone,
           team,
-          description: `PTW terrain rapide (${type})`,
+          description: `Permis terrain rapide (${type})`,
           date: new Date().toISOString().slice(0, 10),
           checklist: baseChecks.map((x) => `${x} (OK)`),
           epi: ['Casque', 'Gants'],
@@ -508,7 +532,7 @@ export function renderPermits() {
           validationMode: 'simple',
           status: 'pending'
         });
-        showToast('PTW créé en mode ultra-rapide.', 'success');
+        showToast('Permis créé en mode ultra-rapide.', 'success');
         quickCard.hidden = true;
         await renderLists();
       })();
@@ -553,7 +577,7 @@ export function renderPermits() {
             ? signatures
                 .map(
                   (s) =>
-                    `${s.name || '—'} (${s.role}) · ${new Date(s.signedAt).toLocaleString('fr-FR')} · ${
+                    `${s.name || '—'} (${signatureRoleLabel(s.role)}) · ${new Date(s.signedAt).toLocaleString('fr-FR')} · ${
                       s.syncStatus === 'pending_sync' ? 'en attente de synchronisation' : 'synchronisé'
                     }`
                 )
@@ -566,7 +590,7 @@ export function renderPermits() {
             ? relations
                 .map((r) => {
                   const other = r.fromModule === 'permits' ? r.toModule : r.fromModule;
-                  return `${other} (${r.kind || 'lien'})`;
+                  return `${moduleLabelFr(other)} (${r.kind || 'lien'})`;
                 })
                 .join(', ')
             : 'aucune relation'
@@ -641,16 +665,16 @@ export function renderPermits() {
     const signAny = document.createElement('button');
     signAny.type = 'button';
     signAny.className = 'btn btn-secondary';
-    signAny.textContent = 'Signer PTW';
+    signAny.textContent = 'Signer le permis';
     const activateBtn = document.createElement('button');
     activateBtn.type = 'button';
     activateBtn.className = 'btn btn-secondary';
-    activateBtn.textContent = 'Activer PTW';
+    activateBtn.textContent = 'Activer le permis';
     activateBtn.addEventListener('click', () => {
       void (async () => {
         await patchPermit(it.id, { activatedAt: new Date().toISOString() });
         await updatePermitStatus(it.id, 'in_progress');
-        showToast('PTW activé.', 'success');
+        showToast('Permis activé.', 'success');
         await renderLists();
       })();
     });
@@ -661,7 +685,7 @@ export function renderPermits() {
     pdfBtn.addEventListener('click', async () => {
       try {
         const sigText = signatures.length
-          ? signatures.map((s) => `${s.name} (${s.role})`).join(', ')
+          ? signatures.map((s) => `${s.name} (${signatureRoleLabel(s.role)})`).join(', ')
           : 'Aucune';
         const body = `
           <h1 class="qhse-chrome-h1">PERMIS DE TRAVAIL</h1>
@@ -680,7 +704,7 @@ export function renderPermits() {
           </table>
         `;
         const html = assembleQhsePdfDocument('Permis de travail', [body]);
-        await downloadQhseChromePdf(html, `PTW-${it.id}.pdf`, {
+        await downloadQhseChromePdf(html, `permis-${it.id}.pdf`, {
           margin: [12, 10, 16, 10],
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         });
@@ -698,7 +722,7 @@ export function renderPermits() {
       <canvas class="ptw-sign-canvas" width="500" height="120" data-inline-canvas></canvas>
       <div class="ptw-seg">
         <button type="button" class="btn btn-secondary" data-inline-clear>Effacer</button>
-        <button type="button" class="btn btn-primary" data-inline-save>Signer PTW</button>
+        <button type="button" class="btn btn-primary" data-inline-save>Signer le permis</button>
       </div>
     `;
     row.append(actions, signPanel);
@@ -718,7 +742,7 @@ export function renderPermits() {
           userId: getSessionUser()?.id || '',
           userLabel: getSessionUser()?.name || ''
         });
-        showToast('PTW signé.', 'success');
+        showToast('Permis signé.', 'success');
         await renderLists();
       })();
     });
@@ -738,7 +762,7 @@ export function renderPermits() {
     const pending = all.filter((x) => (x.status === 'open' ? 'pending' : x.status) === 'pending');
     const expired = all.filter((x) => isExpiredPermit(x));
     if (expired.length > 0 && expired.length !== lastExpiredToast) {
-      showToast(`${expired.length} PTW expiré(s) à traiter.`, 'warning');
+      showToast(`${expired.length} permis expiré(s) à traiter.`, 'warning');
     }
     lastExpiredToast = expired.length;
     kpiCard.querySelector('[data-kpi-active]').textContent = String(opened.length);

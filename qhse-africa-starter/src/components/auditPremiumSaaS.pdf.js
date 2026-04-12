@@ -2,32 +2,25 @@
  * PDF ISO / conformité — chargé à la demande (html2pdf.js) pour alléger le bundle page ISO / Audits.
  */
 
-import { saveElementAsPdf, buildHtml2PdfOptions } from '../utils/html2pdfExport.js';
+import { saveElementAsPdf } from '../utils/html2pdfExport.js';
 import { showToast } from './toast.js';
 
 const PDF_BRAND = '#1D9E75';
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
   const host = document.createElement('div');
-  host.style.position = 'fixed';
-  host.style.left = '-9999px';
-  host.style.top = '0';
-  host.style.width = '210mm';
-  host.style.background = '#fff';
+  host.style.cssText =
+    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:1123px;background:#fff;overflow:visible;';
   host.innerHTML = htmlString;
   document.body.appendChild(host);
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w-]+/g, '_');
   const pdfName = `${safeName}.pdf`;
   try {
     showToast('Génération du PDF en cours...', 'info');
-    await saveElementAsPdf(
-      host,
-      pdfName,
-      buildHtml2PdfOptions(pdfName, {
-        margin: [14, 12, 18, 12],
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      })
-    );
+    await saveElementAsPdf(host, pdfName, {
+      margin: [14, 12, 18, 12],
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    });
     showToast('PDF téléchargé avec succès', 'success');
   } catch (e) {
     console.error(e);

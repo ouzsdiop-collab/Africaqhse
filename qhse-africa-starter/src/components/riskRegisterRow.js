@@ -189,7 +189,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
     const ptwBtn = document.createElement('button');
     ptwBtn.type = 'button';
     ptwBtn.className = 'risk-register-table-row__act-nav';
-    ptwBtn.textContent = 'Créer PTW';
+    ptwBtn.textContent = 'Créer un permis de travail';
     ptwBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       opts.onCreatePtwFromRisk(String(risk.title || ''));

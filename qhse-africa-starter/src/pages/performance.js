@@ -1078,7 +1078,7 @@ export function renderPerformance() {
       const ana = document.createElement('button');
       ana.type = 'button';
       ana.className = 'btn btn-secondary kpi-perf-link-analytics';
-      ana.textContent = 'Ouvrir Analytics / Synthèse';
+      ana.textContent = 'Ouvrir Analyses / Synthèse';
       ana.addEventListener('click', () => navigateHash('analytics'));
       alStack.append(ana);
       det.append(alStack);

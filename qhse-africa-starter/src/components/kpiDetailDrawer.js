@@ -348,7 +348,7 @@ function resolveKpiDataset(kpiKey, ctx) {
         rows: mixed,
         title: 'Leviers conformité — extraits croisés',
         newHash: 'analytics',
-        newLabel: '➕ Synthèse Analytics'
+        newLabel: '➕ Synthèse analytique'
       };
     }
     default:

@@ -412,7 +412,7 @@ export function createDashboardCeoHero(siteName, opts = {}) {
               <button type="button" class="dashboard-ceo-hero__quick-btn" data-ceo-nav="incidents"><span class="dashboard-ceo-hero__quick-ico" aria-hidden="true">!</span><span>Incidents</span></button>
               <button type="button" class="dashboard-ceo-hero__quick-btn" data-ceo-nav="actions"><span class="dashboard-ceo-hero__quick-ico" aria-hidden="true">✓</span><span>Actions</span></button>
               <button type="button" class="dashboard-ceo-hero__quick-btn" data-ceo-nav="audits"><span class="dashboard-ceo-hero__quick-ico" aria-hidden="true">☑</span><span>Audits</span></button>
-              <button type="button" class="dashboard-ceo-hero__quick-btn" data-ceo-nav="analytics"><span class="dashboard-ceo-hero__quick-ico" aria-hidden="true">≈</span><span>Analytics</span></button>
+              <button type="button" class="dashboard-ceo-hero__quick-btn" data-ceo-nav="analytics"><span class="dashboard-ceo-hero__quick-ico" aria-hidden="true">≈</span><span>Analyses</span></button>
             </div>
           </nav>
         </div>

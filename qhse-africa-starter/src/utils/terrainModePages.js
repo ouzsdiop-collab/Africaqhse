@@ -19,7 +19,7 @@ export const TERRAIN_OPERATIONS_PAGE_IDS = [
   { id: 'incidents', label: 'Incidents' },
   { id: 'audits', label: 'Audits' },
   { id: 'risks', label: 'Risques' },
-  { id: 'permits', label: 'PTW' },
+  { id: 'permits', label: 'Permis' },
   { id: 'actions', label: 'Actions' }
 ];
 

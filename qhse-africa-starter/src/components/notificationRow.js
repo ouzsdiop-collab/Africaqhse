@@ -28,7 +28,7 @@ const TIER_TAG = {
   [NOTIF_TIER.CRITIQUE]: { label: 'Critique', className: 'notif-tier-tag--critique' },
   [NOTIF_TIER.ATTENTION]: { label: 'Attention', className: 'notif-tier-tag--attention' },
   [NOTIF_TIER.INFO]: { label: 'Info', className: 'notif-tier-tag--info' },
-  [NOTIF_TIER.DIGEST]: { label: 'Digest', className: 'notif-tier-tag--digest' }
+  [NOTIF_TIER.DIGEST]: { label: 'Récapitulatif', className: 'notif-tier-tag--digest' }
 };
 
 const ALLOWED_NOTIF_TIERS = new Set(Object.values(NOTIF_TIER));

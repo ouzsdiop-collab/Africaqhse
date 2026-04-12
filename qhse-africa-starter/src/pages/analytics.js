@@ -970,7 +970,7 @@ export function renderAnalytics() {
   kicker.textContent = aMeta?.kicker || 'Pilotage';
   const title = document.createElement('h1');
   title.className = 'analytics-page-title';
-  title.textContent = aMeta?.title || 'Analytics / Synthèse';
+  title.textContent = aMeta?.title || 'Analyses / Synthèse';
   const lead = document.createElement('p');
   lead.className = 'analytics-page-lead';
   lead.textContent =

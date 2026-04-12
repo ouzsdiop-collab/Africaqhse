@@ -14,8 +14,8 @@ export const navigationGroups = [
     label: 'Pilotage',
     collapsible: true,
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: '◫' },
-      { id: 'analytics', label: 'Analytics & synthèse', icon: '≈' },
+      { id: 'dashboard', label: 'Tableau de bord', icon: '◫' },
+      { id: 'analytics', label: 'Analyses & synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
       { id: 'activity-log', label: 'Journal', icon: '≣' },
       /* IA regroupée au pilotage : aide à la revue / synthèse, pas un « silo » produit séparé. */
@@ -45,7 +45,7 @@ export const navigationGroups = [
     collapsible: true,
     items: [
       { id: 'incidents', label: 'Incidents', icon: '!' },
-      { id: 'permits', label: 'Permits to work', icon: '⌁' }
+      { id: 'permits', label: 'Permis de travail', icon: '⌁' }
     ]
   },
   {
@@ -90,9 +90,10 @@ export const pageTopbarById = {
     cta: { label: 'Aller au plan d’actions', pageId: 'actions' }
   },
   permits: {
-    title: 'Permits to Work',
+    title: 'Permis de travail',
     kicker: 'Opérations terrain',
-    subtitle: 'Gestion terrain des permis de travail: création, checklist sécurité, validations et signatures.',
+    subtitle:
+      'Gestion terrain des permis de travail : création, checklist sécurité, validations et signatures.',
     cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
   risks: {
@@ -138,24 +139,24 @@ export const pageTopbarById = {
     cta: { label: 'Centre IA', pageId: 'ai-center' }
   },
   analytics: {
-    title: 'Analytics / Synthèse',
+    title: 'Analyses / Synthèse',
     kicker: 'Pilotage',
     subtitle:
       'Synthèse consolidée incidents, NC, actions, audits et alertes — base revue direction et rapports périodiques.',
-    cta: { label: 'Dashboard', pageId: 'dashboard' }
+    cta: { label: 'Tableau de bord', pageId: 'dashboard' }
   },
   performance: {
     title: 'Performance QHSE',
     kicker: 'Pilotage',
     subtitle:
       'Indicateurs clés, tendances et écarts à l’objectif — données issues des modules existants (synthèse, incidents, audits).',
-    cta: { label: 'Analytics', pageId: 'analytics' }
+    cta: { label: 'Analyses & synthèse', pageId: 'analytics' }
   },
   'ai-center': {
     title: 'Centre IA',
     kicker: 'Pilotage',
     subtitle: 'Assistants et analyses pilotées pour accélérer vos revues QHSE.',
-    cta: { label: 'Retour dashboard', pageId: 'dashboard' }
+    cta: { label: 'Retour tableau de bord', pageId: 'dashboard' }
   },
   'activity-log': {
     title: 'Journal',

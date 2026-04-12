@@ -3,6 +3,7 @@ import { setAuthSession } from '../data/sessionUser.js';
 import { persistTokensFromLoginResponse } from '../utils/auth.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
+import { setCurrentPage } from '../utils/state.js';
 
 const LOGIN_V2_STYLE_ID = 'qhse-loginv2-styles';
 
@@ -496,6 +497,7 @@ export function createLoginView({ onSuccess }) {
         { tenant: body.tenant, tenants: body.tenants, refreshToken: body.refreshToken }
       );
       showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
+      setCurrentPage('dashboard');
       window.location.hash = 'dashboard';
       onSuccess();
     } catch {
@@ -540,6 +542,7 @@ export function createLoginView({ onSuccess }) {
   });
 
   skipBtn?.addEventListener('click', () => {
+    setCurrentPage('dashboard');
     window.location.hash = 'dashboard';
     onSuccess();
   });

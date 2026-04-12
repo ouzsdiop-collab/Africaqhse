@@ -273,7 +273,7 @@ export function formatDigestSummaryHtml(payload, opts = {}) {
     `<li><strong>Actions en retard</strong> — ${oaDisp}</li>`,
     `<li><strong>Incidents critiques (aperçu)</strong> — ${ciDisp}</li>`,
     `<li><strong>Audits à planifier (repère)</strong> — ${audDisp}</li>`,
-    `<li><strong>Relances (assistant)</strong> — regroupées dans le fil ; détail sur le Dashboard « Assistant de pilotage »</li>`,
+    `<li><strong>Relances (assistant)</strong> — regroupées dans le fil ; détail sur le tableau de bord « Assistant de pilotage »</li>`,
     `<li><strong>Risques sans suivi</strong> — voir registre Risques et boutons d’action préventive</li>`,
     `<li><strong>Documents critiques</strong> — carte « Pilotage documentaire » (notifications)</li>`
   ];

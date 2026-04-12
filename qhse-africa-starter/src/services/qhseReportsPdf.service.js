@@ -305,7 +305,7 @@ export async function downloadPerformanceQhsePdf(ctx) {
  * @param {Record<string, unknown>} data — réponse /api/reports/summary
  */
 export async function downloadAnalyticsSummaryPdf(data) {
-  const docTitle = 'Synthèse Analytics QHSE';
+  const docTitle = 'Synthèse analytique QHSE';
   const gen = data?.generatedAt
     ? new Date(String(data.generatedAt)).toLocaleString('fr-FR')
     : new Date().toLocaleString('fr-FR');

@@ -177,7 +177,7 @@ export function renderRisks() {
           : 'travail en hauteur';
     const permit = await createPermit({
       type,
-      description: `PTW généré depuis risque: ${t}`,
+      description: `Permis de travail généré depuis le risque : ${t}`,
       zone: appState.currentSite || 'Zone opérationnelle',
       date: new Date().toISOString().slice(0, 10),
       team: 'Responsable terrain',
@@ -192,12 +192,12 @@ export function renderRisks() {
       toModule: 'permits',
       toId: permit.id,
       kind: 'risk_to_ptw',
-      label: 'PTW lié'
+      label: 'Permis de travail lié'
     });
-    showToast('PTW créé depuis le risque.', 'success');
+    showToast('Permis de travail créé depuis le risque.', 'success');
     activityLogStore.add({
       module: 'risks',
-      action: 'Création PTW liée',
+      action: 'Création permis de travail lié',
       detail: t,
       user: 'Pilotage QHSE'
     });
@@ -1117,7 +1117,7 @@ export function renderRisks() {
   if (dashboardIntent?.source === 'dashboard' && dashboardIntent?.chart === 'risk_distribution') {
     dashboardKeywordFilter = String(dashboardIntent?.riskType || '').trim();
     if (dashboardKeywordFilter) {
-      showToast(`Filtre auto Dashboard appliqué : risque « ${dashboardKeywordFilter} ».`, 'info');
+      showToast(`Filtre auto (tableau de bord) appliqué : risque « ${dashboardKeywordFilter} ».`, 'info');
     }
   }
 

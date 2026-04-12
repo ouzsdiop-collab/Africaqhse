@@ -508,7 +508,7 @@ const PRODUCT_TOUR_STEPS = [
     icon: '🚀',
     title: 'Vous etes pret !',
     desc: 'AfricaQHSE est configure. Consultez le guide utilisateur pour aller plus loin.',
-    action: { label: 'Telecharger le guide PDF', href: '/guide-utilisateur-africaqhse.pdf' }
+    action: { label: 'Télécharger le guide PDF', href: '/guide-utilisateur-africaqhse.pdf' }
   }
 ];
 
