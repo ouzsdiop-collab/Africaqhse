@@ -9,6 +9,7 @@ import {
   getRequirements
 } from '../data/conformityStore.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
 
 /**
  * @typedef {'pret'|'fragile'|'non_pret'} AuditReadinessLevel
@@ -28,8 +29,8 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 export function computeAuditReadiness() {
   const s = computeComplianceSummary();
   const reqs = getRequirements();
-  const ncCount = reqs.filter((r) => r.status === 'non_conforme').length;
-  const partialCount = reqs.filter((r) => r.status === 'partiel').length;
+  const ncCount = reqs.filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme').length;
+  const partialCount = reqs.filter((r) => isoRequirementStatusNormKey(r.status) === 'partiel').length;
   const missingDocsCount = DOCUMENT_ATTENTION.missing.length;
   const obsoleteCount = DOCUMENT_ATTENTION.obsolete.length;
 

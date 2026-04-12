@@ -4,6 +4,7 @@
  */
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { appState } from '../utils/state.js';
+import { isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
 
 const IMPORTED_PROOFS_STORAGE_KEY = 'qhse-iso-imported-proofs-v1';
 
@@ -420,10 +421,11 @@ export function computeComplianceSummary() {
   let partial = 0;
   let ok = 0;
   reqs.forEach((r) => {
-    if (r.status === 'conforme') {
+    const k = isoRequirementStatusNormKey(r.status);
+    if (k === 'conforme') {
       pts += 100;
       ok += 1;
-    } else if (r.status === 'partiel') {
+    } else if (k === 'partiel') {
       pts += 50;
       partial += 1;
     } else {

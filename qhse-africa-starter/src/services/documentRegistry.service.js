@@ -5,16 +5,45 @@ import { computeDocumentComplianceStatus } from '../utils/controlledDocumentComp
 import { setDocComplianceGroupedNotification } from '../data/notifications.js';
 import { getSessionUser } from '../data/sessionUser.js';
 
+/** Libellés FR pour statuts documents parfois renvoyés en anglais par l’API. */
+const DOC_COMPLIANCE_STATUS_LABEL_FR = {
+  pending: 'En attente',
+  review: 'En révision',
+  draft: 'Brouillon',
+  approved: 'Approuvé',
+  valid: 'Valide',
+  expired: 'Expiré',
+  missing: 'Manquant'
+};
+
+/**
+ * @param {string|undefined|null} status
+ * @param {string|undefined|null} apiLabel
+ * @param {string} fallbackLabel
+ */
+function resolvedDocumentComplianceLabel(status, apiLabel, fallbackLabel) {
+  const sk = String(status || '')
+    .toLowerCase()
+    .trim()
+    .replace(/-/g, '_');
+  if (DOC_COMPLIANCE_STATUS_LABEL_FR[sk]) return DOC_COMPLIANCE_STATUS_LABEL_FR[sk];
+  const lbl = String(apiLabel || '').trim();
+  const lk = lbl.toLowerCase().replace(/-/g, '_');
+  if (DOC_COMPLIANCE_STATUS_LABEL_FR[lk]) return DOC_COMPLIANCE_STATUS_LABEL_FR[lk];
+  return apiLabel || fallbackLabel;
+}
+
 /**
  * @param {unknown} row
  */
 function enrichUnifiedRow(row) {
   const expiresAt = row.expiresAt != null ? row.expiresAt : null;
   const comp = computeDocumentComplianceStatus(expiresAt);
+  const statusKey = row.complianceStatus || comp.key;
   return {
     ...row,
-    complianceStatus: row.complianceStatus || comp.key,
-    complianceLabel: row.complianceLabel || comp.label,
+    complianceStatus: statusKey,
+    complianceLabel: resolvedDocumentComplianceLabel(statusKey, row.complianceLabel, comp.label),
     daysUntilExpiry: row.daysUntilExpiry != null ? row.daysUntilExpiry : comp.daysUntil
   };
 }

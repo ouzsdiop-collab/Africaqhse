@@ -38,6 +38,7 @@ import { withSiteQuery } from '../utils/siteFilter.js';
 /* Préférences colonnes table exigences ISO — localStorage centralisé dans isoTablePreferences.js */
 import { readIsoReqColumnMode, LS_ISO_REQ_TABLE_COLS } from '../utils/isoTablePreferences.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
+import { ISO_REQ_STATUS_EN_FR, isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
 
 function buildIsoNormScoresForPdf() {
   const reqs = getRequirements();
@@ -49,8 +50,9 @@ function buildIsoNormScoresForPdf() {
     if (!byNorm.has(nid)) byNorm.set(nid, { pts: 0, n: 0 });
     const b = byNorm.get(nid);
     b.n += 1;
-    if (r.status === 'conforme') b.pts += 100;
-    else if (r.status === 'partiel') b.pts += 50;
+    const k = isoRequirementStatusNormKey(r.status);
+    if (k === 'conforme') b.pts += 100;
+    else if (k === 'partiel') b.pts += 50;
   }
   return CONFORMITY_NORMS.map((norm) => {
     const b = byNorm.get(norm.id);
@@ -60,8 +62,10 @@ function buildIsoNormScoresForPdf() {
 }
 
 function requirementLinesForIsoPdf() {
-  const mapSt = (s) =>
-    s === 'conforme' ? 'Conforme' : s === 'partiel' ? 'Partiel' : 'Non conforme';
+  const mapSt = (s) => {
+    const k = isoRequirementStatusNormKey(s);
+    return k === 'conforme' ? 'Conforme' : k === 'partiel' ? 'Partiel' : 'Non conforme';
+  };
   return getRequirements().slice(0, 40).map((r) => ({
     clause: r.clause,
     title: r.title,
@@ -114,6 +118,19 @@ function conformityLabel(st) {
   if (st === 'conforme') return 'Conforme';
   if (st === 'partiel') return 'Partiel';
   return 'Non conforme';
+}
+
+function isoRequirementBadgeClass(raw) {
+  return conformityBadgeClass(isoRequirementStatusNormKey(raw));
+}
+
+function isoRequirementStatusDisplayLabel(raw) {
+  const s = String(raw || '')
+    .toLowerCase()
+    .trim()
+    .replace(/-/g, '_');
+  if (ISO_REQ_STATUS_EN_FR[s]) return ISO_REQ_STATUS_EN_FR[s];
+  return conformityLabel(isoRequirementStatusNormKey(raw));
 }
 
 function formatIsoDateShort(v) {
@@ -652,7 +669,7 @@ function buildPointsPanel(onAnalyze) {
   panel.append(title, lead, grid);
 
   function renderColContent() {
-    const reqs = getRequirements().filter((r) => r.status !== 'conforme');
+    const reqs = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
     const { missing, obsolete, critical } = DOCUMENT_ATTENTION;
 
     colReq.replaceChildren();
@@ -1009,10 +1026,10 @@ function createRequirementsTable(ctx, registryDocImpact) {
   function renderRows() {
     table.querySelectorAll('.iso-table-row').forEach((el) => el.remove());
     let rows = getRequirements();
-    if (statusFilter === 'gap') rows = rows.filter((r) => r.status !== 'conforme');
-    else if (statusFilter === 'partial') rows = rows.filter((r) => r.status === 'partiel');
-    else if (statusFilter === 'nc') rows = rows.filter((r) => r.status === 'non_conforme');
-    else if (statusFilter === 'ok') rows = rows.filter((r) => r.status === 'conforme');
+    if (statusFilter === 'gap') rows = rows.filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
+    else if (statusFilter === 'partial') rows = rows.filter((r) => isoRequirementStatusNormKey(r.status) === 'partiel');
+    else if (statusFilter === 'nc') rows = rows.filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme');
+    else if (statusFilter === 'ok') rows = rows.filter((r) => isoRequirementStatusNormKey(r.status) === 'conforme');
     rows.forEach((row) => {
       const norm = getNormById(row.normId);
       const normCode = norm ? norm.code : row.normId;
@@ -1025,8 +1042,8 @@ function createRequirementsTable(ctx, registryDocImpact) {
         'aria-label',
         `Ouvrir le détail — ${row.clause} ${row.title}`
       );
-      const stClass = conformityBadgeClass(row.status);
-      const badgeLabel = conformityLabel(row.status);
+      const stClass = isoRequirementBadgeClass(row.status);
+      const badgeLabel = isoRequirementStatusDisplayLabel(row.status);
 
       const exigence = document.createElement('span');
       exigence.className = 'iso-cell-strong';
@@ -1100,7 +1117,7 @@ function createRequirementsHotList(ctx, ref) {
 
   function render() {
     wrap.replaceChildren();
-    const problematic = getRequirements().filter((r) => r.status !== 'conforme');
+    const problematic = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
     if (problematic.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'iso-req-hot-empty';
@@ -1391,8 +1408,8 @@ function createPrioritiesCockpitBlock(onAnalyze) {
 
   function refresh() {
     list.replaceChildren();
-    const reqsNc = getRequirements().filter((r) => r.status === 'non_conforme');
-    const reqsOpen = getRequirements().filter((r) => r.status !== 'conforme');
+    const reqsNc = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme');
+    const reqsOpen = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
     const ar = computeAuditReadiness();
     const firstNc = reqsNc[0];
     const hero = document.createElement('div');
@@ -1626,10 +1643,10 @@ function createAuditsLinkedStrip() {
 
 function createReviewBlock() {
   const grid = document.createElement('div');
-  grid.className = 'iso-review-grid';
+  grid.className = 'iso-review-grid iso-synthese-grid';
   REVIEW_PREP.forEach((item) => {
     const tile = document.createElement('div');
-    tile.className = 'iso-review-tile';
+    tile.className = 'iso-review-tile iso-synthese-bloc';
     const lbl = document.createElement('span');
     lbl.textContent = item.label;
     const val = document.createElement('span');
@@ -1833,7 +1850,7 @@ export function renderIso(onAddLog) {
 
   function updateHeroQuickStats() {
     const s = computeComplianceSummary();
-    const gapsOpen = getRequirements().filter((r) => r.status !== 'conforme').length;
+    const gapsOpen = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme').length;
     const pctEl = heroCard.querySelector('.iso-hero-stat-pct');
     const gapEl = heroCard.querySelector('.iso-hero-stat-gaps');
     if (pctEl) pctEl.textContent = `${s.pct} %`;
@@ -1954,7 +1971,7 @@ export function renderIso(onAddLog) {
         });
       },
       onOpenFirstNc: () => {
-        const nc = getRequirements().find((r) => r.status === 'non_conforme');
+        const nc = getRequirements().find((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme');
         if (nc) {
           const norm = getNormById(nc.normId);
           tableCtx.onAnalyze({ ...nc, normCode: norm ? norm.code : nc.normId });
@@ -2043,18 +2060,19 @@ export function renderIso(onAddLog) {
     if (!reqs.length) return 100;
     let pts = 0;
     reqs.forEach((r) => {
-      if (r.status === 'conforme') pts += 100;
-      else if (r.status === 'partiel') pts += 50;
+      const k = isoRequirementStatusNormKey(r.status);
+      if (k === 'conforme') pts += 100;
+      else if (k === 'partiel') pts += 50;
     });
     return Math.round(pts / reqs.length);
   }
 
   function normPilotLabels(reqs) {
-    const nc = reqs.filter((r) => r.status === 'non_conforme').length;
-    const gap = reqs.filter((r) => r.status !== 'conforme').length;
+    const nc = reqs.filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme').length;
+    const gap = reqs.filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme').length;
     if (nc > 0) return { label: 'Critique', cls: 'red' };
     if (gap > 0) return { label: 'À risque', cls: 'amber' };
-    return { label: 'OK', cls: 'green' };
+    return { label: 'Conforme', cls: 'green' };
   }
 
   function renderNormsGrid() {
@@ -2065,8 +2083,8 @@ export function renderIso(onAddLog) {
       const lite = NORMS_LITE.find((x) => x.id === sn.code);
       if (!lite) return;
       const reqs = getRequirements().filter((r) => r.normId === sn.id);
-      const nonOkAll = reqs.filter((r) => r.status !== 'conforme').length;
-      const strictNc = reqs.filter((r) => r.status === 'non_conforme').length;
+      const nonOkAll = reqs.filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme').length;
+      const strictNc = reqs.filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme').length;
       const pilot = normPilotLabels(reqs);
       const aud = AUDITS_TO_SCHEDULE[idx % Math.max(AUDITS_TO_SCHEDULE.length, 1)];
       const auditLine =
@@ -2106,8 +2124,9 @@ export function renderIso(onAddLog) {
     let partiel = 0;
     let nonConforme = 0;
     reqs.forEach((r) => {
-      if (r.status === 'conforme') conforme += 1;
-      else if (r.status === 'partiel') partiel += 1;
+      const k = isoRequirementStatusNormKey(r.status);
+      if (k === 'conforme') conforme += 1;
+      else if (k === 'partiel') partiel += 1;
       else nonConforme += 1;
     });
     const { createRequirementStatusMixChart } = await import('../components/dashboardCharts.js');

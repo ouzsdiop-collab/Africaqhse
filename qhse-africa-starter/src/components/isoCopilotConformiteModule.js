@@ -173,7 +173,7 @@ function labelForFilter(key) {
     all: 'Toutes',
     ok: 'Conformes'
   };
-  return map[key] || key;
+  return map[key] || 'Filtre';
 }
 
 /**

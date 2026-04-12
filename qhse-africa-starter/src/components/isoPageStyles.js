@@ -155,6 +155,44 @@ const CSS = `
 .iso-review-tile span:first-child{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
 .iso-review-tile .iso-review-value{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text)}
 .iso-review-tile .iso-review-detail{display:block;margin-top:4px;font-size:12px;color:var(--text2);line-height:1.4}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.iso-page .iso-synthese-grid.iso-review-grid{
+  gap:0;
+  margin-top:8px;
+  border:1px solid rgba(148,163,184,.12);
+  border-radius:12px;
+  overflow:hidden;
+}
+.iso-page .iso-review-tile.iso-synthese-bloc{
+  padding:16px;
+  margin:0;
+  border:none;
+  border-bottom:1px solid rgba(148,163,184,.2);
+  border-right:1px solid rgba(148,163,184,.14);
+  border-radius:0;
+  background:rgba(255,255,255,.02);
+  animation:fadeSlideIn .3s ease forwards;
+  opacity:0;
+}
+.iso-page .iso-review-tile.iso-synthese-bloc:nth-child(2n){border-right:none}
+.iso-page .iso-review-tile.iso-synthese-bloc:nth-last-child(-n+2){border-bottom:none}
+@media (max-width:640px){
+  .iso-page .iso-review-tile.iso-synthese-bloc{border-right:none}
+  .iso-page .iso-review-tile.iso-synthese-bloc:nth-last-child(-n+2){border-bottom:1px solid rgba(148,163,184,.2)}
+  .iso-page .iso-review-tile.iso-synthese-bloc:last-child{border-bottom:none}
+}
+.iso-page .iso-review-tile.iso-synthese-bloc:nth-child(1){animation-delay:0ms}
+.iso-page .iso-review-tile.iso-synthese-bloc:nth-child(2){animation-delay:80ms}
+.iso-page .iso-review-tile.iso-synthese-bloc:nth-child(3){animation-delay:160ms}
+.iso-page .iso-review-tile.iso-synthese-bloc:nth-child(4){animation-delay:240ms}
+.iso-page .iso-review-tile.iso-synthese-bloc>span:first-child{
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:normal;
+  text-transform:none;
+  color:var(--color-text-primary,var(--text));
+  margin-bottom:8px;
+}
 .iso-pilotage-aside{display:grid;gap:14px;align-content:start;min-width:0}
 
 /* —— Hiérarchie visuelle (page ISO hub, dark premium) —— tout préfixé .iso-page pour limiter la portée —— */
