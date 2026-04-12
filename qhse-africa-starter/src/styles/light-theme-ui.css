@@ -181,14 +181,52 @@ html[data-theme='light'] {
   --shadow-color: rgba(0, 0, 0, 0.08);
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
   --dialog-overlay: rgba(15, 23, 42, 0.5);
-  --badge-bg-neutral: #f1f5f9;
-  --badge-text-neutral: #475569;
   --shadow-card:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 1px 2px rgba(15, 23, 42, 0.05),
     0 8px 28px rgba(15, 23, 42, 0.08);
   --ds-chart-grid: rgba(15, 23, 42, 0.11);
   --page-stack-gap: 1.85rem;
+
+  /* Boutons statut réseau PTW */
+  --btn-online-bg: #dcfce7;
+  --btn-online-color: #166534;
+  --btn-online-border: #86efac;
+  --btn-offline-bg: #fef9c3;
+  --btn-offline-color: #854d0e;
+  --btn-offline-border: #fde047;
+  --btn-sync-bg: #dbeafe;
+  --btn-sync-color: #1e40af;
+  --btn-sync-border: #93c5fd;
+
+  /* Badges et pastilles statut — remplacement des hex dark-first */
+  --badge-success-bg: #dcfce7;
+  --badge-success-color: #166534;
+  --badge-success-border: #86efac;
+  --badge-warning-bg: #fef9c3;
+  --badge-warning-color: #854d0e;
+  --badge-warning-border: #fde047;
+  --badge-danger-bg: #fee2e2;
+  --badge-danger-color: #991b1b;
+  --badge-danger-border: #fca5a5;
+  --badge-info-bg: #dbeafe;
+  --badge-info-color: #1e40af;
+  --badge-info-border: #93c5fd;
+  --badge-neutral-bg: #f1f5f9;
+  --badge-neutral-color: #334155;
+  --badge-neutral-border: #cbd5e1;
+
+  /* Habilitations — remplace les hex dark-first */
+  --hab-expired-bg: #fee2e2;
+  --hab-expired-color: #991b1b;
+  --hab-warning-bg: #fef9c3;
+  --hab-warning-color: #854d0e;
+  --hab-ok-bg: #dcfce7;
+  --hab-ok-color: #166534;
+
+  /* Alias legacy */
+  --badge-bg-neutral: var(--badge-neutral-bg);
+  --badge-text-neutral: var(--badge-neutral-color);
 }
 
 html[data-theme='light'] .page-stack {
@@ -249,11 +287,11 @@ html[data-theme='light'] .section-kicker {
   opacity: 1;
 }
 
-/* Badge info (statuts ouverts / « À suivre ») : contraste sur cartes teintées teal */
+/* Badge info : aligné sur jetons --badge-info-* (mode clair) */
 html[data-theme='light'] .ds-badge--info {
-  color: #0f766e;
-  background: color-mix(in srgb, var(--palette-accent) 14%, var(--surface-1));
-  border-color: color-mix(in srgb, var(--palette-accent) 38%, var(--surface-1));
+  color: var(--badge-info-color);
+  background: var(--badge-info-bg);
+  border-color: var(--badge-info-border);
 }
 
 html[data-theme='light'] .content-card-lead,
@@ -340,73 +378,73 @@ html[data-theme='light'] .kpi-multi-line-wrap .dashboard-line-chart-grid--base {
 
 /* ── flat-app : .ds-badge & .badge & .status-pill ── */
 html[data-theme='light'] .ds-badge--danger {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
+  color: var(--badge-danger-color);
+  background: var(--badge-danger-bg);
+  border-color: var(--badge-danger-border);
 }
 
 html[data-theme='light'] .ds-badge--warn {
-  color: var(--color-warning-text);
-  background: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
+  color: var(--badge-warning-color);
+  background: var(--badge-warning-bg);
+  border-color: var(--badge-warning-border);
 }
 
 html[data-theme='light'] .ds-badge--ok {
-  color: var(--color-success-text);
-  background: var(--color-success-bg);
-  border-color: var(--color-success-border);
+  color: var(--badge-success-color);
+  background: var(--badge-success-bg);
+  border-color: var(--badge-success-border);
 }
 
 html[data-theme='light'] .badge.red,
 html[data-theme='light'] .badge.danger {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
+  color: var(--badge-danger-color);
+  background: var(--badge-danger-bg);
+  border-color: var(--badge-danger-border);
   box-shadow: none;
 }
 
 html[data-theme='light'] .badge.amber,
 html[data-theme='light'] .badge.warning {
-  color: var(--color-warning-text);
-  background: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
+  color: var(--badge-warning-color);
+  background: var(--badge-warning-bg);
+  border-color: var(--badge-warning-border);
 }
 
 html[data-theme='light'] .badge.green,
 html[data-theme='light'] .badge.success {
-  color: var(--color-success-text);
-  background: var(--color-success-bg);
-  border-color: var(--color-success-border);
+  color: var(--badge-success-color);
+  background: var(--badge-success-bg);
+  border-color: var(--badge-success-border);
 }
 
 html[data-theme='light'] .badge.info {
-  color: var(--color-info-text);
-  background: var(--color-info-bg);
-  border-color: var(--color-info-border);
+  color: var(--badge-info-color);
+  background: var(--badge-info-bg);
+  border-color: var(--badge-info-border);
 }
 
 html[data-theme='light'] .status-pill.success {
-  color: var(--color-success-text);
-  border-color: var(--color-success-border);
-  background: var(--color-success-bg);
+  color: var(--badge-success-color);
+  border-color: var(--badge-success-border);
+  background: var(--badge-success-bg);
 }
 
 html[data-theme='light'] .status-pill.warning {
-  color: var(--color-warning-text);
-  border-color: var(--color-warning-border);
-  background: var(--color-warning-bg);
+  color: var(--badge-warning-color);
+  border-color: var(--badge-warning-border);
+  background: var(--badge-warning-bg);
 }
 
 html[data-theme='light'] .status-pill.danger {
-  color: var(--color-danger-text);
-  border-color: var(--color-danger-border);
-  background: var(--color-danger-bg);
+  color: var(--badge-danger-color);
+  border-color: var(--badge-danger-border);
+  background: var(--badge-danger-bg);
 }
 
 html[data-theme='light'] .status-pill.info {
-  color: var(--color-info-text);
-  border-color: var(--color-info-border);
-  background: var(--color-info-bg);
+  color: var(--badge-info-color);
+  border-color: var(--badge-info-border);
+  background: var(--badge-info-bg);
 }
 
 /* ── ISO (styles injectés) ── */
@@ -642,36 +680,7 @@ html[data-theme='light'] .risks-pilot-banner__kpi--ok .risks-pilot-banner__kpi-v
   color: var(--color-success-text);
 }
 
-/* ── PTW ── */
-html[data-theme='light'] .ptw-net-badge--offline {
-  color: var(--color-warning-text);
-  background: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
-}
-
-html[data-theme='light'] .ptw-net-badge--pending {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
-}
-
-html[data-theme='light'] .ptw-status--pending {
-  color: var(--color-warning-text);
-  background: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
-}
-
-html[data-theme='light'] .ptw-status--expired {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
-}
-
-html[data-theme='light'] .ptw-chip--critical {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
-}
+/* ── PTW : pastilles réseau, sync et statuts — couleurs explicites dans src/components/ptwStyles.js (évite conflit de spécificité avec ce fichier) ── */
 
 /* ── Audits + cockpit (auditPlusStyles) — texte violet lisible sur fond clair ── */
 html[data-theme='light'] .audit-cockpit-ia__badge,

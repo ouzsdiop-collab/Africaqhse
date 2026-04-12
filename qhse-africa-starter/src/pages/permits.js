@@ -203,8 +203,8 @@ export function renderPermits() {
   toolbar.innerHTML = `
     <button type="button" class="btn btn-primary ptw-create-btn">Créer un permis terrain</button>
     <button type="button" class="btn btn-secondary ptw-create-quick-btn">Permis ultra-rapide (30 s)</button>
-    <span class="ptw-net-badge" data-net-state>Mode en ligne</span>
-    <span class="ptw-net-badge" data-sync-state>Synchronisation: 0 en attente</span>
+    <span class="ptw-net-badge ptw-net-badge--online" data-net-state>Mode en ligne</span>
+    <span class="ptw-net-badge ptw-net-badge--sync" data-sync-state>Synchronisation: 0 en attente</span>
   `;
   page.append(toolbar);
 
@@ -618,10 +618,15 @@ export function renderPermits() {
     top.append(topLeft, statusChip);
 
     const apiLine = document.createElement('div');
-    apiLine.className = 'ptw-mini';
+    apiLine.className = 'ptw-mini ptw-api-sync-line';
     const apiLab = document.createElement('strong');
     apiLab.textContent = 'API:';
-    apiLine.append(apiLab, document.createTextNode(` ${it.synced ? 'Synchronisé' : 'Local'}`));
+    const syncPill = document.createElement('span');
+    syncPill.className = it.synced
+      ? 'ptw-sync-pill ptw-sync-pill--synced'
+      : 'ptw-sync-pill ptw-sync-pill--local';
+    syncPill.textContent = it.synced ? 'Synchronisé' : 'Local';
+    apiLine.append(apiLab, document.createTextNode(' '), syncPill);
     row.append(top, apiLine);
     if (expired) {
       const crit = document.createElement('div');
@@ -922,7 +927,7 @@ export function renderPermits() {
     netEl.textContent = meta.online ? 'Mode en ligne' : 'Mode hors ligne';
     netEl.className = `ptw-net-badge ${meta.online ? 'ptw-net-badge--online' : 'ptw-net-badge--offline'}`;
     syncEl.textContent = `Synchronisation: ${meta.pendingCount} en attente`;
-    syncEl.className = `ptw-net-badge ${meta.pendingCount > 0 ? 'ptw-net-badge--pending' : 'ptw-net-badge--online'}`;
+    syncEl.className = `ptw-net-badge ${meta.pendingCount > 0 ? 'ptw-net-badge--sync-pending' : 'ptw-net-badge--sync'}`;
   }
 
   toolbar.querySelector('.ptw-create-btn').addEventListener('click', () => {

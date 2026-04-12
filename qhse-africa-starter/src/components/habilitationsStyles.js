@@ -91,7 +91,7 @@ const CSS = `
 }
 
 .hab-section-head{margin:0 0 14px;max-width:56ch}
-.hab-section-head--risk .hab-section-head__title{color:color-mix(in srgb,#fecaca 88%,var(--color-text-primary))}
+.hab-section-head--risk .hab-section-head__title{color:color-mix(in srgb,var(--hab-expired-color,#fecaca) 55%,var(--color-text-primary))}
 .hab-section-head__title{
   margin:0 0 4px;
   font-size:11px;
@@ -159,9 +159,9 @@ const CSS = `
   font-weight:800;
   line-height:1;
   letter-spacing:-.02em;
-  color:#fecaca;
+  color:var(--hab-expired-color,#fecaca);
 }
-.hab-risk-card--warn .hab-risk-card__v{color:#fdba74}
+.hab-risk-card--warn .hab-risk-card__v{color:var(--hab-warning-color,#fdba74)}
 .hab-risk-card__hint{
   font-size:11px;
   color:var(--color-text-tertiary);
@@ -221,14 +221,14 @@ const CSS = `
   border-radius:999px;
   font-size:10px;
   font-weight:700;
-  background:color-mix(in srgb,#ef4444 12%,transparent);
-  color:#fecaca;
+  background:var(--hab-expired-bg,color-mix(in srgb,#ef4444 12%,transparent));
+  color:var(--hab-expired-color,#fecaca);
   border:1px solid rgba(239,68,68,.28);
   line-height:1.35;
 }
 .hab-expo-pill--orange{
-  background:color-mix(in srgb,#f97316 12%,transparent);
-  color:#fdba74;
+  background:var(--hab-warning-bg,color-mix(in srgb,#f97316 12%,transparent));
+  color:var(--hab-warning-color,#fdba74);
   border-color:rgba(249,115,22,.35);
 }
 
@@ -319,9 +319,9 @@ const CSS = `
 .hab-kpi{padding:10px;border:1px solid var(--color-border-tertiary);border-radius:10px;background:var(--color-background-secondary);display:grid;gap:2px}
 .hab-kpi__k{font-size:11px;color:var(--color-text-tertiary)}
 .hab-kpi__v{font-size:20px;font-weight:800;line-height:1}
-.hab-kpi__v--red{color:#fca5a5}
-.hab-kpi__v--orange{color:#fdba74}
-.hab-kpi__v--green{color:#86efac}
+.hab-kpi__v--red{color:var(--hab-expired-color,#fca5a5)}
+.hab-kpi__v--orange{color:var(--hab-warning-color,#fdba74)}
+.hab-kpi__v--green{color:var(--hab-ok-color,#86efac)}
 
 .hab-filters{
   display:grid;
