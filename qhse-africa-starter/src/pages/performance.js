@@ -4,7 +4,6 @@ import { appState, setActiveSiteContext } from '../utils/state.js';
 import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
-import { escapeHtml } from '../utils/escapeHtml.js';
 import {
   buildMonthlyAuditScoreAvgSeries,
   createDashboardLineChart,
@@ -267,7 +266,7 @@ function elKpiMain(opts) {
   art.setAttribute('role', 'button');
   art.setAttribute(
     'aria-label',
-    `${escapeHtml(title)} — ouvrir le détail (${escapeHtml(kpiKey || '')})`
+    `${title} — ouvrir le détail (${kpiKey || ''})`
   );
   art.addEventListener('click', () => onOpenDetail?.(kpiKey));
   art.addEventListener('keydown', (e) => {
@@ -276,24 +275,34 @@ function elKpiMain(opts) {
       onOpenDetail?.(kpiKey);
     }
   });
-  const gapBlock =
-    gapText && String(gapText).trim()
-      ? `<div class="kpi-perf-main-gap kpi-perf-main-gap--${safeTone}">${escapeHtml(gapText)}</div>`
-      : '';
-  const insightBlock =
-    insight && String(insight).trim()
-      ? `<p class="kpi-perf-main-insight kpi-perf-main-insight--${safeTone}">${escapeHtml(insight)}</p>`
-      : '';
-  art.innerHTML = `
-    <div class="metric-label">${escapeHtml(title)}</div>
-    <div class="metric-value ${safeTone} kpi-perf-main-value">${escapeHtml(valueText)}</div>
-    <div class="kpi-perf-main-meta">
-      <span class="kpi-perf-delta">Tendance ${escapeHtml(deltaText)}</span>
-      <span class="kpi-perf-goal">Obj. ${escapeHtml(goalText)}</span>
-    </div>
-    ${gapBlock}
-    ${insightBlock}
-  `;
+  const lbl = document.createElement('div');
+  lbl.className = 'metric-label';
+  lbl.textContent = title;
+  const val = document.createElement('div');
+  val.className = `metric-value ${safeTone} kpi-perf-main-value`;
+  val.textContent = valueText;
+  const meta = document.createElement('div');
+  meta.className = 'kpi-perf-main-meta';
+  const deltaSp = document.createElement('span');
+  deltaSp.className = 'kpi-perf-delta';
+  deltaSp.textContent = `Tendance ${deltaText}`;
+  const goalSp = document.createElement('span');
+  goalSp.className = 'kpi-perf-goal';
+  goalSp.textContent = `Obj. ${goalText}`;
+  meta.append(deltaSp, goalSp);
+  art.append(lbl, val, meta);
+  if (gapText && String(gapText).trim()) {
+    const gapEl = document.createElement('div');
+    gapEl.className = `kpi-perf-main-gap kpi-perf-main-gap--${safeTone}`;
+    gapEl.textContent = gapText;
+    art.append(gapEl);
+  }
+  if (insight && String(insight).trim()) {
+    const ins = document.createElement('p');
+    ins.className = `kpi-perf-main-insight kpi-perf-main-insight--${safeTone}`;
+    ins.textContent = insight;
+    art.append(ins);
+  }
   return art;
 }
 
@@ -304,22 +313,49 @@ function elPerfCockpitHero(conformity, prev, counts, kpis, onOpenConformityDetai
   const arrow = trendArrowFromDelta(dConf);
   const section = document.createElement('section');
   section.className = 'kpi-perf-cockpit-hero';
-  section.innerHTML = `
-    <div class="kpi-perf-hero-score" data-kpi-hero-score>
-      <span class="kpi-perf-hero-k">Indice de maîtrise QHSE</span>
-      <div class="kpi-perf-hero-val-row">
-        <span class="kpi-perf-hero-val metric-value ${toneVsGoal(conformity, GOALS.conformity)}">${escapeHtml(String(conformity))}</span>
-        <span class="kpi-perf-hero-pct">%</span>
-        <span class="kpi-perf-hero-trend" aria-hidden="true">${arrow}</span>
-      </div>
-      <p class="kpi-perf-hero-sub">vs dernière visite : <strong>${escapeHtml(dConf)}</strong> pts · <span class="kpi-perf-hero-hint">cliquer pour le détail des leviers</span></p>
-    </div>
-    <div class="kpi-perf-hero-vigil kpi-perf-hero-vigil--${safeVigilTone}">
-      <span class="kpi-perf-hero-vigil-k">Niveau de vigilance</span>
-      <span class="kpi-perf-hero-vigil-l">${escapeHtml(v.label)}</span>
-      <p class="kpi-perf-hero-vigil-h">${escapeHtml(v.hint)}</p>
-    </div>
-  `;
+  const scoreWrap = document.createElement('div');
+  scoreWrap.className = 'kpi-perf-hero-score';
+  scoreWrap.setAttribute('data-kpi-hero-score', '');
+  const heroK = document.createElement('span');
+  heroK.className = 'kpi-perf-hero-k';
+  heroK.textContent = 'Indice de maîtrise QHSE';
+  const valRow = document.createElement('div');
+  valRow.className = 'kpi-perf-hero-val-row';
+  const heroVal = document.createElement('span');
+  heroVal.className = `kpi-perf-hero-val metric-value ${toneVsGoal(conformity, GOALS.conformity)}`;
+  heroVal.textContent = String(conformity);
+  const pct = document.createElement('span');
+  pct.className = 'kpi-perf-hero-pct';
+  pct.textContent = '%';
+  const trend = document.createElement('span');
+  trend.className = 'kpi-perf-hero-trend';
+  trend.setAttribute('aria-hidden', 'true');
+  trend.textContent = arrow;
+  valRow.append(heroVal, pct, trend);
+  const subP = document.createElement('p');
+  subP.className = 'kpi-perf-hero-sub';
+  const dStrong = document.createElement('strong');
+  dStrong.textContent = dConf;
+  subP.append(document.createTextNode('vs dernière visite : '), dStrong, document.createTextNode(' pts · '));
+  const hint = document.createElement('span');
+  hint.className = 'kpi-perf-hero-hint';
+  hint.textContent = 'cliquer pour le détail des leviers';
+  subP.append(hint);
+  scoreWrap.append(heroK, valRow, subP);
+
+  const vigil = document.createElement('div');
+  vigil.className = `kpi-perf-hero-vigil kpi-perf-hero-vigil--${safeVigilTone}`;
+  const vk = document.createElement('span');
+  vk.className = 'kpi-perf-hero-vigil-k';
+  vk.textContent = 'Niveau de vigilance';
+  const vl = document.createElement('span');
+  vl.className = 'kpi-perf-hero-vigil-l';
+  vl.textContent = v.label;
+  const vh = document.createElement('p');
+  vh.className = 'kpi-perf-hero-vigil-h';
+  vh.textContent = v.hint;
+  vigil.append(vk, vl, vh);
+  section.append(scoreWrap, vigil);
   const scoreEl = section.querySelector('[data-kpi-hero-score]');
   if (onOpenConformityDetail && scoreEl) {
     scoreEl.classList.add('kpi-perf-hero-score--interactive');
@@ -345,7 +381,15 @@ function elGoalVsRealCard(rows) {
   card.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--goalvs';
   const head = document.createElement('div');
   head.className = 'content-card-head';
-  head.innerHTML = `<div><div class="kpi-perf-dx-kicker">Écart</div><h2 class="kpi-perf-h2 kpi-perf-h2--small">Objectif vs réel</h2></div>`;
+  const headInner = document.createElement('div');
+  const gvk = document.createElement('div');
+  gvk.className = 'kpi-perf-dx-kicker';
+  gvk.textContent = 'Écart';
+  const gvh2 = document.createElement('h2');
+  gvh2.className = 'kpi-perf-h2 kpi-perf-h2--small';
+  gvh2.textContent = 'Objectif vs réel';
+  headInner.append(gvk, gvh2);
+  head.append(headInner);
   const body = document.createElement('div');
   body.className = 'kpi-perf-goalvs-body';
   rows.forEach((r) => {
@@ -353,17 +397,29 @@ function elGoalVsRealCard(rows) {
     const pctG = Math.max(0, Math.min(100, Number(r.pctGoal) || 0));
     const row = document.createElement('div');
     row.className = 'kpi-perf-goalvs-row';
-    row.innerHTML = `
-      <div class="kpi-perf-goalvs-label">${escapeHtml(r.label)}</div>
-      <div class="kpi-perf-goalvs-track" role="presentation">
-        <div class="kpi-perf-goalvs-fill" style="width:${pct}%"></div>
-        <div class="kpi-perf-goalvs-marker" style="left:${pctG}%"></div>
-      </div>
-      <div class="kpi-perf-goalvs-vals">
-        <span class="kpi-perf-goalvs-real">${escapeHtml(r.realText)}</span>
-        <span class="kpi-perf-goalvs-goal">cible ${escapeHtml(r.goalText)}</span>
-      </div>
-    `;
+    const lab = document.createElement('div');
+    lab.className = 'kpi-perf-goalvs-label';
+    lab.textContent = r.label;
+    const track = document.createElement('div');
+    track.className = 'kpi-perf-goalvs-track';
+    track.setAttribute('role', 'presentation');
+    const fill = document.createElement('div');
+    fill.className = 'kpi-perf-goalvs-fill';
+    fill.style.width = `${pct}%`;
+    const marker = document.createElement('div');
+    marker.className = 'kpi-perf-goalvs-marker';
+    marker.style.left = `${pctG}%`;
+    track.append(fill, marker);
+    const vals = document.createElement('div');
+    vals.className = 'kpi-perf-goalvs-vals';
+    const realSp = document.createElement('span');
+    realSp.className = 'kpi-perf-goalvs-real';
+    realSp.textContent = r.realText;
+    const goalSp = document.createElement('span');
+    goalSp.className = 'kpi-perf-goalvs-goal';
+    goalSp.textContent = `cible ${r.goalText}`;
+    vals.append(realSp, goalSp);
+    row.append(lab, track, vals);
     body.append(row);
   });
   const foot = document.createElement('p');
@@ -376,27 +432,33 @@ function elGoalVsRealCard(rows) {
 function elGapsCard(groups, summaryLine) {
   const card = document.createElement('section');
   card.className = 'kpi-perf-gaps';
-  card.innerHTML = `<h2 class="kpi-perf-gaps-title">Écarts à l’objectif</h2>
-    <div class="kpi-perf-gaps-grid">
-      <div class="kpi-perf-gaps-col kpi-perf-gaps-col--below">
-        <span class="kpi-perf-gaps-col-k">Sous la cible</span>
-        <ul class="kpi-perf-gaps-list"></ul>
-      </div>
-      <div class="kpi-perf-gaps-col kpi-perf-gaps-col--watch">
-        <span class="kpi-perf-gaps-col-k">À surveiller</span>
-        <ul class="kpi-perf-gaps-list"></ul>
-      </div>
-      <div class="kpi-perf-gaps-col kpi-perf-gaps-col--ok">
-        <span class="kpi-perf-gaps-col-k">À la cible</span>
-        <ul class="kpi-perf-gaps-list"></ul>
-      </div>
-    </div>`;
+  const gapsTitle = document.createElement('h2');
+  gapsTitle.className = 'kpi-perf-gaps-title';
+  gapsTitle.textContent = 'Écarts à l’objectif';
+  const grid = document.createElement('div');
+  grid.className = 'kpi-perf-gaps-grid';
+  function gapsCol(extraCls, kicker) {
+    const col = document.createElement('div');
+    col.className = `kpi-perf-gaps-col ${extraCls}`;
+    const sk = document.createElement('span');
+    sk.className = 'kpi-perf-gaps-col-k';
+    sk.textContent = kicker;
+    const ul = document.createElement('ul');
+    ul.className = 'kpi-perf-gaps-list';
+    col.append(sk, ul);
+    return col;
+  }
+  grid.append(
+    gapsCol('kpi-perf-gaps-col--below', 'Sous la cible'),
+    gapsCol('kpi-perf-gaps-col--watch', 'À surveiller'),
+    gapsCol('kpi-perf-gaps-col--ok', 'À la cible')
+  );
+  card.append(gapsTitle, grid);
   if (summaryLine && String(summaryLine).trim()) {
     const sub = document.createElement('p');
     sub.className = 'kpi-perf-gaps-sub';
     sub.textContent = summaryLine;
-    const titleEl = card.querySelector('.kpi-perf-gaps-title');
-    titleEl.after(sub);
+    gapsTitle.after(sub);
   }
   const cols = card.querySelectorAll('.kpi-perf-gaps-col');
   const lists = [cols[0].querySelector('ul'), cols[1].querySelector('ul'), cols[2].querySelector('ul')];
@@ -495,7 +557,9 @@ export function renderPerformance() {
 
   const periodWrap = document.createElement('label');
   periodWrap.className = 'field kpi-perf-field';
-  periodWrap.innerHTML = `<span>Période</span>`;
+  const periodLbl = document.createElement('span');
+  periodLbl.textContent = 'Période';
+  periodWrap.append(periodLbl);
   const periodSel = document.createElement('select');
   periodSel.className = 'control-select';
   periodSel.setAttribute('aria-label', 'Nombre de mois sur le graphique');
@@ -536,7 +600,9 @@ export function renderPerformance() {
 
   const siteWrap = document.createElement('label');
   siteWrap.className = 'field kpi-perf-field';
-  siteWrap.innerHTML = `<span>Site</span>`;
+  const siteLbl = document.createElement('span');
+  siteLbl.textContent = 'Site';
+  siteWrap.append(siteLbl);
   const siteSel = document.createElement('select');
   siteSel.className = 'control-select';
   siteSel.setAttribute('aria-label', 'Filtrer par site');
@@ -544,7 +610,9 @@ export function renderPerformance() {
 
   const yearWrap = document.createElement('label');
   yearWrap.className = 'field kpi-perf-field';
-  yearWrap.innerHTML = `<span>Année (TF/TG)</span>`;
+  const yearLbl = document.createElement('span');
+  yearLbl.textContent = 'Année (TF/TG)';
+  yearWrap.append(yearLbl);
   const yearSel = document.createElement('select');
   yearSel.className = 'control-select';
   yearSel.setAttribute('aria-label', 'Année pour les indicateurs TF et TG');
@@ -577,7 +645,11 @@ export function renderPerformance() {
   page.append(content);
 
   (async function fillSites() {
-    siteSel.innerHTML = '<option value="">Vue groupe (tous sites)</option>';
+    siteSel.replaceChildren();
+    const siteOpt0 = document.createElement('option');
+    siteOpt0.value = '';
+    siteOpt0.textContent = 'Vue groupe (tous sites)';
+    siteSel.append(siteOpt0);
     try {
       const sites = await fetchSitesCatalog();
       sites.forEach((s) => {
@@ -791,14 +863,30 @@ export function renderPerformance() {
       chargeCard.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--charge';
       const chHead = document.createElement('div');
       chHead.className = 'content-card-head';
-      chHead.innerHTML = `<div><div class="kpi-perf-dx-kicker">Pression</div><h2 class="kpi-perf-h2 kpi-perf-h2--small">Charge critique</h2></div>`;
+      const chInner = document.createElement('div');
+      const chk = document.createElement('div');
+      chk.className = 'kpi-perf-dx-kicker';
+      chk.textContent = 'Pression';
+      const chh2 = document.createElement('h2');
+      chh2.className = 'kpi-perf-h2 kpi-perf-h2--small';
+      chh2.textContent = 'Charge critique';
+      chInner.append(chk, chh2);
+      chHead.append(chInner);
       chargeCard.append(chHead, chargeBody, auditsNote);
 
       const progCard = document.createElement('article');
       progCard.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--progress';
       const ph = document.createElement('div');
       ph.className = 'content-card-head';
-      ph.innerHTML = `<div><div class="kpi-perf-dx-kicker">Trajectoire</div><h2 class="kpi-perf-h2 kpi-perf-h2--small">Score audit par mois</h2></div>`;
+      const phInner = document.createElement('div');
+      const phk = document.createElement('div');
+      phk.className = 'kpi-perf-dx-kicker';
+      phk.textContent = 'Trajectoire';
+      const phh2 = document.createElement('h2');
+      phh2.className = 'kpi-perf-h2 kpi-perf-h2--small';
+      phh2.textContent = 'Score audit par mois';
+      phInner.append(phk, phh2);
+      ph.append(phInner);
       progCard.append(ph, progressionChart);
 
       const chartsBand = document.createElement('div');

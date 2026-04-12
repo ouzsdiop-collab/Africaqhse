@@ -493,22 +493,67 @@ export function renderPermits() {
   }
 
   function renderQuickCreate() {
-    quickCard.innerHTML = `
-      <div class="ptw-wizard-step">
-        <div class="ptw-step-head"><h3>Permis ultra-rapide (30 s)</h3><span class="ptw-step-badge">mode terrain</span></div>
-        <div class="ptw-fields">
-          <label class="field"><span>Type</span>
-            <select class="control-select" data-q="type">${PTW_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}</select>
-          </label>
-          <label class="field"><span>Zone</span><input class="control-input" data-q="zone" placeholder="Zone chantier" /></label>
-          <label class="field"><span>Responsable</span><input class="control-input" data-q="team" placeholder="Nom responsable" /></label>
-        </div>
-      </div>
-      <div class="ptw-wizard-foot">
-        <button type="button" class="btn btn-primary" data-q-create>Créer immédiatement</button>
-        <button type="button" class="btn btn-secondary" data-q-cancel>Annuler</button>
-      </div>
-    `;
+    quickCard.replaceChildren();
+    const step = document.createElement('div');
+    step.className = 'ptw-wizard-step';
+    const head = document.createElement('div');
+    head.className = 'ptw-step-head';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Permis ultra-rapide (30 s)';
+    const badge = document.createElement('span');
+    badge.className = 'ptw-step-badge';
+    badge.textContent = 'mode terrain';
+    head.append(h3, badge);
+    const fields = document.createElement('div');
+    fields.className = 'ptw-fields';
+    const labType = document.createElement('label');
+    labType.className = 'field';
+    const spType = document.createElement('span');
+    spType.textContent = 'Type';
+    const selType = document.createElement('select');
+    selType.className = 'control-select';
+    selType.dataset.q = 'type';
+    for (const t of PTW_TYPES) {
+      const o = document.createElement('option');
+      o.value = t;
+      o.textContent = t;
+      selType.append(o);
+    }
+    labType.append(spType, selType);
+    const labZone = document.createElement('label');
+    labZone.className = 'field';
+    const spZone = document.createElement('span');
+    spZone.textContent = 'Zone';
+    const inZone = document.createElement('input');
+    inZone.className = 'control-input';
+    inZone.dataset.q = 'zone';
+    inZone.placeholder = 'Zone chantier';
+    labZone.append(spZone, inZone);
+    const labTeam = document.createElement('label');
+    labTeam.className = 'field';
+    const spTeam = document.createElement('span');
+    spTeam.textContent = 'Responsable';
+    const inTeam = document.createElement('input');
+    inTeam.className = 'control-input';
+    inTeam.dataset.q = 'team';
+    inTeam.placeholder = 'Nom responsable';
+    labTeam.append(spTeam, inTeam);
+    fields.append(labType, labZone, labTeam);
+    step.append(head, fields);
+    const foot = document.createElement('div');
+    foot.className = 'ptw-wizard-foot';
+    const bCreate = document.createElement('button');
+    bCreate.type = 'button';
+    bCreate.className = 'btn btn-primary';
+    bCreate.dataset.qCreate = '';
+    bCreate.textContent = 'Créer immédiatement';
+    const bCancel = document.createElement('button');
+    bCancel.type = 'button';
+    bCancel.className = 'btn btn-secondary';
+    bCancel.dataset.qCancel = '';
+    bCancel.textContent = 'Annuler';
+    foot.append(bCreate, bCancel);
+    quickCard.append(step, foot);
     quickCard.querySelector('[data-q-cancel]').addEventListener('click', () => {
       quickCard.hidden = true;
     });
@@ -547,56 +592,113 @@ export function renderPermits() {
     const responsible = sup?.signed ? sup.name : it.team || 'Non défini';
     const signatures = Array.isArray(it.signatures) ? it.signatures : [];
     const relations = getLinksFor('permits', it.id);
-    row.innerHTML = `
-      <div class="ptw-item-top">
-        <div>
-          <strong>${it.type}</strong>
-          <div class="ptw-mini"><strong>Zone:</strong> ${it.zone || '—'} · <strong>Responsable:</strong> ${responsible}</div>
-          <div class="ptw-mini"><strong>Date:</strong> ${it.date || '—'}</div>
-        </div>
-        <span class="ptw-chip ${statusVisualTone(it)}">${isExpiredPermit(it) ? 'expiré' : statusLabel(it.status)}</span>
-      </div>
-      <div class="ptw-mini"><strong>API:</strong> ${it.synced ? 'Synchronisé' : 'Local'}</div>
-      ${expired ? '<div class="ptw-chip ptw-chip--critical">Permis non clôturé</div>' : ''}
-      <p class="ptw-mini">${it.description || ''}</p>
-      <div class="ptw-mini"><strong>Expiration:</strong> ${expiryLabel(it)}</div>
-      <div class="ptw-inline-checks">
-        <label class="ptw-inline-check"><input type="checkbox" disabled ${it.epi?.length ? 'checked' : ''} />EPI</label>
-        <label class="ptw-inline-check"><input type="checkbox" disabled ${it.safetyConditions?.length ? 'checked' : ''} />Zone sécurisée</label>
-        <label class="ptw-inline-check"><input type="checkbox" disabled ${it.signatures?.length ? 'checked' : ''} />Autorisation</label>
-      </div>
-      <details>
-        <summary class="ptw-mini">Fiche permis</summary>
-        <div class="ptw-mini">Checklist: ${(it.checklist || []).join(', ') || '—'}</div>
-        <div class="ptw-mini">EPI: ${(it.epi || []).join(', ') || '—'}</div>
-        <div class="ptw-mini">Conditions: ${(it.safetyConditions || []).join(', ') || '—'}</div>
-        <div class="ptw-mini">Analyse risque: ${it.riskAnalysis || '—'}</div>
-        <div class="ptw-mini">Validation: ${it.validationMode === 'simple' ? 'Simple' : 'Double'}</div>
-        <div class="ptw-mini"><strong>Signé par:</strong> ${
-          signatures.length
-            ? signatures
-                .map(
-                  (s) =>
-                    `${s.name || '—'} (${signatureRoleLabel(s.role)}) · ${new Date(s.signedAt).toLocaleString('fr-FR')} · ${
-                      s.syncStatus === 'pending_sync' ? 'en attente de synchronisation' : 'synchronisé'
-                    }`
-                )
-                .join(' | ')
-            : 'Aucune signature'
-        }</div>
-        <div class="ptw-mini"><strong>Statut sync:</strong> ${it.syncState === 'pending_sync' ? 'en attente de synchronisation' : 'synchronisé'}</div>
-        <div class="ptw-mini"><strong>Vue 360°:</strong> ${
-          relations.length
-            ? relations
-                .map((r) => {
-                  const other = r.fromModule === 'permits' ? r.toModule : r.fromModule;
-                  return `${moduleLabelFr(other)} (${r.kind || 'lien'})`;
-                })
-                .join(', ')
-            : 'aucune relation'
-        }</div>
-      </details>
-    `;
+
+    const top = document.createElement('div');
+    top.className = 'ptw-item-top';
+    const topLeft = document.createElement('div');
+    const typeStrong = document.createElement('strong');
+    typeStrong.textContent = it.type ?? '—';
+    const miniZR = document.createElement('div');
+    miniZR.className = 'ptw-mini';
+    const zLab = document.createElement('strong');
+    zLab.textContent = 'Zone:';
+    miniZR.append(zLab, document.createTextNode(` ${it.zone || '—'} · `));
+    const rLab = document.createElement('strong');
+    rLab.textContent = 'Responsable:';
+    miniZR.append(rLab, document.createTextNode(` ${responsible}`));
+    const miniDate = document.createElement('div');
+    miniDate.className = 'ptw-mini';
+    const dLab = document.createElement('strong');
+    dLab.textContent = 'Date:';
+    miniDate.append(dLab, document.createTextNode(` ${it.date || '—'}`));
+    topLeft.append(typeStrong, miniZR, miniDate);
+    const statusChip = document.createElement('span');
+    statusChip.className = `ptw-chip ${statusVisualTone(it)}`;
+    statusChip.textContent = expired ? 'expiré' : statusLabel(it.status);
+    top.append(topLeft, statusChip);
+
+    const apiLine = document.createElement('div');
+    apiLine.className = 'ptw-mini';
+    const apiLab = document.createElement('strong');
+    apiLab.textContent = 'API:';
+    apiLine.append(apiLab, document.createTextNode(` ${it.synced ? 'Synchronisé' : 'Local'}`));
+    row.append(top, apiLine);
+    if (expired) {
+      const crit = document.createElement('div');
+      crit.className = 'ptw-chip ptw-chip--critical';
+      crit.textContent = 'Permis non clôturé';
+      row.append(crit);
+    }
+    const descP = document.createElement('p');
+    descP.className = 'ptw-mini';
+    descP.textContent = it.description || '';
+    const expLine = document.createElement('div');
+    expLine.className = 'ptw-mini';
+    const expLab = document.createElement('strong');
+    expLab.textContent = 'Expiration:';
+    expLine.append(expLab, document.createTextNode(` ${expiryLabel(it)}`));
+    const checks = document.createElement('div');
+    checks.className = 'ptw-inline-checks';
+    function addInlineCheck(label, on) {
+      const lab = document.createElement('label');
+      lab.className = 'ptw-inline-check';
+      const inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.disabled = true;
+      if (on) inp.checked = true;
+      lab.append(inp, document.createTextNode(label));
+      checks.append(lab);
+    }
+    addInlineCheck('EPI', Boolean(it.epi?.length));
+    addInlineCheck('Zone sécurisée', Boolean(it.safetyConditions?.length));
+    addInlineCheck('Autorisation', Boolean(it.signatures?.length));
+
+    const details = document.createElement('details');
+    const sum = document.createElement('summary');
+    sum.className = 'ptw-mini';
+    sum.textContent = 'Fiche permis';
+    function detailLine(text) {
+      const d = document.createElement('div');
+      d.className = 'ptw-mini';
+      d.textContent = text;
+      return d;
+    }
+    details.append(
+      sum,
+      detailLine(`Checklist: ${(it.checklist || []).join(', ') || '—'}`),
+      detailLine(`EPI: ${(it.epi || []).join(', ') || '—'}`),
+      detailLine(`Conditions: ${(it.safetyConditions || []).join(', ') || '—'}`),
+      detailLine(`Analyse risque: ${it.riskAnalysis || '—'}`),
+      detailLine(`Validation: ${it.validationMode === 'simple' ? 'Simple' : 'Double'}`)
+    );
+    const sigText =
+      signatures.length > 0
+        ? signatures
+            .map(
+              (s) =>
+                `${s.name || '—'} (${signatureRoleLabel(s.role)}) · ${new Date(s.signedAt).toLocaleString('fr-FR')} · ${
+                  s.syncStatus === 'pending_sync' ? 'en attente de synchronisation' : 'synchronisé'
+                }`
+            )
+            .join(' | ')
+        : 'Aucune signature';
+    details.append(detailLine(`Signé par: ${sigText}`));
+    details.append(
+      detailLine(
+        `Statut sync: ${it.syncState === 'pending_sync' ? 'en attente de synchronisation' : 'synchronisé'}`
+      )
+    );
+    const relText =
+      relations.length > 0
+        ? relations
+            .map((r) => {
+              const other = r.fromModule === 'permits' ? r.toModule : r.fromModule;
+              return `${moduleLabelFr(other)} (${r.kind || 'lien'})`;
+            })
+            .join(', ')
+        : 'aucune relation';
+    details.append(detailLine(`Vue 360°: ${relText}`));
+    row.append(descP, expLine, checks, details);
     const actions = document.createElement('div');
     actions.className = 'ptw-item-actions';
     const status = createStatusSelect(it.status, (v) => {
@@ -716,15 +818,44 @@ export function renderPermits() {
     const signPanel = document.createElement('div');
     signPanel.className = 'ptw-sign-inline';
     signPanel.hidden = true;
-    signPanel.innerHTML = `
-      <label class="field"><span>Rôle</span><select class="control-select" data-inline-role>${SIGN_ROLES.map((r) => `<option value="${r.value}">${r.label}</option>`).join('')}</select></label>
-      <input class="control-input" data-inline-name placeholder="Nom du signataire" />
-      <canvas class="ptw-sign-canvas" width="500" height="120" data-inline-canvas></canvas>
-      <div class="ptw-seg">
-        <button type="button" class="btn btn-secondary" data-inline-clear>Effacer</button>
-        <button type="button" class="btn btn-primary" data-inline-save>Signer le permis</button>
-      </div>
-    `;
+    signPanel.replaceChildren();
+    const labRole = document.createElement('label');
+    labRole.className = 'field';
+    const spRole = document.createElement('span');
+    spRole.textContent = 'Rôle';
+    const selRole = document.createElement('select');
+    selRole.className = 'control-select';
+    selRole.dataset.inlineRole = '';
+    for (const r of SIGN_ROLES) {
+      const o = document.createElement('option');
+      o.value = r.value;
+      o.textContent = r.label;
+      selRole.append(o);
+    }
+    labRole.append(spRole, selRole);
+    const inName = document.createElement('input');
+    inName.className = 'control-input';
+    inName.dataset.inlineName = '';
+    inName.placeholder = 'Nom du signataire';
+    const cv = document.createElement('canvas');
+    cv.className = 'ptw-sign-canvas';
+    cv.width = 500;
+    cv.height = 120;
+    cv.dataset.inlineCanvas = '';
+    const seg = document.createElement('div');
+    seg.className = 'ptw-seg';
+    const bClear = document.createElement('button');
+    bClear.type = 'button';
+    bClear.className = 'btn btn-secondary';
+    bClear.dataset.inlineClear = '';
+    bClear.textContent = 'Effacer';
+    const bSave = document.createElement('button');
+    bSave.type = 'button';
+    bSave.className = 'btn btn-primary';
+    bSave.dataset.inlineSave = '';
+    bSave.textContent = 'Signer le permis';
+    seg.append(bClear, bSave);
+    signPanel.append(labRole, inName, cv, seg);
     row.append(actions, signPanel);
     const signTools = setupSignatureCanvas(signPanel.querySelector('[data-inline-canvas]'));
     signAny.addEventListener('click', () => {

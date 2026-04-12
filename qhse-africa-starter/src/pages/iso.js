@@ -655,10 +655,15 @@ function buildPointsPanel(onAnalyze) {
     const reqs = getRequirements().filter((r) => r.status !== 'conforme');
     const { missing, obsolete, critical } = DOCUMENT_ATTENTION;
 
-    colReq.innerHTML = '';
+    colReq.replaceChildren();
     const hReq = document.createElement('div');
     hReq.className = 'iso-points-col-head';
-    hReq.innerHTML = `<span class="iso-points-icon iso-points-icon--req" aria-hidden="true"></span><span>Exigences</span>`;
+    const hReqIc = document.createElement('span');
+    hReqIc.className = 'iso-points-icon iso-points-icon--req';
+    hReqIc.setAttribute('aria-hidden', 'true');
+    const hReqLab = document.createElement('span');
+    hReqLab.textContent = 'Exigences';
+    hReq.append(hReqIc, hReqLab);
     const metricReq = document.createElement('div');
     metricReq.className = 'iso-points-metric';
     metricReq.textContent = reqs.length ? `${reqs.length} à consolider ou corriger` : 'Aucune exigence en écart';
@@ -698,10 +703,15 @@ function buildPointsPanel(onAnalyze) {
     }
     colReq.append(hReq, metricReq, listReq);
 
-    colDoc.innerHTML = '';
+    colDoc.replaceChildren();
     const hDoc = document.createElement('div');
     hDoc.className = 'iso-points-col-head';
-    hDoc.innerHTML = `<span class="iso-points-icon iso-points-icon--doc" aria-hidden="true"></span><span>Documents</span>`;
+    const hDocIc = document.createElement('span');
+    hDocIc.className = 'iso-points-icon iso-points-icon--doc';
+    hDocIc.setAttribute('aria-hidden', 'true');
+    const hDocLab = document.createElement('span');
+    hDocLab.textContent = 'Documents';
+    hDoc.append(hDocIc, hDocLab);
     const nMiss = missing.length;
     const nObs = obsolete.length;
     const nCrit = critical.length;
@@ -742,10 +752,15 @@ function buildPointsPanel(onAnalyze) {
     }
     colDoc.append(hDoc, metricDoc, listDoc);
 
-    colAud.innerHTML = '';
+    colAud.replaceChildren();
     const hAud = document.createElement('div');
     hAud.className = 'iso-points-col-head';
-    hAud.innerHTML = `<span class="iso-points-icon iso-points-icon--aud" aria-hidden="true"></span><span>Audits à faire</span>`;
+    const hAudIc = document.createElement('span');
+    hAudIc.className = 'iso-points-icon iso-points-icon--aud';
+    hAudIc.setAttribute('aria-hidden', 'true');
+    const hAudLab = document.createElement('span');
+    hAudLab.textContent = 'Audits à faire';
+    hAud.append(hAudIc, hAudLab);
     const metricAud = document.createElement('div');
     metricAud.className = 'iso-points-metric';
     metricAud.textContent = AUDITS_TO_SCHEDULE.length
@@ -755,9 +770,16 @@ function buildPointsPanel(onAnalyze) {
     listAud.className = 'iso-points-list';
     AUDITS_TO_SCHEDULE.forEach((a) => {
       const li = document.createElement('li');
-      li.innerHTML = `<strong>${escapeHtml(a.title)}</strong><p class="iso-points-list-note">${escapeHtml(
-        a.horizon
-      )}<span class="iso-points-list-sub"> · ${escapeHtml(a.owner)}</span></p>`;
+      const tStrong = document.createElement('strong');
+      tStrong.textContent = a.title;
+      const noteP = document.createElement('p');
+      noteP.className = 'iso-points-list-note';
+      noteP.append(document.createTextNode(String(a.horizon ?? '')));
+      const ownSp = document.createElement('span');
+      ownSp.className = 'iso-points-list-sub';
+      ownSp.textContent = ` · ${a.owner}`;
+      noteP.append(ownSp);
+      li.append(tStrong, noteP);
       listAud.append(li);
     });
     if (AUDITS_TO_SCHEDULE.length === 0) {
@@ -1008,15 +1030,21 @@ function createRequirementsTable(ctx, registryDocImpact) {
 
       const exigence = document.createElement('span');
       exigence.className = 'iso-cell-strong';
-      exigence.innerHTML = `${escapeHtml(row.clause)} — ${escapeHtml(row.title)}<br/><span class="iso-cell-muted iso-cell-small">${escapeHtml(
-        normCode
-      )}</span>`;
+      exigence.append(
+        document.createTextNode(`${row.clause} — ${row.title}`),
+        document.createElement('br')
+      );
+      const normSmall = document.createElement('span');
+      normSmall.className = 'iso-cell-muted iso-cell-small';
+      normSmall.textContent = normCode;
+      exigence.append(normSmall);
 
       const statCell = document.createElement('span');
       statCell.className = 'iso-req-status-cell';
-      statCell.innerHTML = `<span class="badge ${stClass} iso-req-status-badge">${escapeHtml(
-        badgeLabel
-      )}</span>`;
+      const badgeEl = document.createElement('span');
+      badgeEl.className = `badge ${stClass} iso-req-status-badge`;
+      badgeEl.textContent = badgeLabel;
+      statCell.append(badgeEl);
 
       const assistCell = document.createElement('span');
       assistCell.className = 'iso-req-action-cell';
@@ -1071,7 +1099,7 @@ function createRequirementsHotList(ctx, ref) {
   wrap.className = 'iso-req-hot-wrap';
 
   function render() {
-    wrap.innerHTML = '';
+    wrap.replaceChildren();
     const problematic = getRequirements().filter((r) => r.status !== 'conforme');
     if (problematic.length === 0) {
       const empty = document.createElement('p');

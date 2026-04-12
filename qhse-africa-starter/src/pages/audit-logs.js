@@ -1,8 +1,6 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
-import { escapeHtml } from '../utils/escapeHtml.js';
-
 const PAGE_STYLE_ID = 'qhse-audit-logs-api-styles';
 
 function ensureAuditLogsApiStyles() {
@@ -71,7 +69,8 @@ export function createAuditLogsServerPanel() {
   if (isAdmin) {
     const lab = document.createElement('label');
     lab.className = 'field';
-    lab.innerHTML = `<span>Filtrer par tenant (id)</span>`;
+    const labSpan = document.createElement('span');
+    labSpan.textContent = 'Filtrer par tenant (id)';
     const inp = document.createElement('input');
     inp.type = 'text';
     inp.className = 'control-input';
@@ -79,7 +78,7 @@ export function createAuditLogsServerPanel() {
     inp.addEventListener('change', () => {
       tenantFilter = inp.value.trim();
     });
-    lab.append(inp);
+    lab.append(labSpan, inp);
     toolbar.append(lab);
   }
 
@@ -105,22 +104,30 @@ export function createAuditLogsServerPanel() {
   /** @param {Record<string, unknown>} row */
   function buildRow(row, admin) {
     const tr = document.createElement('tr');
-    const created = row.createdAt ? escapeHtml(String(row.createdAt)) : '—';
-    const tenantCell = admin
-      ? `<td>${escapeHtml(row.tenantId != null ? String(row.tenantId) : '—')}</td>`
-      : '';
+    const tdDate = document.createElement('td');
+    tdDate.textContent = row.createdAt ? String(row.createdAt) : '—';
+    tr.append(tdDate);
+    if (admin) {
+      const tdTenant = document.createElement('td');
+      tdTenant.textContent = row.tenantId != null ? String(row.tenantId) : '—';
+      tr.append(tdTenant);
+    }
     const u = row.user && typeof row.user === 'object' ? row.user : null;
     const uName = u && typeof u.name === 'string' ? u.name : '';
     const uEmail = u && typeof u.email === 'string' ? u.email : '';
     const who = uName || uEmail || (row.userId ? String(row.userId) : '—');
-    tr.innerHTML = `
-      <td>${created}</td>
-      ${tenantCell}
-      <td>${escapeHtml(String(row.resource ?? ''))}</td>
-      <td>${escapeHtml(String(row.resourceId ?? ''))}</td>
-      <td>${escapeHtml(String(row.action ?? ''))}</td>
-      <td>${escapeHtml(who)}</td>
-      <td class="audit-logs-api-meta">${escapeHtml(previewJson(row.metadata))}</td>`;
+    const tdRes = document.createElement('td');
+    tdRes.textContent = String(row.resource ?? '');
+    const tdRid = document.createElement('td');
+    tdRid.textContent = String(row.resourceId ?? '');
+    const tdAct = document.createElement('td');
+    tdAct.textContent = String(row.action ?? '');
+    const tdWho = document.createElement('td');
+    tdWho.textContent = who;
+    const tdMeta = document.createElement('td');
+    tdMeta.className = 'audit-logs-api-meta';
+    tdMeta.textContent = previewJson(row.metadata);
+    tr.append(tdRes, tdRid, tdAct, tdWho, tdMeta);
     return tr;
   }
 
@@ -150,11 +157,14 @@ export function createAuditLogsServerPanel() {
       total = typeof data.total === 'number' ? data.total : items.length;
 
       if (!append) {
-        tableHost.innerHTML = '';
+        tableHost.replaceChildren();
       }
 
       if (!items.length && !append) {
-        tableHost.innerHTML = '<p class="dashboard-muted-lead">Aucune entrée pour le moment.</p>';
+        const emptyP = document.createElement('p');
+        emptyP.className = 'dashboard-muted-lead';
+        emptyP.textContent = 'Aucune entrée pour le moment.';
+        tableHost.append(emptyP);
         loadMore.hidden = true;
         statusEl.textContent = '0 entrée.';
         return;
@@ -163,18 +173,26 @@ export function createAuditLogsServerPanel() {
       if (!append) {
         const table = document.createElement('table');
         table.className = 'audit-logs-api-table';
-        table.innerHTML = `
-          <thead><tr>
-            <th>Date (UTC)</th>
-            ${isAdmin ? '<th>Tenant</th>' : ''}
-            <th>Ressource</th>
-            <th>Id</th>
-            <th>Action</th>
-            <th>Utilisateur</th>
-            <th>Métadonnées</th>
-          </tr></thead><tbody></tbody>`;
-        const tbody = table.querySelector('tbody');
-        items.forEach((row) => tbody?.append(buildRow(row, isAdmin)));
+        const thead = document.createElement('thead');
+        const thr = document.createElement('tr');
+        const headerLabels = [
+          'Date (UTC)',
+          ...(isAdmin ? ['Tenant'] : []),
+          'Ressource',
+          'Id',
+          'Action',
+          'Utilisateur',
+          'Métadonnées'
+        ];
+        for (const label of headerLabels) {
+          const th = document.createElement('th');
+          th.textContent = label;
+          thr.append(th);
+        }
+        thead.append(thr);
+        const tbody = document.createElement('tbody');
+        items.forEach((row) => tbody.append(buildRow(row, isAdmin)));
+        table.append(thead, tbody);
         tableHost.append(table);
       } else {
         const tbody = tableHost.querySelector('table.audit-logs-api-table tbody');

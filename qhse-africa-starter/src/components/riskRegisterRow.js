@@ -1,6 +1,5 @@
 import { parseRiskMatrixGp, riskCriticalityFromMeta } from './riskMatrixPanel.js';
 import { openRiskDetail } from './riskDetailPanel.js';
-import { escapeHtml } from '../utils/escapeHtml.js';
 import { getLinksFor } from '../services/moduleLinks.service.js';
 import { riskWorkflowStatusLabelFr } from '../utils/risksRegisterModel.js';
 
@@ -127,9 +126,19 @@ export function createRiskRegisterRow(risk, opts = {}) {
   const tdCrit = document.createElement('td');
   tdCrit.className = 'risk-register-table-row__crit';
   if (crit) {
-    tdCrit.innerHTML = `<span class="risk-register-table-row__crit-label">${escapeHtml(crit.label)}</span><span class="risk-register-table-row__crit-score" title="Produit G×P">×${escapeHtml(String(crit.product))}</span>`;
+    const lbl = document.createElement('span');
+    lbl.className = 'risk-register-table-row__crit-label';
+    lbl.textContent = crit.label;
+    const sc = document.createElement('span');
+    sc.className = 'risk-register-table-row__crit-score';
+    sc.title = 'Produit G×P';
+    sc.textContent = `×${crit.product}`;
+    tdCrit.append(lbl, sc);
   } else {
-    tdCrit.innerHTML = `<span class="risk-register-table-row__crit-na">${escapeHtml(dash(risk.meta))}</span>`;
+    const na = document.createElement('span');
+    na.className = 'risk-register-table-row__crit-na';
+    na.textContent = dash(risk.meta);
+    tdCrit.append(na);
   }
   if (tableColumnMode === 'essential') tdCrit.classList.add('qhse-col-adv');
 

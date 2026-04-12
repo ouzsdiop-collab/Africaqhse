@@ -5,7 +5,6 @@
 
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
-import { escapeHtml } from '../utils/escapeHtml.js';
 
 /** @typedef {'info' | 'attention' | 'critique' | 'digest'} NotificationTier */
 
@@ -258,24 +257,43 @@ export function getDigestPayload() {
 }
 
 /**
+ * @param {HTMLElement} host
  * @param {ReturnType<typeof getDigestPayload>} payload
  * @param {{ plannedAuditsCount?: number }} [opts]
  */
-export function formatDigestSummaryHtml(payload, opts = {}) {
+export function appendDigestSummary(host, payload, opts = {}) {
+  if (!host) return;
   const oa = payload.overdueActions;
   const ci = payload.criticalIncidents;
   const aud = opts.plannedAuditsCount;
   const stale = payload.stale;
-  const oaDisp = escapeHtml(oa != null ? String(oa) : stale ? '…' : '0');
-  const ciDisp = escapeHtml(ci != null ? String(ci) : stale ? '…' : '0');
-  const audDisp = escapeHtml(aud != null ? String(aud) : '—');
-  const lines = [
-    `<li><strong>Actions en retard</strong> — ${oaDisp}</li>`,
-    `<li><strong>Incidents critiques (aperçu)</strong> — ${ciDisp}</li>`,
-    `<li><strong>Audits à planifier (repère)</strong> — ${audDisp}</li>`,
-    `<li><strong>Relances (assistant)</strong> — regroupées dans le fil ; détail sur le tableau de bord « Assistant de pilotage »</li>`,
-    `<li><strong>Risques sans suivi</strong> — voir registre Risques et boutons d’action préventive</li>`,
-    `<li><strong>Documents critiques</strong> — carte « Pilotage documentaire » (notifications)</li>`
-  ];
-  return `<p class="notif-digest-lead">Résumé structuré (quotidien / hebdo — données pilotage).</p><ul class="notif-digest-list">${lines.join('')}</ul>`;
+  const oaDisp = oa != null ? String(oa) : stale ? '…' : '0';
+  const ciDisp = ci != null ? String(ci) : stale ? '…' : '0';
+  const audDisp = aud != null ? String(aud) : '—';
+
+  host.replaceChildren();
+  const lead = document.createElement('p');
+  lead.className = 'notif-digest-lead';
+  lead.textContent = 'Résumé structuré (quotidien / hebdo — données pilotage).';
+  const ul = document.createElement('ul');
+  ul.className = 'notif-digest-list';
+
+  function addLine(strongLabel, rest) {
+    const li = document.createElement('li');
+    const s = document.createElement('strong');
+    s.textContent = strongLabel;
+    li.append(s, document.createTextNode(` — ${rest}`));
+    ul.append(li);
+  }
+
+  addLine('Actions en retard', oaDisp);
+  addLine('Incidents critiques (aperçu)', ciDisp);
+  addLine('Audits à planifier (repère)', audDisp);
+  addLine(
+    'Relances (assistant)',
+    'regroupées dans le fil ; détail sur le tableau de bord « Assistant de pilotage »'
+  );
+  addLine('Risques sans suivi', 'voir registre Risques et boutons d’action préventive');
+  addLine('Documents critiques', 'carte « Pilotage documentaire » (notifications)');
+  host.append(lead, ul);
 }

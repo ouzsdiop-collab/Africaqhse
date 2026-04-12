@@ -812,6 +812,54 @@ export function renderIncidents(onAddLog) {
   const canWriteActions = canResource(getSessionUser()?.role, 'actions', 'write');
   const canUseAiSuggest = canResource(getSessionUser()?.role, 'ai_suggestions', 'write');
 
+  /** Registre : délégation — les lignes sont recréées à chaque `refreshList`, un seul listener sur le conteneur. */
+  listHost.addEventListener('click', (e) => {
+    let t = e.target;
+    /* Clic sur le libellé du bouton → target peut être un nœud Text ; closest nécessite un Element. */
+    if (!(t instanceof Element)) {
+      t = t?.parentElement ?? null;
+    }
+    if (!(t instanceof Element)) return;
+
+    const actionBtn = t.closest('[data-incident-action]');
+    if (actionBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const ref = actionBtn.dataset.incidentRef;
+      const action = actionBtn.dataset.incidentAction;
+      if (!ref) return;
+      const raw = incidentRecords.find((r) => r.ref === ref);
+      if (!raw) return;
+      if (action === 'open-detail') {
+        activateIncidentRow(raw);
+      } else if (action === 'create-linked-action' && canWriteActions) {
+        void createLinkedAction(raw);
+      }
+      return;
+    }
+
+    const row = t.closest('tr.incidents-table-row');
+    if (!row) return;
+    if (t.closest('button, a, input, select, textarea, label')) return;
+    const ref = row.dataset.ref;
+    if (!ref) return;
+    const raw = incidentRecords.find((r) => r.ref === ref);
+    if (raw) activateIncidentRow(raw);
+  });
+
+  listHost.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    const row = t.closest('tr.incidents-table-row');
+    if (!row || t !== row) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    const ref = row.dataset.ref;
+    if (!ref) return;
+    const raw = incidentRecords.find((r) => r.ref === ref);
+    if (raw) activateIncidentRow(raw);
+  });
+
   const analyticsCard = document.createElement('article');
   analyticsCard.className =
     'content-card card-soft incidents-premium-card incidents-analytics-card';
@@ -1131,18 +1179,11 @@ export function renderIncidents(onAddLog) {
     const tbody = document.createElement('tbody');
     displayRows.forEach((inc) => {
       tbody.append(
-        buildIncidentTableRow(
-          inc,
-          {
-            onSelect: (i) => activateIncidentRow(i),
-            onDetail: (i) => activateIncidentRow(i),
-            onCreateAction: async (i) => {
-              await createLinkedAction(i);
-            },
-            canWriteActions
-          },
-          { isStatusClosed, columnMode: incidentsTableColumnMode }
-        )
+        buildIncidentTableRow(inc, {
+          isStatusClosed,
+          columnMode: incidentsTableColumnMode,
+          canWriteActions
+        })
       );
     });
     table.append(thead, tbody);

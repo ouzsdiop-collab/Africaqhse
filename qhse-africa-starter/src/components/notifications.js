@@ -6,7 +6,7 @@ import {
   NOTIF_TIER,
   buildPresentationFeed,
   filterByTier,
-  formatDigestSummaryHtml,
+  appendDigestSummary,
   getDigestPayload,
   markAllSyntheticGroupsRead
 } from '../services/notificationIntelligence.service.js';
@@ -122,7 +122,7 @@ export function createNotificationsPanel({
   }
 
   if (digestBody) {
-    digestBody.innerHTML = formatDigestSummaryHtml(getDigestPayload(), {
+    appendDigestSummary(digestBody, getDigestPayload(), {
       plannedAuditsCount: AUDITS_TO_SCHEDULE.length
     });
   }

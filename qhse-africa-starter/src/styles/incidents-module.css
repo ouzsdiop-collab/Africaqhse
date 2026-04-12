@@ -1898,9 +1898,14 @@
 .incidents-table-cell--acts {
   white-space: nowrap;
   text-align: right;
+  /* Au-dessus des en-têtes sticky / reflets ::after des cartes — évite des clics « morts ». */
+  position: relative;
+  z-index: 2;
 }
 
 .incidents-table-cell--acts .incidents-table-btn {
+  position: relative;
+  z-index: 1;
   margin-left: 6px;
   padding: 6px 10px;
   font-size: 12px;

@@ -13,7 +13,6 @@ import {
   trimTrailingZeroAuditScores,
   buildOperationalTiles
 } from '../../utils/dashboardMetrics.js';
-import { escapeHtml } from '../../utils/escapeHtml.js';
 import { Chart } from 'chart.js';
 import { pushDashboardIntent } from '../../utils/dashboardNavigationIntent.js';
 import { isActionOverdueDashboardRow } from '../../utils/actionOverdueDashboard.js';
@@ -58,30 +57,44 @@ export function updateDecisionAlerts(refs, stats, data) {
     { k: 'Actions en retard', v: late, tone: toneByValue(late, 1, 3), kpi: 'actionsLate', impact: guessImpactedSite(actions) },
     { k: 'NC ouvertes', v: ncOpen, tone: toneByValue(ncOpen, 1, 3), kpi: 'ncOpen', impact: guessImpactedSite(ncs) }
   ];
-  decisionAlerts.innerHTML = cards
-    .map((c) => {
-      if (c.kpi === 'actionsLate' && c.v === 0) {
-        return `<article class="dashboard-decision-alert dashboard-decision-alert--zero-success" data-kpi-open="${escapeHtml(
-          c.kpi
-        )}" role="button" tabindex="0">
-          <div class="dashboard-decision-alert__k">${escapeHtml(c.k)}</div>
-          <div class="dashboard-decision-alert__success-msg">Aucune action en retard</div>
-        </article>`;
+  decisionAlerts.replaceChildren();
+  for (const c of cards) {
+    const art = document.createElement('article');
+    art.setAttribute('role', 'button');
+    art.setAttribute('tabindex', '0');
+    art.dataset.kpiOpen = c.kpi;
+    const kEl = document.createElement('div');
+    kEl.className = 'dashboard-decision-alert__k';
+    kEl.textContent = c.k;
+    if (c.kpi === 'actionsLate' && c.v === 0) {
+      art.className = 'dashboard-decision-alert dashboard-decision-alert--zero-success';
+      const ok = document.createElement('div');
+      ok.className = 'dashboard-decision-alert__success-msg';
+      ok.textContent = 'Aucune action en retard';
+      art.append(kEl, ok);
+    } else {
+      art.className = `dashboard-decision-alert dashboard-decision-alert--${c.tone}`;
+      const vEl = document.createElement('div');
+      vEl.className = 'dashboard-decision-alert__v';
+      vEl.textContent = String(c.v);
+      art.append(kEl, vEl);
+      if (c.v === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'dashboard-decision-alert__empty-hint';
+        hint.textContent = scopeEmpty;
+        art.append(hint);
       }
-      const zeroHint =
-        c.v === 0
-          ? `<div class="dashboard-decision-alert__empty-hint">${escapeHtml(scopeEmpty)}</div>`
-          : '';
-      return `<article class="dashboard-decision-alert dashboard-decision-alert--${c.tone}" data-kpi-open="${escapeHtml(
-        c.kpi
-      )}" role="button" tabindex="0">
-          <div class="dashboard-decision-alert__k">${escapeHtml(c.k)}</div>
-          <div class="dashboard-decision-alert__v">${escapeHtml(String(c.v))}</div>
-          ${zeroHint}
-          <div class="dashboard-kpi-subline"><span>${escapeHtml(computeDeltaLabel(c.v))}</span><span>${escapeHtml(c.impact)}</span></div>
-        </article>`;
-    })
-    .join('');
+      const sub = document.createElement('div');
+      sub.className = 'dashboard-kpi-subline';
+      const s1 = document.createElement('span');
+      s1.textContent = computeDeltaLabel(c.v);
+      const s2 = document.createElement('span');
+      s2.textContent = c.impact;
+      sub.append(s1, s2);
+      art.append(sub);
+    }
+    decisionAlerts.append(art);
+  }
   decisionAlerts.querySelectorAll('[data-kpi-open]').forEach((el) => {
     const open = () => renderKpiFilteredModal(el.getAttribute('data-kpi-open') || 'incidents');
     el.addEventListener('click', open);
@@ -361,16 +374,32 @@ export function updateDecisionAlerts(refs, stats, data) {
     late > 0 ? `Recommandation: traiter ${late} action(s) en retard sous 48h.` : 'Aucun retard critique détecté.',
     ncOpen > 2 ? `Recommandation: lancer revue NC ciblée (top ${Math.min(3, ncOpen)}).` : 'Niveau NC sous contrôle.'
   ];
-  if (iaList) iaList.innerHTML = iaMsgs.map((m) => `<li>${escapeHtml(m)}</li>`).join('');
+  if (iaList) {
+    iaList.replaceChildren();
+    for (const m of iaMsgs) {
+      const li = document.createElement('li');
+      li.textContent = m;
+      iaList.append(li);
+    }
+  }
 
   const priorities = [
     ...actions.filter((a) => isActionOverdueDashboardRow(a)).slice(0, 3).map((a) => `Action: ${a.title || 'Sans titre'}`),
     ...incidents.filter((i) => String(i?.severity || '').toLowerCase().includes('critique')).slice(0, 2).map((i) => `Incident critique: ${i.title || i.type || 'Sans titre'}`)
   ].slice(0, 5);
   if (prioList) {
-    prioList.innerHTML = priorities.length
-      ? priorities.map((p) => `<li>${escapeHtml(p)}</li>`).join('')
-      : '<li>Aucune action prioritaire immédiate.</li>';
+    prioList.replaceChildren();
+    if (priorities.length === 0) {
+      const li = document.createElement('li');
+      li.textContent = 'Aucune action prioritaire immédiate.';
+      prioList.append(li);
+    } else {
+      for (const p of priorities) {
+        const li = document.createElement('li');
+        li.textContent = p;
+        prioList.append(li);
+      }
+    }
   }
 
   const permits = listPermits().slice(0, 400);
@@ -384,50 +413,66 @@ export function updateDecisionAlerts(refs, stats, data) {
     docs
   });
   const opsScopeEmpty = dashboardKpiScopeEmptyLabel();
-  opsGrid.innerHTML = tiles
-    .map((t) => {
-      const kpiOpen =
-        t.page === 'incidents'
-          ? 'incidents'
-          : t.page === 'actions'
-            ? 'actionsLate'
-            : t.page === 'audits'
-              ? 'auditsN'
-              : t.page === 'risks'
-                ? 'incidentsCritical'
-                : 'actions';
-      const impact = guessImpactedSite([...(incidents || []), ...(actions || []), ...(audits || [])]);
-      if (t.k === 'Actions en retard' && t.v === 0) {
-        return `<article class="dashboard-ops-card dashboard-ops-card--zero-success" data-ops-go="${escapeHtml(
-          t.page
-        )}" data-kpi-open="${escapeHtml(kpiOpen)}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
-          <div class="dashboard-ops-card__k">${escapeHtml(t.k)}</div>
-          <div class="dashboard-ops-card__success-msg">Aucune action en retard</div>
-        </article>`;
+  const opsImpact = guessImpactedSite([...(incidents || []), ...(actions || []), ...(audits || [])]);
+  opsGrid.replaceChildren();
+  for (const t of tiles) {
+    const kpiOpen =
+      t.page === 'incidents'
+        ? 'incidents'
+        : t.page === 'actions'
+          ? 'actionsLate'
+          : t.page === 'audits'
+            ? 'auditsN'
+            : t.page === 'risks'
+              ? 'incidentsCritical'
+              : 'actions';
+    const art = document.createElement('article');
+    art.setAttribute('role', 'button');
+    art.setAttribute('tabindex', '0');
+    art.setAttribute('aria-label', `Ouvrir ${t.k}`);
+    art.dataset.opsGo = t.page;
+    art.dataset.kpiOpen = kpiOpen;
+    const kEl = document.createElement('div');
+    kEl.className = 'dashboard-ops-card__k';
+    kEl.textContent = t.k;
+    if (t.k === 'Actions en retard' && t.v === 0) {
+      art.className = 'dashboard-ops-card dashboard-ops-card--zero-success';
+      const ok = document.createElement('div');
+      ok.className = 'dashboard-ops-card__success-msg';
+      ok.textContent = 'Aucune action en retard';
+      art.append(kEl, ok);
+    } else if (t.k === 'Risques critiques' && t.v === 0) {
+      art.className = 'dashboard-ops-card dashboard-ops-card--zero-success';
+      const ok = document.createElement('div');
+      ok.className = 'dashboard-ops-card__success-msg';
+      ok.textContent = 'Aucun risque critique';
+      art.append(kEl, ok);
+    } else {
+      art.className = `dashboard-ops-card dashboard-ops-card--${t.tone}`;
+      const vEl = document.createElement('div');
+      vEl.className = 'dashboard-ops-card__v';
+      vEl.textContent = String(t.v);
+      art.append(kEl, vEl);
+      if (t.v === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'dashboard-ops-card__empty-hint';
+        hint.textContent = opsScopeEmpty;
+        art.append(hint);
       }
-      if (t.k === 'Risques critiques' && t.v === 0) {
-        return `<article class="dashboard-ops-card dashboard-ops-card--zero-success" data-ops-go="${escapeHtml(
-          t.page
-        )}" data-kpi-open="${escapeHtml(kpiOpen)}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
-          <div class="dashboard-ops-card__k">${escapeHtml(t.k)}</div>
-          <div class="dashboard-ops-card__success-msg">Aucun risque critique</div>
-        </article>`;
-      }
-      const opsZeroHint =
-        t.v === 0 ? `<div class="dashboard-ops-card__empty-hint">${escapeHtml(opsScopeEmpty)}</div>` : '';
-      return `<article class="dashboard-ops-card dashboard-ops-card--${escapeHtml(t.tone)}" data-ops-go="${escapeHtml(
-        t.page
-      )}" data-kpi-open="${escapeHtml(kpiOpen)}" role="button" tabindex="0" aria-label="Ouvrir ${escapeHtml(t.k)}">
-          <div class="dashboard-ops-card__k">${escapeHtml(t.k)}</div>
-          <div class="dashboard-ops-card__v">${escapeHtml(String(t.v))}</div>
-          ${opsZeroHint}
-          <div class="dashboard-ops-card__d">${escapeHtml(t.d)}</div>
-          <div class="dashboard-kpi-subline"><span>${escapeHtml(computeDeltaLabel(t.v))}</span><span>${escapeHtml(
-        impact
-      )}</span></div>
-        </article>`;
-    })
-    .join('');
+      const dEl = document.createElement('div');
+      dEl.className = 'dashboard-ops-card__d';
+      dEl.textContent = t.d;
+      const sub = document.createElement('div');
+      sub.className = 'dashboard-kpi-subline';
+      const s1 = document.createElement('span');
+      s1.textContent = computeDeltaLabel(t.v);
+      const s2 = document.createElement('span');
+      s2.textContent = opsImpact;
+      sub.append(s1, s2);
+      art.append(dEl, sub);
+    }
+    opsGrid.append(art);
+  }
   opsGrid.querySelectorAll('[data-ops-go]').forEach((el) => {
     const go = () => {
       const key = el.getAttribute('data-kpi-open');
@@ -449,45 +494,88 @@ export function updateDecisionAlerts(refs, stats, data) {
 
   const habRows = HABILITATIONS_DEMO_ROWS;
   const habKpi = computeHabilitationsKpis(habRows);
-  habSummaryCard.innerHTML = `
-      <div class="section-kicker">Alertes habilitations</div>
-      <h3 style="margin:4px 0 8px">Postes critiques & conformité</h3>
-      <div class="dashboard-hab-list">
-        <article class="dashboard-hab-item"><strong>Habilitations expirées:</strong> ${habKpi.expirees}</article>
-        <article class="dashboard-hab-item"><strong>Expirations sous 30 jours:</strong> ${habKpi.exp30}</article>
-        <article class="dashboard-hab-item"><strong>Taux de conformité:</strong> ${habKpi.taux}%</article>
-        <article class="dashboard-hab-item"><strong>Postes critiques non conformes:</strong> ${habKpi.blocCrit}</article>
-        <article class="dashboard-hab-item"><strong>Sous-traitants incomplets:</strong> ${habKpi.sousTraitantsIncomplets}</article>
-      </div>
-      <div class="dashboard-hab-actions">
-        <button type="button" class="btn btn-secondary" data-hab-intent="expired">Voir expirées</button>
-        <button type="button" class="btn btn-secondary" data-hab-intent="expiring_30">Voir < 30 jours</button>
-        <button type="button" class="btn btn-secondary" data-hab-intent="subcontractors_incomplete">Voir sous-traitants</button>
-      </div>
-    `;
+  habSummaryCard.replaceChildren();
+  const habKick = document.createElement('div');
+  habKick.className = 'section-kicker';
+  habKick.textContent = 'Alertes habilitations';
+  const habH3 = document.createElement('h3');
+  habH3.style.margin = '4px 0 8px';
+  habH3.textContent = 'Postes critiques & conformité';
+  const habList = document.createElement('div');
+  habList.className = 'dashboard-hab-list';
+  function habItem(label, value) {
+    const art = document.createElement('article');
+    art.className = 'dashboard-hab-item';
+    const strong = document.createElement('strong');
+    strong.textContent = `${label}:`;
+    art.append(strong, document.createTextNode(` ${value}`));
+    return art;
+  }
+  habList.append(
+    habItem('Habilitations expirées', String(habKpi.expirees)),
+    habItem('Expirations sous 30 jours', String(habKpi.exp30)),
+    habItem('Taux de conformité', `${habKpi.taux}%`),
+    habItem('Postes critiques non conformes', String(habKpi.blocCrit)),
+    habItem('Sous-traitants incomplets', String(habKpi.sousTraitantsIncomplets))
+  );
+  const habAct1 = document.createElement('div');
+  habAct1.className = 'dashboard-hab-actions';
+  const b1 = document.createElement('button');
+  b1.type = 'button';
+  b1.className = 'btn btn-secondary';
+  b1.dataset.habIntent = 'expired';
+  b1.textContent = 'Voir expirées';
+  const b2 = document.createElement('button');
+  b2.type = 'button';
+  b2.className = 'btn btn-secondary';
+  b2.dataset.habIntent = 'expiring_30';
+  b2.textContent = 'Voir < 30 jours';
+  const b3 = document.createElement('button');
+  b3.type = 'button';
+  b3.className = 'btn btn-secondary';
+  b3.dataset.habIntent = 'subcontractors_incomplete';
+  b3.textContent = 'Voir sous-traitants';
+  habAct1.append(b1, b2, b3);
+  habSummaryCard.append(habKick, habH3, habList, habAct1);
 
   const bySite = computeHabilitationsBySite(habRows);
-  habSiteCard.innerHTML = `
-      <div class="section-kicker">Vue multi-sites</div>
-      <h3 style="margin:4px 0 8px">Conformité par site</h3>
-      <div class="dashboard-hab-sitebar">
-        ${bySite
-          .map(
-            (s) => `
-              <div class="dashboard-hab-sitebar-row">
-                <div class="dashboard-hab-sitebar-top"><span>${escapeHtml(s.site)}</span><strong>${s.score}%</strong></div>
-                <div class="dashboard-hab-sitebar-track"><div class="dashboard-hab-sitebar-fill" style="width:${Math.max(
-                  0,
-                  Math.min(100, Number(s.score) || 0)
-                )}%"></div></div>
-              </div>`
-          )
-          .join('')}
-      </div>
-      <div class="dashboard-hab-actions">
-        <button type="button" class="btn btn-primary" data-hab-intent="open_module">Ouvrir Habilitations</button>
-      </div>
-    `;
+  habSiteCard.replaceChildren();
+  const siteKick = document.createElement('div');
+  siteKick.className = 'section-kicker';
+  siteKick.textContent = 'Vue multi-sites';
+  const siteH3 = document.createElement('h3');
+  siteH3.style.margin = '4px 0 8px';
+  siteH3.textContent = 'Conformité par site';
+  const siteBar = document.createElement('div');
+  siteBar.className = 'dashboard-hab-sitebar';
+  for (const s of bySite) {
+    const row = document.createElement('div');
+    row.className = 'dashboard-hab-sitebar-row';
+    const top = document.createElement('div');
+    top.className = 'dashboard-hab-sitebar-top';
+    const sp = document.createElement('span');
+    sp.textContent = s.site;
+    const strong = document.createElement('strong');
+    strong.textContent = `${s.score}%`;
+    top.append(sp, strong);
+    const track = document.createElement('div');
+    track.className = 'dashboard-hab-sitebar-track';
+    const fill = document.createElement('div');
+    fill.className = 'dashboard-hab-sitebar-fill';
+    fill.style.width = `${Math.max(0, Math.min(100, Number(s.score) || 0))}%`;
+    track.append(fill);
+    row.append(top, track);
+    siteBar.append(row);
+  }
+  const habAct2 = document.createElement('div');
+  habAct2.className = 'dashboard-hab-actions';
+  const bOpen = document.createElement('button');
+  bOpen.type = 'button';
+  bOpen.className = 'btn btn-primary';
+  bOpen.dataset.habIntent = 'open_module';
+  bOpen.textContent = 'Ouvrir Habilitations';
+  habAct2.append(bOpen);
+  habSiteCard.append(siteKick, siteH3, siteBar, habAct2);
 
   const openHab = (filter) => {
     pushDashboardIntent({ module: 'habilitations', filter });

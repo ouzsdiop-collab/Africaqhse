@@ -237,13 +237,18 @@ export function refreshIncidentsPrioritiesStrip(prioritiesHost, opts) {
 }
 
 /**
+ * Ligne registre incidents — pas de listeners ici : la page attache une délégation
+ * sur `.incidents-list-host` (clics re-rendus, z-index / calques).
+ *
  * @param {object} inc — ligne affichée (avec title)
- * @param {{ onSelect: (i: object) => void; onDetail: (i: object) => void; onCreateAction: (i: object) => void | Promise<void>; canWriteActions: boolean }} handlers
- * @param {{ isStatusClosed: (st: string) => boolean; columnMode?: 'essential' | 'full' }} helpers
+ * @param {{
+ *   isStatusClosed: (st: string) => boolean;
+ *   columnMode?: 'essential' | 'full';
+ *   canWriteActions: boolean;
+ * }} helpers
  */
-export function buildIncidentTableRow(inc, handlers, helpers) {
-  const { onSelect, onDetail, onCreateAction, canWriteActions } = handlers;
-  const { isStatusClosed } = helpers;
+export function buildIncidentTableRow(inc, helpers) {
+  const { isStatusClosed, canWriteActions } = helpers;
   const columnMode = helpers.columnMode === 'full' ? 'full' : 'essential';
 
   const tr = document.createElement('tr');
@@ -320,34 +325,19 @@ export function buildIncidentTableRow(inc, handlers, helpers) {
   btnDetail.className = 'btn btn-secondary btn-sm incidents-table-btn';
   btnDetail.textContent = 'Ouvrir';
   btnDetail.title = 'Afficher la fiche dans le panneau latéral';
-  btnDetail.addEventListener('click', (e) => {
-    e.stopPropagation();
-    onDetail(inc);
-  });
+  btnDetail.dataset.incidentAction = 'open-detail';
+  btnDetail.dataset.incidentRef = String(inc.ref || '');
   const btnAction = document.createElement('button');
   btnAction.type = 'button';
   btnAction.className = 'btn btn-primary btn-sm incidents-table-btn';
   btnAction.textContent = 'Action';
   btnAction.title = 'Créer ou lier une action corrective';
   btnAction.hidden = !canWriteActions;
-  btnAction.addEventListener('click', (e) => {
-    e.stopPropagation();
-    void onCreateAction(inc);
-  });
+  btnAction.dataset.incidentAction = 'create-linked-action';
+  btnAction.dataset.incidentRef = String(inc.ref || '');
   tdAct.append(btnDetail, btnAction);
 
   tr.append(tdTitle, tdSev, tdSt, tdDate, tdSite, tdAct);
-
-  function activate() {
-    onSelect(inc);
-  }
-  tr.addEventListener('click', activate);
-  tr.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      activate();
-    }
-  });
 
   return tr;
 }

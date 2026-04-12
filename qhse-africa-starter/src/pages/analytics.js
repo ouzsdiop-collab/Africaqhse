@@ -19,7 +19,6 @@ import {
   interpretAuditScoreSeries
 } from '../components/dashboardCharts.js';
 import { createAnalyticsQuadInsightSection } from '../components/analyticsQuadAiInsight.js';
-import { escapeHtml } from '../utils/escapeHtml.js';
 import {
   downloadAnalyticsPeriodicPdf,
   downloadAnalyticsSummaryPdf
@@ -75,6 +74,32 @@ function listOverflowNote(hidden, singular, plural) {
   p.className = 'analytics-list-overflow';
   p.textContent = `${hidden} ${hidden > 1 ? plural : singular}`;
   return p;
+}
+
+/**
+ * Ligne type « list-row » analytics (texte uniquement, pas d’HTML injecté).
+ * @param {HTMLElement} row
+ * @param {{ primary: string; secondary?: string; badgeText: string; badgeTone: string; secondaryLineHeight?: string }} opts
+ */
+function mountAnalyticsListRow(row, opts) {
+  row.replaceChildren();
+  const left = document.createElement('div');
+  const strong = document.createElement('strong');
+  strong.textContent = opts.primary;
+  left.append(strong);
+  if (opts.secondary != null && opts.secondary !== '') {
+    const p = document.createElement('p');
+    p.style.margin = '6px 0 0';
+    p.style.fontSize = '13px';
+    p.style.color = 'var(--text2)';
+    if (opts.secondaryLineHeight) p.style.lineHeight = opts.secondaryLineHeight;
+    p.textContent = opts.secondary;
+    left.append(p);
+  }
+  const badge = document.createElement('span');
+  badge.className = `badge ${opts.badgeTone}`;
+  badge.textContent = opts.badgeText;
+  row.append(left, badge);
 }
 
 /**
@@ -509,13 +534,19 @@ function buildKpiGrid(counts, kpis) {
   items.forEach((kpi) => {
     const card = document.createElement('article');
     card.className = `metric-card card-soft dashboard-kpi-card dashboard-kpi-card--tone-${kpi.tone}`;
-    card.innerHTML = `
-      <div class="dashboard-kpi-card__stack">
-        <div class="metric-label">${escapeHtml(kpi.label)}</div>
-        <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
-        <p class="metric-note metric-note--kpi">${escapeHtml(kpi.note)}</p>
-      </div>
-    `;
+    const stack = document.createElement('div');
+    stack.className = 'dashboard-kpi-card__stack';
+    const lbl = document.createElement('div');
+    lbl.className = 'metric-label';
+    lbl.textContent = kpi.label;
+    const val = document.createElement('div');
+    val.className = `metric-value ${kpi.tone}`;
+    val.textContent = kpi.value;
+    const note = document.createElement('p');
+    note.className = 'metric-note metric-note--kpi';
+    note.textContent = kpi.note;
+    stack.append(lbl, val, note);
+    card.append(stack);
     grid.append(card);
   });
 
@@ -527,12 +558,14 @@ function buildStackSection(title, kicker, host) {
   card.className = 'content-card card-soft';
   const head = document.createElement('div');
   head.className = 'content-card-head';
-  head.innerHTML = `
-    <div>
-      <div class="section-kicker">${escapeHtml(kicker)}</div>
-      <h3>${escapeHtml(title)}</h3>
-    </div>
-  `;
+  const headInner = document.createElement('div');
+  const kickerEl = document.createElement('div');
+  kickerEl.className = 'section-kicker';
+  kickerEl.textContent = kicker;
+  const h3 = document.createElement('h3');
+  h3.textContent = title;
+  headInner.append(kickerEl, h3);
+  head.append(headInner);
   card.append(head, host);
   return card;
 }
@@ -593,13 +626,19 @@ function buildPeriodicSummaryGrid(summary) {
   items.forEach((kpi) => {
     const card = document.createElement('article');
     card.className = `metric-card card-soft dashboard-kpi-card dashboard-kpi-card--tone-${kpi.tone}`;
-    card.innerHTML = `
-      <div class="dashboard-kpi-card__stack">
-        <div class="metric-label">${escapeHtml(kpi.label)}</div>
-        <div class="metric-value ${kpi.tone}">${escapeHtml(kpi.value)}</div>
-        <p class="metric-note metric-note--kpi">${escapeHtml(kpi.note)}</p>
-      </div>
-    `;
+    const stack = document.createElement('div');
+    stack.className = 'dashboard-kpi-card__stack';
+    const lbl = document.createElement('div');
+    lbl.className = 'metric-label';
+    lbl.textContent = kpi.label;
+    const val = document.createElement('div');
+    val.className = `metric-value ${kpi.tone}`;
+    val.textContent = kpi.value;
+    const note = document.createElement('p');
+    note.className = 'metric-note metric-note--kpi';
+    note.textContent = kpi.note;
+    stack.append(lbl, val, note);
+    card.append(stack);
     grid.append(card);
   });
   return grid;
@@ -630,8 +669,16 @@ function mountPeriodicReportingBlock(periodicCard) {
   });
 
   (async function fillFilters() {
-    siteSel.innerHTML = '<option value="">— Tous sites —</option>';
-    assigneeSel.innerHTML = '<option value="">— Tous responsables —</option>';
+    siteSel.replaceChildren();
+    const siteOpt0 = document.createElement('option');
+    siteOpt0.value = '';
+    siteOpt0.textContent = '— Tous sites —';
+    siteSel.append(siteOpt0);
+    assigneeSel.replaceChildren();
+    const assignOpt0 = document.createElement('option');
+    assignOpt0.value = '';
+    assignOpt0.textContent = '— Tous responsables —';
+    assigneeSel.append(assignOpt0);
     try {
       const sites = await fetchSitesCatalog();
       sites.forEach((s) => {
@@ -744,13 +791,14 @@ function mountPeriodicReportingBlock(periodicCard) {
           const row = document.createElement('article');
           row.className = 'list-row';
           const tone = alertBadgeClass(a.level);
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(a.code || 'ALERTE')}</strong>
-              <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text2)">${escapeHtml(a.message || '')}</p>
-            </div>
-            <span class="badge ${tone}">${a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info'}</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: a.code || 'ALERTE',
+            secondary: a.message || '',
+            badgeText:
+              a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info',
+            badgeTone: tone,
+            secondaryLineHeight: '1.45'
+          });
           alertsStack.append(row);
         });
       }
@@ -768,13 +816,12 @@ function mountPeriodicReportingBlock(periodicCard) {
         incs.forEach((inc) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(inc.ref)} — ${escapeHtml(inc.type)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(inc.site)} · ${escapeHtml(inc.status)}</p>
-            </div>
-            <span class="badge blue">${escapeHtml(formatFrDate(inc.createdAt))}</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: `${inc.ref} — ${inc.type}`,
+            secondary: `${inc.site} · ${inc.status}`,
+            badgeText: formatFrDate(inc.createdAt),
+            badgeTone: 'blue'
+          });
           incStack.append(row);
         });
       }
@@ -788,13 +835,12 @@ function mountPeriodicReportingBlock(periodicCard) {
         auds.forEach((a) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(a.ref)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(a.site)} · ${escapeHtml(a.status)}</p>
-            </div>
-            <span class="badge blue">${escapeHtml(a.score)} %</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: String(a.ref ?? '—'),
+            secondary: `${a.site} · ${a.status}`,
+            badgeText: `${a.score} %`,
+            badgeTone: 'blue'
+          });
           audStack.append(row);
         });
       }
@@ -816,13 +862,12 @@ function mountPeriodicReportingBlock(periodicCard) {
         ncs.forEach((nc) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(nc.title)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">Audit ${escapeHtml(nc.auditRef)} · ${escapeHtml(nc.status)}</p>
-            </div>
-            <span class="badge amber">NC</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: String(nc.title ?? '—'),
+            secondary: `Audit ${nc.auditRef} · ${nc.status}`,
+            badgeText: 'NC',
+            badgeTone: 'amber'
+          });
           ncStack.append(row);
         });
       }
@@ -836,13 +881,12 @@ function mountPeriodicReportingBlock(periodicCard) {
           const row = document.createElement('article');
           row.className = 'list-row';
           const due = act.dueDate ? formatFrDate(act.dueDate) : '—';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(act.title)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(act.owner || '—')} · Échéance ${escapeHtml(due)}</p>
-            </div>
-            <span class="badge amber">Retard</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: String(act.title ?? '—'),
+            secondary: `${act.owner || '—'} · Échéance ${due}`,
+            badgeText: 'Retard',
+            badgeTone: 'amber'
+          });
           actStack.append(row);
         });
       }
@@ -868,26 +912,46 @@ function mountAutomationBlock(page) {
 
   const card = document.createElement('article');
   card.className = 'content-card card-soft analytics-automation-card';
-  card.innerHTML = `
-    <div class="content-card-head">
-      <div>
-        <div class="section-kicker">Automatisation</div>
-        <h3>Jobs planifiés (V1)</h3>
-        <p class="dashboard-muted-lead" style="margin:6px 0 0;font-size:12px">
-          E-mails hebdo + relances actions · SMTP requis côté serveur.
-        </p>
-      </div>
-    </div>
-    <p class="automation-status-line" style="margin:0;font-size:13px;color:var(--text2)"></p>
-    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-      <button type="button" class="btn btn-primary automation-run-btn" style="min-height:44px;font-weight:700">Exécuter maintenant</button>
-    </div>
-    <p class="automation-run-result" style="margin:10px 0 0;font-size:12px;color:var(--text3);white-space:pre-wrap"></p>
-  `;
-
-  const statusEl = card.querySelector('.automation-status-line');
-  const resultEl = card.querySelector('.automation-run-result');
-  const btn = card.querySelector('.automation-run-btn');
+  const autoHead = document.createElement('div');
+  autoHead.className = 'content-card-head';
+  const autoHeadInner = document.createElement('div');
+  const autoKicker = document.createElement('div');
+  autoKicker.className = 'section-kicker';
+  autoKicker.textContent = 'Automatisation';
+  const autoH3 = document.createElement('h3');
+  autoH3.textContent = 'Jobs planifiés (V1)';
+  const autoLead = document.createElement('p');
+  autoLead.className = 'dashboard-muted-lead';
+  autoLead.style.margin = '6px 0 0';
+  autoLead.style.fontSize = '12px';
+  autoLead.textContent = 'E-mails hebdo + relances actions · SMTP requis côté serveur.';
+  autoHeadInner.append(autoKicker, autoH3, autoLead);
+  autoHead.append(autoHeadInner);
+  const statusEl = document.createElement('p');
+  statusEl.className = 'automation-status-line';
+  statusEl.style.margin = '0';
+  statusEl.style.fontSize = '13px';
+  statusEl.style.color = 'var(--text2)';
+  const btnRow = document.createElement('div');
+  btnRow.style.marginTop = '12px';
+  btnRow.style.display = 'flex';
+  btnRow.style.flexWrap = 'wrap';
+  btnRow.style.gap = '10px';
+  btnRow.style.alignItems = 'center';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-primary automation-run-btn';
+  btn.style.minHeight = '44px';
+  btn.style.fontWeight = '700';
+  btn.textContent = 'Exécuter maintenant';
+  btnRow.append(btn);
+  const resultEl = document.createElement('p');
+  resultEl.className = 'automation-run-result';
+  resultEl.style.margin = '10px 0 0';
+  resultEl.style.fontSize = '12px';
+  resultEl.style.color = 'var(--text3)';
+  resultEl.style.whiteSpace = 'pre-wrap';
+  card.append(autoHead, statusEl, btnRow, resultEl);
 
   (async function loadStatus() {
     try {
@@ -1114,13 +1178,12 @@ export function renderAnalytics() {
         shown.forEach((nc) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(nc.title)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">Audit ${escapeHtml(nc.auditRef)} · ${escapeHtml(nc.status)}</p>
-            </div>
-            <span class="badge amber">NC</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: String(nc.title ?? '—'),
+            secondary: `Audit ${nc.auditRef} · ${nc.status}`,
+            badgeText: 'NC',
+            badgeTone: 'amber'
+          });
           ncStack.append(row);
         });
         if (ncs.length > ANALYTICS_LIST_CAP) {
@@ -1147,13 +1210,12 @@ export function renderAnalytics() {
           const row = document.createElement('article');
           row.className = 'list-row';
           const due = act.dueDate ? formatFrDate(act.dueDate) : '—';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(act.title)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(act.owner || '—')} · Échéance ${escapeHtml(due)}</p>
-            </div>
-            <span class="badge amber">Retard</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: String(act.title ?? '—'),
+            secondary: `${act.owner || '—'} · Échéance ${due}`,
+            badgeText: 'Retard',
+            badgeTone: 'amber'
+          });
           actStack.append(row);
         });
         if (acts.length > ANALYTICS_LIST_CAP) {
@@ -1177,13 +1239,12 @@ export function renderAnalytics() {
         shownAud.forEach((a) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(a.ref)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(a.site)} · ${escapeHtml(a.status)}</p>
-            </div>
-            <span class="badge blue">${escapeHtml(a.score)} %</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: String(a.ref ?? '—'),
+            secondary: `${a.site} · ${a.status}`,
+            badgeText: `${a.score} %`,
+            badgeTone: 'blue'
+          });
           auditStack.append(row);
         });
         if (audits.length > ANALYTICS_LIST_CAP) {
@@ -1210,13 +1271,12 @@ export function renderAnalytics() {
         crit.forEach((inc) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(inc.ref)} — ${escapeHtml(inc.type)}</strong>
-              <p style="margin:6px 0 0;font-size:13px;color:var(--text2)">${escapeHtml(inc.site)} · ${escapeHtml(inc.status)}</p>
-            </div>
-            <span class="badge red">${escapeHtml(formatFrDate(inc.createdAt))}</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: `${inc.ref} — ${inc.type}`,
+            secondary: `${inc.site} · ${inc.status}`,
+            badgeText: formatFrDate(inc.createdAt),
+            badgeTone: 'red'
+          });
           critStack.append(row);
         });
       }
@@ -1230,13 +1290,14 @@ export function renderAnalytics() {
           const row = document.createElement('article');
           row.className = 'list-row';
           const tone = alertBadgeClass(a.level);
-          row.innerHTML = `
-            <div>
-              <strong>${escapeHtml(a.code || 'ALERTE')}</strong>
-              <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text2)">${escapeHtml(a.message || '')}</p>
-            </div>
-            <span class="badge ${tone}">${a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info'}</span>
-          `;
+          mountAnalyticsListRow(row, {
+            primary: a.code || 'ALERTE',
+            secondary: a.message || '',
+            badgeText:
+              a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info',
+            badgeTone: tone,
+            secondaryLineHeight: '1.45'
+          });
           alertsStack.append(row);
         });
       }
