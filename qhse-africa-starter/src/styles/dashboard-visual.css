@@ -934,3 +934,19 @@ button.dashboard-kpi-card.metric-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* —— Finitions : aération entre blocs (dashboard uniquement) —— */
+.dashboard-page.page-stack > * + * {
+  margin-top: 20px;
+}
+
+.dashboard-page .dashboard-decision-card,
+.dashboard-page .dashboard-ops-card,
+.dashboard-page .content-card {
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.dashboard-page .dashboard-band {
+  gap: 16px;
+}

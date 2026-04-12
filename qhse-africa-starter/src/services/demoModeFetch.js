@@ -289,8 +289,42 @@ export async function tryDemoFetchResponse(path, init = {}) {
   if (pathname === '/api/ai-suggestions/suggest/actions' && method === 'POST') {
     const body = await readJsonBody(init.body);
     const incidentId = String(body.incidentId ?? '').trim();
+    const dc = body.dashboardContext;
+    if (dc && typeof dc === 'object' && !Array.isArray(dc) && Object.keys(dc).length > 0 && !incidentId) {
+      const overdue = Number(dc.actionsOverdue ?? 0) || 0;
+      const crit = Array.isArray(dc.criticalIncidentsPreview) ? dc.criticalIncidentsPreview.length : 0;
+      return jsonResponse({
+        mode: 'dashboard',
+        provider: 'demo',
+        error: null,
+        narrative: [
+          'Mode démo : lecture pilotage à partir des indicateurs transmis.',
+          overdue ? `${overdue} action(s) en retard — prioriser l’arbitrage et les relances.` : null,
+          crit ? `${crit} incident(s) critique(s) dans les extraits — sécuriser la réponse et la traçabilité.` : null,
+          'Maintenir la cohérence entre tableau de bord et retours terrain.'
+        ]
+          .filter(Boolean)
+          .join(' '),
+        actions: [
+          {
+            title: 'Point retards & charge',
+            description: 'Réunion courte pour réaffecter ou replanifier les actions signalées en retard.',
+            delayDays: 3,
+            ownerRole: 'Direction site',
+            confidence: 0.7
+          },
+          {
+            title: 'Revue incidents sensibles',
+            description: 'Contrôler statuts, mesures immédiates et liens avec le registre risques.',
+            delayDays: 5,
+            ownerRole: 'Responsable QHSE',
+            confidence: 0.64
+          }
+        ]
+      });
+    }
     if (!incidentId) {
-      return jsonResponse({ error: 'incidentId requis' }, 400);
+      return jsonResponse({ error: 'incidentId ou dashboardContext requis' }, 400);
     }
     const inc = findDemoIncidentById(incidentId);
     if (!inc) {

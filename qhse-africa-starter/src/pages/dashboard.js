@@ -29,7 +29,11 @@ import { createDashboardVigilancePoints } from '../components/dashboardVigilance
 import { createDashboardAutoAnalysis } from '../components/dashboardAutoAnalysis.js';
 import { createDashboardPriorityNow } from '../components/dashboardPriorityNow.js';
 import { createDashboardPilotageAssistant } from '../components/dashboardPilotageAssistant.js';
-import { buildAssistantSnapshot } from '../services/qhsePilotageIntelligence.service.js';
+import {
+  buildAssistantSnapshot,
+  buildDashboardPilotageAiContext,
+  fetchPilotageAiSuggestActions
+} from '../services/qhsePilotageIntelligence.service.js';
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { createKpiDetailDrawer } from '../components/kpiDetailDrawer.js';
@@ -1000,7 +1004,6 @@ export function renderDashboard() {
     bandAnalysisLecture,
     bandCockpit,
     cockpitPremium.root,
-    bandActivity,
     bandSecondary,
     bandAssistant
   );
@@ -1020,7 +1023,18 @@ export function renderDashboard() {
   dashboardAiInsight.id = 'dashboard-ai-insight';
   dashboardAiInsight.className = 'dashboard-ai-insight qhse-page-advanced-only';
 
-  page.append(connectivitySlot, pageViewBar, executiveBand, toggleRow, extendedSection, dashboardAiInsight);
+  const separator = document.createElement('div');
+  separator.style.cssText = 'height: 1px; background: var(--color-border-tertiary); margin: 24px 0;';
+  page.append(
+    connectivitySlot,
+    pageViewBar,
+    executiveBand,
+    toggleRow,
+    extendedSection,
+    dashboardAiInsight,
+    separator,
+    bandActivity
+  );
 
   ceoHero.update({
     stats: lastStats,
@@ -1228,6 +1242,33 @@ export function renderDashboard() {
     } catch (asstErr) {
       console.warn('[dashboard] assistant snapshot', asstErr);
     }
+
+    pilotageAssistant.setAiLoading(true);
+    pilotageAssistant.setAiResult(null);
+    void (async () => {
+      try {
+        const dashboardContext = buildDashboardPilotageAiContext({
+          stats: lastStats,
+          incidents,
+          actions,
+          siteLabel: siteName
+        });
+        const ai = await fetchPilotageAiSuggestActions(dashboardContext);
+        pilotageAssistant.setAiResult({
+          narrative: typeof ai?.narrative === 'string' ? ai.narrative : '',
+          actions: Array.isArray(ai?.actions) ? ai.actions : []
+        });
+      } catch (aiErr) {
+        console.warn('[dashboard] pilotage IA /api/ai-suggestions/suggest/actions', aiErr);
+        pilotageAssistant.setAiResult({
+          narrative:
+            'Analyse IA momentanément indisponible (réseau, droits ou configuration). Les recommandations ci-dessus restent basées sur les règles métier.',
+          actions: []
+        });
+      } finally {
+        pilotageAssistant.setAiLoading(false);
+      }
+    })();
     void loadDashboardInsight(
       buildMistralDashboardStatsPayload(lastStats, audits, risksR || [])
     );

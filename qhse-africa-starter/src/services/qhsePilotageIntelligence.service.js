@@ -1,8 +1,10 @@
 /**
- * Assistant pilotage QHSE — règles simples, extensibles (pas d’IA serveur).
+ * Assistant pilotage QHSE — règles métier + enrichissement optionnel via
+ * POST /api/ai-suggestions/suggest/actions (body { dashboardContext }).
  */
 
 import { computeQhseGlobalScore } from '../utils/dashboardDecisionLayer.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
 import { risks as seedRisks } from '../data/mock.js';
 import { AUDITS_TO_SCHEDULE } from '../data/conformityStore.js';
 import {
@@ -341,4 +343,90 @@ export async function buildAssistantSnapshot(input) {
       risksSource: apiRiskRows && apiRiskRows.length > 0 ? 'api' : 'demo'
     }
   };
+}
+
+/**
+ * Contexte compact pour l’IA pilotage (Mistral / mock via backend).
+ * @param {{ stats?: object; incidents?: object[]; actions?: object[]; siteLabel?: string }} input
+ */
+export function buildDashboardPilotageAiContext(input) {
+  const stats = input.stats || {};
+  const incidents = Array.isArray(input.incidents) ? input.incidents : [];
+  const actions = Array.isArray(input.actions) ? input.actions : [];
+
+  let criticalPreview = [];
+  const critArr = stats.criticalIncidents;
+  if (Array.isArray(critArr) && critArr.length && typeof critArr[0] === 'object') {
+    criticalPreview = critArr.slice(0, 5).map((i) => ({
+      ref: i.ref ?? i.id ?? '—',
+      type: i.type,
+      severity: i.severity,
+      status: i.status
+    }));
+  } else {
+    criticalPreview = incidents
+      .filter((i) => String(i.severity || '').toLowerCase().includes('crit'))
+      .slice(0, 5)
+      .map((i) => ({
+        ref: i.ref ?? i.id ?? '—',
+        type: i.type,
+        severity: i.severity,
+        status: i.status
+      }));
+  }
+
+  /** @type {object[]} */
+  let overduePreview = (Array.isArray(stats.overdueActionItems) ? stats.overdueActionItems : [])
+    .slice(0, 5)
+    .map((a) => ({
+      title: a.title,
+      status: a.status,
+      dueDate: a.dueDate
+    }));
+
+  if (overduePreview.length === 0) {
+    const now = Date.now();
+    for (const a of actions) {
+      if (overduePreview.length >= 5) break;
+      const st = String(a?.status || '').toLowerCase();
+      if (/clos|ferm|termin|done|compl|achev|résolu|clôtur/i.test(st)) continue;
+      if (/retard/i.test(st)) {
+        overduePreview.push({ title: a.title, status: a.status, dueDate: a.dueDate });
+        continue;
+      }
+      const raw = a?.dueDate;
+      if (raw == null || String(raw).trim() === '') continue;
+      const t = new Date(raw).getTime();
+      if (Number.isFinite(t) && t < now) {
+        overduePreview.push({ title: a.title, status: a.status, dueDate: a.dueDate });
+      }
+    }
+  }
+
+  return {
+    siteLabel: input.siteLabel && String(input.siteLabel).trim() ? String(input.siteLabel).trim() : '',
+    incidentsTotal: Number(stats.incidents) || incidents.length || 0,
+    actionsOverdue: Number(stats.overdueActions) || 0,
+    nonConformities: Number(stats.nonConformities) || 0,
+    criticalIncidentsPreview: criticalPreview,
+    overdueActionsPreview: overduePreview
+  };
+}
+
+/**
+ * @param {Record<string, unknown>} dashboardContext
+ * @returns {Promise<{ mode?: string; narrative?: string; actions?: object[]; provider?: string; error?: string|null }>}
+ */
+export async function fetchPilotageAiSuggestActions(dashboardContext) {
+  const res = await qhseFetch('/api/ai-suggestions/suggest/actions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dashboardContext })
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    const msg = typeof j.error === 'string' && j.error.trim() ? j.error.trim() : `Erreur ${res.status}`;
+    throw new Error(msg);
+  }
+  return res.json();
 }

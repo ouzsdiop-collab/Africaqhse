@@ -4337,6 +4337,11 @@ const CSS = `
 .dashboard-pilotage-assistant__h{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
 .dashboard-pilotage-assistant__synthesis{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(148,163,184,.1)}
 .dashboard-pilotage-assistant__synthesis-text{margin:0;font-size:14px;line-height:1.55;color:var(--text2)}
+.dashboard-pilotage-assistant__ia{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(148,163,184,.1)}
+.dashboard-pilotage-assistant__ia-loading{margin:0;font-size:13px;line-height:1.5;color:var(--text3);font-style:italic}
+.dashboard-pilotage-assistant__ia-text{margin:0;font-size:14px;line-height:1.55;color:var(--text2)}
+.dashboard-pilotage-assistant__ia-actions{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.dashboard-pilotage-assistant__ia-action{margin:0;padding:10px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--color-border-tertiary) 80%,transparent);font-size:13px;line-height:1.45;color:var(--text2)}
 .dashboard-pilotage-assistant__rec-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .dashboard-pilotage-assistant__rec-empty{margin:0;padding:12px 14px;border-radius:12px;border:1px dashed rgba(148,163,184,.2);font-size:13px;color:var(--text3)}
 .dashboard-pilotage-assistant__rec-btn{

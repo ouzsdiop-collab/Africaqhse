@@ -35,6 +35,12 @@ export function createDashboardPilotageAssistant(opts = {}) {
         <h4 class="dashboard-pilotage-assistant__h">Synthèse</h4>
         <p class="dashboard-pilotage-assistant__synthesis-text">Chargement…</p>
       </div>
+      <div class="dashboard-pilotage-assistant__ia">
+        <h4 class="dashboard-pilotage-assistant__h">Avis IA — pilotage</h4>
+        <p class="dashboard-pilotage-assistant__ia-loading" hidden>Analyse IA en cours…</p>
+        <p class="dashboard-pilotage-assistant__ia-text" hidden></p>
+        <ul class="dashboard-pilotage-assistant__ia-actions" hidden></ul>
+      </div>
       <div class="dashboard-pilotage-assistant__recs">
         <h4 class="dashboard-pilotage-assistant__h">Recommandations intelligentes</h4>
         <ul class="dashboard-pilotage-assistant__rec-list"></ul>
@@ -50,6 +56,9 @@ export function createDashboardPilotageAssistant(opts = {}) {
 
   const scoreVal = wrap.querySelector('.dashboard-pilotage-assistant__score-val');
   const synText = wrap.querySelector('.dashboard-pilotage-assistant__synthesis-text');
+  const iaLoading = wrap.querySelector('.dashboard-pilotage-assistant__ia-loading');
+  const iaText = wrap.querySelector('.dashboard-pilotage-assistant__ia-text');
+  const iaActions = wrap.querySelector('.dashboard-pilotage-assistant__ia-actions');
   const recList = wrap.querySelector('.dashboard-pilotage-assistant__rec-list');
   const anomBlock = wrap.querySelector('.dashboard-pilotage-assistant__anomalies');
   const anomList = wrap.querySelector('.dashboard-pilotage-assistant__anomaly-list');
@@ -110,7 +119,45 @@ export function createDashboardPilotageAssistant(opts = {}) {
     }
   }
 
-  return { root: wrap, update };
+  /** @param {boolean} on */
+  function setAiLoading(on) {
+    if (iaLoading) iaLoading.hidden = !on;
+  }
+
+  /** @param {{ narrative?: string; actions?: object[] }|null} payload */
+  function setAiResult(payload) {
+    if (!iaText || !iaActions) return;
+    const narrative = payload && typeof payload.narrative === 'string' ? payload.narrative.trim() : '';
+    if (!narrative) {
+      iaText.hidden = true;
+      iaText.textContent = '';
+      iaActions.hidden = true;
+      iaActions.replaceChildren();
+      return;
+    }
+    if (iaLoading) iaLoading.hidden = true;
+    iaText.hidden = false;
+    iaText.textContent = narrative;
+    const acts = payload && Array.isArray(payload.actions) ? payload.actions : [];
+    if (acts.length) {
+      iaActions.hidden = false;
+      iaActions.replaceChildren();
+      acts.forEach((a) => {
+        const li = document.createElement('li');
+        li.className = 'dashboard-pilotage-assistant__ia-action';
+        const strong = document.createElement('strong');
+        strong.textContent = String(a?.title || '').slice(0, 240);
+        const rest = String(a?.description || '').slice(0, 600);
+        li.append(strong, document.createTextNode(rest ? ` — ${rest}` : ''));
+        iaActions.append(li);
+      });
+    } else {
+      iaActions.hidden = true;
+      iaActions.replaceChildren();
+    }
+  }
+
+  return { root: wrap, update, setAiLoading, setAiResult };
 }
 
 /**

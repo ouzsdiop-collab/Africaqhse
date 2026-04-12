@@ -5,6 +5,7 @@ import { requirePermission } from '../middleware/requirePermission.middleware.js
 import {
   suggestRootCauses,
   suggestCorrectiveActions,
+  suggestDashboardPilotageActions,
   assessRiskLevel
 } from '../services/aiSuggestion.service.js';
 import {
@@ -57,8 +58,22 @@ router.post(
 router.post('/suggest/actions', write, aiLimiter, async (req, res, next) => {
   try {
     const incidentId = String(req.body?.incidentId ?? '').trim();
+    const dc = req.body?.dashboardContext;
+    if (
+      dc &&
+      typeof dc === 'object' &&
+      !Array.isArray(dc) &&
+      Object.keys(dc).length > 0 &&
+      !incidentId
+    ) {
+      const data = await suggestDashboardPilotageActions({
+        dashboardContext: dc,
+        tenantId: req.qhseTenantId
+      });
+      return res.json(data);
+    }
     if (!incidentId) {
-      return res.status(400).json({ error: 'incidentId requis' });
+      return res.status(400).json({ error: 'incidentId ou dashboardContext requis' });
     }
     const data = await suggestCorrectiveActions({
       incidentId,

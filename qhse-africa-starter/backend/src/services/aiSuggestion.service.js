@@ -565,6 +565,98 @@ Sans markdown ni texte hors JSON.`;
   };
 }
 
+function buildHeuristicPilotageNarrative(dashboardContext) {
+  const ctx = dashboardContext && typeof dashboardContext === 'object' ? dashboardContext : {};
+  const overdue = Number(ctx.actionsOverdue ?? ctx.overdueActions ?? 0) || 0;
+  const crit = Array.isArray(ctx.criticalIncidentsPreview) ? ctx.criticalIncidentsPreview.length : 0;
+  const parts = [
+    'Synthèse automatique (IA locale ou fournisseur indisponible) : maintenir le pilotage sur les indicateurs affichés.'
+  ];
+  if (overdue) {
+    parts.push(`${overdue} action(s) en retard — prioriser arbitrage, réaffectation et jalons.`);
+  }
+  if (crit) {
+    parts.push(`${crit} incident(s) critique(s) dans les extraits — sécuriser la réponse terrain et la traçabilité.`);
+  }
+  if (!overdue && !crit) {
+    parts.push('Aucun signal critique majeur dans le contexte transmis — poursuivre le suivi habituel des plans.');
+  }
+  return parts.join(' ');
+}
+
+function mockPilotageActionsFromDashboard(dashboardContext) {
+  const ctx = dashboardContext && typeof dashboardContext === 'object' ? dashboardContext : {};
+  const overdue = Number(ctx.actionsOverdue ?? 0) || 0;
+  /** @type {Array<{ title: string; description: string; delayDays: number; ownerRole: string; confidence: number }>} */
+  const out = [];
+  if (overdue > 0) {
+    out.push({
+      title: 'Arbitrage plan d’actions',
+      description:
+        'Point direction / QHSE sur les retards : réaffectation, nouvelles échéances réalistes et communication aux porteurs.',
+      delayDays: 3,
+      ownerRole: 'Direction site',
+      confidence: 0.72
+    });
+  }
+  out.push({
+    title: 'Revue incidents à gravité élevée',
+    description:
+      'Vérifier mesures immédiates, statuts et rattachement au registre risques ; compléter les analyses si besoin.',
+    delayDays: 5,
+    ownerRole: 'Responsable QHSE',
+    confidence: 0.66
+  });
+  out.push({
+    title: 'Cohérence indicateurs & terrain',
+    description:
+      'Aligner les chiffres du tableau de bord avec les retours terrain (briefs, visites) pour éviter les angles morts.',
+    delayDays: 7,
+    ownerRole: 'Encadrement',
+    confidence: 0.58
+  });
+  return out.slice(0, 3);
+}
+
+/**
+ * Pilotage tableau de bord (sans incident ciblé) — même route POST que suggest/actions avec `dashboardContext`.
+ * @param {{ dashboardContext?: Record<string, unknown>, tenantId?: string | null }} opts
+ */
+export async function suggestDashboardPilotageActions(opts) {
+  const dashboardContext =
+    opts?.dashboardContext && typeof opts.dashboardContext === 'object' ? opts.dashboardContext : {};
+  const systemPrompt = `Tu es un directeur QHSE senior. On te fournit un JSON "dashboardContext" (compteurs, extraits d'incidents critiques, actions en retard, site).
+Rédige une synthèse opérationnelle en français (3 à 5 phrases courtes) dans la clé "narrative".
+Propose jusqu'à 3 actions de pilotage prioritaires (gestion du système QHSE, pas des actions correctives détaillées sur un seul dossier) dans "actions" : chaque élément { "title", "description", "delayDays", "ownerRole", "confidence" }.
+Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string) et "actions" (tableau, max 3). Sans markdown ni texte hors JSON.`;
+
+  const userMessage = JSON.stringify({ dashboardContext });
+  const res = await callAiProvider(systemPrompt, userMessage, 900);
+  let narrative = '';
+  let actions = [];
+  if (res.rawText) {
+    const obj = parseJsonObjectFromLlm(res.rawText);
+    if (obj && typeof obj === 'object') {
+      narrative = String(obj.narrative ?? obj.summary ?? '').slice(0, 2500);
+    }
+    const parsed = parseActionsResponse(res.rawText);
+    actions = parsed.actions.slice(0, 3);
+  }
+  if (!narrative.trim()) {
+    narrative = buildHeuristicPilotageNarrative(dashboardContext);
+  }
+  if (actions.length < 1) {
+    actions = mockPilotageActionsFromDashboard(dashboardContext);
+  }
+  return {
+    mode: 'dashboard',
+    provider: res.provider,
+    error: res.error ?? null,
+    narrative: narrative.trim(),
+    actions
+  };
+}
+
 /**
  * @param {{ riskId: string, tenantId?: string | null }} opts
  */
