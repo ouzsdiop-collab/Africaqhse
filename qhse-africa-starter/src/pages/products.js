@@ -268,7 +268,42 @@ function ghsBadgeInlineStyle(code) {
     9: '#059669'
   };
   const bg = palette[Number(n)] || '#64748b';
-  return `background:${bg};color:#fff;border:none;font-weight:800;font-size:11px;padding:3px 8px;border-radius:999px;margin:2px 4px 2px 0;display:inline-block`;
+  return `background:${bg};color:#fff;border:none;font-weight:800;font-size:11px;padding:3px 8px;border-radius:999px;display:inline-flex;align-items:center`;
+}
+
+/** Découpe un bloc dangers (H/P mélangés) en segments [HP]nnn… */
+function splitHpFromBlob(text) {
+  const t = String(text || '').trim();
+  if (!t) return [];
+  return t.split(/\s+(?=[HP]\d)/i).map((x) => x.trim()).filter(Boolean);
+}
+
+/**
+ * @param {object} product
+ * @returns {{ hLines: string[], pLines: string[] }}
+ */
+function deriveHPLines(product) {
+  const hStmt = Array.isArray(product.hStatementsList)
+    ? product.hStatementsList.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  const pStmt = Array.isArray(product.pStatementsList)
+    ? product.pStatementsList.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  if (hStmt.length || pStmt.length) {
+    return { hLines: hStmt, pLines: pStmt };
+  }
+  const chunks = splitHpFromBlob(product.hazards || '');
+  if (!chunks.length) {
+    const haz = String(product.hazards || '').trim();
+    return haz ? { hLines: [haz], pLines: [] } : { hLines: [], pLines: [] };
+  }
+  const hLines = [];
+  const pLines = [];
+  for (const c of chunks) {
+    if (/^P\d/i.test(c)) pLines.push(c);
+    else hLines.push(c);
+  }
+  return { hLines, pLines };
 }
 
 /**
@@ -826,9 +861,43 @@ function renderProductDetail(product, host) {
   const ss = document.createElement('strong');
   ss.textContent = 'Mot-signal :';
   pSig.append(ss, document.createTextNode(` ${product.signalWord || '—'}`));
-  const pHaz = document.createElement('p');
-  pHaz.className = 'products-detail-text';
-  pHaz.textContent = product.hazards || '—';
+  const { hLines, pLines } = deriveHPLines(product);
+  const hpHost = document.createElement('div');
+  hpHost.className = 'products-detail-hp-wrap';
+  if (hLines.length) {
+    const hLbl = document.createElement('p');
+    hLbl.className = 'products-detail-subh products-detail-subh--hp';
+    hLbl.textContent = 'Phrases H';
+    const hCont = document.createElement('div');
+    hCont.className = 'products-detail-hp-lines';
+    for (const line of hLines) {
+      const div = document.createElement('div');
+      div.className = 'products-detail-hp-line';
+      div.textContent = line;
+      hCont.append(div);
+    }
+    hpHost.append(hLbl, hCont);
+  }
+  if (pLines.length) {
+    const pLbl = document.createElement('p');
+    pLbl.className = 'products-detail-subh products-detail-subh--hp';
+    pLbl.textContent = 'Conseils P';
+    const pCont = document.createElement('div');
+    pCont.className = 'products-detail-hp-lines';
+    for (const line of pLines) {
+      const div = document.createElement('div');
+      div.className = 'products-detail-hp-line';
+      div.textContent = line;
+      pCont.append(div);
+    }
+    hpHost.append(pLbl, pCont);
+  }
+  if (!hLines.length && !pLines.length) {
+    const pHaz = document.createElement('p');
+    pHaz.className = 'products-detail-text';
+    pHaz.textContent = '—';
+    hpHost.append(pHaz);
+  }
   const pictoWrap = document.createElement('div');
   pictoWrap.className = 'products-picto-chips';
   const pictos = product.fdsPictograms || [];
@@ -845,7 +914,7 @@ function renderProductDetail(product, host) {
     muted.textContent = '—';
     pictoWrap.append(muted);
   }
-  secDang.append(h4d, pSig, pHaz, pictoWrap);
+  secDang.append(h4d, pSig, hpHost, pictoWrap);
 
   const secEpi = document.createElement('section');
   secEpi.className = 'products-detail-block';
@@ -1294,10 +1363,9 @@ export function renderProducts() {
         </p>
       </div>
     </div>
-    <div class="products-fds-dropzone" tabindex="0" role="region" aria-label="Glisser-déposer une FDS PDF"
-      style="border:2px dashed var(--color-border-secondary,#475569);border-radius:14px;padding:18px 16px;text-align:center;margin-top:8px;background:color-mix(in srgb,var(--color-background-secondary,#0f172a) 88%,transparent)">
-      <p style="margin:0 0 6px;font-weight:700">Déposer une FDS PDF ici</p>
-      <p style="margin:0;font-size:13px;opacity:.88">Relâchez le fichier ou choisissez-le ci-dessous — pictogrammes SGH détectés par analyse du texte.</p>
+    <div class="products-fds-dropzone" tabindex="0" role="region" aria-label="Glisser-déposer une FDS PDF">
+      <p class="products-fds-dropzone__title">Déposer une FDS PDF ici</p>
+      <p class="products-fds-dropzone__hint">Relâchez le fichier ou choisissez-le ci-dessous — pictogrammes SGH détectés par analyse du texte.</p>
     </div>
     <div class="products-import-row">
       <label class="products-file-label">
