@@ -52,6 +52,7 @@ import {
   computeHabilitationsKpis
 } from '../data/habilitationsDemo.js';
 import { refreshCharts as refreshChartsModule } from './dashboard/chartsSection.js';
+import { refreshActivity as refreshActivityModule } from './dashboard/actionsWidget.js';
 import {
   updateKpiPriorityLine as updateKpiPriorityLineModule,
   applyStatsToKpis as applyStatsToKpisModule,
@@ -1517,16 +1518,7 @@ export function renderDashboard() {
   }
 
   function refreshActivity(incidents, actions, audits) {
-    activityWrap.replaceChildren(
-      createDashboardActivitySection(
-        {
-          incidents: incidents || [],
-          actions: actions || [],
-          audits: audits || []
-        },
-        { showHeader: false }
-      )
-    );
+    return refreshActivityModule(activityWrap, incidents, actions, audits);
   }
 
   updateKpiPriorityLine();
