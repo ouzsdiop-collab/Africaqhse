@@ -51,7 +51,7 @@ import {
   computeHabilitationsBySite,
   computeHabilitationsKpis
 } from '../data/habilitationsDemo.js';
-import { refreshCharts as refreshDashboardChartsSection } from './dashboard/chartsSection.js';
+import { refreshCharts as refreshChartsModule } from './dashboard/chartsSection.js';
 import {
   updateKpiPriorityLine as patchKpiPriorityLineUi,
   applyStatsToKpis as applyKpiStatsPatch,
@@ -1501,9 +1501,15 @@ export function renderDashboard() {
   }
 
   function refreshCharts(incidents, actions, audits, ncs) {
-    const { ncList } = refreshDashboardChartsSection(
+    const { ncList } = refreshChartsModule(
       { lineCard, mixCard, typeCard, auditCharts, pilotLoadCard },
-      { stats: lastStats || {}, incidents, actions, audits, ncs }
+      lastStats,
+      {
+        incidents: kpiDashboardLists.incidents,
+        actions: kpiDashboardLists.actions,
+        audits: kpiDashboardLists.audits,
+        ncs: kpiDashboardLists.ncs
+      }
     );
     dashboardNcListForKpi = ncList;
     updateKpiPriorityLine();

@@ -18,18 +18,18 @@ import { asDashboardCount, isNcOpen } from '../../utils/reconcileDashboardStats.
  * @param {{ body: HTMLElement }} refs.typeCard
  * @param {{ update: (p: { audits: unknown[], ncs: unknown[] }) => void }} refs.auditCharts
  * @param {{ body: HTMLElement }} refs.pilotLoadCard
+ * @param {object} stats — stats courantes (ex. `lastStats` dans la page)
  * @param {object} data
- * @param {object} [data.stats] — stats courantes (équivalent de `lastStats` dans la page)
  * @param {unknown[]} [data.incidents]
  * @param {unknown[]} [data.actions]
- * @param {unknown[]} [data.audits] — requis pour le même rendu qu’avant (3ᵉ argument historique)
- * @param {unknown[]} [data.ncs] — requis pour le même rendu qu’avant (4ᵉ argument historique)
- * @returns {{ ncList: unknown[] }} — le parent doit affecter `dashboardNcListForKpi = ncList` puis appeler `updateKpiPriorityLine()` (effets non déplaçables ici sans callback)
+ * @param {unknown[]} [data.audits]
+ * @param {unknown[]} [data.ncs]
+ * @returns {{ ncList: unknown[] }}
  */
-export function refreshCharts(refs, data) {
+export function refreshCharts(refs, stats, data) {
   const { lineCard, mixCard, typeCard, auditCharts, pilotLoadCard } = refs;
+  const s = stats || {};
   const {
-    stats = {},
     incidents = [],
     actions = [],
     audits = [],
@@ -52,10 +52,8 @@ export function refreshCharts(refs, data) {
   const ncOpen = ncList.filter(isNcOpen).length;
   pilotLoadCard.body.replaceChildren(
     createPilotageLoadMixChart({
-      criticalIncidents: Array.isArray(stats.criticalIncidents)
-        ? stats.criticalIncidents.length
-        : 0,
-      overdueActions: asDashboardCount(stats.overdueActions),
+      criticalIncidents: Array.isArray(s.criticalIncidents) ? s.criticalIncidents.length : 0,
+      overdueActions: asDashboardCount(s.overdueActions),
       ncOpen
     })
   );
