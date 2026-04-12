@@ -202,3 +202,12 @@ export function updateKpiPriorityLine(kpiPriorityLine, kpiDashboardLists, lastSt
     { stats: lastStats, ncListForKpi: kpiDashboardLists?.ncs ?? [] }
   );
 }
+
+export function renderKpiFilteredModal(
+  kpiKey,
+  kpiDashboardLists,
+  kpiDetailDrawerSingleton,
+  getSessionUser
+) {
+  kpiDetailDrawerSingleton?.open(kpiKey);
+}

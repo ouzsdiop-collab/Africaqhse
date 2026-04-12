@@ -56,7 +56,8 @@ import {
   updateKpiPriorityLine as updateKpiPriorityLineModule,
   applyStatsToKpis as applyStatsToKpisModule,
   applyEnrichmentKpis as applyEnrichmentKpisModule,
-  dismissKpiSkeleton as dismissKpiSkeletonModule
+  dismissKpiSkeleton as dismissKpiSkeletonModule,
+  renderKpiFilteredModal as renderKpiFilteredModalModule
 } from './dashboard/kpiCards.js';
 
 /* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats — voir utils/dashboard*.js */
@@ -953,7 +954,12 @@ export function renderDashboard() {
   const prioList = priorityBlock.querySelector('[data-dc-prio]');
 
   function renderKpiFilteredModal(specKey) {
-    kpiDetailDrawerSingleton?.open(specKey);
+    return renderKpiFilteredModalModule(
+      specKey,
+      kpiDashboardLists,
+      kpiDetailDrawerSingleton,
+      getSessionUser
+    );
   }
 
   function updateDecisionAlerts(stats, incidents, actions, ncs, audits) {
