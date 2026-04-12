@@ -113,6 +113,7 @@ export function createLoginView({ onSuccess }) {
       if (tenantSlug) payload.tenantSlug = tenantSlug;
       const res = await fetch(`${getApiBase()}/api/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -139,7 +140,7 @@ export function createLoginView({ onSuccess }) {
           role: body.user.role || ''
         },
         body.token,
-        { tenant: body.tenant, tenants: body.tenants, refreshToken: body.refreshToken }
+        { tenant: body.tenant, tenants: body.tenants }
       );
       showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
       window.location.hash = 'dashboard';

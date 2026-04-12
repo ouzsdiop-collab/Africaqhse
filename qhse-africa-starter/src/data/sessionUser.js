@@ -2,15 +2,11 @@ import { getApiBase } from '../config.js';
 
 const STORAGE_KEY = 'qhseSessionUser';
 const TOKEN_KEY = 'qhseAuthToken';
-const REFRESH_TOKEN_KEY = 'qhseRefreshToken';
 const TENANT_KEY = 'qhseSessionTenant';
 const TENANTS_KEY = 'qhseSessionTenants';
 
 /** Fetch navigateur d’origine (capturé avant le patch global ci-dessous) — utilisé par qhseFetch pour éviter les boucles. */
 export const nativeFetch = globalThis.fetch.bind(globalThis);
-/** @type {Promise<boolean> | null} */
-let refreshInFlight = null;
-const AUTH_401_RETRY = Symbol('qhseAuth401Retried');
 
 /**
  * Profil utilisateur — alimenté par connexion JWT (/api/auth/login) ou sélection manuelle (hors JWT).
@@ -154,34 +150,9 @@ export function setAuthToken(token) {
   sessionStorage.setItem(TOKEN_KEY, token);
 }
 
-export function getRefreshToken() {
-  try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-export function setRefreshToken(token) {
-  try {
-    if (!token) {
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      return;
-    }
-    localStorage.setItem(REFRESH_TOKEN_KEY, token);
-  } catch {
-    /* ignore */
-  }
-}
-
-/** Supprime le jeton et le profil stocké (déconnexion). */
+/** Supprime le jeton et le profil stocké (déconnexion). Le refresh httpOnly est effacé côté serveur via POST /api/auth/logout. */
 export function clearAuthSession() {
   sessionStorage.removeItem(TOKEN_KEY);
-  try {
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  } catch {
-    /* ignore */
-  }
   sessionStorage.removeItem(TENANT_KEY);
   sessionStorage.removeItem(TENANTS_KEY);
   setSessionUser(null);
@@ -192,7 +163,6 @@ export function clearSession() {
   clearAuthSession();
   try {
     sessionStorage.removeItem('qhse_access_token');
-    localStorage.removeItem('qhse_refresh_token');
   } catch {
     /* ignore */
   }
@@ -205,13 +175,10 @@ export function clearSession() {
 /**
  * @param {SessionUser} user
  * @param {string} token
- * @param {{ tenant?: SessionTenant | null, tenants?: SessionTenant[] | null, refreshToken?: string }} [ctx]
+ * @param {{ tenant?: SessionTenant | null, tenants?: SessionTenant[] | null }} [ctx]
  */
 export function setAuthSession(user, token, ctx = {}) {
   setAuthToken(token);
-  if (ctx && typeof ctx.refreshToken === 'string' && ctx.refreshToken) {
-    setRefreshToken(ctx.refreshToken);
-  }
   setSessionUser(user);
   if (ctx && (ctx.tenant != null || ctx.tenants != null)) {
     persistTenantContext(ctx.tenant ?? null, ctx.tenants ?? null);
@@ -237,6 +204,7 @@ export async function switchActiveTenant(tenantSlug) {
   try {
     const res = await fetch(`${getApiBase()}/api/auth/switch-tenant`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
@@ -293,6 +261,7 @@ export async function restoreSessionFromToken() {
   const tid = setTimeout(() => ac.abort(), ms);
   try {
     const res = await fetch(`${getApiBase()}/api/auth/me`, {
+      credentials: 'include',
       headers: { Authorization: `Bearer ${t}` },
       signal: ac.signal
     });
@@ -350,136 +319,18 @@ function toRelativeApiPath(url) {
   }
 }
 
-function isAuthRefreshOrLoginUrl(url) {
-  return url.includes('/api/auth/refresh') || url.includes('/api/auth/login');
-}
-
-/**
- * @param {RequestInfo} input
- * @param {RequestInit | undefined} init
- */
-function augmentLogoutInit(input, init) {
-  const url = resolveFetchUrl(input);
-  if (!url.includes('/api/auth/logout')) return init || {};
-  const method = String((init && init.method) || 'GET').toUpperCase();
-  if (method !== 'POST') return init || {};
-  const rt = getRefreshToken().trim();
-  if (!rt) return init || {};
-  if (init && init.body instanceof FormData) return init;
-  const headers = new Headers(init?.headers);
-  if (init?.body != null && init.body !== '') {
-    if (typeof init.body === 'string') {
-      try {
-        const parsed = JSON.parse(init.body);
-        if (parsed && typeof parsed === 'object' && typeof parsed.refreshToken === 'string' && parsed.refreshToken) {
-          return init;
-        }
-        if (parsed && typeof parsed === 'object') {
-          if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-          return { ...init, headers, body: JSON.stringify({ ...parsed, refreshToken: rt }) };
-        }
-      } catch {
-        return init;
-      }
-    }
-    return init;
-  }
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  return { ...(init || {}), headers, body: JSON.stringify({ refreshToken: rt }) };
-}
-
-/**
- * @param {string} url
- * @param {Response} res
- */
-function maybePersistLoginRefresh(res, url) {
-  if (!res.ok || !url.includes('/api/auth/login')) return;
-  void res
-    .clone()
-    .json()
-    .then((data) => {
-      if (data && typeof data.refreshToken === 'string' && data.refreshToken) {
-        setRefreshToken(data.refreshToken);
-      }
-    })
-    .catch(() => {});
-}
-
-/** @param {RequestInit | undefined} init */
-function hasBearerAuth(init) {
-  try {
-    const h = new Headers(init?.headers);
-    return (h.get('Authorization') || '').startsWith('Bearer ');
-  } catch {
-    return false;
-  }
-}
-
-async function callRefreshEndpoint() {
-  const rt = getRefreshToken().trim();
-  if (!rt) return false;
-  const ac = new AbortController();
-  const tid = setTimeout(() => ac.abort(), 15000);
-  try {
-    const { qhseFetch } = await import('../utils/qhseFetch.js');
-    const res = await qhseFetch('/api/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: rt }),
-      signal: ac.signal
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) return false;
-    const access =
-      typeof data.accessToken === 'string'
-        ? data.accessToken
-        : typeof data.token === 'string'
-          ? data.token
-          : '';
-    if (!access) return false;
-    setAuthToken(access);
-    if (typeof data.refreshToken === 'string' && data.refreshToken) {
-      setRefreshToken(data.refreshToken);
-    }
-    return true;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(tid);
-  }
-}
-
-/** @param {RequestInit | undefined} init */
-function stripAuth401Retry(init) {
-  if (!init || typeof init !== 'object' || !(AUTH_401_RETRY in init)) return init;
-  const { [AUTH_401_RETRY]: _r, ...rest } = init;
-  return rest;
-}
-
-/** @param {RequestInit | undefined} init */
-function withRetriedBearer(init) {
-  const headers = new Headers(init?.headers);
-  const token = getAuthToken();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  return { ...(init || {}), headers, [AUTH_401_RETRY]: true };
-}
-
 /**
  * @param {RequestInfo} input
  * @param {RequestInit} [init]
  */
 async function qhseFetchWithRefresh(input, init) {
-  const mergedInit = augmentLogoutInit(input, init);
   const url = resolveFetchUrl(input);
-  const cleanInit = stripAuth401Retry(mergedInit);
   const apiPath = toRelativeApiPath(url);
   if (apiPath) {
     const { qhseFetch } = await import('../utils/qhseFetch.js');
-    const res = await qhseFetch(apiPath, cleanInit);
-    maybePersistLoginRefresh(res, url);
-    return res;
+    return qhseFetch(apiPath, init || {});
   }
-  return nativeFetch(input, cleanInit);
+  return nativeFetch(input, init || {});
 }
 
 globalThis.fetch = qhseFetchWithRefresh;

@@ -112,13 +112,20 @@ export async function downloadQhseChromePdf(html, filename, pdfOverrides = {}, o
   const host = document.createElement('div');
   /** ~210mm @96dpi — html2canvas gère mal les largeurs nulles hors viewport */
   host.style.cssText =
-    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:1123px;background:#fff;color:#0f172a;overflow:visible;';
+    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:1123px;overflow:visible;';
+  host.style.backgroundColor = '#ffffff';
+  host.style.color = '#1a1a1a';
+  host.style.fontFamily = 'Arial, sans-serif';
+  host.style.fontSize = '12px';
+  host.style.padding = '20px';
+  host.style.width = '794px';
   host.innerHTML = html;
   document.body.appendChild(host);
   const safe = String(filename || 'export').replace(/[^\w.-]+/g, '_');
   const name = safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
   try {
     if (!silent) showToast('Génération du PDF en cours...', 'info');
+    await new Promise((r) => setTimeout(r, 500));
     await saveElementAsPdf(host, name, pdfOverrides);
     if (!silent) showToast('PDF téléchargé avec succès', 'success');
   } catch (e) {

@@ -20,7 +20,7 @@ export const DASHBOARD_KPI_SPECS = [
  * Grille KPI dashboard + références pour mise à jour des valeurs.
  *
  * @param {{ onOpenDetail: (key: string) => void }} opts
- * @returns {{ kpiGrid: HTMLElement; kpiStickyWrap: HTMLElement; kpiValues: Record<string, HTMLElement>; kpiNotes: Record<string, HTMLElement>; dismissKpiSkeleton: () => void }}
+ * @returns {{ kpiGrid: HTMLElement; kpiStickyWrap: HTMLElement; kpiValues: Record<string, HTMLElement>; kpiNotes: Record<string, HTMLElement>; kpiEmptyHints: Record<string, HTMLElement> }}
  */
 export function renderKpiCards(opts) {
   const { onOpenDetail } = opts;
@@ -28,6 +28,8 @@ export function renderKpiCards(opts) {
   const kpiValues = {};
   /** @type {Record<string, HTMLDivElement>} */
   const kpiNotes = {};
+  /** @type {Record<string, HTMLElement>} */
+  const kpiEmptyHints = {};
 
   const kpiGrid = document.createElement('section');
   kpiGrid.className = 'kpi-grid dashboard-kpi-grid';
@@ -42,7 +44,9 @@ export function renderKpiCards(opts) {
     });
     const value = card.querySelector('.metric-value');
     const note = card.querySelector('.metric-note');
+    const emptyHint = card.querySelector('.dashboard-kpi-empty-hint');
     if (value) kpiValues[spec.key] = value;
+    if (emptyHint) kpiEmptyHints[spec.key] = emptyHint;
     if (note && spec.key === 'ncOpen') kpiNotes.ncOpen = note;
     kpiGrid.append(card);
   });
@@ -57,9 +61,5 @@ export function renderKpiCards(opts) {
   kpiStickyInner.append(kpiGrid, kpiSkeletonLayer);
   kpiStickyWrap.append(kpiStickyInner);
 
-  function dismissKpiSkeleton() {
-    if (kpiSkeletonLayer.isConnected) kpiSkeletonLayer.remove();
-  }
-
-  return { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, kpiEmptyHints, dismissKpiSkeleton };
+  return { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, kpiEmptyHints };
 }

@@ -1,6 +1,29 @@
 import * as authService from '../services/auth.service.js';
+import { prisma } from '../db.js';
 import { loginBodySchema } from '../validation/authSchemas.js';
 import { sendJsonError } from '../lib/apiErrors.js';
+
+/** Nom du cookie httpOnly pour le refresh JWT (aligné ÉTAPE 1 H3-14). */
+export const QHSE_REFRESH_COOKIE = 'qhse_refresh';
+
+function refreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    path: '/'
+  };
+}
+
+function clearRefreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/'
+  };
+}
 
 function tenantsPayloadForUser(role) {
   return [
@@ -34,9 +57,10 @@ export async function login(req, res, next) {
     const accessToken = authService.issueAccessToken(user);
     const refreshToken = authService.issueRefreshToken(user);
 
+    res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+
     res.json({
       accessToken,
-      refreshToken,
       expiresIn: 3600,
       token: accessToken,
       user: {
@@ -55,11 +79,54 @@ export async function login(req, res, next) {
 
 export async function logoutHandler(req, res, next) {
   try {
-    const raw = req.body?.refreshToken;
-    if (typeof raw === 'string' && raw.trim()) {
-      await authService.revokeRefreshToken(raw.trim());
+    const fromCookie = req.cookies?.[QHSE_REFRESH_COOKIE];
+    const fromBody =
+      typeof req.body?.refreshToken === 'string' ? req.body.refreshToken.trim() : '';
+    const raw = fromCookie || fromBody;
+    if (raw) {
+      await authService.revokeRefreshToken(raw);
     }
+    res.clearCookie(QHSE_REFRESH_COOKIE, clearRefreshCookieOptions());
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/auth/refresh — lit le refresh uniquement depuis le cookie httpOnly.
+ */
+export async function refreshHandler(req, res, next) {
+  try {
+    const refreshToken = req.cookies?.[QHSE_REFRESH_COOKIE];
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      return res.status(401).json({ error: 'Token manquant' });
+    }
+
+    const payload = authService.verifyRefreshToken(refreshToken);
+    if (!payload) {
+      return res.status(401).json({ error: 'Refresh token invalide ou expire.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, name: true, email: true, role: true }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Compte introuvable.' });
+    }
+
+    const accessToken = authService.issueAccessToken(user);
+    const newRefreshToken = authService.issueRefreshToken(user);
+
+    res.cookie(QHSE_REFRESH_COOKIE, newRefreshToken, refreshCookieOptions());
+
+    res.json({
+      accessToken,
+      expiresIn: 3600,
+      token: accessToken
+    });
   } catch (err) {
     next(err);
   }

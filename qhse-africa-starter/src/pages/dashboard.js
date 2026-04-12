@@ -51,6 +51,13 @@ import {
   computeHabilitationsBySite,
   computeHabilitationsKpis
 } from '../data/habilitationsDemo.js';
+import { refreshCharts as refreshDashboardChartsSection } from './dashboard/chartsSection.js';
+import {
+  updateKpiPriorityLine as patchKpiPriorityLineUi,
+  applyStatsToKpis as applyKpiStatsPatch,
+  applyEnrichmentKpis as applyKpiEnrichmentPatch,
+  dismissKpiSkeleton as removeKpiSkeletonLayer
+} from './dashboard/kpiCards.js';
 
 /* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats — voir utils/dashboard*.js */
 import { pushDashboardIntent } from '../utils/dashboardNavigationIntent.js';
@@ -489,14 +496,6 @@ export function renderDashboard() {
 
   const siteName = appState.currentSite || 'Tous sites';
 
-  const kpiToneClasses = [
-    'dashboard-kpi-card--tone-blue',
-    'dashboard-kpi-card--tone-red',
-    'dashboard-kpi-card--tone-amber',
-    'dashboard-kpi-card--tone-green',
-    'dashboard-kpi-card--tone-success'
-  ];
-
   function dashboardKpiScopeEmptyLabel() {
     return appState.activeSiteId ? 'Aucun sur ce site' : 'Aucune donnée';
   }
@@ -769,7 +768,7 @@ export function renderDashboard() {
     kpiDetailDrawerSingleton.element.id = 'qhse-kpi-detail-dialog';
     document.body.append(kpiDetailDrawerSingleton.element);
   }
-  const { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, kpiEmptyHints, dismissKpiSkeleton } = renderKpiCards({
+  const { kpiGrid, kpiStickyWrap, kpiValues, kpiNotes, kpiEmptyHints } = renderKpiCards({
     onOpenDetail: (key) => kpiDetailDrawerSingleton?.open(key)
   });
   kpiGrid.classList.add('dashboard-kpi-grid--executive');
@@ -1462,147 +1461,47 @@ export function renderDashboard() {
   priorityNow.update({ stats: lastStats, ncs: [], audits: [] });
 
   function updateKpiPriorityLine() {
-    const stats = lastStats || {};
-    const crit = Array.isArray(stats.criticalIncidents) ? stats.criticalIncidents.length : 0;
-    const od = asDashboardCount(stats.overdueActions);
-    const ncOpen = dashboardNcListForKpi.filter(isNcOpen).length;
-    const n = crit + od + ncOpen;
-    const scalarsQuiet =
-      asDashboardCount(stats.incidents) === 0 &&
-      asDashboardCount(stats.actions) === 0 &&
-      asDashboardCount(stats.overdueActions) === 0 &&
-      asDashboardCount(stats.nonConformities) === 0;
-    if (n === 0 && scalarsQuiet) {
-      kpiPriorityLine.textContent =
-        'Aucune donnée sur ce périmètre — vérifiez le filtre site ou élargissez la vue.';
-      kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
-    } else if (n === 0) {
-      kpiPriorityLine.textContent = 'Aucun élément critique à traiter en priorité aujourd’hui.';
-      kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
-    } else {
-      kpiPriorityLine.textContent = `${n} élément${n > 1 ? 's' : ''} critique${n > 1 ? 's' : ''} à traiter aujourd’hui`;
-      kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--attention';
-    }
+    patchKpiPriorityLineUi(
+      { kpiPriorityLine },
+      { stats: lastStats, ncListForKpi: dashboardNcListForKpi }
+    );
   }
 
   function applyStatsToKpis(data) {
-    const scopeHint = dashboardKpiScopeEmptyLabel();
-
-    const incN = asDashboardCount(data.incidents);
-    kpiValues.incidents.textContent = formatDashboardCount(data.incidents);
-    const incHint = kpiEmptyHints.incidents;
-    if (incHint) {
-      incHint.hidden = incN !== 0;
-      incHint.textContent = incN === 0 ? scopeHint : '';
-    }
-
-    const lateN = asDashboardCount(data.overdueActions);
-    const lateCard = kpiValues.actionsLate?.closest('.dashboard-kpi-card');
-    const lateDefault = lateCard?.querySelector('.dashboard-kpi-default');
-    const lateSuccess = lateCard?.querySelector('.dashboard-kpi-zero-success');
-    const lateNote = lateCard?.querySelector('.metric-note');
-    if (lateSuccess && lateDefault && lateCard && kpiValues.actionsLate) {
-      if (lateN === 0) {
-        lateDefault.hidden = true;
-        if (lateNote) lateNote.hidden = true;
-        lateSuccess.hidden = false;
-        kpiToneClasses.forEach((c) => lateCard.classList.remove(c));
-        lateCard.classList.add('dashboard-kpi-card--tone-success');
-      } else {
-        lateDefault.hidden = false;
-        if (lateNote) lateNote.hidden = false;
-        lateSuccess.hidden = true;
-        kpiToneClasses.forEach((c) => lateCard.classList.remove(c));
-        lateCard.classList.add('dashboard-kpi-card--tone-red');
-        kpiValues.actionsLate.textContent = formatDashboardCount(data.overdueActions);
-      }
-    } else if (kpiValues.actionsLate) {
-      kpiValues.actionsLate.textContent = formatDashboardCount(data.overdueActions);
-    }
-
-    const lateTone = toneByValue(data.overdueActions, 1, 3);
-    const incTone = toneByValue(data.incidents, 3, 8);
-    [kpiValues.actionsLate?.parentElement, kpiValues.incidents?.parentElement].forEach((el) => {
-      if (!el) return;
-      el.classList.remove('dashboard-kpi-card--crit');
-    });
-    if (lateN > 0 && lateTone === 'red') kpiValues.actionsLate?.parentElement?.classList.add('dashboard-kpi-card--crit');
-    if (incTone === 'red') kpiValues.incidents?.parentElement?.classList.add('dashboard-kpi-card--crit');
-
-    updateKpiPriorityLine();
+    applyKpiStatsPatch(
+      {
+        kpiValues,
+        kpiEmptyHints,
+        kpiNotes,
+        kpiPriorityLine,
+        getScopeEmptyLabel: dashboardKpiScopeEmptyLabel,
+        getNcListForKpi: () => dashboardNcListForKpi
+      },
+      data
+    );
   }
 
   function applyEnrichmentKpis(ncList, auditList, ncTotalAggregate) {
-    const scopeHint = dashboardKpiScopeEmptyLabel();
-    if (Array.isArray(ncList)) {
-      const n = ncList.filter(isNcOpen).length;
-      kpiValues.ncOpen.textContent = String(n);
-      const ncHint = kpiEmptyHints.ncOpen;
-      if (ncHint) {
-        ncHint.hidden = n !== 0;
-        ncHint.textContent = n === 0 ? scopeHint : '';
-      }
-      if (kpiNotes.ncOpen) {
-        const agg =
-          ncTotalAggregate != null && Number.isFinite(Number(ncTotalAggregate))
-            ? `${formatDashboardCount(Number(ncTotalAggregate))} NC au total (API)`
-            : 'total API indisponible';
-        kpiNotes.ncOpen.textContent = `${n} ouvertes · ${agg}`;
-      }
-    }
-    if (auditList && auditList.length) {
-      const scores = auditList
-        .map((a) => Number(a.score))
-        .filter((n) => Number.isFinite(n));
-      if (scores.length) {
-        const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-        kpiValues.auditScore.textContent = `${avg}%`;
-      } else {
-        kpiValues.auditScore.textContent = '—';
-      }
-      kpiValues.auditsN.textContent = String(auditList.length);
-      const audHint = kpiEmptyHints.auditsN;
-      if (audHint) {
-        audHint.hidden = true;
-        audHint.textContent = '';
-      }
-    } else {
-      kpiValues.auditScore.textContent = '—';
-      kpiValues.auditsN.textContent = '0';
-      const audHint = kpiEmptyHints.auditsN;
-      if (audHint) {
-        audHint.hidden = false;
-        audHint.textContent = scopeHint;
-      }
-    }
+    applyKpiEnrichmentPatch(
+      {
+        kpiValues,
+        kpiEmptyHints,
+        kpiNotes,
+        getScopeEmptyLabel: dashboardKpiScopeEmptyLabel
+      },
+      ncList,
+      auditList,
+      ncTotalAggregate
+    );
   }
 
   function refreshCharts(incidents, actions, audits, ncs) {
-    const inc = incidents || [];
-    const act = actions || [];
-    const aud = audits || [];
-    const ncList = ncs || [];
-    lineCard.body.replaceChildren(
-      createDashboardLineChart(buildIncidentMonthlySeries(inc), { lineTheme: 'incidents' })
+    const { ncList } = refreshDashboardChartsSection(
+      { lineCard, mixCard, typeCard, auditCharts, pilotLoadCard },
+      { stats: lastStats || {}, incidents, actions, audits, ncs }
     );
-    mixCard.body.replaceChildren(createActionsMixChart(classifyActionsForMix(act)));
-    typeCard.body.replaceChildren(createIncidentTypeBreakdown(buildTopIncidentTypes(inc)));
-
-    auditCharts.update({ audits: aud, ncs: ncList });
-
-    const stats = lastStats || {};
-    const ncOpen = ncList.filter(isNcOpen).length;
     dashboardNcListForKpi = ncList;
     updateKpiPriorityLine();
-    pilotLoadCard.body.replaceChildren(
-      createPilotageLoadMixChart({
-        criticalIncidents: Array.isArray(stats.criticalIncidents)
-          ? stats.criticalIncidents.length
-          : 0,
-        overdueActions: asDashboardCount(stats.overdueActions),
-        ncOpen
-      })
-    );
   }
 
   function refreshActivity(incidents, actions, audits) {
@@ -1758,7 +1657,7 @@ export function renderDashboard() {
       buildMistralDashboardStatsPayload(lastStats, audits, risksR || [])
     );
     await tfTgMini.refresh();
-    dismissKpiSkeleton();
+    removeKpiSkeletonLayer(kpiStickyWrap);
   }
 
   (async function loadDashboard() {
@@ -1781,7 +1680,7 @@ export function renderDashboard() {
     try {
       if (res.status === 401) {
         showToast('Session expirée — reconnectez-vous.', 'warning');
-        dismissKpiSkeleton();
+        removeKpiSkeletonLayer(kpiStickyWrap);
         return;
       }
       if (res.status === 403) {
@@ -1826,7 +1725,7 @@ export function renderDashboard() {
         criticalIncidents: normalized.criticalIncidents
       });
       applyStatsToKpis(normalized);
-      dismissKpiSkeleton();
+      removeKpiSkeletonLayer(kpiStickyWrap);
       alertsPrio.update({ stats: lastStats, ncs: [], audits: [] });
       systemStatus.update({
         stats: lastStats,

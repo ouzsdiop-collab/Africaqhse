@@ -1,42 +1,30 @@
 import { getApiBase } from '../config.js';
-import { setAuthToken, setRefreshToken } from '../data/sessionUser.js';
+import { setAuthToken } from '../data/sessionUser.js';
 
 const ACCESS_KEY = 'qhse_access_token';
-const REFRESH_KEY = 'qhse_refresh_token';
-
-/** Clé historique (sessionUser) pour compatibilité. */
-const LEGACY_REFRESH_KEY = 'qhseRefreshToken';
 
 /**
- * Après un login réussi : stockage explicite + synchro sessionUser (Bearer / refresh).
- * À appeler avec le JSON de `/api/auth/login` (accepte `accessToken` ou `token`).
- * @param {{ accessToken?: string, token?: string, refreshToken?: string }} data
+ * Après un login réussi : stockage explicite + synchro sessionUser (Bearer).
+ * Le refresh est posé en cookie httpOnly par le serveur (plus dans le JSON).
+ * @param {{ accessToken?: string, token?: string }} data
  */
 export function persistTokensFromLoginResponse(data) {
   if (!data || typeof data !== 'object') return;
   const access = typeof data.accessToken === 'string' ? data.accessToken : '';
   const legacy = typeof data.token === 'string' ? data.token : '';
   const accessToken = access || legacy;
-  const refreshToken = typeof data.refreshToken === 'string' ? data.refreshToken : '';
-  persistAuthTokensAfterLogin(accessToken, refreshToken);
+  persistAuthTokensAfterLogin(accessToken);
 }
 
 /**
- * Après un login réussi : access en sessionStorage, refresh en localStorage.
- * Synchronise aussi les clés utilisées par sessionUser (Bearer / logout).
  * @param {string} accessToken
- * @param {string} refreshToken
  */
-export function persistAuthTokensAfterLogin(accessToken, refreshToken) {
+export function persistAuthTokensAfterLogin(accessToken) {
   try {
     if (accessToken) {
       sessionStorage.setItem(ACCESS_KEY, accessToken);
     }
-    if (refreshToken) {
-      localStorage.setItem(REFRESH_KEY, refreshToken);
-    }
     if (accessToken) setAuthToken(accessToken);
-    if (refreshToken) setRefreshToken(refreshToken);
   } catch {
     /* ignore */
   }
@@ -50,25 +38,19 @@ export function getAccessTokenForRequest() {
   }
 }
 
+/**
+ * Rafraîchit l’access token via le cookie httpOnly `qhse_refresh` (sans body, sans Bearer).
+ * @returns {Promise<string | null>}
+ */
 export async function refreshAccessToken() {
-  let refreshToken = '';
-  try {
-    refreshToken =
-      localStorage.getItem(REFRESH_KEY) || localStorage.getItem(LEGACY_REFRESH_KEY) || '';
-  } catch {
-    refreshToken = '';
-  }
-  if (!refreshToken) return null;
   try {
     const res = await fetch(`${getApiBase()}/api/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken })
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
     });
     if (!res.ok) {
       try {
-        localStorage.removeItem(REFRESH_KEY);
-        localStorage.removeItem(LEGACY_REFRESH_KEY);
         sessionStorage.removeItem(ACCESS_KEY);
       } catch {
         /* ignore */
@@ -77,13 +59,10 @@ export async function refreshAccessToken() {
     }
     const data = await res.json();
     const access = typeof data.accessToken === 'string' ? data.accessToken : '';
-    const nextRt = typeof data.refreshToken === 'string' ? data.refreshToken : '';
     if (!access) return null;
     try {
       sessionStorage.setItem(ACCESS_KEY, access);
-      if (nextRt) localStorage.setItem(REFRESH_KEY, nextRt);
       setAuthToken(access);
-      if (nextRt) setRefreshToken(nextRt);
     } catch {
       /* ignore */
     }

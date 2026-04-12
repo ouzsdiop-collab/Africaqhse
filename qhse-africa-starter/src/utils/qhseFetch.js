@@ -3,7 +3,6 @@ import {
   getSessionUserId,
   setSessionUser,
   getAuthToken,
-  getRefreshToken,
   clearSession,
   nativeFetch
 } from '../data/sessionUser.js';
@@ -13,18 +12,6 @@ import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
 
 /** @type {Promise<string | null> | null} */
 let refreshPromise = null;
-
-function hasStoredRefreshToken() {
-  const rt = getRefreshToken().trim();
-  if (rt) return true;
-  try {
-    return Boolean(
-      localStorage.getItem('qhse_refresh_token')?.trim()
-    );
-  } catch {
-    return false;
-  }
-}
 
 function sharedRefreshAccessToken() {
   if (refreshPromise) return refreshPromise;
@@ -68,23 +55,29 @@ export async function qhseFetch(path, init = {}) {
     : `${base}${path.startsWith('/') ? path : `/${path}`}`;
   const headers = new Headers(fetchInit.headers || undefined);
 
+  const isRefreshUrl = url.includes('/api/auth/refresh');
+  const isLoginUrl = url.includes('/api/auth/login');
+
   const token = getAccessTokenForRequest() || getAuthToken();
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  } else {
-    const uid = getSessionUserId();
-    if (uid) headers.set('X-User-Id', uid);
+  if (!isRefreshUrl) {
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      const uid = getSessionUserId();
+      if (uid) headers.set('X-User-Id', uid);
+    }
   }
   if (fetchInit.body instanceof FormData) {
     headers.delete('Content-Type');
   }
-  const sentBearer = Boolean(token);
+  const sentBearer = Boolean(token) && !isRefreshUrl;
 
-  const isRefreshUrl = url.includes('/api/auth/refresh');
-  const isLoginUrl = url.includes('/api/auth/login');
-
-  let res = await nativeFetch(url, { ...fetchInit, headers });
+  let res = await nativeFetch(url, {
+    ...fetchInit,
+    headers,
+    credentials: 'include'
+  });
 
   if (
     res.status === 401 &&
@@ -93,10 +86,6 @@ export async function qhseFetch(path, init = {}) {
     !isRefreshUrl &&
     !isLoginUrl
   ) {
-    if (!hasStoredRefreshToken()) {
-      clearSession();
-      return res;
-    }
     const newToken = await sharedRefreshAccessToken();
     if (newToken) {
       const retryHeaders = new Headers(fetchInit.headers || undefined);

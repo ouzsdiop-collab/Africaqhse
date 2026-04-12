@@ -7,7 +7,7 @@ const options = {
       title: 'AfricaQHSE API',
       version: '1.0.0',
       description:
-        'API REST de la plateforme de pilotage QHSE AfricaQHSE. Authentification par JWT Bearer token.',
+        'API REST de la plateforme de pilotage QHSE AfricaQHSE. JWT Bearer (access) ; le refresh est un cookie httpOnly `qhse_refresh` (SameSite=strict), posé au login et renvoyé par le navigateur avec credentials.',
       contact: {
         name: 'Support AfricaQHSE',
         email: 'support@africaqhse.com'
@@ -117,15 +117,25 @@ const options = {
           },
           responses: {
             200: {
-              description: 'Connexion reussie',
+              description:
+                'Connexion reussie. En-tête Set-Cookie : `qhse_refresh` (httpOnly). Corps JSON : access token uniquement (pas de refresh dans le body).',
+              headers: {
+                'Set-Cookie': {
+                  description: 'Cookie httpOnly `qhse_refresh` (refresh JWT)',
+                  schema: { type: 'string' }
+                }
+              },
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
                     properties: {
                       accessToken: { type: 'string' },
-                      refreshToken: { type: 'string' },
-                      expiresIn: { type: 'integer', example: 3600 }
+                      token: { type: 'string', description: 'Alias de accessToken' },
+                      expiresIn: { type: 'integer', example: 3600 },
+                      user: { type: 'object' },
+                      tenant: { type: 'object' },
+                      tenants: { type: 'array' }
                     }
                   }
                 }
@@ -139,21 +149,40 @@ const options = {
         post: {
           tags: ['Auth'],
           summary: "Rafraichir le token d'acces",
+          description:
+            'Le refresh JWT est lu depuis le cookie httpOnly `qhse_refresh`. Requête sans body ; le client doit envoyer `Cookie` (navigateur : `fetch` avec `credentials: include`).',
           security: [],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['refreshToken'],
-                  properties: { refreshToken: { type: 'string' } }
+          parameters: [
+            {
+              in: 'cookie',
+              name: 'qhse_refresh',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Refresh token (httpOnly, posé par POST /auth/login)'
+            }
+          ],
+          responses: {
+            200: {
+              description:
+                'Nouveau access token ; nouveau refresh dans Set-Cookie `qhse_refresh` (rotation).',
+              headers: {
+                'Set-Cookie': {
+                  schema: { type: 'string' }
+                }
+              },
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      accessToken: { type: 'string' },
+                      token: { type: 'string' },
+                      expiresIn: { type: 'integer', example: 3600 }
+                    }
+                  }
                 }
               }
-            }
-          },
-          responses: {
-            200: { description: 'Nouveau token genere' },
+            },
             401: { description: 'Refresh token invalide ou expire' }
           }
         }

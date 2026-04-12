@@ -1,5 +1,5 @@
 /**
- * Options html2pdf.js partagées — netteté et coupure de page plus stables.
+ * Options html2pdf.js partagées — netteté, capture DOM hors viewport, styles résolus sur le clone.
  * @param {string} filename
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}
@@ -21,6 +21,76 @@ function qhseDefaultHtml2CanvasOnClone(doc) {
   });
 }
 
+/**
+ * Si l’élément n’est pas dans le document, l’attacher temporairement pour html2canvas.
+ * @param {HTMLElement} element
+ * @returns {Promise<HTMLDivElement | null>} wrapper à retirer après capture, ou null
+ */
+export async function prepareElementForCapture(element) {
+  const isInDom = document.body.contains(element);
+  let wrapper = null;
+
+  if (!isInDom) {
+    wrapper = document.createElement('div');
+    wrapper.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 794px;
+      min-height: 200px;
+      z-index: -1;
+      background: #ffffff;
+      visibility: visible;
+      opacity: 1;
+    `;
+    wrapper.appendChild(element);
+    document.body.appendChild(wrapper);
+  }
+
+  element.getBoundingClientRect();
+  await new Promise((r) => setTimeout(r, 300));
+
+  return wrapper;
+}
+
+/**
+ * @param {HTMLDivElement | null} wrapper
+ */
+export async function cleanupAfterCapture(wrapper) {
+  if (wrapper && document.body.contains(wrapper)) {
+    document.body.removeChild(wrapper);
+  }
+}
+
+/**
+ * @param {Document} clonedDoc
+ */
+function qhseInlineComputedStylesOnClone(clonedDoc) {
+  const view = clonedDoc.defaultView || window;
+  try {
+    clonedDoc.querySelectorAll('*').forEach((el) => {
+      try {
+        const computed = view.getComputedStyle(el);
+        if (computed.color) el.style.color = computed.color;
+        if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+          el.style.backgroundColor = computed.backgroundColor;
+        }
+        if (computed.fontSize) el.style.fontSize = computed.fontSize;
+        if (computed.fontFamily) el.style.fontFamily = computed.fontFamily;
+      } catch {
+        /* ignore */
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+  clonedDoc.querySelectorAll('script, iframe, video, canvas').forEach((el) => el.remove());
+  if (clonedDoc.body) {
+    clonedDoc.body.style.backgroundColor = '#ffffff';
+    clonedDoc.body.style.color = '#000000';
+  }
+}
+
 export function buildHtml2PdfOptions(filename, overrides = {}) {
   const {
     html2canvas: html2canvasUser,
@@ -33,11 +103,11 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
     scale: 2,
     useCORS: true,
     allowTaint: true,
-    letterRendering: true,
     logging: false,
-    scrollY: 0,
-    scrollX: 0,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    removeContainer: true,
+    foreignObjectRendering: false,
+    windowWidth: 794
   };
 
   const mergedCanvas =
@@ -48,12 +118,14 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
   const userOnClone = typeof mergedCanvas.onclone === 'function' ? mergedCanvas.onclone : null;
   mergedCanvas.onclone = (clonedDoc, ...args) => {
     qhseDefaultHtml2CanvasOnClone(clonedDoc);
+    qhseInlineComputedStylesOnClone(clonedDoc);
     userOnClone?.(clonedDoc, ...args);
   };
 
+  const safeName = filename || 'rapport-qhse.pdf';
   const base = {
-    margin: [10, 12, 12, 12],
-    filename,
+    margin: [10, 10, 10, 10],
+    filename: safeName,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: mergedCanvas,
     jsPDF: {
@@ -66,6 +138,7 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
   };
 
   const out = { ...base, ...restOverrides };
+  out.filename = restOverrides.filename != null ? restOverrides.filename : safeName;
   out.html2canvas = mergedCanvas;
   if (jsPDFUser && typeof jsPDFUser === 'object') {
     out.jsPDF = { ...base.jsPDF, ...jsPDFUser };
@@ -95,9 +168,8 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
   if (!element || !(element instanceof HTMLElement)) {
     throw new Error('saveElementAsPdf: élément HTML invalide');
   }
-  if (!element.isConnected || !document.body.contains(element)) {
-    throw new Error("saveElementAsPdf: l'élément doit être dans le document");
-  }
+
+  const wrapper = await prepareElementForCapture(element);
 
   const inline = element.style;
   const snapshot = {
@@ -171,5 +243,6 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
     Object.keys(snapshot).forEach((k) => {
       inline[k] = snapshot[k];
     });
+    await cleanupAfterCapture(wrapper);
   }
 }

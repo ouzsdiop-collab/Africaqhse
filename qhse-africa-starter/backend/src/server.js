@@ -3,6 +3,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './lib/swagger.js';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
 import { getCorsMiddlewareOptions } from './lib/securityConfig.js';
@@ -99,9 +100,11 @@ app.use(
     crossOriginEmbedderPolicy: false
   })
 );
+/* CORS : credentials: true + ALLOWED_ORIGINS — requis pour envoyer le cookie httpOnly qhse_refresh (refresh JWT). */
 app.use(cors(getCorsMiddlewareOptions()));
 app.use(compression());
 app.use(express.json({ limit: getJsonBodyLimit() }));
+app.use(cookieParser());
 app.use(attachRequestUser);
 app.use(httpRequestLog);
 
