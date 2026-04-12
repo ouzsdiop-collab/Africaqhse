@@ -812,23 +812,31 @@ export function renderIncidents(onAddLog) {
   const canWriteActions = canResource(getSessionUser()?.role, 'actions', 'write');
   const canUseAiSuggest = canResource(getSessionUser()?.role, 'ai_suggestions', 'write');
 
-  /** Registre : délégation — les lignes sont recréées à chaque `refreshList`, un seul listener sur le conteneur. */
-  listHost.addEventListener('click', (e) => {
-    let t = e.target;
-    /* Clic sur le libellé du bouton → target peut être un nœud Text ; closest nécessite un Element. */
-    if (!(t instanceof Element)) {
-      t = t?.parentElement ?? null;
-    }
-    if (!(t instanceof Element)) return;
+  function incidentByRef(ref) {
+    const key = String(ref ?? '').trim();
+    if (!key) return undefined;
+    return incidentRecords.find((r) => String(r.ref ?? '').trim() === key);
+  }
 
-    const actionBtn = t.closest('[data-incident-action]');
+  /** Registre : délégation — composedPath + comparaison ref en string (API peut envoyer nombre). */
+  listHost.addEventListener('click', (e) => {
+    const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+
+    let actionBtn = null;
+    for (const n of path) {
+      if (n === listHost) break;
+      if (n instanceof Element && n.hasAttribute('data-incident-action')) {
+        actionBtn = n;
+        break;
+      }
+    }
+
     if (actionBtn) {
       e.preventDefault();
       e.stopPropagation();
       const ref = actionBtn.dataset.incidentRef;
       const action = actionBtn.dataset.incidentAction;
-      if (!ref) return;
-      const raw = incidentRecords.find((r) => r.ref === ref);
+      const raw = incidentByRef(ref);
       if (!raw) return;
       if (action === 'open-detail') {
         activateIncidentRow(raw);
@@ -838,12 +846,23 @@ export function renderIncidents(onAddLog) {
       return;
     }
 
-    const row = t.closest('tr.incidents-table-row');
+    let row = null;
+    for (const n of path) {
+      if (n === listHost) break;
+      if (n instanceof Element && n.matches?.('tr.incidents-table-row')) {
+        row = n;
+        break;
+      }
+    }
     if (!row) return;
-    if (t.closest('button, a, input, select, textarea, label')) return;
-    const ref = row.dataset.ref;
-    if (!ref) return;
-    const raw = incidentRecords.find((r) => r.ref === ref);
+    const rowIdx = path.indexOf(row);
+    for (let i = 0; i < rowIdx; i++) {
+      const n = path[i];
+      if (n instanceof Element && n.matches?.('button, a, input, select, textarea, label')) {
+        return;
+      }
+    }
+    const raw = incidentByRef(row.dataset.ref);
     if (raw) activateIncidentRow(raw);
   });
 
@@ -854,9 +873,7 @@ export function renderIncidents(onAddLog) {
     if (!row || t !== row) return;
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
-    const ref = row.dataset.ref;
-    if (!ref) return;
-    const raw = incidentRecords.find((r) => r.ref === ref);
+    const raw = incidentByRef(row.dataset.ref);
     if (raw) activateIncidentRow(raw);
   });
 
@@ -961,15 +978,23 @@ export function renderIncidents(onAddLog) {
   }
 
   function syncListSelectionVisual() {
+    const sel = String(selectedRef ?? '').trim();
     listHost.querySelectorAll('.incidents-table-row').forEach((row) => {
-      row.classList.toggle('incidents-table-row--selected', row.dataset.ref === selectedRef);
+      row.classList.toggle(
+        'incidents-table-row--selected',
+        String(row.dataset.ref ?? '').trim() === sel
+      );
     });
   }
 
   function activateIncidentRow(inc) {
     selectedRef = inc.ref;
     syncListSelectionVisual();
-    renderDetailForIncident(inc);
+    void renderDetailForIncident(inc).then(() => {
+      requestAnimationFrame(() => {
+        detailCol.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   }
 
   function refreshPrioritiesStrip() {
@@ -979,7 +1004,7 @@ export function renderIncidents(onAddLog) {
       sortIncidentsForDisplay,
       isStatusClosed,
       onActivateIncident: (ref) => {
-        const fresh = incidentRecords.find((r) => r.ref === ref);
+        const fresh = incidentByRef(ref);
         if (fresh) activateIncidentRow(fresh);
       }
     });
@@ -1015,7 +1040,9 @@ export function renderIncidents(onAddLog) {
         selectEl.value = inc.status;
         return;
       }
-      const idx = incidentRecords.findIndex((r) => r.ref === entry.ref);
+      const idx = incidentRecords.findIndex(
+        (r) => String(r.ref ?? '').trim() === String(entry.ref ?? '').trim()
+      );
       if (idx >= 0) incidentRecords[idx] = entry;
       else incidentRecords = [entry, ...incidentRecords];
       showToast(`Statut : ${newStatus}`, 'info');
@@ -1191,7 +1218,7 @@ export function renderIncidents(onAddLog) {
     listHost.append(scroll);
     syncListSelectionVisual();
     if (selectedRef) {
-      const fresh = incidentRecords.find((r) => r.ref === selectedRef);
+      const fresh = incidentByRef(selectedRef);
       if (fresh) {
         renderDetailForIncident(mapRowToDisplay(fresh));
       } else {

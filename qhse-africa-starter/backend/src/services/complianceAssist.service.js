@@ -227,6 +227,7 @@ export async function analyzeComplianceAssist(input) {
 
   const controlled = Array.isArray(input.controlledDocuments) ? input.controlledDocuments : [];
 
+  const tenantId = input?.tenantId ?? null;
   const historyRows = await findAllImportHistory(tenantId);
   const recent = historyRows.slice(0, 100);
   const extraCorpus = corpusFromImportHistory(recent);

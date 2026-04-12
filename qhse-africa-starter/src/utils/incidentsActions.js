@@ -44,24 +44,44 @@ export async function createLinkedAction(inc) {
     inc.severity ? `Gravité : ${inc.severity}` : '',
     inc.description ? inc.description.slice(0, 400) : ''
   ].filter(Boolean);
-  const body = {
-    title: `Suite incident ${inc.ref}`,
-    detail: detailParts.join(' — '),
-    status: 'À lancer',
-    owner: 'Responsable QHSE'
-  };
-  if (qhse) {
-    body.assigneeId = qhse.id;
-    body.owner = qhse.name;
+
+  /**
+   * Repli : siteId ou assigneeId peuvent être absents en base (ex. id démo vs API réelle).
+   * @param {{ useAssignee: boolean; useSite: boolean }} o
+   */
+  function buildActionBody(o) {
+    const body = {
+      title: `Suite incident ${inc.ref}`,
+      detail: detailParts.join(' — '),
+      status: 'À lancer',
+      owner: 'Responsable QHSE'
+    };
+    if (o.useAssignee && qhse) {
+      body.assigneeId = qhse.id;
+      body.owner = qhse.name;
+    }
+    if (o.useSite && appState.activeSiteId) {
+      body.siteId = appState.activeSiteId;
+    }
+    return body;
   }
-  if (appState.activeSiteId) {
-    body.siteId = appState.activeSiteId;
+
+  const variants = [
+    { useAssignee: true, useSite: true },
+    { useAssignee: true, useSite: false },
+    { useAssignee: false, useSite: false }
+  ];
+
+  let res = new Response(null, { status: 599 });
+  for (const v of variants) {
+    res = await qhseFetch('/api/actions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildActionBody(v))
+    });
+    if (res.ok) break;
   }
-  const res = await qhseFetch('/api/actions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
+
   if (!res.ok) {
     try {
       const errBody = await res.json();

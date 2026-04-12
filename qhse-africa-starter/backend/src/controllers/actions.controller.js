@@ -63,15 +63,30 @@ export async function getAll(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { title, status, owner, dueDate, assigneeId, siteId, detail, incidentId } =
-      req.body;
+    const {
+      title,
+      status,
+      owner,
+      dueDate,
+      assigneeId,
+      siteId,
+      detail,
+      description,
+      incidentId
+    } = req.body;
     const t = clampTrimString(title, FIELD_LIMITS.actionTitle);
     const st = clampTrimString(status, FIELD_LIMITS.actionStatus);
     const ow = clampTrimString(owner, FIELD_LIMITS.actionOwner);
+    const rawDetail =
+      detail != null && String(detail).trim() !== ''
+        ? String(detail)
+        : description != null && String(description).trim() !== ''
+          ? String(description)
+          : '';
     const det =
-      detail == null || detail === ''
+      rawDetail === ''
         ? undefined
-        : clampTrimString(detail, FIELD_LIMITS.actionDetail) || undefined;
+        : clampTrimString(rawDetail, FIELD_LIMITS.actionDetail) || undefined;
     const aid =
       assigneeId != null && assigneeId !== ''
         ? String(assigneeId).trim()

@@ -1878,8 +1878,16 @@ export function renderIso(onAddLog) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            clause: `${row.clause} — ${row.title}`,
-            context: [row.summary, row.evidence, row.normCode].filter(Boolean).join(' | ')
+            requirement: {
+              id: row.id || row.clause,
+              clause: row.clause,
+              title: row.title,
+              summary: row.summary,
+              evidence: row.evidence,
+              normCode: row.normCode
+            },
+            controlledDocuments: [],
+            siteId: appState.activeSiteId ?? null
           })
         });
         if (assistRes.ok) {

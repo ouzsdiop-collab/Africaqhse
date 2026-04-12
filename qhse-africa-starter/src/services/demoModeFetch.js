@@ -22,7 +22,8 @@ import {
   loadDemoRuntime,
   patchDemoActionRuntime,
   patchDemoIncidentRuntime,
-  appendDemoCreatedIncident
+  appendDemoCreatedIncident,
+  appendDemoCreatedAction
 } from './demoModeRuntime.service.js';
 
 /**
@@ -97,8 +98,9 @@ function filterDemoRisks(sp) {
 }
 
 function getMergedActions() {
-  const { actionPatches } = loadDemoRuntime();
-  return demoActionsBase.map((r) => {
+  const { actionPatches, createdActions } = loadDemoRuntime();
+  const created = Array.isArray(createdActions) ? createdActions : [];
+  const patchedCreated = created.map((r) => {
     const p = actionPatches[r.id] || {};
     const row = { ...r, ...p };
     if (Object.prototype.hasOwnProperty.call(p, 'assigneeId')) {
@@ -109,6 +111,18 @@ function getMergedActions() {
     }
     return row;
   });
+  const patchedBase = demoActionsBase.map((r) => {
+    const p = actionPatches[r.id] || {};
+    const row = { ...r, ...p };
+    if (Object.prototype.hasOwnProperty.call(p, 'assigneeId')) {
+      const payload = findAssigneePayload(row.assigneeId);
+      row.assigneeId = payload.assigneeId;
+      row.assignee = payload.assignee;
+      if (!row.assigneeId) row.owner = row.owner || 'À assigner';
+    }
+    return row;
+  });
+  return [...patchedCreated, ...patchedBase];
 }
 
 function filterDemoActions(list, sp) {
@@ -218,6 +232,44 @@ export async function tryDemoFetchResponse(path, init = {}) {
       responsible: body.responsible != null ? String(body.responsible).trim() || null : null
     };
     appendDemoCreatedIncident(row);
+    return jsonResponse(row, 201);
+  }
+
+  if (pathname === '/api/actions' && method === 'POST') {
+    const body = await readJsonBody(init.body);
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const status = typeof body.status === 'string' ? body.status.trim() : '';
+    if (!title || !status) {
+      return jsonResponse({ error: 'Champs requis : title, status' }, 400);
+    }
+    const ownerRaw = typeof body.owner === 'string' ? body.owner.trim() : '';
+    const aid =
+      body.assigneeId != null && String(body.assigneeId).trim() !== ''
+        ? String(body.assigneeId).trim()
+        : null;
+    const payload = findAssigneePayload(aid);
+    const siteId =
+      typeof body.siteId === 'string' && body.siteId.trim() !== ''
+        ? body.siteId.trim()
+        : DEMO_SITE_ID;
+    const detail =
+      body.detail != null && body.detail !== '' ? String(body.detail).slice(0, 8000) : '';
+    const id = `cldemo-act-${Date.now()}`;
+    const now = new Date().toISOString();
+    const row = {
+      id,
+      title,
+      detail,
+      status,
+      owner: payload.assignee ? ownerRaw || payload.assignee.name : ownerRaw || 'À assigner',
+      dueDate: null,
+      siteId,
+      assigneeId: payload.assigneeId,
+      assignee: payload.assignee,
+      incidentId: null,
+      createdAt: now
+    };
+    appendDemoCreatedAction(row);
     return jsonResponse(row, 201);
   }
 

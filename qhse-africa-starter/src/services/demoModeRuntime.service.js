@@ -5,7 +5,7 @@
 const KEY = 'qhse-demo-runtime-v1';
 
 /**
- * @returns {{ actionPatches: Record<string, object>; incidentPatches: Record<string, object>; createdIncidents: object[] }}
+ * @returns {{ actionPatches: Record<string, object>; incidentPatches: Record<string, object>; createdIncidents: object[]; createdActions: object[] }}
  */
 export function loadDemoRuntime() {
   try {
@@ -18,10 +18,11 @@ export function loadDemoRuntime() {
         j.incidentPatches && typeof j.incidentPatches === 'object'
           ? j.incidentPatches
           : {},
-      createdIncidents: Array.isArray(j.createdIncidents) ? j.createdIncidents : []
+      createdIncidents: Array.isArray(j.createdIncidents) ? j.createdIncidents : [],
+      createdActions: Array.isArray(j.createdActions) ? j.createdActions : []
     };
   } catch {
-    return { actionPatches: {}, incidentPatches: {}, createdIncidents: [] };
+    return { actionPatches: {}, incidentPatches: {}, createdIncidents: [], createdActions: [] };
   }
 }
 
@@ -61,6 +62,14 @@ export function appendDemoCreatedIncident(row) {
   const s = loadDemoRuntime();
   if (!Array.isArray(s.createdIncidents)) s.createdIncidents = [];
   s.createdIncidents.unshift(row);
+  saveDemoRuntime(s);
+}
+
+/** @param {object} row — ligne action (POST /api/actions) */
+export function appendDemoCreatedAction(row) {
+  const s = loadDemoRuntime();
+  if (!Array.isArray(s.createdActions)) s.createdActions = [];
+  s.createdActions.unshift(row);
   saveDemoRuntime(s);
 }
 
