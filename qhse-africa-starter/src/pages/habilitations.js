@@ -103,6 +103,18 @@ function daysUntil(dateIso) {
   return habDaysUntil(dateIso);
 }
 
+/**
+ * @param {string} expirationStr
+ * @param {number} d — jours jusqu’à expiration (`habDaysUntil`)
+ */
+function getDateClass(expirationStr, d) {
+  const s = String(expirationStr ?? '').trim();
+  if (!s || s === '—') return '';
+  if (d < 0) return 'hab-date--expired';
+  if (d <= 30) return 'hab-date--warning';
+  return 'hab-date--ok';
+}
+
 function computeKpis(rows) {
   return computeHabilitationsKpis(rows);
 }
@@ -645,7 +657,7 @@ export function renderHabilitations() {
                 <td>${escapeHtml(r.site)}</td>
                 <td>${escapeHtml(r.type)}</td>
                 <td>${escapeHtml(r.niveau)}</td>
-                <td>${escapeHtml(r.expiration)}</td>
+                <td class="${getDateClass(r.expiration, daysUntil(r.expiration))}">${escapeHtml(r.expiration)}</td>
                 <td><span class="hab-status-cell">${rowChipHtml(r)}</span></td>
                 <td><strong>${r.justificatif ? '✓ OK' : '✕ Manquant'}</strong></td>
                 <td><div class="hab-actions"><button type="button" class="btn btn-secondary" data-hab-open="${escapeHtml(r.id)}">Voir fiche</button></div></td>
@@ -679,7 +691,7 @@ export function renderHabilitations() {
               <div><strong>Site:</strong> ${escapeHtml(r.site)}</div>
               <div><strong>Type:</strong> ${escapeHtml(r.type)}</div>
               <div><strong>Niveau:</strong> ${escapeHtml(r.niveau)}</div>
-              <div><strong>Expiration:</strong> ${escapeHtml(r.expiration)}</div>
+              <div><strong>Expiration:</strong> <span class="${getDateClass(r.expiration, daysUntil(r.expiration))}">${escapeHtml(r.expiration)}</span></div>
             </div>
             <div class="hab-actions">
               <span class="hab-pill">${r.justificatif ? 'Justificatif OK' : 'Justificatif manquant'}</span>
@@ -748,7 +760,7 @@ export function renderHabilitations() {
         </div>
         <div class="hab-profile-row">
           <div class="hab-profile-item"><div class="hab-profile-k">Date délivrance</div><strong>${hit.delivrance}</strong></div>
-          <div class="hab-profile-item"><div class="hab-profile-k">Date expiration</div><strong>${hit.expiration}</strong></div>
+          <div class="hab-profile-item"><div class="hab-profile-k">Date expiration</div><strong class="${getDateClass(hit.expiration, daysUntil(hit.expiration))}">${escapeHtml(hit.expiration)}</strong></div>
         </div>
         <div class="hab-profile-row">
           <div class="hab-profile-item"><div class="hab-profile-k">Organisme</div><strong>${hit.organisme}</strong></div>
@@ -762,7 +774,12 @@ export function renderHabilitations() {
         <table class="hab-mini-table">
           <thead><tr><th>Type</th><th>Niveau</th><th>Expiration</th><th>Statut</th><th>Justificatif</th></tr></thead>
           <tbody>
-            ${sortHabilitationsByCriticality(personRows).map((r) => `<tr class="${rowTableClass(r)}"><td>${r.type}</td><td>${r.niveau}</td><td>${r.expiration}</td><td>${rowChipHtml(r)}</td><td>${r.justificatif ? 'OK' : 'Manquant'}</td></tr>`).join('')}
+            ${sortHabilitationsByCriticality(personRows)
+              .map(
+                (r) =>
+                  `<tr class="${rowTableClass(r)}"><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.niveau)}</td><td class="${getDateClass(r.expiration, daysUntil(r.expiration))}">${escapeHtml(r.expiration)}</td><td>${rowChipHtml(r)}</td><td>${r.justificatif ? 'OK' : 'Manquant'}</td></tr>`
+              )
+              .join('')}
           </tbody>
         </table>
       </div>

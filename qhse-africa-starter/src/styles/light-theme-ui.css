@@ -223,6 +223,14 @@ html[data-theme='light'] {
   --hab-warning-color: #854d0e;
   --hab-ok-bg: #dcfce7;
   --hab-ok-color: #166534;
+  --hab-info-bg: #dbeafe;
+  --hab-info-color: #1e40af;
+  --hab-neutral-bg: #f1f5f9;
+  --hab-neutral-color: #334155;
+  /* KPI / dates habilitations (cockpit & tableau) */
+  --hab-kpi-red: #991b1b;
+  --hab-kpi-orange: #854d0e;
+  --hab-kpi-green: #166534;
 
   /* Alias legacy */
   --badge-bg-neutral: var(--badge-neutral-bg);
