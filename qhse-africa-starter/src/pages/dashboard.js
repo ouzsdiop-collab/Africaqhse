@@ -53,10 +53,10 @@ import {
 } from '../data/habilitationsDemo.js';
 import { refreshCharts as refreshChartsModule } from './dashboard/chartsSection.js';
 import {
-  updateKpiPriorityLine as patchKpiPriorityLineUi,
+  updateKpiPriorityLine as updateKpiPriorityLineModule,
   applyStatsToKpis as applyStatsToKpisModule,
   applyEnrichmentKpis as applyEnrichmentKpisModule,
-  dismissKpiSkeleton as removeKpiSkeletonLayer
+  dismissKpiSkeleton as dismissKpiSkeletonModule
 } from './dashboard/kpiCards.js';
 
 /* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats — voir utils/dashboard*.js */
@@ -1469,10 +1469,11 @@ export function renderDashboard() {
   priorityNow.update({ stats: lastStats, ncs: [], audits: [] });
 
   function updateKpiPriorityLine() {
-    patchKpiPriorityLineUi(
-      { kpiPriorityLine },
-      { stats: lastStats, ncListForKpi: dashboardNcListForKpi }
-    );
+    return updateKpiPriorityLineModule(kpiPriorityLine, kpiDashboardLists, lastStats);
+  }
+
+  function dismissKpiSkeleton() {
+    return dismissKpiSkeletonModule(kpiStickyWrap);
   }
 
   function applyStatsToKpis(data) {
@@ -1662,7 +1663,7 @@ export function renderDashboard() {
       buildMistralDashboardStatsPayload(lastStats, audits, risksR || [])
     );
     await tfTgMini.refresh();
-    removeKpiSkeletonLayer(kpiStickyWrap);
+    dismissKpiSkeleton();
   }
 
   (async function loadDashboard() {
@@ -1685,7 +1686,7 @@ export function renderDashboard() {
     try {
       if (res.status === 401) {
         showToast('Session expirée — reconnectez-vous.', 'warning');
-        removeKpiSkeletonLayer(kpiStickyWrap);
+        dismissKpiSkeleton();
         return;
       }
       if (res.status === 403) {
@@ -1730,7 +1731,7 @@ export function renderDashboard() {
         criticalIncidents: normalized.criticalIncidents
       });
       applyStatsToKpis(normalized);
-      removeKpiSkeletonLayer(kpiStickyWrap);
+      dismissKpiSkeleton();
       alertsPrio.update({ stats: lastStats, ncs: [], audits: [] });
       systemStatus.update({
         stats: lastStats,

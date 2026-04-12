@@ -13,7 +13,7 @@ export const KPI_TONE_CLASSES = [
  * @param {{ kpiPriorityLine: HTMLElement }} refs
  * @param {{ stats?: object, ncListForKpi?: unknown[] }} state
  */
-export function updateKpiPriorityLine(refs, state) {
+function updateKpiPriorityLineWithRefs(refs, state) {
   const { kpiPriorityLine } = refs;
   const { stats = {}, ncListForKpi = [] } = state || {};
   const crit = Array.isArray(stats.criticalIncidents) ? stats.criticalIncidents.length : 0;
@@ -93,7 +93,7 @@ function applyStatsToKpisWithRefs(refs, data) {
     refs.kpiValues.actionsLate?.parentElement?.classList.add('dashboard-kpi-card--crit');
   if (incTone === 'red') refs.kpiValues.incidents?.parentElement?.classList.add('dashboard-kpi-card--crit');
 
-  updateKpiPriorityLine(
+  updateKpiPriorityLineWithRefs(
     { kpiPriorityLine: refs.kpiPriorityLine },
     { stats: data, ncListForKpi: refs.getNcListForKpi() }
   );
@@ -154,10 +154,10 @@ function applyEnrichmentKpisWithRefs(refs, ncList, auditList, ncTotalAggregate) 
 
 /**
  * Retire la couche squelette KPI (même sélecteur que `renderKpiCards`).
- * @param {HTMLElement | null | undefined} kpiStickyWrap
+ * @param {HTMLElement | null | undefined} kpiValues — conteneur sticky KPI (hôte du squelette)
  */
-export function dismissKpiSkeleton(kpiStickyWrap) {
-  const layer = kpiStickyWrap?.querySelector('.dashboard-kpi-skeleton-layer');
+export function dismissKpiSkeleton(kpiValues) {
+  const layer = kpiValues?.querySelector('.dashboard-kpi-skeleton-layer');
   if (layer?.isConnected) layer.remove();
 }
 
@@ -188,5 +188,17 @@ export function applyEnrichmentKpis(kpiDomRefs, getScopeEmptyLabel, ncList, audi
     ncList,
     auditList,
     ncTotalAggregate
+  );
+}
+
+/**
+ * @param {HTMLElement} kpiPriorityLine
+ * @param {{ ncs?: unknown[] }} kpiDashboardLists
+ * @param {object} lastStats
+ */
+export function updateKpiPriorityLine(kpiPriorityLine, kpiDashboardLists, lastStats) {
+  updateKpiPriorityLineWithRefs(
+    { kpiPriorityLine },
+    { stats: lastStats, ncListForKpi: kpiDashboardLists?.ncs ?? [] }
   );
 }
