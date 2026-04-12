@@ -611,6 +611,34 @@ export function renderRisks() {
   const iaActionsHost = iaHost.querySelector('[data-risks-ia-actions]');
   const iaResultEl = iaHost.querySelector('[data-risks-ia-result]');
 
+  /** @param {unknown} row — réponse POST /api/ai-suggestions/generate (ligne AiSuggestion). */
+  function linesFromAiGenerateRow(row) {
+    const c = row && typeof row === 'object' && 'content' in row ? row.content : null;
+    if (c == null) return ['Aucune suggestion disponible.'];
+    if (typeof c === 'string' && c.trim()) return [c.trim()];
+    if (typeof c !== 'object' || c === null) return ['Aucune suggestion disponible.'];
+    /** @type {string[]} */
+    const lines = [];
+    const summary = 'summary' in c && typeof c.summary === 'string' ? c.summary.trim() : '';
+    if (summary) lines.push(summary);
+    const items = 'items' in c && Array.isArray(c.items) ? c.items : [];
+    for (const it of items) {
+      if (!it || typeof it !== 'object') continue;
+      const lab = 'label' in it && it.label != null ? String(it.label).trim() : '';
+      const val = 'value' in it && it.value != null ? String(it.value).trim() : '';
+      if (lab && val) lines.push(`${lab} : ${val}`);
+      else if (val) lines.push(val);
+      else if (lab) lines.push(lab);
+    }
+    const warnings = 'warnings' in c && Array.isArray(c.warnings) ? c.warnings : [];
+    const wLines = warnings.map((w) => `⚠ ${String(w)}`).filter(Boolean);
+    if (wLines.length) {
+      if (lines.length) lines.push('—');
+      lines.push(...wLines);
+    }
+    return lines.length ? lines : ['Aucune suggestion disponible.'];
+  }
+
   function showIaAssistantResult(title, lines) {
     if (!iaResultEl) return;
     iaResultEl.hidden = false;
@@ -622,7 +650,7 @@ export function renderRisks() {
     iaUl.className = 'risks-ia-premium__result-list';
     lines.forEach((t) => {
       const iaLi = document.createElement('li');
-      iaLi.textContent = t;
+      iaLi.textContent = typeof t === 'string' ? t : String(t);
       iaUl.append(iaLi);
     });
     const iaHint = document.createElement('p');
@@ -657,19 +685,46 @@ export function renderRisks() {
     {
       label: 'Pistes d’actions (sans action liée)',
       key: 'ia_actions',
-      run: () => {
-        const need = localRisks.filter((r) => !hasActionLinked(r));
-        if (!need.length) {
-          showIaAssistantResult('Actions recommandées', ['Toutes les fiches visibles ont une action liée.']);
+      run: async () => {
+        const criticalRisks = localRisks
+          .filter((r) => {
+            const gp = parseRiskMatrixGp(r.meta);
+            return gp && gp.g * gp.p >= 12;
+          })
+          .slice(0, 5);
+
+        if (!criticalRisks.length) {
+          showIaAssistantResult('Pistes d’actions', ['Aucun risque critique à traiter.']);
           return;
         }
-        showIaAssistantResult(
-          'Pistes à valider — rattacher une action',
-          need.map(
-            (r) =>
-              `« ${r.title || 'Sans titre'} » : lancer revue courte, désigner un pilote, créer une action dans le module Actions.`
-          )
-        );
+
+        showIaAssistantResult('Pistes d’actions', ['Analyse en cours…']);
+
+        try {
+          const res = await qhseFetch('/api/ai-suggestions/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'risk_mitigation',
+              context: {
+                risks: criticalRisks.map((r) => ({
+                  id: r.id,
+                  title: r.title,
+                  category: r.category ?? r.type ?? '',
+                  gp: parseRiskMatrixGp(r.meta)
+                }))
+              }
+            })
+          });
+          if (!res.ok) throw new Error('Erreur API');
+          const data = await res.json();
+          const lines = linesFromAiGenerateRow(data);
+          showIaAssistantResult('Pistes d’actions IA', lines);
+        } catch {
+          showIaAssistantResult('Pistes d’actions', [
+            'Service IA indisponible — analyse locale uniquement.'
+          ]);
+        }
       }
     },
     {
@@ -691,7 +746,7 @@ export function renderRisks() {
     b.className = 'btn btn-secondary risks-ia-premium__btn';
     b.textContent = label;
     b.addEventListener('click', () => {
-      run();
+      void Promise.resolve(run()).catch((err) => console.error('[risks] Assistant IA', err));
       activityLogStore.add({
         module: 'risks',
         action: 'Assistant risques (suggestion)',

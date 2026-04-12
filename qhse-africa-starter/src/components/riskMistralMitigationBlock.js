@@ -4,6 +4,12 @@
 
 import { parseRiskMatrixGp } from './riskMatrixPanel.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { getSessionUser } from '../data/sessionUser.js';
+import { appState } from '../utils/state.js';
+import { mergeActionOverlay, appendActionHistory } from '../utils/actionPilotageMock.js';
+import { linkModules } from '../services/moduleLinks.service.js';
+import { activityLogStore } from '../data/activityLog.js';
+import { showToast } from './toast.js';
 
 /**
  * @param {HTMLElement} inner
@@ -17,7 +23,7 @@ export function attachRiskMistralMitigationSection(inner, risk) {
 
   const aiBtn = document.createElement('button');
   aiBtn.type = 'button';
-  aiBtn.textContent = 'Suggestions de prevention IA';
+  aiBtn.textContent = 'Suggestions de prévention IA';
   aiBtn.className = 'btn btn-primary btn-sm';
   aiBtn.style.marginTop = '12px';
 
@@ -49,8 +55,86 @@ export function attachRiskMistralMitigationSection(inner, risk) {
       box.textContent = suggestion;
       aiBtn.parentNode.insertBefore(box, aiBtn.nextSibling);
       aiBtn.style.display = 'none';
+
+      const createActionBtn = document.createElement('button');
+      createActionBtn.type = 'button';
+      createActionBtn.className = 'btn btn-primary btn-sm';
+      createActionBtn.textContent = 'Créer une action corrective';
+      createActionBtn.style.marginTop = '10px';
+      createActionBtn.addEventListener('click', async () => {
+        const user = getSessionUser();
+        const siteFromRisk =
+          risk.siteId != null && String(risk.siteId).trim() ? String(risk.siteId).trim() : '';
+        const siteFromState =
+          appState.activeSiteId != null && String(appState.activeSiteId).trim()
+            ? String(appState.activeSiteId).trim()
+            : '';
+        const siteId = siteFromRisk || siteFromState || undefined;
+        /** @type {Record<string, string>} */
+        const body = {
+          title: `Mitigation — ${risk.title}`,
+          detail: String(box.textContent || '').slice(0, 8000),
+          status: 'À lancer'
+        };
+        if (siteId) body.siteId = siteId;
+        if (user?.id) {
+          body.assigneeId = user.id;
+          if (user.name) body.owner = user.name;
+        } else {
+          body.owner = 'À désigner (suggestion IA risque)';
+        }
+        try {
+          const actionRes = await qhseFetch('/api/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (!actionRes.ok) throw new Error('api');
+          const created = await actionRes.json();
+          const id = created?.id != null ? String(created.id) : '';
+          const riskTitle = String(risk.title || '').trim() || 'Sans titre';
+          const gpForPrio = parseRiskMatrixGp(risk.meta);
+          const priority =
+            gpForPrio && gpForPrio.g * gpForPrio.p >= 12 ? 'haute' : 'normale';
+          if (id) {
+            mergeActionOverlay(id, {
+              actionType: 'corrective',
+              origin: 'risk',
+              priority,
+              progressPct: 0,
+              linkedRisk: riskTitle,
+              comments: [],
+              history: []
+            });
+            appendActionHistory(
+              id,
+              'Action créée depuis suggestion IA mitigation (fiche risque).'
+            );
+            linkModules({
+              fromModule: 'risks',
+              fromId: riskTitle,
+              toModule: 'actions',
+              toId: id,
+              kind: 'risk_to_action',
+              label: 'Action corrective (suggestion IA)'
+            });
+          }
+          createActionBtn.textContent = '✓ Action créée';
+          createActionBtn.disabled = true;
+          showToast('Action créée — suivi dans le plan d’actions.', 'success');
+          activityLogStore.add({
+            module: 'risks',
+            action: 'Création action depuis suggestion IA mitigation',
+            detail: riskTitle,
+            user: getSessionUser()?.name || 'Pilotage QHSE'
+          });
+        } catch {
+          createActionBtn.textContent = 'Erreur — réessayer';
+        }
+      });
+      box.parentNode?.appendChild(createActionBtn);
     } catch {
-      aiBtn.textContent = 'Erreur — Reessayer';
+      aiBtn.textContent = 'Erreur — Réessayer';
       aiBtn.disabled = false;
       aiLoading = false;
     }
