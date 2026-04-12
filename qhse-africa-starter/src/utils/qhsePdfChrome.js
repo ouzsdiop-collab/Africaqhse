@@ -32,16 +32,33 @@ export const QHSE_PDF_EMPTY_MESSAGE =
 
 export function qhsePdfSharedStyles() {
   return `<style>
-    .qhse-chrome-doc { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 9.5pt; color: #0f172a; line-height: 1.35; background: #fff; }
-    .qhse-chrome-page { page-break-after: always; padding: 0 0 16px; box-sizing: border-box; }
-    .qhse-chrome-page:last-child { page-break-after: auto; }
+    .qhse-chrome-doc,
+    .qhse-chrome-doc *,
+    .qhse-chrome-doc *::before,
+    .qhse-chrome-doc *::after { box-sizing: border-box; }
+    .qhse-chrome-doc {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 9.5pt;
+      color: #0f172a;
+      line-height: 1.35;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      width: 100%;
+      max-width: 794px;
+      margin: 0;
+      padding: 0 20px;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+    .qhse-chrome-page { page-break-after: auto; padding: 0 0 16px; }
     .qhse-chrome-head { background: ${QHSE_PDF_BRAND}; color: #fff; padding: 10px 14px; margin: 0 0 12px 0; }
     .qhse-chrome-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
     .qhse-chrome-brand { font-weight: 800; font-size: 11pt; letter-spacing: 0.02em; }
     .qhse-chrome-right { text-align: right; flex: 1; min-width: 140px; }
     .qhse-chrome-report { font-weight: 700; font-size: 10pt; }
     .qhse-chrome-date { font-size: 8pt; opacity: 0.95; margin-top: 4px; }
-    .qhse-chrome-body { padding: 0 4px; }
+    .qhse-chrome-body { padding: 0; }
     .qhse-chrome-foot {
       margin-top: 14px; padding-top: 8px; border-top: 1px solid #e2e8f0;
       font-size: 8pt; color: #64748b; text-align: center;
@@ -56,7 +73,16 @@ export function qhsePdfSharedStyles() {
     .qhse-chrome-gauge-track { height: 16px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; max-width: 280px; overflow: hidden; display: inline-block; vertical-align: middle; width: 70%; }
     .qhse-chrome-gauge-fill { height: 100%; background: ${QHSE_PDF_BRAND}; border-radius: 3px; }
     .qhse-chrome-kpi-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
-    .qhse-chrome-kpi { flex: 1; min-width: 120px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; background: #fafafa; }
+    .qhse-chrome-kpi {
+      flex: 1;
+      min-width: 120px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fafafa;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     .qhse-chrome-kpi-val { font-size: 14pt; font-weight: 800; color: #0f172a; }
     .qhse-chrome-kpi-lbl { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
     .qhse-matrix-table td, .qhse-matrix-table th { text-align: center; padding: 4px; font-size: 7.5pt; }
@@ -112,13 +138,11 @@ export async function downloadQhseChromePdf(html, filename, pdfOverrides = {}, o
   const host = document.createElement('div');
   /** ~210mm @96dpi — html2canvas gère mal les largeurs nulles hors viewport */
   host.style.cssText =
-    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:1123px;overflow:visible;';
+    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:0;overflow:visible;padding:0;';
   host.style.backgroundColor = '#ffffff';
   host.style.color = '#1a1a1a';
   host.style.fontFamily = 'Arial, sans-serif';
   host.style.fontSize = '12px';
-  host.style.padding = '20px';
-  host.style.width = '794px';
   host.innerHTML = html;
   document.body.appendChild(host);
   const safe = String(filename || 'export').replace(/[^\w.-]+/g, '_');

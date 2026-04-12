@@ -2,6 +2,7 @@ import { parseRiskMatrixGp, riskCriticalityFromMeta } from './riskMatrixPanel.js
 import { openRiskDetail } from './riskDetailPanel.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { getLinksFor } from '../services/moduleLinks.service.js';
+import { riskWorkflowStatusLabelFr } from '../utils/risksRegisterModel.js';
 
 function toneClass(tone) {
   if (tone === 'red') return 'red';
@@ -146,7 +147,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
   tdStatus.className = 'risk-register-table-row__status';
   const stBadge = document.createElement('span');
   stBadge.className = `badge ${toneKey} risk-register-table-row__badge`;
-  stBadge.textContent = risk.status || '—';
+  stBadge.textContent = riskWorkflowStatusLabelFr(risk.status);
   tdStatus.append(stBadge);
 
   const tdOwner = document.createElement('td');

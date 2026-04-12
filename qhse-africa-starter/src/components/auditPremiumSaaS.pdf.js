@@ -1,34 +1,19 @@
 /**
  * PDF ISO / conformité — chargé à la demande (html2pdf.js) pour alléger le bundle page ISO / Audits.
+ * Même pipeline hôte + capture que les exports chrome (registre risques, performance).
  */
 
-import { saveElementAsPdf } from '../utils/html2pdfExport.js';
-import { showToast } from './toast.js';
+import { downloadQhseChromePdf } from '../utils/qhsePdfChrome.js';
 
 const PDF_BRAND = '#1D9E75';
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
-  const host = document.createElement('div');
-  host.style.cssText =
-    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:1123px;background:#fff;overflow:visible;';
-  host.innerHTML = htmlString;
-  document.body.appendChild(host);
-  const safeName = String(fileBase || 'audit-iso').replace(/[^\w-]+/g, '_');
-  const pdfName = `${safeName}.pdf`;
-  try {
-    showToast('Génération du PDF en cours...', 'info');
-    await saveElementAsPdf(host, pdfName, {
-      margin: [14, 12, 18, 12],
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    });
-    showToast('PDF téléchargé avec succès', 'success');
-  } catch (e) {
-    console.error(e);
-    showToast('Échec de la génération du PDF.', 'error');
-    throw e;
-  } finally {
-    host.remove();
-  }
+  const safeName = String(fileBase || 'audit-iso').replace(/[^\w.-]+/g, '_');
+  const pdfName = safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`;
+  await downloadQhseChromePdf(htmlString, pdfName, {
+    margin: [14, 12, 18, 12],
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  });
 }
 
 /**

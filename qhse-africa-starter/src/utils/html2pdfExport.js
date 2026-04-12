@@ -160,6 +160,33 @@ function waitForPaintAndLayout() {
 }
 
 /**
+ * html2canvas capture mal les canvas (Chart.js, etc.) — rasterisation PNG avant capture.
+ * @param {HTMLElement} root
+ */
+export function replaceCanvasesWithDataUrlImages(root) {
+  if (!root?.querySelectorAll) return;
+  root.querySelectorAll('canvas').forEach((canvas) => {
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const parent = canvas.parentNode;
+    if (!parent) return;
+    let dataUrl = '';
+    try {
+      dataUrl = canvas.toDataURL('image/png');
+    } catch {
+      return;
+    }
+    if (!dataUrl || dataUrl === 'data:,') return;
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.alt = '';
+    img.style.width = canvas.style.width || `${canvas.offsetWidth}px`;
+    img.style.height = canvas.style.height || `${canvas.offsetHeight}px`;
+    if (canvas.style.display) img.style.display = canvas.style.display;
+    parent.replaceChild(img, canvas);
+  });
+}
+
+/**
  * @param {HTMLElement} element
  * @param {string} filename
  * @param {Record<string, unknown>} [overrides]
@@ -207,15 +234,20 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
       inline.top = '0';
       if (!inline.width) inline.width = cs.width && cs.width !== 'auto' ? cs.width : '210mm';
       inline.maxWidth = '100vw';
-      inline.maxHeight = '100vh';
-      inline.overflow = 'auto';
+      /* Pas de max-height / scroll : html2canvas ne rasterise souvent que la zone visible → PDF blanc */
+      inline.maxHeight = 'none';
+      inline.overflow = 'visible';
       inline.opacity = '1';
       inline.visibility = 'visible';
       inline.pointerEvents = 'none';
       inline.zIndex = '2147483646';
+      if (!inline.backgroundColor) inline.backgroundColor = '#ffffff';
+      inline.color = '#000000';
     } else if (Number.parseFloat(cs.opacity) < 1) {
       inline.opacity = '1';
     }
+
+    replaceCanvasesWithDataUrlImages(element);
 
     await waitForPaintAndLayout();
 

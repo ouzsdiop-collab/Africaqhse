@@ -1039,26 +1039,23 @@ export async function renderAudits() {
         showToast('Aucun audit en base : impossible de générer le rapport PDF.', 'error');
         return;
       }
-      const rpt = await qhseFetch(
-        `/api/audits/${encodeURIComponent(latestRef)}/report`
-      );
-      if (!rpt.ok) {
-        showToast('Export PDF indisponible', 'error');
-        return;
+      /* Même rendu HTML que « Export PDF ISO complet » (html2pdf), pas le PDF texte pdfkit du backend. */
+      if (latestRef !== LAST_AUDIT.ref) {
+        showToast(
+          'Le PDF reprend les données de l’audit affiché dans le cockpit (peut différer du premier audit API).',
+          'info'
+        );
       }
-      const blob = await rpt.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
+      await generateAuditIsoClientPdf();
       activityLogStore.add({
         module: 'audits',
         action: 'Demande de rapport audit',
-        detail: `Synthèse ${latestRef} — export PDF`,
+        detail: `Synthèse ${latestRef} — export PDF (navigateur)`,
         user: 'Responsable QHSE'
       });
     } catch (e) {
       console.error(e);
-      showToast('Erreur serveur', 'error');
+      showToast('Erreur lors de la génération du PDF.', 'error');
     }
   }
 

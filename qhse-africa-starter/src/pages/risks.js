@@ -40,7 +40,8 @@ import {
   mapApiRiskToUi,
   fetchRisksApi,
   readRisksListCache,
-  saveRisksListCache
+  saveRisksListCache,
+  riskWorkflowStatusLabelFr
 } from '../utils/risksRegisterModel.js';
 import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
 import { downloadRisksRegisterPdf } from '../services/qhseReportsPdf.service.js';
@@ -592,7 +593,7 @@ export function renderRisks() {
           crits.map((r) => {
             const gp = parseRiskMatrixGp(r.meta);
             const gpt = gp ? `G${gp.g}×P${gp.p}` : 'G×P ?';
-            return `${r.title || 'Sans titre'} — ${gpt} — ${r.status || '—'}`;
+            return `${r.title || 'Sans titre'} — ${gpt} — ${riskWorkflowStatusLabelFr(r.status)}`;
           })
         );
       }

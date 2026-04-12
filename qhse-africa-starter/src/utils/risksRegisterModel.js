@@ -12,6 +12,30 @@ import { qhseFetch } from './qhseFetch.js';
 import { withSiteQuery } from './siteFilter.js';
 import { showToast } from '../components/toast.js';
 
+/** Statuts persistés (API / seed) → libellé affiché en français dans le registre. */
+const RISK_WORKFLOW_STATUS_FR = Object.freeze({
+  open: 'Ouvert',
+  ouvert: 'Ouvert',
+  closed: 'Clos',
+  clos: 'Clos',
+  close: 'Clos',
+  ferme: 'Clos',
+  fermé: 'Clos',
+  en_traitement: 'En traitement',
+  mitigation: 'Atténuation'
+});
+
+/**
+ * @param {string | null | undefined} raw
+ * @returns {string}
+ */
+export function riskWorkflowStatusLabelFr(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return '—';
+  const key = s.toLowerCase();
+  return RISK_WORKFLOW_STATUS_FR[key] ?? s;
+}
+
 /** Marqueur `[Risque lié: …]` dans la description d’incident (aligné API incidents). */
 const RISK_LINK_RE = /\[Risque lié:\s*([^\]]+?)\]/gi;
 

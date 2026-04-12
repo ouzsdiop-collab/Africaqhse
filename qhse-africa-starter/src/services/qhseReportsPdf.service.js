@@ -294,7 +294,7 @@ export async function downloadPerformanceQhsePdf(ctx) {
     </table>
   `;
 
-  const html = assembleQhsePdfDocument(docTitle, [page1, page2]);
+  const html = assembleQhsePdfDocument(docTitle, [`${page1}${page2}`]);
   await downloadQhseChromePdf(html, 'rapport-performance-qhse.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -340,7 +340,7 @@ export async function downloadAnalyticsSummaryPdf(data) {
     <p class="qhse-chrome-muted" style="margin-top:12px">Les graphiques du cockpit en ligne ne sont pas inclus ; exportez depuis Performance pour la série audits si besoin.</p>
   `;
 
-  const html = assembleQhsePdfDocument(docTitle, [kpiGrid, page2]);
+  const html = assembleQhsePdfDocument(docTitle, [`${kpiGrid}${page2}`]);
   await downloadQhseChromePdf(html, 'analytics-synthese-qhse.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -390,7 +390,7 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
     <table class="qhse-chrome-table"><thead><tr><th>Code</th><th>Message</th><th>Niveau</th></tr></thead><tbody>${alertRows}</tbody></table>
   `;
 
-  const html = assembleQhsePdfDocument(docTitle, [page1, page2]);
+  const html = assembleQhsePdfDocument(docTitle, [`${page1}${page2}`]);
   await downloadQhseChromePdf(html, 'reporting-periodique-qhse.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
