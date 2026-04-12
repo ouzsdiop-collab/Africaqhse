@@ -49,10 +49,11 @@ export function updateKpiPriorityLine(refs, state) {
  */
 export function applyStatsToKpis(refs, data) {
   const scopeHint = refs.getScopeEmptyLabel();
+  const emptyHints = refs.kpiEmptyHints ?? {};
 
   const incN = asDashboardCount(data.incidents);
   refs.kpiValues.incidents.textContent = formatDashboardCount(data.incidents);
-  const incHint = refs.kpiEmptyHints.incidents;
+  const incHint = emptyHints.incidents;
   if (incHint) {
     incHint.hidden = incN !== 0;
     incHint.textContent = incN === 0 ? scopeHint : '';
@@ -107,10 +108,11 @@ export function applyStatsToKpis(refs, data) {
  */
 export function applyEnrichmentKpis(refs, ncList, auditList, ncTotalAggregate) {
   const scopeHint = refs.getScopeEmptyLabel();
+  const emptyHints = refs.kpiEmptyHints ?? {};
   if (Array.isArray(ncList)) {
     const n = ncList.filter(isNcOpen).length;
     refs.kpiValues.ncOpen.textContent = String(n);
-    const ncHint = refs.kpiEmptyHints.ncOpen;
+    const ncHint = emptyHints.ncOpen;
     if (ncHint) {
       ncHint.hidden = n !== 0;
       ncHint.textContent = n === 0 ? scopeHint : '';
@@ -134,7 +136,7 @@ export function applyEnrichmentKpis(refs, ncList, auditList, ncTotalAggregate) {
       refs.kpiValues.auditScore.textContent = '—';
     }
     refs.kpiValues.auditsN.textContent = String(auditList.length);
-    const audHint = refs.kpiEmptyHints.auditsN;
+    const audHint = emptyHints.auditsN;
     if (audHint) {
       audHint.hidden = true;
       audHint.textContent = '';
@@ -142,7 +144,7 @@ export function applyEnrichmentKpis(refs, ncList, auditList, ncTotalAggregate) {
   } else {
     refs.kpiValues.auditScore.textContent = '—';
     refs.kpiValues.auditsN.textContent = '0';
-    const audHint = refs.kpiEmptyHints.auditsN;
+    const audHint = emptyHints.auditsN;
     if (audHint) {
       audHint.hidden = false;
       audHint.textContent = scopeHint;

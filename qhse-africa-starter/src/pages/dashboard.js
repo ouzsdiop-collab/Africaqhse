@@ -777,6 +777,14 @@ export function renderDashboard() {
   kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
   kpiPriorityLine.textContent = '';
 
+  /** Refs DOM KPI passées explicitement aux modules dashboard/kpiCards.js (évite toute ambiguïté de scope). */
+  const kpiDomRefs = {
+    kpiValues,
+    kpiEmptyHints: kpiEmptyHints ?? {},
+    kpiNotes,
+    kpiPriorityLine
+  };
+
   const tfTgMini = createDashboardTfTgMiniRow();
 
   const kpiSection = document.createElement('section');
@@ -1470,10 +1478,7 @@ export function renderDashboard() {
   function applyStatsToKpis(data) {
     applyKpiStatsPatch(
       {
-        kpiValues,
-        kpiEmptyHints,
-        kpiNotes,
-        kpiPriorityLine,
+        ...kpiDomRefs,
         getScopeEmptyLabel: dashboardKpiScopeEmptyLabel,
         getNcListForKpi: () => dashboardNcListForKpi
       },
@@ -1484,9 +1489,9 @@ export function renderDashboard() {
   function applyEnrichmentKpis(ncList, auditList, ncTotalAggregate) {
     applyKpiEnrichmentPatch(
       {
-        kpiValues,
-        kpiEmptyHints,
-        kpiNotes,
+        kpiValues: kpiDomRefs.kpiValues,
+        kpiEmptyHints: kpiDomRefs.kpiEmptyHints,
+        kpiNotes: kpiDomRefs.kpiNotes,
         getScopeEmptyLabel: dashboardKpiScopeEmptyLabel
       },
       ncList,

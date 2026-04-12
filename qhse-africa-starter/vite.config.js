@@ -15,6 +15,8 @@ function normalizeModuleId(id) {
  */
 export default defineConfig(({ mode }) => ({
   root: '.',
+  /** Chemins relatifs dans dist/ → évite les 404 des /assets/* si l’app n’est pas servie à la racine (ex. Railway / sous-chemin). */
+  base: './',
   publicDir: 'public',
   server: {
     port: 5173,
