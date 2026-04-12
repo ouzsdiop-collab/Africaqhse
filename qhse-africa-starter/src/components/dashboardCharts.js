@@ -729,7 +729,45 @@ function interpretIncidentTypesList(list) {
  * }} [options]
  */
 export function createDashboardLineChart(series, options = {}) {
+  /** Courbe lisse (équivalent line.tension Chart.js). */
+  function buildSmoothLinePathD(points, tension) {
+    const T = Math.max(0, Math.min(1, tension));
+    if (!points.length) return '';
+    if (points.length === 1) {
+      return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    }
+    if (points.length === 2) {
+      const a = points[0];
+      const b = points[1];
+      return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    }
+    let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? 0 : i - 1];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[Math.min(points.length - 1, i + 2)];
+      const c = (T * 4) / 6;
+      const cp1x = p1.x + (p2.x - p0.x) * c;
+      const cp1y = p1.y + (p2.y - p0.y) * c;
+      const cp2x = p2.x - (p3.x - p1.x) * c;
+      const cp2y = p2.y - (p3.y - p1.y) * c;
+      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    return d;
+  }
+
+  if (!document.getElementById('qhse-dash-line-chart-keyframes')) {
+    const ks = document.createElement('style');
+    ks.id = 'qhse-dash-line-chart-keyframes';
+    ks.textContent =
+      '@keyframes qhseDashLineChartIn{from{opacity:0}to{opacity:1}}@media (prefers-reduced-motion:reduce){.dashboard-line-chart-frame--enter{animation:none!important;opacity:1!important}}';
+    document.head.append(ks);
+  }
+
   const wrap = document.createElement('div');
+  const wrapScopedId = `qhse-dlc-${Math.random().toString(36).slice(2, 11)}`;
+  wrap.id = wrapScopedId;
   wrap.className = 'dashboard-line-chart-wrap';
   if (options.variant === 'analytics') {
     wrap.classList.add('dashboard-line-chart-wrap--analytics');
@@ -776,10 +814,10 @@ export function createDashboardLineChart(series, options = {}) {
 
   const safe = Array.isArray(series) && series.length ? series : [{ label: '—', value: 0 }];
   const w = 400;
-  const h = 176;
-  const padL = 36;
-  const padR = 10;
-  const padV = 15;
+  const h = 188;
+  const padL = 12;
+  const padR = 12;
+  const padV = 14;
   const plotW = w - padL - padR;
   const values = safe.map((p) => (Number.isFinite(p.value) ? p.value : 0));
   const rawMin = Math.min(...values);
@@ -812,13 +850,21 @@ export function createDashboardLineChart(series, options = {}) {
     const y = yScale(v);
     return { x, y, ...p };
   });
-  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const lineTension = 0.4;
+  const d = buildSmoothLinePathD(pts, lineTension);
   const baseY = yScale(Math.max(0, vmin));
+  const lastX = pts[pts.length - 1].x;
+  const firstX = pts[0].x;
+  const areaD = `${d} L ${lastX.toFixed(1)} ${baseY.toFixed(1)} L ${firstX.toFixed(1)} ${baseY.toFixed(1)} Z`;
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   svg.setAttribute('class', 'dashboard-line-chart-svg');
   svg.setAttribute('role', 'img');
+  svg.style.display = 'block';
+  svg.style.width = '100%';
+  svg.style.minHeight = '180px';
+  svg.style.height = '180px';
   svg.setAttribute(
     'aria-label',
     options.ariaLabel ||
@@ -836,76 +882,47 @@ export function createDashboardLineChart(series, options = {}) {
   const gradStops =
     lineTheme === 'incidents'
       ? [
-          { off: '0%', color: 'rgb(249, 115, 22)', op: '0.34' },
-          { off: '55%', color: 'rgb(251, 113, 133)', op: '0.14' },
-          { off: '100%', color: 'rgb(234, 88, 12)', op: '0.03' }
+          { off: '0%', color: 'rgba(234, 88, 12, 0.25)' },
+          { off: '60%', color: 'rgba(234, 88, 12, 0.08)' },
+          { off: '100%', color: 'rgba(234, 88, 12, 0)' }
         ]
       : lineTheme === 'audits'
         ? [
-            { off: '0%', color: 'rgb(99, 102, 241)', op: '0.32' },
-            { off: '50%', color: 'rgb(45, 212, 191)', op: '0.2' },
-            { off: '100%', color: 'rgb(13, 148, 136)', op: '0.06' }
+            { off: '0%', color: 'rgba(99, 102, 241, 0.25)' },
+            { off: '60%', color: 'rgba(45, 212, 191, 0.1)' },
+            { off: '100%', color: 'rgba(13, 148, 136, 0)' }
           ]
         : [
-            { off: '0%', color: 'rgb(20, 184, 166)', op: '0.26' },
-            { off: '100%', color: 'rgb(20, 184, 166)', op: '0.02' }
+            { off: '0%', color: 'rgba(20, 184, 166, 0.22)' },
+            { off: '60%', color: 'rgba(20, 184, 166, 0.08)' },
+            { off: '100%', color: 'rgba(20, 184, 166, 0)' }
           ];
-  const stop0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop0.setAttribute('offset', gradStops[0].off);
-  stop0.setAttribute('stop-color', gradStops[0].color);
-  stop0.setAttribute('stop-opacity', gradStops[0].op);
-  const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop1.setAttribute('offset', gradStops[1] ? gradStops[1].off : '100%');
-  stop1.setAttribute('stop-color', gradStops[1] ? gradStops[1].color : gradStops[0].color);
-  stop1.setAttribute('stop-opacity', gradStops[1] ? gradStops[1].op : gradStops[0].op);
-  const lgKids = [stop0, stop1];
-  if (gradStops[2]) {
-    const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    stop2.setAttribute('offset', gradStops[2].off);
-    stop2.setAttribute('stop-color', gradStops[2].color);
-    stop2.setAttribute('stop-opacity', gradStops[2].op);
-    lgKids.push(stop2);
-  }
+  const lgKids = gradStops.map((gs) => {
+    const stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop.setAttribute('offset', gs.off);
+    stop.setAttribute('stop-color', gs.color);
+    return stop;
+  });
   lg.append(...lgKids);
   defs.append(lg);
 
-  const yTicks = [vmax, (vmax + vmin) / 2, vmin];
-
   const areaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  const areaD = `${d} L ${pts[pts.length - 1].x} ${baseY.toFixed(1)} L ${pts[0].x} ${baseY.toFixed(1)} Z`;
   areaPath.setAttribute('d', areaD);
   areaPath.setAttribute('class', 'dashboard-line-chart-area');
   areaPath.setAttribute('fill', `url(#${gradId})`);
 
+  const lineStroke =
+    lineTheme === 'incidents' ? '#ea580c' : lineTheme === 'audits' ? '#6366f1' : 'rgb(20, 184, 166)';
   const linePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   linePath.setAttribute('d', d);
   linePath.setAttribute('fill', 'none');
   linePath.setAttribute('class', 'dashboard-line-chart-line');
+  linePath.style.stroke = lineStroke;
+  linePath.style.strokeWidth = '2.5px';
+  linePath.setAttribute('stroke-linecap', 'round');
+  linePath.setAttribute('stroke-linejoin', 'round');
 
   svg.append(defs);
-  yTicks.forEach((tv, idx) => {
-    const yy = yScale(tv);
-    const gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    gl.setAttribute('x1', String(padL));
-    gl.setAttribute('y1', String(yy.toFixed(1)));
-    gl.setAttribute('x2', String(w - padR));
-    gl.setAttribute('y2', String(yy.toFixed(1)));
-    const gridCls =
-      idx === 2
-        ? 'dashboard-line-chart-grid dashboard-line-chart-grid--base'
-        : idx === 1
-          ? 'dashboard-line-chart-grid dashboard-line-chart-grid--mid'
-          : 'dashboard-line-chart-grid dashboard-line-chart-grid--soft';
-    gl.setAttribute('class', gridCls);
-    svg.append(gl);
-    const tk = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    tk.setAttribute('x', String(padL - 6));
-    tk.setAttribute('y', String(yy + 3.5));
-    tk.setAttribute('text-anchor', 'end');
-    tk.setAttribute('class', 'dashboard-line-chart-y-tick');
-    tk.textContent = formatChartAxisValue(tv);
-    svg.append(tk);
-  });
   svg.append(areaPath, linePath);
   if (lineTheme === 'audits') {
     const tgt =
@@ -937,42 +954,39 @@ export function createDashboardLineChart(series, options = {}) {
   const dotR =
     options.variant === 'analytics' && n > 5
       ? '3.6'
-      : lineTheme === 'incidents' || lineTheme === 'audits'
-        ? '5.35'
-        : '5.1';
+      : '4';
+  const dotStroke =
+    lineTheme === 'incidents' ? '#ea580c' : lineTheme === 'audits' ? '#6366f1' : 'rgb(20, 184, 166)';
   pts.forEach((p) => {
     const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     c.setAttribute('cx', String(p.x));
     c.setAttribute('cy', String(p.y));
     c.setAttribute('r', dotR);
     c.setAttribute('class', 'dashboard-line-chart-dot');
+    c.setAttribute('fill', '#ffffff');
+    c.setAttribute('stroke', dotStroke);
+    c.setAttribute('stroke-width', '2');
     svg.append(c);
   });
 
   const tip = createChartTooltipEl();
   const frame = document.createElement('div');
-  frame.className = 'dashboard-line-chart-frame';
+  frame.className = 'dashboard-line-chart-frame dashboard-line-chart-frame--enter';
+  frame.style.opacity = '0';
+  frame.style.animation = 'qhseDashLineChartIn 800ms cubic-bezier(0.76, 0, 0.24, 1) forwards';
   frame.append(svg, tip);
-
-  const valuesRow = document.createElement('div');
-  valuesRow.className = 'dashboard-line-chart-values';
-  safe.forEach((p) => {
-    const s = document.createElement('span');
-    s.className = 'dashboard-line-chart-value-cell';
-    s.textContent =
-      lineTheme === 'audits'
-        ? `${Number.isFinite(p.value) ? p.value : 0} %`
-        : String(p.value);
-    s.title = options.valueTitle
-      ? options.valueTitle(p)
-      : lineTheme === 'audits'
-        ? `${p.value} %`
-        : `${p.value} incident(s)`;
-    valuesRow.append(s);
-  });
 
   const labels = document.createElement('div');
   labels.className = 'dashboard-line-chart-labels';
+  labels.style.fontSize = '11px';
+  labels.style.color = '#94a3b8';
+  labels.style.display = 'flex';
+  labels.style.justifyContent = 'space-between';
+  labels.style.width = '100%';
+  labels.style.boxSizing = 'border-box';
+  labels.style.paddingLeft = `${padL}px`;
+  labels.style.paddingRight = `${padR}px`;
+  labels.style.marginTop = '6px';
   safe.forEach((p) => {
     const s = document.createElement('span');
     s.className = 'dashboard-line-chart-label-cell';
@@ -985,8 +999,8 @@ export function createDashboardLineChart(series, options = {}) {
   if (options.footText !== undefined && options.footText !== null) {
     foot.textContent = options.footText;
   } else {
-  const total = safe.reduce((a, p) => a + p.value, 0);
-  foot.textContent = total === 0 ? 'Aucune donnée sur cette période.' : '';
+    const total = safe.reduce((a, p) => a + p.value, 0);
+    foot.textContent = total === 0 ? 'Aucune donnée sur cette période.' : '';
   }
 
   const interpret = document.createElement('p');
@@ -998,9 +1012,12 @@ export function createDashboardLineChart(series, options = {}) {
         ? interpretAuditScoreSeries(safe)
         : interpretIncidentTrend(safe);
 
-  const tail = [frame, valuesRow, labels];
+  const tail = [frame, labels];
   if (String(foot.textContent || '').trim()) tail.push(foot);
   if (String(interpret.textContent || '').trim()) tail.push(interpret);
+  const dotHoverStyle = document.createElement('style');
+  dotHoverStyle.textContent = `#${wrapScopedId} .dashboard-line-chart-dot--active{r:6px}`;
+  wrap.prepend(dotHoverStyle);
   wrap.append(...tail);
   bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, { w, h });
   return wrap;
