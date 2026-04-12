@@ -1,5 +1,7 @@
 /**
  * Exports PDF premium — Registre risques, incidents, performance, analytics.
+ * Conteneur racine (794px, padding 40px 48px, border-box) : `downloadQhseChromePdf` dans `qhsePdfChrome.js`.
+ * Options html2canvas (largeur 794, x/y 0) : `html2pdfExport.js`.
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';

@@ -33,13 +33,18 @@ export async function prepareElementForCapture(element) {
   if (!isInDom) {
     wrapper = document.createElement('div');
     wrapper.style.cssText = `
+      box-sizing: border-box;
       position: fixed;
       top: 0;
       left: 0;
       width: 794px;
       min-height: 200px;
+      margin: 0;
+      padding: 0;
+      overflow: visible;
       z-index: -1;
       background: #ffffff;
+      color: #1a1a1a;
       visibility: visible;
       opacity: 1;
     `;
@@ -107,7 +112,10 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
     backgroundColor: '#ffffff',
     removeContainer: true,
     foreignObjectRendering: false,
-    windowWidth: 794
+    windowWidth: 794,
+    width: 794,
+    x: 0,
+    y: 0
   };
 
   const mergedCanvas =
@@ -232,8 +240,8 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
       inline.position = 'fixed';
       inline.left = '0';
       inline.top = '0';
-      if (!inline.width) inline.width = cs.width && cs.width !== 'auto' ? cs.width : '210mm';
-      inline.maxWidth = '100vw';
+      if (!inline.width) inline.width = '794px';
+      inline.maxWidth = '794px';
       /* Pas de max-height / scroll : html2canvas ne rasterise souvent que la zone visible → PDF blanc */
       inline.maxHeight = 'none';
       inline.overflow = 'visible';
@@ -251,13 +259,14 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
 
     await waitForPaintAndLayout();
 
-    const sw = Math.max(794, Math.ceil(element.scrollWidth || element.getBoundingClientRect().width || 794));
     const sh = Math.max(400, Math.ceil(element.scrollHeight || element.getBoundingClientRect().height || 1123));
     const canvasHint = {
-      width: sw,
+      width: 794,
       height: sh,
-      windowWidth: sw,
-      windowHeight: sh
+      windowWidth: 794,
+      windowHeight: sh,
+      x: 0,
+      y: 0
     };
     const mergedOverrides =
       overrides && typeof overrides.html2canvas === 'object'

@@ -30,6 +30,12 @@ export function chunkRowsForPdf(rows, pageSize) {
 export const QHSE_PDF_EMPTY_MESSAGE =
   'Aucune donnée à exporter pour ce périmètre — élargissez les filtres ou complétez le registre.';
 
+/** Styles injectés sur l’hôte : enfants directs en border-box, pas de clip implicite */
+export const QHSE_PDF_HOST_CHILD_STYLES = `<style>
+  .qhse-pdf-capture-host > * { box-sizing: border-box; }
+  .qhse-pdf-capture-host { clip-path: none !important; clip: auto !important; }
+</style>`;
+
 export function qhsePdfSharedStyles() {
   return `<style>
     .qhse-chrome-doc,
@@ -37,19 +43,22 @@ export function qhsePdfSharedStyles() {
     .qhse-chrome-doc *::before,
     .qhse-chrome-doc *::after { box-sizing: border-box; }
     .qhse-chrome-doc {
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: inherit;
       font-size: 9.5pt;
-      color: #0f172a;
-      line-height: 1.35;
+      color: #1a1a1a;
+      line-height: 1.5;
       background: #fff;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       width: 100%;
-      max-width: 794px;
+      max-width: none;
       margin: 0;
-      padding: 0 20px;
+      padding: 0;
       height: auto !important;
       min-height: 0 !important;
+      overflow: visible;
+      position: relative;
+      left: 0;
     }
     .qhse-chrome-page { page-break-after: auto; padding: 0 0 16px; }
     .qhse-chrome-head { background: ${QHSE_PDF_BRAND}; color: #fff; padding: 10px 14px; margin: 0 0 12px 0; }
@@ -136,14 +145,26 @@ export function assembleQhsePdfDocument(reportTitle, pageBodies) {
 export async function downloadQhseChromePdf(html, filename, pdfOverrides = {}, opts = {}) {
   const silent = Boolean(opts.silentToasts);
   const host = document.createElement('div');
-  /** ~210mm @96dpi — html2canvas gère mal les largeurs nulles hors viewport */
-  host.style.cssText =
-    'box-sizing:border-box;position:fixed;left:-9999px;top:0;width:794px;min-width:794px;min-height:0;overflow:visible;padding:0;';
-  host.style.backgroundColor = '#ffffff';
-  host.style.color = '#1a1a1a';
-  host.style.fontFamily = 'Arial, sans-serif';
-  host.style.fontSize = '12px';
-  host.innerHTML = html;
+  host.className = 'qhse-pdf-capture-host';
+  /** ~210mm @96dpi — padding hôte pour éviter tout texte coupé à gauche (capture html2canvas) */
+  host.style.cssText = [
+    'box-sizing:border-box',
+    'width:794px',
+    'padding:40px 48px',
+    'margin:0',
+    'background-color:#ffffff',
+    'color:#1a1a1a',
+    'font-family:Arial,Helvetica,sans-serif',
+    'font-size:12px',
+    'line-height:1.5',
+    'overflow:visible',
+    'clip:auto',
+    'position:fixed',
+    'left:-9999px',
+    'top:0',
+    'min-height:0'
+  ].join(';');
+  host.innerHTML = `${QHSE_PDF_HOST_CHILD_STYLES}${html}`;
   document.body.appendChild(host);
   const safe = String(filename || 'export').replace(/[^\w.-]+/g, '_');
   const name = safe.endsWith('.pdf') ? safe : `${safe}.pdf`;

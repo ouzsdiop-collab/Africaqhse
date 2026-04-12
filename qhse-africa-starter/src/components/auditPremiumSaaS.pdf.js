@@ -124,9 +124,9 @@ export function buildAuditIsoPdfHtml(data) {
 
   return `
 <style>
-  .qhse-pdf-root { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10.5pt; color: #0f172a; background: #fff; line-height: 1.35; }
-  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: -8px -8px 16px -8px; }
-  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 260mm; box-sizing: border-box; }
+  .qhse-pdf-root { box-sizing: border-box; font-family: inherit; font-size: 10.5pt; color: #1a1a1a; background: #fff; line-height: 1.5; margin: 0; padding: 0; width: 100%; overflow: visible; position: relative; left: 0; }
+  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: 0 0 16px 0; }
+  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 0; box-sizing: border-box; overflow: visible; }
   .qhse-pdf-page:last-child { page-break-after: auto; }
   .qhse-pdf-title { font-size: 22pt; font-weight: 800; text-align: center; margin: 0 0 8px; letter-spacing: 0.02em; }
   .qhse-pdf-sub { text-align: center; color: #475569; font-size: 10pt; margin: 0 0 20px; }
@@ -247,9 +247,9 @@ export function buildIsoConformityPdfHtml(data) {
   );
   return `
 <style>
-  .qhse-pdf-root { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10.5pt; color: #0f172a; background: #fff; line-height: 1.35; }
-  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: -8px -8px 16px -8px; }
-  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 260mm; box-sizing: border-box; }
+  .qhse-pdf-root { box-sizing: border-box; font-family: inherit; font-size: 10.5pt; color: #1a1a1a; background: #fff; line-height: 1.5; margin: 0; padding: 0; width: 100%; overflow: visible; position: relative; left: 0; }
+  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: 0 0 16px 0; }
+  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 0; box-sizing: border-box; overflow: visible; }
   .qhse-pdf-page:last-child { page-break-after: auto; }
   .qhse-pdf-title { font-size: 22pt; font-weight: 800; text-align: center; margin: 0 0 8px; }
   .qhse-pdf-h2 { font-size: 13pt; color: #0f172a; border-bottom: 2px solid ${PDF_BRAND}; padding-bottom: 4px; margin: 18px 0 10px; }
