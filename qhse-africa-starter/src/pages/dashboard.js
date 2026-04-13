@@ -1121,6 +1121,7 @@ export function renderDashboard() {
       fetchJsonListWithRetry('/api/controlled-documents?type=fds&limit=300'),
       fetchJsonListWithRetry('/api/risks?limit=300')
     ]);
+    if (!page.isConnected) return;
     const listVal = (i) => {
       const r = listResults[i];
       if (r.status === 'fulfilled') return r.value;
@@ -1133,7 +1134,7 @@ export function renderDashboard() {
     const ncR = listVal(3);
     const docsR = listVal(4);
     const risksR = listVal(5);
-    if (listResults.some((r) => r.status === 'rejected')) {
+    if (listResults.some((r) => r.status === 'rejected') && page.isConnected) {
       showToast('Certaines listes n’ont pas pu être chargées — affichage partiel.', 'warning');
     }
 
@@ -1277,12 +1278,15 @@ export function renderDashboard() {
   }
 
   (async function loadDashboard() {
+    const stillOnDashboard = () => page.isConnected;
+
     /** Échec réseau uniquement ici → bandeau « connexion impossible ». */
     let res;
     try {
       res = await qhseFetchWithNetworkRetry(withSiteQuery('/api/dashboard/stats'));
     } catch (err) {
       console.error('[dashboard] réseau GET /api/dashboard/stats', err);
+      if (!stillOnDashboard()) return;
       showToast(
         'Impossible de joindre l’API (tableau de bord). Vérifiez que le serveur backend tourne (ex. port 3001).',
         'warning'
@@ -1294,13 +1298,25 @@ export function renderDashboard() {
 
     let statsFromApiReady = false;
     try {
+      if (!stillOnDashboard()) return;
       if (res.status === 401) {
-        showToast('Session expirée — reconnectez-vous.', 'warning');
+        if (stillOnDashboard()) {
+          showToast('Session expirée — reconnectez-vous.', 'warning');
+        }
         dismissKpiSkeleton();
         return;
       }
       if (res.status === 403) {
-        showToast('Accès au tableau de bord refusé pour ce profil.', 'warning');
+        const body = await res.json().catch(() => ({}));
+        const errStr = typeof body.error === 'string' ? body.error : '';
+        if (stillOnDashboard()) {
+          showToast(
+            errStr.includes('Contexte organisation')
+              ? 'Aucune organisation active pour cette session — reconnectez-vous (e-mail, mot de passe, organisation si demandée).'
+              : 'Accès au tableau de bord refusé pour ce profil.',
+            'warning'
+          );
+        }
         await loadListsAndRefreshDashboard(true);
         return;
       }
@@ -1310,21 +1326,27 @@ export function renderDashboard() {
           typeof j.error === 'string' && j.error.trim()
             ? j.error.trim()
             : `Données dashboard indisponibles (${res.status}).`;
-        showToast(msg, 'warning');
-        showDashboardConnectivityError(connectivitySlot);
+        if (stillOnDashboard()) {
+          showToast(msg, 'warning');
+          showDashboardConnectivityError(connectivitySlot);
+        }
         await loadListsAndRefreshDashboard(true);
         return;
       }
+      if (!stillOnDashboard()) return;
       const raw = await res.json().catch(() => null);
       const normalized = normalizeDashboardPayload(raw);
       if (!normalized) {
         console.error('[dashboard] GET /api/dashboard/stats — corps invalide', raw);
-        showToast('Réponse tableau de bord illisible.', 'warning');
-        showDashboardConnectivityError(connectivitySlot);
+        if (stillOnDashboard()) {
+          showToast('Réponse tableau de bord illisible.', 'warning');
+          showDashboardConnectivityError(connectivitySlot);
+        }
         await loadListsAndRefreshDashboard(true);
         return;
       }
 
+      if (!stillOnDashboard()) return;
       connectivitySlot.hidden = true;
       connectivitySlot.replaceChildren();
 
@@ -1390,10 +1412,12 @@ export function renderDashboard() {
       await loadListsAndRefreshDashboard(false);
     } catch (err) {
       console.error('[dashboard] traitement après stats', err?.message || err, err);
-      showToast(
-        `Erreur tableau de bord : ${err instanceof Error ? err.message : String(err)} — voir la console (F12).`,
-        'warning'
-      );
+      if (stillOnDashboard()) {
+        showToast(
+          `Erreur tableau de bord : ${err instanceof Error ? err.message : String(err)} — voir la console (F12).`,
+          'warning'
+        );
+      }
       try {
         await loadListsAndRefreshDashboard(!statsFromApiReady);
       } catch (e2) {
