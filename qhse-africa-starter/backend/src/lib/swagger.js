@@ -7,7 +7,10 @@ const options = {
       title: 'AfricaQHSE API',
       version: '1.0.0',
       description:
-        'API REST de la plateforme de pilotage QHSE AfricaQHSE. JWT Bearer (access) ; le refresh est un cookie httpOnly `qhse_refresh` (SameSite=strict), posé au login et renvoyé par le navigateur avec credentials.',
+        'API REST de la plateforme de pilotage QHSE AfricaQHSE. JWT Bearer (access) ; le refresh est un cookie httpOnly `qhse_refresh` (SameSite=strict), posé au login et renvoyé par le navigateur avec credentials.\n\n' +
+        '**Multi-tenant** : la plupart des routes sous `/api` exigent un **tenant résolu** (`req.qhseTenantId`) ; sinon **403** `{ "error": "Contexte organisation requis." }` (y compris si `REQUIRE_AUTH=false`). ' +
+        'Fournir un **JWT** avec organisation valide, ou l’en-tête **`X-User-Id`** en développement/test (en production uniquement si `ALLOW_X_USER_ID=true`). ' +
+        'Exceptions : `requireTenantContext.middleware.js` → `isApiTenantOptionalPath` (santé, auth, docs, stream document signé, `POST /fds/analyze`, `/automation/*`).',
       contact: {
         name: 'Support AfricaQHSE',
         email: 'support@africaqhse.com'
@@ -21,6 +24,16 @@ const options = {
           scheme: 'bearer',
           bearerFormat: 'JWT',
           description: 'Entrez votre token JWT obtenu via POST /auth/login'
+        }
+      },
+      parameters: {
+        XUserId: {
+          name: 'X-User-Id',
+          in: 'header',
+          required: false,
+          schema: { type: 'string' },
+          description:
+            'Résolution session dev/test : id utilisateur Prisma. Ignoré en production sauf `ALLOW_X_USER_ID=true`. Complète ou remplace le Bearer pour `attachRequestUser`.'
         }
       },
       schemas: {
@@ -80,6 +93,26 @@ const options = {
             details: { type: 'object' }
           }
         }
+      },
+      responses: {
+        TenantContextRequired: {
+          description:
+            'Aucune organisation active pour la requête (JWT sans tenant résolu, ou absence de `X-User-Id` en dev). Même schéma pour la plupart des routes métier ; exceptions documentées dans la description de l’API.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['error'],
+                properties: {
+                  error: {
+                    type: 'string',
+                    example: 'Contexte organisation requis.'
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     security: [{ bearerAuth: [] }],
@@ -90,8 +123,31 @@ const options = {
       { name: 'Actions', description: "Plan d'actions correctives" },
       { name: 'Audits', description: 'Planification et suivi des audits' },
       { name: 'Dashboard', description: 'Indicateurs et statistiques' },
+      {
+        name: 'AuditLogs',
+        description: 'Journal serveur (traçabilité) — filtre tenant implicite sauf rôle ADMIN avec `?tenantId=`'
+      },
+      { name: 'Conformity', description: 'Assistances et statuts conformité ISO' },
+      {
+        name: 'ComplianceAssist',
+        description: 'Assistant analyse de documents (corps texte) — droit `compliance:read`'
+      },
+      { name: 'ControlledDocuments', description: 'Documents contrôlés et FDS produits' },
       { name: 'Export', description: 'Exports Excel et PDF' },
-      { name: 'AI', description: 'Suggestions et analyses IA' },
+      { name: 'Habilitations', description: 'Registre des habilitations' },
+      { name: 'Imports', description: 'Historique et prévisualisation d’imports' },
+      { name: 'NonConformities', description: 'Non-conformités' },
+      { name: 'PTW', description: 'Permis de travail (habilitation chantier)' },
+      { name: 'Settings', description: 'Paramètres serveur (ADMIN)' },
+      { name: 'Notifications', description: 'Flux notifications utilisateur' },
+      { name: 'Reports', description: 'Synthèses et rapports périodiques' },
+      { name: 'Sites', description: 'Sites industriels du tenant' },
+      { name: 'Users', description: 'Annuaire membres de l’organisation' },
+      {
+        name: 'AI',
+        description:
+          'Mistral direct (`/ai/*`) et suggestions persistées (`/ai-suggestions/*`, droits `ai_suggestions`)'
+      },
       { name: 'FDS', description: 'Analyse des fiches de donnees de securite' }
     ],
     paths: {
@@ -192,6 +248,7 @@ const options = {
           tags: ['Incidents'],
           summary: 'Lister tous les incidents',
           parameters: [
+            { $ref: '#/components/parameters/XUserId' },
             { name: 'siteId', in: 'query', schema: { type: 'string' } },
             { name: 'severity', in: 'query', schema: { type: 'string' } },
             { name: 'status', in: 'query', schema: { type: 'string' } },
@@ -211,12 +268,14 @@ const options = {
                 }
               }
             },
-            401: { description: 'Non authentifie' }
+            401: { description: 'Non authentifie' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
           }
         },
         post: {
           tags: ['Incidents'],
           summary: 'Declarer un nouvel incident',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
           requestBody: {
             required: true,
             content: {
@@ -245,7 +304,8 @@ const options = {
             422: {
               description: 'Donnees invalides',
               content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
-            }
+            },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
           }
         }
       },
@@ -253,11 +313,16 @@ const options = {
         get: {
           tags: ['Risks'],
           summary: 'Lister les risques',
-          responses: { 200: { description: 'Liste des risques' } }
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste des risques' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
         },
         post: {
           tags: ['Risks'],
           summary: 'Creer un risque',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
           requestBody: {
             required: true,
             content: {
@@ -276,15 +341,25 @@ const options = {
           },
           responses: {
             201: { description: 'Risque cree' },
-            422: { description: 'Validation echouee' }
+            422: { description: 'Validation echouee' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
           }
         }
       },
       '/actions': {
-        get: { tags: ['Actions'], summary: 'Lister les actions', responses: { 200: { description: 'OK' } } },
+        get: {
+          tags: ['Actions'],
+          summary: 'Lister les actions',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'OK' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        },
         post: {
           tags: ['Actions'],
           summary: 'Creer une action',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
           requestBody: {
             required: true,
             content: {
@@ -301,14 +376,123 @@ const options = {
               }
             }
           },
-          responses: { 201: { description: 'Action creee' } }
+          responses: {
+            201: { description: 'Action creee' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/dashboard/stats': {
+        get: {
+          tags: ['Dashboard'],
+          summary: 'Indicateurs tableau de bord (KPI)',
+          description:
+            'Compteurs et agrégations par site / organisation — même logique que `GET /dashboard`.',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Statistiques JSON' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/ai-suggestions': {
+        get: {
+          tags: ['AI'],
+          summary: 'Lister les suggestions IA (persistées)',
+          parameters: [
+            { $ref: '#/components/parameters/XUserId' },
+            {
+              name: 'limit',
+              in: 'query',
+              schema: { type: 'integer', default: 50 },
+              description: 'Nombre max. de lignes'
+            },
+            { name: 'status', in: 'query', schema: { type: 'string' } }
+          ],
+          responses: {
+            200: { description: 'Tableau de suggestions' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/ai-suggestions/generate': {
+        post: {
+          tags: ['AI'],
+          summary: 'Générer une suggestion IA',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', example: 'generic' },
+                    context: { type: 'object' },
+                    targetIncidentId: { type: 'string', nullable: true },
+                    targetAuditId: { type: 'string', nullable: true }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: { description: 'Suggestion créée' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/audit-logs': {
+        get: {
+          tags: ['AuditLogs'],
+          summary: 'Journal d’audit (pagination)',
+          parameters: [
+            { $ref: '#/components/parameters/XUserId' },
+            { name: 'take', in: 'query', schema: { type: 'integer', default: 50 } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' }, description: 'Alias de take' },
+            { name: 'skip', in: 'query', schema: { type: 'integer', default: 0 } },
+            {
+              name: 'tenantId',
+              in: 'query',
+              schema: { type: 'string' },
+              description: 'Réservé **ADMIN** : filtrer sur une organisation'
+            }
+          ],
+          responses: {
+            200: {
+              description: '{ items, total, skip, take }',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      items: { type: 'array', items: { type: 'object' } },
+                      total: { type: 'integer' },
+                      skip: { type: 'integer' },
+                      take: { type: 'integer' }
+                    }
+                  }
+                }
+              }
+            },
+            401: { description: 'Authentification requise (si REQUIRE_AUTH=true)' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
         }
       },
       '/audits': {
-        get: { tags: ['Audits'], summary: 'Lister les audits', responses: { 200: { description: 'OK' } } },
+        get: {
+          tags: ['Audits'],
+          summary: 'Lister les audits',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'OK' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        },
         post: {
           tags: ['Audits'],
           summary: 'Creer un audit',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
           requestBody: {
             required: true,
             content: {
@@ -325,16 +509,23 @@ const options = {
               }
             }
           },
-          responses: { 201: { description: 'Audit cree' } }
+          responses: {
+            201: { description: 'Audit cree' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
         }
       },
       '/audits/{id}/pdf': {
         get: {
           tags: ['Audits'],
           summary: 'Telecharger le rapport PDF',
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          parameters: [
+            { $ref: '#/components/parameters/XUserId' },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+          ],
           responses: {
-            200: { description: 'Fichier PDF', content: { 'application/pdf': {} } }
+            200: { description: 'Fichier PDF', content: { 'application/pdf': {} } },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
           }
         }
       },
@@ -342,13 +533,15 @@ const options = {
         get: {
           tags: ['Export'],
           summary: 'Exporter les incidents en Excel',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
           responses: {
             200: {
               description: 'Fichier Excel',
               content: {
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
               }
-            }
+            },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
           }
         }
       },
@@ -356,6 +549,7 @@ const options = {
         post: {
           tags: ['AI'],
           summary: 'Suggestions causes racines pour un incident',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
           requestBody: {
             required: true,
             content: { 'application/json': { schema: { $ref: '#/components/schemas/Incident' } } }
@@ -371,7 +565,202 @@ const options = {
                   }
                 }
               }
+            },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/sites': {
+        get: {
+          tags: ['Sites'],
+          summary: 'Lister les sites',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste des sites' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/users': {
+        get: {
+          tags: ['Users'],
+          summary: 'Lister les membres du tenant',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste des utilisateurs' },
+            401: { description: 'Si REQUIRE_AUTH=true' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/notifications': {
+        get: {
+          tags: ['Notifications'],
+          summary: 'Flux de notifications',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste de notifications' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/conformity': {
+        get: {
+          tags: ['Conformity'],
+          summary: 'Statuts de conformité (exigences ISO)',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Référentiel / statuts' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/reports/summary': {
+        get: {
+          tags: ['Reports'],
+          summary: 'Synthèse pilotage',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Agrégats JSON' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/nonconformities': {
+        get: {
+          tags: ['NonConformities'],
+          summary: 'Lister les non-conformités',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/imports': {
+        get: {
+          tags: ['Imports'],
+          summary: 'Historique des imports',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste des imports' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/habilitations': {
+        get: {
+          tags: ['Habilitations'],
+          summary: 'Lister les habilitations',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/ptw': {
+        get: {
+          tags: ['PTW'],
+          summary: 'Lister les permis de travail',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/settings/email-notifications': {
+        get: {
+          tags: ['Settings'],
+          summary: 'Lire la config e-mail (ADMIN)',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Configuration' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/compliance/analyze-assist': {
+        post: {
+          tags: ['ComplianceAssist'],
+          summary: 'Assistant analyse document ISO',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    text: { type: 'string', description: 'Extrait à analyser' },
+                    fileName: { type: 'string' }
+                  }
+                }
+              }
             }
+          },
+          responses: {
+            200: { description: 'Analyse structurée' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/controlled-documents': {
+        get: {
+          tags: ['ControlledDocuments'],
+          summary: 'Lister les documents contrôlés',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: { description: 'Liste' },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/export/risks': {
+        get: {
+          tags: ['Export'],
+          summary: 'Export Excel des risques',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: {
+              description: 'Classeur XLSX',
+              content: {
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+              }
+            },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/export/actions': {
+        get: {
+          tags: ['Export'],
+          summary: 'Export Excel des actions',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: {
+              description: 'Classeur XLSX',
+              content: {
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+              }
+            },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
+          }
+        }
+      },
+      '/export/audits': {
+        get: {
+          tags: ['Export'],
+          summary: 'Export Excel des audits',
+          parameters: [{ $ref: '#/components/parameters/XUserId' }],
+          responses: {
+            200: {
+              description: 'Classeur XLSX',
+              content: {
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+              }
+            },
+            403: { $ref: '#/components/responses/TenantContextRequired' }
           }
         }
       },
@@ -379,6 +768,8 @@ const options = {
         post: {
           tags: ['FDS'],
           summary: 'Analyser une fiche de donnees de securite PDF',
+          description:
+            'Analyse PDF sans persistance — **exemptée** du contrôle tenant global (pas de 403 « contexte organisation » pour absence de tenant).',
           requestBody: {
             required: true,
             content: {

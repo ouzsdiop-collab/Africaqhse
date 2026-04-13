@@ -1728,6 +1728,125 @@ html[data-theme='light'] .metric-card--kpi-click:not(.dashboard-kpi-card) .metri
 html[data-theme='light'] .metric-card--kpi-click:not(.dashboard-kpi-card) .metric-value{
   color:#111827;
 }
+
+/* —— Mode clair : surfaces, filets et pastilles (risques, actions, matrices, kanban) —— */
+html[data-theme='light'] .risks-page__kpi,
+html[data-theme='light'] .risks-page__insights{
+  border-color:var(--color-border-tertiary);
+  background:var(--surface-2);
+  box-shadow:var(--shadow-sm);
+}
+html[data-theme='light'] .risks-insights__kpi-item{
+  border-color:var(--color-border-tertiary);
+  background:var(--surface-3);
+}
+html[data-theme='light'] .risks-insights__kpi-item--alert .risks-insights__kpi-value{
+  color:var(--color-danger-text);
+}
+html[data-theme='light'] .risks-insights__bar{
+  background:var(--surface-3);
+  border-color:var(--color-border-tertiary);
+}
+html[data-theme='light'] .risks-insights__tier-row{
+  border-bottom-color:var(--color-border-tertiary);
+}
+html[data-theme='light'] .risks-tier-pill{
+  border-color:var(--color-border-tertiary);
+  background:var(--surface-3);
+  color:var(--text-secondary);
+}
+html[data-theme='light'] .risks-tier-pill:hover{
+  background:var(--surface-4);
+  border-color:var(--color-border-secondary,var(--color-border));
+  color:var(--text-primary);
+}
+html[data-theme='light'] .risks-tier-pill--active{
+  border-color:var(--color-info-border);
+  background:var(--color-info-bg);
+  color:var(--color-info-text);
+  box-shadow:none;
+}
+html[data-theme='light'] .action-card__prio--danger,
+html[data-theme='light'] .action-detail-dialog__pill--danger,
+html[data-theme='light'] .action-detail-prio-vis--critique,
+html[data-theme='light'] .action-card__prio-badge--crit{
+  color:var(--color-danger-text);
+  background:var(--color-danger-bg);
+  border-color:var(--color-danger-border);
+}
+html[data-theme='light'] .action-card__prio--warn,
+html[data-theme='light'] .action-detail-dialog__pill--warn,
+html[data-theme='light'] .action-detail-prio-vis--haute,
+html[data-theme='light'] .action-card__prio-badge--high{
+  color:var(--color-warning-text);
+  background:var(--color-warning-bg);
+  border-color:var(--color-warning-border);
+}
+html[data-theme='light'] .action-card__prio--info,
+html[data-theme='light'] .action-card__status--todo,
+html[data-theme='light'] .action-detail-dialog__pill--info,
+html[data-theme='light'] .action-detail-prio-vis--normale,
+html[data-theme='light'] .action-card__prio-badge--norm{
+  color:var(--color-info-text);
+  background:var(--color-info-bg);
+  border-color:var(--color-info-border);
+}
+html[data-theme='light'] .action-card__status--doing{
+  color:var(--color-warning-text);
+  background:var(--color-warning-bg);
+  border-color:var(--color-warning-border);
+}
+html[data-theme='light'] .action-card__prio--neutral{
+  border-color:var(--color-border-tertiary);
+  background:var(--surface-3);
+  color:var(--text-secondary);
+}
+html[data-theme='light'] .action-detail-dialog__foot,
+html[data-theme='light'] .kanban-column-head,
+html[data-theme='light'] .risk-matrix-legend,
+html[data-theme='light'] .risks-page__secondary-summary{
+  border-color:var(--color-border-tertiary);
+}
+html[data-theme='light'] .risk-register-row__tier-chip--t3,
+html[data-theme='light'] .risk-register-table-row__stale-badge,
+html[data-theme='light'] .risk-register-table-row__derive-badge{
+  color:var(--color-warning-text);
+  background:var(--color-warning-bg);
+  border-color:var(--color-warning-border);
+}
+html[data-theme='light'] .risk-register-row__tier-chip--t5{
+  color:var(--color-danger-text);
+  background:var(--color-danger-bg);
+  border-color:var(--color-danger-border);
+}
+html[data-theme='light'] .risk-matrix-priority-card--ok .risk-matrix-priority-card__value{
+  color:var(--color-success-text);
+}
+html[data-theme='light'] .risk-matrix-cell__dot--t2{
+  background:var(--color-success);
+}
+html[data-theme='light'] .risk-register-table-row__act-nav{
+  color:var(--color-primary-text);
+}
+html[data-theme='light'] .risk-register-table-row__act-nav:hover{
+  color:var(--palette-primary,var(--color-primary));
+}
+html[data-theme='light'] .risks-pilot-banner__kpi--crit .risks-pilot-banner__kpi-val{
+  color:var(--color-danger-text);
+}
+html[data-theme='light'] .risks-pilot-banner__kpi--elev .risks-pilot-banner__kpi-val{
+  color:var(--color-warning-text);
+}
+html[data-theme='light'] .risk-matrix-details__summary:hover,
+html[data-theme='light'] .risk-register-table-row:hover,
+html[data-theme='light'] .risks-page__secondary-summary:hover{
+  background:var(--surface-3);
+}
+html[data-theme='light'] .kanban-column--pilotage{
+  border-color:var(--color-border-tertiary);
+  background:var(--surface-2);
+  box-shadow:none;
+}
 `;
 
 export function ensureQhsePilotageStyles() {

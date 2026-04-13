@@ -1,4 +1,5 @@
-// PostgreSQL recommandé en production. V1 mono-tenant : `tenantId` optionnel sur les entités (pas de table tenants).
+// PostgreSQL recommandé en production. Multi-organisations : table `tenants` + `tenant_members` ;
+// les lignes métier portent `tenantId` (filtrage API via `req.qhseTenantId`).
 
 generator client {
   provider      = "prisma-client-js"
@@ -10,10 +11,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  members TenantMember[]
+  sites   Site[]
+
+  @@map("tenants")
+}
+
+model TenantMember {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Rôle au sein de l’organisation (MVP : souvent aligné sur le rôle global utilisateur).
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_members")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
 model Site {
   id        String   @id @default(cuid())
-  /// Legacy (nullable) — plus de FK vers une table tenants.
   tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   name      String
   code      String?
   address   String?
@@ -96,6 +136,8 @@ model User {
   onboardingCompleted Boolean @default(false)
   onboardingStep      Int     @default(0)
 
+  memberships                TenantMember[]
+  passwordResetTokens        PasswordResetToken[]
   assignedActions            Action[]           @relation("ActionAssignee")
   auditLogs                  AuditLog[]
   createdAiSuggestions       AiSuggestion[]     @relation("AiSuggestionCreatedBy")
@@ -323,6 +365,7 @@ model ControlledDocument {
 /// Produit chimique — données structurées FDS (parse PDF + validation terrain).
 model Product {
   id             String   @id @default(cuid())
+  tenantId       String?
   name           String
   supplier       String?
   casNumber      String?
@@ -338,6 +381,7 @@ model Product {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  @@index([tenantId])
   @@index([siteId])
   @@index([casNumber])
   @@map("products")

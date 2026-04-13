@@ -78,7 +78,7 @@ const CSS = `
 .activity-log-summary-chip.mod-products{color:var(--color-primary-text);border-color:var(--color-primary-border);background:var(--color-primary-bg)}
 .activity-log-summary-chip.mod-context{color:#cbd5e1;border-color:rgba(148,163,184,.3)}
 .activity-log-summary-chip.mod-ai-center{color:var(--color-primary-text);border-color:var(--color-primary-border);background:var(--color-primary-bg)}
-.activity-log-summary-chip.mod-system{color:#e2e8f0;border-color:rgba(203,213,225,.25)}
+.activity-log-summary-chip.mod-system{color:var(--text-secondary);border-color:var(--color-border-tertiary);background:var(--surface-3)}
 .activity-log-summary-chip.mod-default{color:var(--text2)}
 
 .activity-log-quick{margin-bottom:16px;padding:14px 16px;border-radius:14px;border:1px solid rgba(148,163,184,.12);background:rgba(0,0,0,.06)}
@@ -230,6 +230,35 @@ const CSS = `
   color:#0f766e;
   border-color:color-mix(in srgb, var(--palette-accent, #0d9488) 38%, var(--color-border-tertiary));
   background:color-mix(in srgb, var(--palette-accent, #14b8a6) 14%, var(--surface-1, #ffffff));
+}
+[data-theme='light'] .activity-log-summary-card,
+[data-theme='light'] .activity-log-quick-card,
+[data-theme='light'] .activity-log-analysis{
+  background:var(--surface-3);
+  border-color:var(--color-border-tertiary);
+}
+[data-theme='light'] .activity-log-summary-chip.mod-context{
+  color:var(--text-secondary);
+  border-color:var(--color-border-tertiary);
+  background:var(--surface-3);
+}
+[data-theme='light'] .activity-log-page .activity-log-toolbar,
+[data-theme='light'] .activity-log-filters{
+  background:var(--surface-3);
+  border-color:var(--color-border-tertiary);
+}
+[data-theme='light'] .activity-log-table{
+  border-color:var(--color-border-tertiary);
+}
+[data-theme='light'] .activity-log-head{
+  background:var(--surface-4);
+  border-bottom-color:var(--color-border-tertiary);
+}
+[data-theme='light'] .activity-log-row{
+  border-bottom-color:var(--color-border-tertiary);
+}
+[data-theme='light'] .activity-log-row:nth-child(even){
+  background:var(--surface-2);
 }
 `;
 

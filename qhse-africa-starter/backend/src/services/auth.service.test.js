@@ -115,6 +115,17 @@ describe('auth.service', () => {
       });
       expect(typeof payload.exp).toBe('number');
     });
+
+    it('inclut tid lorsque tenantId est fourni', () => {
+      vi.stubEnv('JWT_SECRET', '0123456789abcdef');
+      vi.stubEnv('NODE_ENV', 'test');
+      const token = authService.issueAccessToken(
+        { id: 'u1', name: 'N', email: 'n@test', role: 'ADMIN' },
+        'tenant_xyz'
+      );
+      const payload = jwt.decode(token);
+      expect(payload).toMatchObject({ sub: 'u1', role: 'ADMIN', tid: 'tenant_xyz' });
+    });
   });
 
   describe('getJwtSecret', () => {
@@ -149,6 +160,14 @@ describe('auth.service', () => {
       expect(t.split('.')).toHaveLength(3);
       const payload = jwt.decode(t);
       expect(payload).toMatchObject({ sub: 'u1', type: 'refresh' });
+    });
+
+    it('inclut tid sur le refresh lorsque tenantId est fourni', () => {
+      vi.stubEnv('JWT_SECRET', '0123456789abcdef');
+      vi.stubEnv('NODE_ENV', 'test');
+      const t = authService.issueRefreshToken({ id: 'u1' }, 't1');
+      const payload = jwt.decode(t);
+      expect(payload).toMatchObject({ sub: 'u1', type: 'refresh', tid: 't1' });
     });
   });
 

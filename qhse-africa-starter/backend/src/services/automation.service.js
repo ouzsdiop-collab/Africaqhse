@@ -1,11 +1,9 @@
 import { prisma } from '../db.js';
+import { fetchPilotageRecipientEmailsForTenant } from '../lib/emailRecipients.js';
 import { isSmtpConfigured, sendMailText } from './email.service.js';
 import { emitBusinessEvent } from './businessEvents.service.js';
 import { getEmailNotificationPrefs } from '../lib/emailNotificationPrefs.js';
 import { buildPeriodicReport } from './periodicReporting.service.js';
-import { MONO_ORG } from './auth.service.js';
-
-const WEEKLY_RECIPIENT_ROLES = ['ADMIN', 'QHSE', 'DIRECTION'];
 
 function includesRetard(status) {
   return String(status ?? '').toLowerCase().includes('retard');
@@ -42,25 +40,6 @@ function formatWeeklyEmailBody(report) {
 }
 
 /**
- * Destinataires synthèse : profils pilotage (e-mail renseigné).
- */
-async function fetchWeeklyRecipientEmails() {
-  const users = await prisma.user.findMany({
-    where: { role: { in: WEEKLY_RECIPIENT_ROLES } },
-    select: { email: true, name: true, role: true }
-  });
-  const seen = new Set();
-  const out = [];
-  for (const u of users) {
-    const e = String(u?.email ?? '').trim().toLowerCase();
-    if (!e || seen.has(e)) continue;
-    seen.add(e);
-    out.push({ email: e, name: u?.name, role: u.role });
-  }
-  return out;
-}
-
-/**
  * @returns {{ sent: number, skipped: number, detail: string[] }}
  */
 export async function runWeeklySummaryEmail() {
@@ -74,25 +53,38 @@ export async function runWeeklySummaryEmail() {
     return { sent: 0, skipped: 0, detail };
   }
 
-  const report = await buildPeriodicReport({ tenantId: '', period: 'weekly' });
-  const body = formatWeeklyEmailBody(report);
-  const recipients = await fetchWeeklyRecipientEmails();
-  if (!recipients.length) {
-    detail.push('Aucun destinataire (rôles pilotage avec e-mail).');
+  const tenants = await prisma.tenant.findMany({
+    select: { id: true, name: true, slug: true }
+  });
+  if (!tenants.length) {
+    detail.push('Aucune organisation en base.');
     return { sent: 0, skipped: 0, detail };
   }
+
   let sent = 0;
-  const subject = `[QHSE] ${MONO_ORG.name} — synthèse hebdomadaire (${report.meta?.startDate?.slice(0, 10) ?? ''})`;
-  for (const r of recipients) {
-    await sendMailText({
-      to: [r.email],
-      subject,
-      text: body
-    });
-    sent += 1;
+  for (const t of tenants) {
+    const report = await buildPeriodicReport({ tenantId: t.id, period: 'weekly' });
+    const body = formatWeeklyEmailBody(report);
+    const recipients = await fetchPilotageRecipientEmailsForTenant(t.id);
+    if (!recipients.length) {
+      detail.push(`Synthèse « ${t.slug} » : aucun destinataire pilotage.`);
+      continue;
+    }
+    const subject = `[QHSE] ${t.name} — synthèse hebdomadaire (${report.meta?.startDate?.slice(0, 10) ?? ''})`;
+    for (const r of recipients) {
+      await sendMailText({
+        to: [r.email],
+        subject,
+        text: body
+      });
+      sent += 1;
+    }
+    detail.push(`Synthèse « ${t.slug} » : ${recipients.length} e-mail(s).`);
   }
 
-  detail.push(`${sent} e-mail(s) envoyé(s).`);
+  if (!sent) {
+    detail.push('Aucun e-mail envoyé (pas de destinataires par organisation).');
+  }
   return { sent, skipped: 0, detail };
 }
 
@@ -112,7 +104,10 @@ export async function runOverdueActionReminders() {
   }
 
   const actions = await prisma.action.findMany({
-    where: { assigneeId: { not: null } },
+    where: {
+      assigneeId: { not: null },
+      tenantId: { not: null }
+    },
     include: {
       assignee: { select: { id: true, email: true, name: true } }
     },
@@ -138,7 +133,7 @@ export async function runOverdueActionReminders() {
     if (!email) continue;
     for (const act of items) {
       void emitBusinessEvent('action.overdue', {
-        tenantId: '',
+        tenantId: act.tenantId ?? null,
         actionId: act.id,
         action: {
           id: act.id,

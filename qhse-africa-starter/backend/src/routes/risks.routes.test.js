@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import supertest from 'supertest';
+import { prisma } from '../db.js';
+import { TENANT_CONTEXT_REQUIRED_MESSAGE } from '../lib/tenantConstants.js';
 
 const store = [];
 
@@ -38,6 +40,21 @@ vi.mock('../services/riskAnalyze.service.js', () => {
     }))
   };
 });
+
+vi.mock('../services/tenantAuth.service.js', () => ({
+  assertUserTenantAccess: vi.fn(async () => ({
+    id: 'tenant-test',
+    slug: 'default',
+    name: 'Test Org'
+  })),
+  listTenantsForUser: vi.fn(async () => []),
+  getFirstTenantForUser: vi.fn(async () => ({
+    id: 'tenant-test',
+    slug: 'default',
+    name: 'Test Org'
+  })),
+  resolveTenantForLogin: vi.fn()
+}));
 
 vi.mock('../services/risks.service.js', () => ({
   findAllRisks: vi.fn(async (_tenantId, filters = {}) => applyFilters(store, filters)),
@@ -102,13 +119,36 @@ vi.mock('../services/risks.service.js', () => ({
 
 const { app } = await import('../server.js');
 
+const API_REQ_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'];
+
+/** supertest v7 : `supertest(app)` expose get/post/… — pas de `.set` sur la racine. */
+function apiReq() {
+  const st = supertest(app);
+  const out = { del: (url) => st.delete(url).set('X-User-Id', 'test-api-user') };
+  for (const m of API_REQ_METHODS) {
+    out[m] = (url) => st[m](url).set('X-User-Id', 'test-api-user');
+  }
+  return out;
+}
+
 describe('risks routes', () => {
   beforeEach(() => {
     store.splice(0, store.length);
+    vi.mocked(prisma.user.findUnique).mockImplementation(async ({ where }) => {
+      if (where?.id === 'test-api-user') {
+        return {
+          id: 'test-api-user',
+          name: 'API Test',
+          email: 'api@test.local',
+          role: 'ADMIN'
+        };
+      }
+      return null;
+    });
   });
 
   it('GET /api/risks retourne un tableau', async () => {
-    const res = await request(app).get('/api/risks');
+    const res = await apiReq().get('/api/risks');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
@@ -118,16 +158,16 @@ describe('risks routes', () => {
       { id: '1', title: 'a', status: 'ouvert', category: 'Sécurité', gravity: 3, probability: 3, gp: 9 },
       { id: '2', title: 'b', status: 'ferme', category: 'Qualité', gravity: 2, probability: 2, gp: 4 }
     );
-    const resStatus = await request(app).get('/api/risks?status=ouvert');
+    const resStatus = await apiReq().get('/api/risks?status=ouvert');
     expect(resStatus.status).toBe(200);
     expect(resStatus.body).toHaveLength(1);
-    const resCat = await request(app).get('/api/risks?category=Sécurité');
+    const resCat = await apiReq().get('/api/risks?category=Sécurité');
     expect(resCat.status).toBe(200);
     expect(resCat.body).toHaveLength(1);
   });
 
   it('POST /api/risks creation valide', async () => {
-    const res = await request(app).post('/api/risks').send({
+    const res = await apiReq().post('/api/risks').send({
       title: 'Risque test',
       category: 'Sécurité',
       severity: 4,
@@ -138,46 +178,46 @@ describe('risks routes', () => {
   });
 
   it('POST /api/risks sans title -> 422 (validation Zod)', async () => {
-    const res = await request(app).post('/api/risks').send({ category: 'Sécurité' });
+    const res = await apiReq().post('/api/risks').send({ category: 'Sécurité' });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('VALIDATION_ERROR');
     expect(JSON.stringify(res.body.details ?? {})).toMatch(/title/i);
   });
 
   it('POST /api/risks invalide probability/gravity -> 422', async () => {
-    const p = await request(app).post('/api/risks').send({ title: 'RR', probability: 6, gravity: 3 });
+    const p = await apiReq().post('/api/risks').send({ title: 'RR', probability: 6, gravity: 3 });
     expect(p.status).toBe(422);
-    const g = await request(app).post('/api/risks').send({ title: 'RR', probability: 3, gravity: 0 });
+    const g = await apiReq().post('/api/risks').send({ title: 'RR', probability: 3, gravity: 0 });
     expect(g.status).toBe(422);
   });
 
   it('GET /api/risks/:id existant et inexistant', async () => {
     store.push({ id: 'x1', title: 'R1', status: 'open', gravity: 2, probability: 2, gp: 4 });
-    const ok = await request(app).get('/api/risks/x1');
+    const ok = await apiReq().get('/api/risks/x1');
     expect(ok.status).toBe(200);
-    const ko = await request(app).get('/api/risks/missing');
+    const ko = await apiReq().get('/api/risks/missing');
     expect(ko.status).toBe(404);
   });
 
   it('PATCH /api/risks/:id met a jour statut', async () => {
     store.push({ id: 'x2', title: 'R2', status: 'ouvert', gravity: 2, probability: 2, gp: 4 });
-    const res = await request(app).patch('/api/risks/x2').send({ status: 'en_traitement' });
+    const res = await apiReq().patch('/api/risks/x2').send({ status: 'en_traitement' });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('en_traitement');
   });
 
   it('PATCH /api/risks/:id statut invalide -> 400', async () => {
     store.push({ id: 'x3', title: 'R3', status: 'open', gravity: 2, probability: 2, gp: 4 });
-    const res = await request(app).patch('/api/risks/x3').send({ status: 'invalid_status' });
+    const res = await apiReq().patch('/api/risks/x3').send({ status: 'invalid_status' });
     expect(res.status).toBe(400);
   });
 
   it('DELETE /api/risks/:id supprime ou 404', async () => {
     store.push({ id: 'x4', title: 'R4', status: 'open', gravity: 2, probability: 2, gp: 4 });
-    const ok = await request(app).delete('/api/risks/x4');
+    const ok = await apiReq().delete('/api/risks/x4');
     expect(ok.status).toBe(200);
     expect(ok.body).toMatchObject({ deleted: true });
-    const ko = await request(app).delete('/api/risks/missing');
+    const ko = await apiReq().delete('/api/risks/missing');
     expect(ko.status).toBe(404);
   });
 
@@ -186,7 +226,7 @@ describe('risks routes', () => {
       { id: 'c1', title: 'c1', status: 'open', category: 'Sécurité', gravity: 5, probability: 3, gp: 15 },
       { id: 'c2', title: 'c2', status: 'open', category: 'Qualité', gravity: 2, probability: 2, gp: 4 }
     );
-    const res = await request(app).get('/api/risks/stats');
+    const res = await apiReq().get('/api/risks/stats');
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(2);
     expect(res.body.critical).toBe(1);
@@ -194,11 +234,85 @@ describe('risks routes', () => {
   });
 
   it('POST /api/risks/analyze avec et sans description', async () => {
-    const ok = await request(app).post('/api/risks/analyze').send({ description: 'Risque de chute' });
+    const ok = await apiReq().post('/api/risks/analyze').send({ description: 'Risque de chute' });
     expect(ok.status).toBe(200);
     expect(ok.body.category).toBe('Sécurité');
     expect(ok.body.provider).toBe('rules');
-    const ko = await request(app).post('/api/risks/analyze').send({ description: '' });
+    const ko = await apiReq().post('/api/risks/analyze').send({ description: '' });
     expect(ko.status).toBe(400);
+  });
+
+  it('sans en-tête utilisateur — 403 contexte organisation (middleware global)', async () => {
+    const res = await supertest(app).get('/api/risks');
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: TENANT_CONTEXT_REQUIRED_MESSAGE });
+  });
+
+  it('GET /api/health sans tenant — toujours autorisé', async () => {
+    const res = await supertest(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('GET /api/dashboard/stats sans tenant — 403 (autre monture que /risks)', async () => {
+    const res = await supertest(app).get('/api/dashboard/stats');
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: TENANT_CONTEXT_REQUIRED_MESSAGE });
+  });
+
+  it('POST /api/fds/analyze sans tenant — pas 403 (route exemptée, échec aval attendu)', async () => {
+    const res = await supertest(app).post('/api/fds/analyze').send({});
+    expect(res.status).not.toBe(403);
+  });
+
+  it('GET /api/audit-logs sans tenant — 403 (middleware global)', async () => {
+    const res = await supertest(app).get('/api/audit-logs');
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: TENANT_CONTEXT_REQUIRED_MESSAGE });
+  });
+
+  it.each([
+    ['get', '/api/dashboard'],
+    ['get', '/api/ai-suggestions'],
+    ['get', '/api/sites'],
+    ['get', '/api/users'],
+    ['get', '/api/notifications'],
+    ['get', '/api/conformity'],
+    ['get', '/api/reports/summary'],
+    ['get', '/api/nonconformities'],
+    ['get', '/api/imports'],
+    ['get', '/api/habilitations'],
+    ['get', '/api/ptw'],
+    ['get', '/api/settings/email-notifications'],
+    ['get', '/api/controlled-documents'],
+    ['get', '/api/export/risks'],
+    ['get', '/api/export/actions'],
+    ['get', '/api/export/audits'],
+    ['post', '/api/compliance/analyze-assist', {}]
+  ])('%s %s sans tenant — 403', async (method, path, body) => {
+    const st = supertest(app);
+    const res =
+      method === 'post' ? await st.post(path).send(body ?? {}) : await st.get(path);
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: TENANT_CONTEXT_REQUIRED_MESSAGE });
+  });
+});
+
+describe('ALLOW_X_USER_ID=false — X-User-Id ignoré par attachRequestUser', () => {
+  const savedAllow = process.env.ALLOW_X_USER_ID;
+
+  beforeAll(() => {
+    process.env.ALLOW_X_USER_ID = 'false';
+  });
+
+  afterAll(() => {
+    if (savedAllow === undefined) delete process.env.ALLOW_X_USER_ID;
+    else process.env.ALLOW_X_USER_ID = savedAllow;
+  });
+
+  it('GET /api/risks avec X-User-Id sans JWT — 403 contexte organisation', async () => {
+    const res = await supertest(app).get('/api/risks').set('X-User-Id', 'test-api-user');
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: TENANT_CONTEXT_REQUIRED_MESSAGE });
   });
 });

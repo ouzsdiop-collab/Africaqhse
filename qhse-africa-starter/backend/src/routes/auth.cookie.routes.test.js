@@ -15,6 +15,27 @@ vi.mock('../db.js', () => ({
   }
 }));
 
+vi.mock('../services/tenantAuth.service.js', () => ({
+  resolveTenantForLogin: vi.fn(async () => ({
+    mode: 'ok',
+    tenant: { id: 't-tenant', slug: 'default', name: 'Test Org' },
+    memberRole: 'ADMIN'
+  })),
+  listTenantsForUser: vi.fn(async () => [
+    { id: 't-tenant', slug: 'default', name: 'Test Org', role: 'ADMIN' }
+  ]),
+  assertUserTenantAccess: vi.fn(async () => ({
+    id: 't-tenant',
+    slug: 'default',
+    name: 'Test Org'
+  })),
+  getFirstTenantForUser: vi.fn(async () => ({
+    id: 't-tenant',
+    slug: 'default',
+    name: 'Test Org'
+  }))
+}));
+
 vi.mock('../services/auth.service.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
@@ -34,7 +55,8 @@ vi.mock('../services/auth.service.js', async (importOriginal) => {
 });
 
 vi.mock('../lib/rateLimiter.js', () => ({
-  authLimiter: (_req, _res, next) => next()
+  authLimiter: (_req, _res, next) => next(),
+  passwordResetLimiter: (_req, _res, next) => next()
 }));
 
 async function buildAuthApp() {

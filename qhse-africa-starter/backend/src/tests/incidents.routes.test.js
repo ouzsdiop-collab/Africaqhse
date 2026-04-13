@@ -14,6 +14,7 @@ async function buildTestApp() {
       role: 'ADMIN',
       tenantId: 'tenant-test'
     };
+    req.qhseTenantId = 'tenant-test';
     next();
   });
 

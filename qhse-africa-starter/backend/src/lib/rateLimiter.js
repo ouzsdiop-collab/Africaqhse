@@ -8,6 +8,15 @@ export const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
+/** Réinitialisation mot de passe — limite plus stricte (anti-énumération / spam). */
+export const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Trop de demandes. Reessayez dans 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 export const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 200,

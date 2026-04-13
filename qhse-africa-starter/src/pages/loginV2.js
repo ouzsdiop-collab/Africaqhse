@@ -275,10 +275,278 @@ const EYE_OPEN_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none
 
 const EYE_OFF_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
+function readResetTokenFromHash() {
+  const h = window.location.hash.replace(/^#/, '');
+  if (!h.startsWith('reset-password')) return '';
+  const qi = h.indexOf('?');
+  if (qi < 0) return '';
+  return new URLSearchParams(h.slice(qi + 1)).get('token')?.trim() || '';
+}
+
+function lv2AuthLeftColumnMini(title, subtitle) {
+  const left = document.createElement('div');
+  left.className = 'lv2-left';
+  left.innerHTML = `
+  <div class="lv2-logo">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+         stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+    <span class="lv2-logo-name">QHSE Control</span>
+  </div>
+  <div class="lv2-left-main" style="flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;width:100%;max-width:100%">
+    <h1 class="lv2-headline">${title}</h1>
+    <p class="lv2-tagline">${subtitle}</p>
+  </div>
+  <p class="lv2-gdpr">Sécurité des accès · Multi-organisations</p>
+`;
+  return left;
+}
+
 /**
- * @param {{ onSuccess: () => void }} params
+ * @param {{ onNavigate?: () => void }} params
  */
-export function createLoginView({ onSuccess }) {
+export function createForgotPasswordView({ onNavigate }) {
+  ensureDashboardStyles();
+  ensureLoginV2Styles();
+
+  const screen = document.createElement('div');
+  screen.className = 'lv2-screen';
+  const left = lv2AuthLeftColumnMini(
+    'Réinitialiser<br>votre accès',
+    'Indiquez l’adresse e-mail du compte. Si elle est connue, un lien valable 1 h vous sera envoyé.'
+  );
+
+  const right = document.createElement('div');
+  right.className = 'lv2-right';
+  const inner = document.createElement('div');
+  inner.className = 'lv2-right-inner';
+  inner.innerHTML = `
+    <div class="lv2-mobile-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>QHSE Control</span>
+    </div>
+    <form class="lv2-form lv2-forgot-form" novalidate>
+      <p class="lv2-form-title">Mot de passe oublié</p>
+      <p class="lv2-form-sub">Nous vous enverrons un lien sécurisé si un compte existe pour cette adresse.</p>
+      <label class="lv2-field">
+        <span class="lv2-field-label">Adresse e-mail</span>
+        <input type="email" name="email" class="control-input lv2-input lv2-forgot-email" autocomplete="email" placeholder="vous@votre-entreprise.com" />
+      </label>
+      <button type="submit" class="btn btn-primary lv2-submit">Envoyer le lien</button>
+      <button type="button" class="lv2-demo-link lv2-back-login">Retour à la connexion</button>
+    </form>
+  `;
+
+  const form = inner.querySelector('.lv2-forgot-form');
+  const emailEl = inner.querySelector('.lv2-forgot-email');
+  const backBtn = inner.querySelector('.lv2-back-login');
+  const submitBtn = form?.querySelector('.lv2-submit');
+
+  backBtn?.addEventListener('click', () => {
+    window.location.hash = 'login';
+    onNavigate?.();
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = String(emailEl?.value || '').trim().toLowerCase();
+    if (!email) {
+      showToast('Saisissez votre adresse e-mail', 'error');
+      return;
+    }
+    const prev = submitBtn?.textContent || '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Envoi…';
+    }
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/forgot-password`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof body.error === 'string'
+            ? body.error
+            : 'Impossible d’envoyer la demande pour le moment.';
+        showToast(msg, 'error');
+        return;
+      }
+      showToast(
+        typeof body.message === 'string'
+          ? body.message
+          : 'Si un compte existe, un e-mail a été envoyé.',
+        'success'
+      );
+      window.location.hash = 'login';
+      onNavigate?.();
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prev;
+      }
+    }
+  });
+
+  right.append(inner);
+  screen.append(left, right);
+  return screen;
+}
+
+/**
+ * @param {{ onNavigate?: () => void }} params
+ */
+export function createResetPasswordView({ onNavigate }) {
+  ensureDashboardStyles();
+  ensureLoginV2Styles();
+
+  const token = readResetTokenFromHash();
+
+  const screen = document.createElement('div');
+  screen.className = 'lv2-screen';
+  const left = lv2AuthLeftColumnMini(
+    'Nouveau<br>mot de passe',
+    'Choisissez un mot de passe solide. Après validation, connectez-vous avec vos nouveaux identifiants.'
+  );
+
+  const right = document.createElement('div');
+  right.className = 'lv2-right';
+  const inner = document.createElement('div');
+  inner.className = 'lv2-right-inner';
+
+  if (!token) {
+    inner.innerHTML = `
+      <div class="lv2-mobile-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>QHSE Control</span>
+      </div>
+      <p class="lv2-form-title">Lien invalide</p>
+      <p class="lv2-form-sub">Le lien de réinitialisation est absent ou incomplet. Demandez un nouvel e-mail depuis la page de connexion.</p>
+      <button type="button" class="btn btn-primary lv2-submit lv2-back-login-invalid">Retour à la connexion</button>
+    `;
+    inner.querySelector('.lv2-back-login-invalid')?.addEventListener('click', () => {
+      window.location.hash = 'login';
+      onNavigate?.();
+    });
+    right.append(inner);
+    screen.append(left, right);
+    return screen;
+  }
+
+  inner.innerHTML = `
+    <div class="lv2-mobile-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>QHSE Control</span>
+    </div>
+    <form class="lv2-form lv2-reset-form" novalidate>
+      <p class="lv2-form-title">Définir un nouveau mot de passe</p>
+      <p class="lv2-form-sub">Le lien expire après une heure.</p>
+      <label class="lv2-field">
+        <span class="lv2-field-label">Nouveau mot de passe</span>
+        <div class="lv2-password-wrap">
+          <input type="password" name="password" class="control-input lv2-input lv2-reset-pass" autocomplete="new-password" placeholder="••••••••" />
+          <button type="button" class="lv2-eye-btn" aria-label="Afficher le mot de passe">${EYE_OPEN_SVG}</button>
+        </div>
+      </label>
+      <label class="lv2-field">
+        <span class="lv2-field-label">Confirmer</span>
+        <input type="password" name="password2" class="control-input lv2-input lv2-reset-pass2" autocomplete="new-password" placeholder="••••••••" />
+      </label>
+      <button type="submit" class="btn btn-primary lv2-submit">Enregistrer</button>
+      <button type="button" class="lv2-demo-link lv2-back-login-reset">Retour à la connexion</button>
+    </form>
+  `;
+
+  const form = inner.querySelector('.lv2-reset-form');
+  const passEl = inner.querySelector('.lv2-reset-pass');
+  const pass2El = inner.querySelector('.lv2-reset-pass2');
+  const eyeBtn = inner.querySelector('.lv2-eye-btn');
+  const backBtn = inner.querySelector('.lv2-back-login-reset');
+  const submitBtn = form?.querySelector('.lv2-submit');
+
+  backBtn?.addEventListener('click', () => {
+    window.location.hash = 'login';
+    onNavigate?.();
+  });
+
+  if (eyeBtn && passEl) {
+    eyeBtn.addEventListener('click', () => {
+      const isHidden = passEl.type === 'password';
+      passEl.type = isHidden ? 'text' : 'password';
+      eyeBtn.innerHTML = isHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
+      eyeBtn.setAttribute(
+        'aria-label',
+        isHidden ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+      );
+    });
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = passEl?.value || '';
+    const password2 = pass2El?.value || '';
+    if (!password || password !== password2) {
+      showToast('Les mots de passe ne correspondent pas', 'error');
+      return;
+    }
+    const prev = submitBtn?.textContent || '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enregistrement…';
+    }
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/reset-password`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof body.error === 'string'
+            ? body.error
+            : 'Réinitialisation impossible. Demandez un nouveau lien.';
+        showToast(msg, 'error');
+        return;
+      }
+      showToast(
+        typeof body.message === 'string' ? body.message : 'Mot de passe mis à jour.',
+        'success'
+      );
+      window.location.hash = 'login';
+      onNavigate?.();
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prev;
+      }
+    }
+  });
+
+  right.append(inner);
+  screen.append(left, right);
+  return screen;
+}
+
+/**
+ * @param {{ onSuccess: () => void, onNavigate?: () => void }} params
+ */
+export function createLoginView({ onSuccess, onNavigate }) {
   ensureDashboardStyles();
   ensureLoginV2Styles();
 
@@ -534,12 +802,8 @@ export function createLoginView({ onSuccess }) {
   }
 
   forgotBtn?.addEventListener('click', () => {
-    const email = String(emailEl?.value || '').trim();
-    const subject = encodeURIComponent('Reinitialisation mot de passe QHSE Control');
-    const body = encodeURIComponent(
-      `Bonjour,\n\nJe souhaite reinitialiser mon mot de passe.\n\nEmail du compte : ${email || '(a remplir)'}\n\nMerci.`
-    );
-    window.open(`mailto:support@qhsecontrol.com?subject=${subject}&body=${body}`, '_blank');
+    window.location.hash = 'forgot-password';
+    onNavigate?.();
   });
 
   skipBtn?.addEventListener('click', () => {

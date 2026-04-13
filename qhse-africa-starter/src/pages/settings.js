@@ -1506,7 +1506,7 @@ export function renderSettings() {
     <header class="settings-section__head">
       <p class="settings-section__kicker">I · Gestion des utilisateurs</p>
       <h4 class="settings-section__title">Utilisateurs</h4>
-      <p class="settings-section__lead">Liste, création, rôle, mot de passe (8+ caractères : au moins une lettre et un chiffre), suppression.</p>
+      <p class="settings-section__lead">Liste, création, rôle, mot de passe (8+ caractères : au moins une lettre et un chiffre). Retirer un membre le détache de <strong>cette organisation</strong> uniquement (son compte peut exister ailleurs).</p>
     </header>
     <div class="settings-actions-bar" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px" data-users-form>
       <input class="control-input" placeholder="Nom" data-users-name />
@@ -1597,7 +1597,13 @@ export function renderSettings() {
         const del = document.createElement('button');
         del.type = 'button';
         del.className = 'btn btn-secondary';
-        del.textContent = 'Supprimer';
+        del.textContent = 'Retirer';
+        del.title =
+          'Retirer cette personne de l’organisation courante (sans supprimer son compte sur d’autres organisations).';
+        del.setAttribute(
+          'aria-label',
+          `Retirer ${u.name || u.email || 'ce membre'} de l’organisation`
+        );
         const pwdBar = document.createElement('div');
         pwdBar.className = 'settings-actions-bar';
         pwdBar.style.flexWrap = 'wrap';
@@ -1655,10 +1661,16 @@ export function renderSettings() {
 
         del.addEventListener('click', async () => {
           if (currentUserId && String(u.id) === currentUserId) {
-            showToast('Suppression de votre propre compte bloquée depuis cette page.', 'warning');
+            showToast('Vous ne pouvez pas retirer votre propre accès depuis cette page.', 'warning');
             return;
           }
-          if (!window.confirm(`Supprimer ${u.name || u.email} ?`)) return;
+          if (
+            !window.confirm(
+              `Retirer ${u.name || u.email} de cette organisation ? La personne perdra l’accès à cet espace ; son compte peut rester actif ailleurs.`
+            )
+          ) {
+            return;
+          }
           try {
             const r = await qhseFetch(`/api/users/${encodeURIComponent(String(u.id))}`, {
               method: 'DELETE'
@@ -1686,7 +1698,7 @@ export function renderSettings() {
                 );
                 if (!r2.ok) {
                   const { message: m2 } = await readFailedApiResponse(r2);
-                  showToast(m2 || `Suppression impossible (HTTP ${r2.status}).`, 'error');
+                  showToast(m2 || `Retrait impossible (HTTP ${r2.status}).`, 'error');
                   return;
                 }
                 showToast('Actions désassignées et membre retiré.', 'success');
@@ -1705,14 +1717,14 @@ export function renderSettings() {
                   'warning'
                 );
               } else {
-                showToast(message || `Suppression impossible (HTTP ${r.status}).`, 'error');
+                showToast(message || `Retrait impossible (HTTP ${r.status}).`, 'error');
               }
               return;
             }
-            showToast('Utilisateur supprimé.', 'success');
+            showToast('Membre retiré de cette organisation.', 'success');
             await loadUsers();
           } catch {
-            showToast('Suppression impossible.', 'error');
+            showToast('Retrait impossible.', 'error');
           }
         });
         actions.append(roleSel, del);

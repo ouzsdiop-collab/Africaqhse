@@ -47,7 +47,12 @@ export function isRequireAuthEnabled() {
   return process.env.NODE_ENV === 'production';
 }
 
+/**
+ * En-tête `X-User-Id` (bootstrap dev) : désactivé en production sauf si
+ * `ALLOW_X_USER_ID=true`. En développement, désactivable avec `ALLOW_X_USER_ID=false`.
+ */
 export function isXUserIdAllowed() {
-  if (process.env.NODE_ENV === 'production') return false;
-  return true;
+  if (envTruthy('ALLOW_X_USER_ID')) return true;
+  if (envFalsy('ALLOW_X_USER_ID')) return false;
+  return process.env.NODE_ENV !== 'production';
 }

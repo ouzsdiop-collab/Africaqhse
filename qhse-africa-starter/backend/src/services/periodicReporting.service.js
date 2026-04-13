@@ -2,11 +2,8 @@ import cron from 'node-cron';
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 import { getEmailNotificationPrefs } from '../lib/emailNotificationPrefs.js';
-import {
-  isSmtpConfigured,
-  sendWeeklyQhseSummary,
-  fetchPilotageRecipientEmails
-} from './email.service.js';
+import { fetchPilotageRecipientEmailsForTenant } from '../lib/emailRecipients.js';
+import { isSmtpConfigured, sendWeeklyQhseSummary } from './email.service.js';
 
 const LIST_SAMPLE = 8;
 
@@ -541,26 +538,43 @@ export async function runScheduledWeeklyQhseEmail() {
     return { sent: 0, skipped: true, detail };
   }
   const { start, end } = getPreviousWeekLocalBounds();
-  const report = await getPeriodicReport({
-    period: 'custom',
-    start,
-    end,
-    siteId: null,
-    assigneeId: null,
-    tenantId: null
+  const tenants = await prisma.tenant.findMany({
+    select: { id: true, name: true, slug: true }
   });
-  const recipients = await fetchPilotageRecipientEmails();
-  const emails = recipients.map((r) => r.email);
-  if (!emails.length) {
-    detail.push('Aucun destinataire (rôles pilotage avec e-mail).');
+  if (!tenants.length) {
+    detail.push('Aucune organisation en base.');
     return { sent: 0, skipped: true, detail };
   }
-  await sendWeeklyQhseSummary(
-    { meta: report.meta, summary: report.summary },
-    emails
-  );
-  detail.push(`${emails.length} e-mail(s) de synthèse envoyé(s).`);
-  return { sent: emails.length, detail };
+
+  let totalSent = 0;
+  for (const t of tenants) {
+    const report = await getPeriodicReport({
+      period: 'custom',
+      start,
+      end,
+      siteId: null,
+      assigneeId: null,
+      tenantId: t.id
+    });
+    const recipients = await fetchPilotageRecipientEmailsForTenant(t.id);
+    const emails = recipients.map((r) => r.email);
+    if (!emails.length) {
+      detail.push(`« ${t.slug} » : aucun destinataire pilotage.`);
+      continue;
+    }
+    await sendWeeklyQhseSummary(
+      { meta: report.meta, summary: report.summary },
+      emails,
+      { organizationName: t.name }
+    );
+    totalSent += emails.length;
+    detail.push(`« ${t.slug} » : ${emails.length} e-mail(s).`);
+  }
+  if (!totalSent) {
+    detail.push('Aucun e-mail envoyé (pas de destinataires par organisation).');
+    return { sent: 0, skipped: true, detail };
+  }
+  return { sent: totalSent, skipped: false, detail };
 }
 
 /**

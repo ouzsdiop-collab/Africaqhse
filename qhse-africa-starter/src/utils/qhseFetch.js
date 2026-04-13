@@ -28,6 +28,12 @@ function sharedRefreshAccessToken() {
 
 /**
  * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (session / dev).
+ * Sans les deux, le backend répond souvent 403 « Contexte organisation requis » (hors routes exemptées).
+ *
+ * En navigateur, un 403 dont le JSON `error` évoque le contexte organisation déclenche
+ * `CustomEvent` **`qhse:tenant-context-required`** sur `window` (`detail`: `{ path, url }`)
+ * pour afficher un message ou rediriger sans coupler ce module à un système de toast.
+ *
  * @param {string} path — ex. `/api/actions` ou URL absolue
  * @param {RequestInit & { _retry?: boolean }} [init]
  */
@@ -105,6 +111,13 @@ export async function qhseFetch(path, init = {}) {
       const msg = typeof data?.error === 'string' ? data.error : '';
       if (msg.includes('Profil inconnu')) {
         setSessionUser(null);
+      }
+      if (typeof window !== 'undefined' && msg.includes('Contexte organisation')) {
+        window.dispatchEvent(
+          new CustomEvent('qhse:tenant-context-required', {
+            detail: { path, url }
+          })
+        );
       }
     } catch {
       /* ignore */

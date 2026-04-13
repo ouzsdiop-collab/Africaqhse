@@ -84,7 +84,7 @@ const CSS = `
 .ai-sim-output--empty{padding:18px 20px;background:rgba(0,0,0,.12)}
 .ai-sim-output--empty .ai-sim-placeholder{margin:0;font-size:13px;line-height:1.55;color:var(--text3);font-style:italic}
 .ai-sim-result-head{padding:16px 18px 12px;border-bottom:1px solid rgba(148,163,184,.1);background:rgba(0,0,0,.12)}
-.ai-sim-result-ref{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#5eead4;margin-bottom:6px}
+.ai-sim-result-ref{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--color-primary-text);margin-bottom:6px}
 .ai-sim-result-title{margin:0;font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.35;color:var(--text)}
 .ai-sim-result-body{padding:12px 18px 8px;display:grid;gap:14px}
 .ai-sim-section{margin:0}
@@ -99,9 +99,9 @@ const CSS = `
 .ai-sim-history{border-radius:14px;border:1px solid rgba(148,163,184,.1);background:rgba(0,0,0,.08);padding:12px 14px}
 .ai-sim-history__title{margin:0 0 10px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
 .ai-sim-history__list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
-.ai-sim-history__item{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:12px;color:var(--text2);padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(148,163,184,.06)}
+.ai-sim-history__item{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:12px;color:var(--text2);padding:8px 10px;border-radius:10px;background:var(--surface-3);border:1px solid var(--color-border-tertiary)}
 .ai-sim-history__time{font-variant-numeric:tabular-nums;font-weight:600;color:var(--text3);font-size:11px}
-.ai-sim-history__ref{font-weight:800;color:#5eead4;font-size:11px}
+.ai-sim-history__ref{font-weight:800;color:var(--color-primary-text);font-size:11px}
 .ai-sim-history__label{flex:1;min-width:120px;color:var(--text)}
 `;
 

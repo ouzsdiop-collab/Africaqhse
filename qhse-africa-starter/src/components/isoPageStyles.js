@@ -35,7 +35,7 @@ const CSS = `
 .iso-points-action-link:hover{filter:brightness(1.1)}
 .iso-points-mini-badge{font-size:10px!important;padding:2px 6px!important;vertical-align:middle}
 .iso-points-list-sub{display:block;font-size:11px;color:var(--text3);margin-top:4px}
-.iso-points-doc-tag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:6px;margin-right:8px;background:rgba(239,68,68,.2);color:#fecaca}
+.iso-points-doc-tag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:6px;margin-right:8px;background:var(--color-danger-bg);color:var(--color-danger-text);border:1px solid var(--color-danger-border)}
 .iso-points-list-note{margin:4px 0 0;font-size:12px;color:var(--text2);line-height:1.4}
 .iso-norms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px}
 @media (max-width:1000px){.iso-norms-grid{grid-template-columns:1fr}}

@@ -53,6 +53,7 @@ export async function getAuditReport(req, res, next) {
     const buffer = await auditAutoReport.generateAuditPdfReport(audit.id, req.qhseTenantId);
     const safeRef = String(audit.ref).replace(/[^a-zA-Z0-9._-]/g, '_');
     void writeAuditLog({
+      tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),
       resource: 'reports',
       resourceId: audit.id,

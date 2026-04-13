@@ -30,6 +30,8 @@ function queryFlagTrue(req, key) {
   return v === '1' || v === 'true' || v === 'yes';
 }
 
+const ERR_MEMBER_NOT_IN_ORG = 'Membre introuvable dans cette organisation.';
+
 export async function getAll(req, res, next) {
   try {
     const items = await usersService.findAllUsers(req.qhseTenantId);
@@ -43,7 +45,7 @@ export async function getById(req, res, next) {
   try {
     const user = await usersService.findUserById(req.qhseTenantId, req.params.id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: ERR_MEMBER_NOT_IN_ORG });
     }
     res.json(user);
   } catch (err) {
@@ -166,7 +168,7 @@ export async function patchById(req, res, next) {
     res.json(updated);
   } catch (err) {
     if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: ERR_MEMBER_NOT_IN_ORG });
     }
     if (err.statusCode === 400) {
       return res.status(400).json({ error: err.message });
@@ -185,7 +187,7 @@ export async function remove(req, res, next) {
       req.qhseUser && typeof req.qhseUser.id === 'string' ? req.qhseUser.id.trim() : '';
     if (selfId && id === selfId) {
       return res.status(403).json({
-        error: 'Impossible de retirer votre propre compte depuis cette action.'
+        error: 'Impossible de retirer votre propre accès à cette organisation depuis cette action.'
       });
     }
     const unassignActions = queryFlagTrue(req, 'unassignActions');
@@ -195,13 +197,13 @@ export async function remove(req, res, next) {
       userId: auditUserIdFromRequest(req),
       resource: 'users',
       resourceId: id,
-      action: 'delete',
+      action: 'remove_from_tenant',
       metadata: { unassignActions }
     });
     res.status(204).send();
   } catch (err) {
     if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: ERR_MEMBER_NOT_IN_ORG });
     }
     if (err.statusCode === 409) {
       return res.status(409).json({

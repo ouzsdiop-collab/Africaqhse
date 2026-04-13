@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { validatePasswordPolicy } from '../lib/validation.js';
-import { prismaTenantFilter } from '../lib/tenantScope.js';
+import { prismaTenantFilter, normalizeTenantId } from '../lib/tenantScope.js';
+import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
 
 const userPublicSelect = {
   id: true,
@@ -13,18 +14,35 @@ const userPublicSelect = {
   onboardingStep: true
 };
 
-/** `_tenantId` est ignoré (V1 mono-tenant). */
-export async function findAllUsers(_tenantId) {
+/** Utilisateurs ayant une adhésion active sur le tenant courant. */
+export async function findAllUsers(tenantId) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) return [];
+  const members = await prisma.tenantMember.findMany({
+    where: { tenantId: tid },
+    select: { userId: true },
+    take: 500
+  });
+  const ids = members.map((m) => m.userId).filter(Boolean);
+  if (!ids.length) return [];
   return prisma.user.findMany({
+    where: { id: { in: ids } },
     select: userPublicSelect,
     orderBy: { name: 'asc' },
     take: 500
   });
 }
 
-export async function findUserById(_tenantId, id) {
+export async function findUserById(tenantId, id) {
   const uid = typeof id === 'string' ? id.trim() : '';
   if (!uid) return null;
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) return null;
+  const m = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId: tid, userId: uid } },
+    select: { userId: true }
+  });
+  if (!m) return null;
   return prisma.user.findUnique({
     where: { id: uid },
     select: userPublicSelect
@@ -32,9 +50,9 @@ export async function findUserById(_tenantId, id) {
 }
 
 /**
- * Crée un utilisateur global (rôle sur `User`).
+ * Crée un utilisateur et l’attache à l’organisation courante (`tenant_members`).
  */
-export async function createUser(_tenantId, { name, email, role, password }) {
+export async function createUser(tenantId, { name, email, role, password }) {
   const r = String(role ?? '').trim().toUpperCase();
   let passwordHash = null;
   if (password != null && String(password).length > 0) {
@@ -47,19 +65,29 @@ export async function createUser(_tenantId, { name, email, role, password }) {
     }
     passwordHash = await bcrypt.hash(pwd, 10);
   }
-  return prisma.user.create({
+  const tid = normalizeTenantId(tenantId) || DEFAULT_TENANT_ID;
+  const user = await prisma.user.create({
     data: {
       name,
       email,
       role: r,
       passwordHash
     },
+    select: { id: true }
+  });
+  await prisma.tenantMember.upsert({
+    where: { tenantId_userId: { tenantId: tid, userId: user.id } },
+    create: { tenantId: tid, userId: user.id, role: r },
+    update: { role: r }
+  });
+  return prisma.user.findUnique({
+    where: { id: user.id },
     select: userPublicSelect
   });
 }
 
 /**
- * @param {string | null | undefined} _tenantId
+ * @param {string | null | undefined} tenantId
  * @param {string} userId
  * @param {{
  *   name?: string,
@@ -69,11 +97,25 @@ export async function createUser(_tenantId, { name, email, role, password }) {
  *   onboardingStep?: number
  * }} patch
  */
-export async function updateUserInTenant(_tenantId, userId, patch) {
+export async function updateUserInTenant(tenantId, userId, patch) {
   const uid = String(userId ?? '').trim();
   if (!uid) {
     const err = new Error('Requête invalide');
     err.statusCode = 400;
+    throw err;
+  }
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Tenant requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  const membership = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId: tid, userId: uid } }
+  });
+  if (!membership) {
+    const err = new Error('Utilisateur introuvable');
+    err.code = 'P2025';
     throw err;
   }
   const existing = await prisma.user.findUnique({ where: { id: uid } });
@@ -128,20 +170,40 @@ export async function updateUserInTenant(_tenantId, userId, patch) {
   if (onboardingStepUpdate !== null) userData.onboardingStep = onboardingStepUpdate;
 
   await prisma.user.update({ where: { id: uid }, data: userData });
-  return findUserById(null, uid);
+  if (role) {
+    await prisma.tenantMember.update({
+      where: { tenantId_userId: { tenantId: tid, userId: uid } },
+      data: { role }
+    });
+  }
+  return findUserById(tid, uid);
 }
 
 /**
  * Met à jour uniquement l’étape d’onboarding (0–5).
- * @param {string | null | undefined} _tenantId
+ * @param {string | null | undefined} tenantId
  * @param {string} userId
  * @param {number} step
  */
-export async function updateOnboardingStep(_tenantId, userId, step) {
+export async function updateOnboardingStep(tenantId, userId, step) {
   const uid = String(userId ?? '').trim();
   if (!uid) {
     const err = new Error('Requête invalide');
     err.statusCode = 400;
+    throw err;
+  }
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Tenant requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  const membership = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId: tid, userId: uid } }
+  });
+  if (!membership) {
+    const err = new Error('Utilisateur introuvable');
+    err.code = 'P2025';
     throw err;
   }
   const existing = await prisma.user.findUnique({ where: { id: uid } });
@@ -155,14 +217,14 @@ export async function updateOnboardingStep(_tenantId, userId, step) {
     where: { id: uid },
     data: { onboardingStep: s }
   });
-  return findUserById(null, uid);
+  return findUserById(tid, uid);
 }
 
 /**
- * Supprime l’utilisateur. Option : désassigner ses actions d’abord.
+ * Retire l’utilisateur du tenant (supprime l’adhésion). Le compte global peut rester s’il appartient à d’autres organisations.
  * @param {{ unassignActions?: boolean }} [options]
  */
-export async function removeUserFromTenant(_tenantId, userId, options = {}) {
+export async function removeUserFromTenant(tenantId, userId, options = {}) {
   const unassignActions = Boolean(options.unassignActions);
   const uid = String(userId ?? '').trim();
   if (!uid) {
@@ -170,19 +232,27 @@ export async function removeUserFromTenant(_tenantId, userId, options = {}) {
     err.statusCode = 400;
     throw err;
   }
-  const m = await prisma.user.findUnique({ where: { id: uid } });
-  if (!m) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Tenant requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  const member = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId: tid, userId: uid } }
+  });
+  if (!member) {
     const err = new Error('Utilisateur introuvable');
     err.code = 'P2025';
     throw err;
   }
-  const tf = prismaTenantFilter(_tenantId);
+  const tf = prismaTenantFilter(tid);
   const assignedHere = await prisma.action.count({
     where: { assigneeId: uid, ...tf }
   });
   if (assignedHere > 0 && !unassignActions) {
     const err = new Error(
-      'Impossible de retirer cet utilisateur : des actions lui sont encore assignées.'
+      'Impossible de retirer ce membre : des actions de cette organisation lui sont encore assignées.'
     );
     err.statusCode = 409;
     err.code = 'USER_HAS_ACTIONS';
@@ -196,6 +266,8 @@ export async function removeUserFromTenant(_tenantId, userId, options = {}) {
         data: { assigneeId: null }
       });
     }
-    await tx.user.delete({ where: { id: uid } });
+    await tx.tenantMember.delete({
+      where: { tenantId_userId: { tenantId: tid, userId: uid } }
+    });
   });
 }

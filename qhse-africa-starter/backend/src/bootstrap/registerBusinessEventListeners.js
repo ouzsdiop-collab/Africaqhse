@@ -10,7 +10,8 @@ import {
   sendActionOverdueReminder,
   sendAuditScheduled
 } from '../services/email.service.js';
-import { fetchPilotageRecipientEmails } from '../lib/emailRecipients.js';
+import { fetchPilotageRecipientEmailsForTenant } from '../lib/emailRecipients.js';
+import { normalizeTenantId } from '../lib/tenantScope.js';
 import { getEmailNotificationPrefs } from '../lib/emailNotificationPrefs.js';
 
 function auditLogEnabled() {
@@ -34,7 +35,9 @@ function registerEmailBusinessListeners() {
           .toUpperCase();
         const alertSeverities = new Set(['CRITIQUE', 'CRITICAL', 'GRAVE']);
         if (!alertSeverities.has(sev)) return;
-        const recipients = await fetchPilotageRecipientEmails();
+        const tid = normalizeTenantId(p.tenantId);
+        if (!tid) return;
+        const recipients = await fetchPilotageRecipientEmailsForTenant(tid);
         const emails = recipients.map((r) => r.email);
         await sendIncidentAlert(
           {
@@ -80,7 +83,10 @@ function registerEmailBusinessListeners() {
             .filter((x) => x.email);
         }
         if (!participants.length) {
-          participants = await fetchPilotageRecipientEmails();
+          const tid = normalizeTenantId(p.tenantId);
+          if (tid) {
+            participants = await fetchPilotageRecipientEmailsForTenant(tid);
+          }
         }
         await sendAuditScheduled(
           {

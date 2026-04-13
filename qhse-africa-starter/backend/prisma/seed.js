@@ -92,6 +92,13 @@ function riskChecklistEntries() {
 
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+  /** Aligné avec `tenantConstants` et la migration multi-tenant. */
+  const DEFAULT_TENANT_ID = 'qhse_default_tenant';
+  await prisma.tenant.upsert({
+    where: { id: DEFAULT_TENANT_ID },
+    create: { id: DEFAULT_TENANT_ID, slug: 'default', name: 'Katiola Mining (démo)' },
+    update: { name: 'Katiola Mining (démo)' }
+  });
 
   /** 8 comptes — rôles limités à ceux listés (permissions V1). */
   const seedUsers = [
@@ -123,6 +130,18 @@ async function main() {
     });
   }
 
+  for (const u of seedUsers) {
+    const email = u.email.toLowerCase();
+    const row = await prisma.user.findUnique({ where: { email } });
+    if (row) {
+      await prisma.tenantMember.upsert({
+        where: { tenantId_userId: { tenantId: DEFAULT_TENANT_ID, userId: row.id } },
+        create: { tenantId: DEFAULT_TENANT_ID, userId: row.id, role: u.role },
+        update: { role: u.role }
+      });
+    }
+  }
+
   await prisma.aiSuggestion.deleteMany({});
   await prisma.controlledDocument.deleteMany({});
   await prisma.importHistory.deleteMany({});
@@ -149,7 +168,7 @@ async function main() {
   await prisma.site.create({
     data: {
       id: KATIOLA_MINE_YAKRO,
-      tenantId: null,
+      tenantId: DEFAULT_TENANT_ID,
       name: 'Katiola Mining — Site Extraction Yakouro',
       code: 'MINE-YAKRO',
       address: "Front d'exploitation aurifère — forage, extraction et transport stériles"
@@ -158,7 +177,7 @@ async function main() {
   await prisma.site.create({
     data: {
       id: KATIOLA_USINE_ABJ,
-      tenantId: null,
+      tenantId: DEFAULT_TENANT_ID,
       name: 'Katiola Mining — Usine Traitement Abidjan',
       code: 'USINE-ABJ',
       address: 'Unité de traitement du minerai, bassins, atelier lixiviation et laboratoire'
@@ -167,7 +186,7 @@ async function main() {
   await prisma.site.create({
     data: {
       id: KATIOLA_EXPLORATION_BON,
-      tenantId: null,
+      tenantId: DEFAULT_TENANT_ID,
       name: 'Katiola Mining — Zone Exploration Bondoukou',
       code: 'EXPL-BON',
       address: 'Plateformes de forage exploration, géotechnique et hydrogéologie'
@@ -316,7 +335,7 @@ async function main() {
     const gp = r.probability * r.gravity;
     await prisma.risk.create({
       data: {
-        tenantId: null,
+        tenantId: DEFAULT_TENANT_ID,
         ref: r.ref,
         title: r.title,
         description: r.description,
@@ -592,7 +611,7 @@ async function main() {
   for (const inc of incidentsData) {
     await prisma.incident.create({
       data: {
-        tenantId: null,
+        tenantId: DEFAULT_TENANT_ID,
         ref: inc.ref,
         type: inc.type,
         site: inc.site,
@@ -768,7 +787,7 @@ async function main() {
     const createdAt = a.days < 0 ? daysFromNow(-a.days) : daysAgo(a.days);
     await prisma.audit.create({
       data: {
-        tenantId: null,
+        tenantId: DEFAULT_TENANT_ID,
         ref: a.ref,
         site: a.site,
         siteId: a.siteId,
@@ -781,7 +800,7 @@ async function main() {
   }
 
   const auditByRef = async (ref) =>
-    prisma.audit.findFirst({ where: { ref, tenantId: null }, select: { id: true } });
+    prisma.audit.findFirst({ where: { ref, tenantId: DEFAULT_TENANT_ID }, select: { id: true } });
 
   const ncRows = [
     {
@@ -843,7 +862,7 @@ async function main() {
     const aud = await auditByRef(nc.auditRef);
     await prisma.nonConformity.create({
       data: {
-        tenantId: null,
+        tenantId: DEFAULT_TENANT_ID,
         title: nc.title,
         detail: nc.detail,
         status: nc.status,
@@ -1194,7 +1213,7 @@ async function main() {
   for (const act of actionsData) {
     await prisma.action.create({
       data: {
-        tenantId: null,
+        tenantId: DEFAULT_TENANT_ID,
         title: act.title,
         detail: act.detail,
         status: act.status,
@@ -1221,7 +1240,7 @@ async function main() {
     if (!h.user?.id) continue;
     await prisma.habilitation.create({
       data: {
-        tenantId: null,
+        tenantId: DEFAULT_TENANT_ID,
         userId: h.user.id,
         siteId: h.siteId,
         type: h.type,
@@ -1279,6 +1298,7 @@ async function main() {
         supplier: p.supplier,
         casNumber: p.casNumber,
         siteId: p.siteId,
+        tenantId: DEFAULT_TENANT_ID,
         hStatements: jsonEmpty,
         pStatements: jsonEmpty,
         ghsPictograms: jsonEmpty
@@ -1290,7 +1310,7 @@ async function main() {
     '[seed] 3 sites (KATIOLA_MINE_YAKRO, KATIOLA_USINE_ABJ, KATIOLA_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits.'
   );
   console.log(
-    '[seed] Ordre de purge : relations puis risks avant sites (FK). tenantId null partout (mono-tenant).'
+    '[seed] Données rattachées au tenant par défaut (qhse_default_tenant).'
   );
   console.log('[seed] Mot de passe démo (tous les comptes) :', DEMO_PASSWORD);
   console.log('[seed] Commande : npm run db:seed (dans backend/)');

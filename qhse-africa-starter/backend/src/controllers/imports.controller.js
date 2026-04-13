@@ -164,6 +164,7 @@ export async function confirm(req, res, next) {
 
     if (result.success) {
       void writeAuditLog({
+        tenantId: req.qhseTenantId,
         userId: auditUserIdFromRequest(req),
         resource: 'imports',
         resourceId: importHistoryId || 'confirm',

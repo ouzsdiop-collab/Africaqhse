@@ -33,10 +33,16 @@ export const appState = {
 };
 
 export function setCurrentPage(page) {
-  if (page === 'audit-logs') {
+  const pathOnly = String(page || '').split('?')[0];
+  if (pathOnly === 'audit-logs') {
     appState.journalServerTabOnce = true;
   }
-  const id = page === 'audit-logs' ? 'activity-log' : page;
+  const id = pathOnly === 'audit-logs' ? 'activity-log' : pathOnly;
+  const publicAuthPages = ['login', 'forgot-password', 'reset-password'];
+  if (publicAuthPages.includes(id)) {
+    appState.currentPage = id;
+    return;
+  }
   if (allowedPages.includes(id)) {
     appState.currentPage = id;
   }

@@ -10,6 +10,7 @@ import {
 } from '../validation/controlledDocumentSchemas.js';
 import { prisma } from '../db.js';
 import { parseFdsDocument } from '../services/documentClassification.service.js';
+import { normalizeTenantId } from '../lib/tenantScope.js';
 
 const router = Router();
 
@@ -78,10 +79,11 @@ router.get(
   requirePermission('controlled_documents', 'read'),
   async (req, res, next) => {
     try {
+      const tenantId = normalizeTenantId(req.qhseTenantId);
       const siteIdRaw = req.query.siteId;
       const siteId =
         typeof siteIdRaw === 'string' && siteIdRaw.trim() ? siteIdRaw.trim() : undefined;
-      const where = siteId ? { siteId } : {};
+      const where = { tenantId, ...(siteId ? { siteId } : {}) };
       const rows = await prisma.product.findMany({
         where,
         orderBy: { updatedAt: 'desc' },
@@ -102,10 +104,18 @@ router.post(
   fdsMulterSingle,
   async (req, res, next) => {
     try {
+      const tenantId = normalizeTenantId(req.qhseTenantId);
       if (String(req.body?.confirm || '') === '1' && req.body?.productId) {
         const id = String(req.body.productId).trim();
         if (!id) {
           return res.status(400).json({ error: 'productId requis' });
+        }
+        const existingRow = await prisma.product.findFirst({
+          where: { id, tenantId },
+          select: { id: true }
+        });
+        if (!existingRow) {
+          return res.status(404).json({ error: 'Produit introuvable.' });
         }
         const name = String(req.body.name || '').trim();
         if (!name) {
@@ -129,7 +139,8 @@ router.post(
             ghsPictograms,
             vlep: String(req.body.vlep || '').trim() || null,
             storageClass: String(req.body.storageClass || '').trim() || null,
-            siteId
+            siteId,
+            tenantId
           },
           include: { siteRecord: { select: { id: true, name: true } } }
         });
@@ -158,14 +169,18 @@ router.post(
 
       let existing = null;
       if (cas && siteId) {
-        existing = await prisma.product.findFirst({ where: { siteId, casNumber: cas } });
+        existing = await prisma.product.findFirst({
+          where: { tenantId, siteId, casNumber: cas }
+        });
       }
       if (!existing && cas && !siteId) {
-        existing = await prisma.product.findFirst({ where: { siteId: null, casNumber: cas } });
+        existing = await prisma.product.findFirst({
+          where: { tenantId, siteId: null, casNumber: cas }
+        });
       }
       if (!existing) {
         existing = await prisma.product.findFirst({
-          where: { name, ...(siteId ? { siteId } : { siteId: null }) }
+          where: { tenantId, name, ...(siteId ? { siteId } : { siteId: null }) }
         });
       }
 
@@ -180,7 +195,8 @@ router.post(
         vlep: parsed.vlep,
         storageClass: parsed.storageClass,
         fdsFileUrl: req.file.originalname ? `fds:${req.file.originalname}` : null,
-        siteId
+        siteId,
+        tenantId
       };
 
       const product = existing

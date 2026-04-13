@@ -1,13 +1,15 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
-import { getJwtSecret, MONO_ORG } from '../services/auth.service.js';
+import { getJwtSecret } from '../services/auth.service.js';
+import * as tenantAuth from '../services/tenantAuth.service.js';
+import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
 import { isXUserIdAllowed } from '../lib/securityConfig.js';
 
 /**
- * Charge l’utilisateur (JWT : sub + role). V1 mono-tenant : pas de table tenants / adhésions.
+ * Charge l’utilisateur (JWT : sub + role + tid) et le tenant actif (adhésion vérifiée en base).
  */
 export async function attachRequestUser(req, res, next) {
-  req.qhseTenant = MONO_ORG;
+  req.qhseTenant = null;
   req.qhseTenantId = null;
 
   const authHeader = req.get('authorization') || req.get('Authorization') || '';
@@ -41,6 +43,28 @@ export async function attachRequestUser(req, res, next) {
         role,
         defaultSiteId: null
       };
+
+      let tid = typeof payload.tid === 'string' ? payload.tid.trim() : '';
+      if (tid) {
+        const tenant = await tenantAuth.assertUserTenantAccess(user.id, tid);
+        if (!tenant) {
+          return res.status(403).json({
+            error: 'Organisation invalide ou accès refusé pour ce jeton. Reconnectez-vous.'
+          });
+        }
+        req.qhseTenantId = tenant.id;
+        req.qhseTenant = { id: tenant.id, slug: tenant.slug, name: tenant.name };
+      } else {
+        const first = await tenantAuth.getFirstTenantForUser(user.id);
+        if (!first) {
+          return res.status(403).json({
+            error: 'Aucune organisation associée à ce compte.'
+          });
+        }
+        req.qhseTenantId = first.id;
+        req.qhseTenant = { id: first.id, slug: first.slug, name: first.name };
+      }
+
       return next();
     } catch {
       return res.status(401).json({ error: 'Session invalide ou expirée' });
@@ -85,6 +109,15 @@ export async function attachRequestUser(req, res, next) {
       role: String(user.role ?? '').trim().toUpperCase(),
       defaultSiteId: null
     };
+
+    let tenant = await tenantAuth.getFirstTenantForUser(user.id);
+    if (!tenant) {
+      tenant = await tenantAuth.assertUserTenantAccess(user.id, DEFAULT_TENANT_ID);
+    }
+    if (tenant) {
+      req.qhseTenantId = tenant.id;
+      req.qhseTenant = { id: tenant.id, slug: tenant.slug, name: tenant.name };
+    }
   } catch (err) {
     return next(err);
   }

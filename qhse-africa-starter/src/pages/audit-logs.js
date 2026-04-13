@@ -102,6 +102,15 @@ export function createAuditLogsServerPanel() {
   let loading = false;
 
   /** @param {Record<string, unknown>} row */
+  /** Libellé lisible pour quelques actions métier (sinon valeur brute). */
+  function formatAuditAction(resource, action) {
+    const a = String(action ?? '');
+    if (resource === 'users' && a === 'remove_from_tenant') {
+      return 'Retrait membre (organisation)';
+    }
+    return a;
+  }
+
   function buildRow(row, admin) {
     const tr = document.createElement('tr');
     const tdDate = document.createElement('td');
@@ -121,7 +130,7 @@ export function createAuditLogsServerPanel() {
     const tdRid = document.createElement('td');
     tdRid.textContent = String(row.resourceId ?? '');
     const tdAct = document.createElement('td');
-    tdAct.textContent = String(row.action ?? '');
+    tdAct.textContent = formatAuditAction(row.resource, row.action);
     const tdWho = document.createElement('td');
     tdWho.textContent = who;
     const tdMeta = document.createElement('td');

@@ -1,14 +1,17 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { createHash, randomBytes } from 'crypto';
 import { prisma } from '../db.js';
+import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
+import { validatePasswordPolicy } from '../lib/validation.js';
 
 const JWT_EXPIRES = '1h';
 
 const REFRESH_EXPIRES = '30d';
 
-/** Réponse API / contexte — pas de table `tenants` en V1. */
+/** @deprecated Utiliser le tenant issu de la DB / JWT (`tid`). Conservé pour compatibilité d’import. */
 export const MONO_ORG = Object.freeze({
-  id: 'mono',
+  id: DEFAULT_TENANT_ID,
   slug: 'default',
   name: 'Organisation'
 });
@@ -34,26 +37,35 @@ export function getJwtSecret() {
 
 /**
  * @param {{ id: string, name: string, email: string, role: string }} user
+ * @param {string | null | undefined} tenantId
  */
-export function issueAccessToken(user) {
+export function issueAccessToken(user, tenantId) {
+  const tid = typeof tenantId === 'string' ? tenantId.trim() : '';
   return jwt.sign(
     {
       sub: user.id,
-      role: String(user.role ?? '').trim().toUpperCase()
+      role: String(user.role ?? '').trim().toUpperCase(),
+      ...(tid ? { tid } : {})
     },
     getJwtSecret(),
     { expiresIn: JWT_EXPIRES }
   );
 }
 
-export function issueRefreshToken(user) {
+/**
+ * @param {{ id: string }} user
+ * @param {string | null | undefined} tenantId
+ */
+export function issueRefreshToken(user, tenantId) {
+  const tid = typeof tenantId === 'string' ? tenantId.trim() : '';
   return jwt.sign(
-    { sub: user.id, type: 'refresh' },
+    { sub: user.id, type: 'refresh', ...(tid ? { tid } : {}) },
     getJwtSecret(),
     { expiresIn: REFRESH_EXPIRES }
   );
 }
 
+/** @returns {import('jsonwebtoken').JwtPayload & { sub?: string, tid?: string } | null} */
 export function verifyRefreshToken(token) {
   try {
     const payload = jwt.verify(token, getJwtSecret());
@@ -62,6 +74,73 @@ export function verifyRefreshToken(token) {
   } catch {
     return null;
   }
+}
+
+const RESET_TOKEN_BYTES = 32;
+const RESET_EXPIRES_MS = 60 * 60 * 1000;
+
+function hashResetToken(raw) {
+  return createHash('sha256').update(raw, 'utf8').digest('hex');
+}
+
+/**
+ * Crée un jeton de réinitialisation (valeur brute à envoyer par e-mail).
+ * @param {string} userId
+ * @returns {Promise<{ rawToken: string, expiresAt: Date } | null>}
+ */
+export async function createPasswordResetToken(userId) {
+  const uid = String(userId ?? '').trim();
+  if (!uid) return null;
+  const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
+  const tokenHash = hashResetToken(rawToken);
+  const expiresAt = new Date(Date.now() + RESET_EXPIRES_MS);
+  await prisma.passwordResetToken.deleteMany({ where: { userId: uid } });
+  await prisma.passwordResetToken.create({
+    data: {
+      tokenHash,
+      userId: uid,
+      expiresAt
+    }
+  });
+  return { rawToken, expiresAt };
+}
+
+/**
+ * @param {string} rawToken
+ * @param {string} newPassword
+ * @returns {Promise<{ ok: true } | { ok: false, code: string, message?: string }>}
+ */
+export async function consumePasswordResetToken(rawToken, newPassword) {
+  const raw = typeof rawToken === 'string' ? rawToken.trim() : '';
+  if (!raw || raw.length < 16) {
+    return { ok: false, code: 'invalid_token' };
+  }
+  const tokenHash = hashResetToken(raw);
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    include: { user: { select: { id: true } } }
+  });
+  if (!row || row.expiresAt < new Date()) {
+    if (row) {
+      await prisma.passwordResetToken.delete({ where: { id: row.id } }).catch(() => {});
+    }
+    return { ok: false, code: 'invalid_or_expired' };
+  }
+  const pwd = String(newPassword ?? '');
+  const pv = validatePasswordPolicy(pwd);
+  if (!pv.ok) {
+    return { ok: false, code: 'password_policy', message: pv.error };
+  }
+  const passwordHash = await bcrypt.hash(pwd, 10);
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: row.userId },
+      data: { passwordHash }
+    }),
+    prisma.passwordResetToken.deleteMany({ where: { userId: row.userId } }),
+    prisma.refreshToken.deleteMany({ where: { userId: row.userId } })
+  ]);
+  return { ok: true };
 }
 
 /**

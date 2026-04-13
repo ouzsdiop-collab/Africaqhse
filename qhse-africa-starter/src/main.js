@@ -6,7 +6,11 @@ import { initDisplayMode, subscribeDisplayModeViewport } from './utils/displayMo
 import { createSidebar } from './components/sidebarV2.js';
 import { createTopbar } from './components/topbarV2.js';
 import { createNotificationsPanel } from './components/notifications.js';
-import { createLoginView } from './pages/loginV2.js';
+import {
+  createLoginView,
+  createForgotPasswordView,
+  createResetPasswordView
+} from './pages/loginV2.js';
 import { showOnboardingWizard, shouldShowOnboarding } from './components/onboardingWizard.js';
 import { canAccessNavPage } from './utils/permissionsUi.js';
 import { activityLogStore } from './data/activityLog.js';
@@ -494,7 +498,11 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
  */
 function createPageRenderer(opts) {
   const { currentPage, onAddLog } = opts;
-  if (currentPage === 'login') {
+  if (
+    currentPage === 'login' ||
+    currentPage === 'forgot-password' ||
+    currentPage === 'reset-password'
+  ) {
     return document.createElement('div');
   }
 
@@ -540,6 +548,14 @@ function syncDocumentTitle(pageId) {
     document.title = `${APP_BRAND_TITLE} — Connexion`;
     return;
   }
+  if (pageId === 'forgot-password') {
+    document.title = `${APP_BRAND_TITLE} — Mot de passe oublié`;
+    return;
+  }
+  if (pageId === 'reset-password') {
+    document.title = `${APP_BRAND_TITLE} — Nouveau mot de passe`;
+    return;
+  }
   const meta = pageTopbarById[pageId];
   if (meta?.title) {
     document.title = `${meta.title} · ${APP_BRAND_TITLE}`;
@@ -572,19 +588,44 @@ function renderApp() {
     const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
     if (terrainMode) {
-      if (!TERRAIN_ALLOWED_PAGE_IDS.has(appState.currentPage)) {
+      const publicAuthPages = new Set(['login', 'forgot-password', 'reset-password']);
+      if (
+        !publicAuthPages.has(appState.currentPage) &&
+        !TERRAIN_ALLOWED_PAGE_IDS.has(appState.currentPage)
+      ) {
         setCurrentPage('terrain-mode');
       }
     }
 
-    if (appState.currentPage === 'login') {
-      syncDocumentTitle('login');
+    if (
+      appState.currentPage === 'login' ||
+      appState.currentPage === 'forgot-password' ||
+      appState.currentPage === 'reset-password'
+    ) {
+      syncDocumentTitle(appState.currentPage);
+      const onAuthNavigate = () => {
+        try {
+          renderApp();
+        } catch (err) {
+          console.error('[QHSE] auth view navigate', err);
+          captureQhseException(err, { phase: 'auth-navigate' });
+        }
+      };
+      if (appState.currentPage === 'forgot-password') {
+        app.append(createForgotPasswordView({ onNavigate: onAuthNavigate }));
+        return;
+      }
+      if (appState.currentPage === 'reset-password') {
+        app.append(createResetPasswordView({ onNavigate: onAuthNavigate }));
+        return;
+      }
       app.append(
         createLoginView({
           onSuccess: async () => {
             renderApp();
             scheduleProductOnboardingTour();
-          }
+          },
+          onNavigate: onAuthNavigate
         })
       );
       return;
@@ -745,10 +786,10 @@ function renderApp() {
 }
 
 function initRouting() {
-  const hash = window.location.hash.replace('#', '');
-  if (hash) {
-    setCurrentPage(hash);
-  }
+  const hash = window.location.hash.replace(/^#/, '');
+  if (!hash) return;
+  const path = hash.split('?')[0];
+  if (path) setCurrentPage(path);
 }
 
 function sleep(ms) {
@@ -863,10 +904,11 @@ window.addEventListener('qhse-navigate', (e) => {
 });
 
 window.addEventListener('hashchange', () => {
-  const hash = window.location.hash.replace('#', '');
+  const hash = window.location.hash.replace(/^#/, '');
   if (!hash) return;
   if (getDisplayMode() === 'expert') appState.expertMobileNavOpen = false;
-  setCurrentPage(hash);
+  const path = hash.split('?')[0];
+  if (path) setCurrentPage(path);
   try {
     renderApp();
   } catch (e) {

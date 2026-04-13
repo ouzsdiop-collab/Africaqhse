@@ -43,12 +43,36 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-function getFrontendBaseUrl() {
+export function getFrontendBaseUrl() {
   const u = process.env.FRONTEND_URL?.trim();
   if (u) return u.replace(/\/$/, '');
   const cors = process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim();
   if (cors) return cors.replace(/\/$/, '');
   return 'http://localhost:5173';
+}
+
+/**
+ * @param {string} toEmail
+ * @param {string} resetUrl — lien complet avec jeton (hash SPA)
+ */
+export async function sendPasswordResetEmail(toEmail, resetUrl) {
+  const to = String(toEmail ?? '').trim().toLowerCase();
+  if (!to) return;
+  const html = buildHtmlEmailLayout({
+    tone: 'info',
+    title: 'Réinitialisation du mot de passe',
+    bodyHtml: `<p style="margin:0 0 12px">Vous avez demandé à réinitialiser votre mot de passe sur QHSE Control.</p>
+<p style="margin:0 0 12px">Si vous n’êtes pas à l’origine de cette demande, ignorez ce message.</p>
+<p style="margin:0;font-size:13px;color:#64748b">Le lien expire dans une heure.</p>`,
+    ctaLabel: 'Choisir un nouveau mot de passe',
+    ctaUrl: resetUrl
+  });
+  await sendMailHtml({
+    to: [to],
+    subject: 'QHSE Control — réinitialisation du mot de passe',
+    html,
+    text: `Réinitialisation du mot de passe : ${resetUrl}\n\nLe lien expire dans une heure.`
+  });
 }
 
 /**
@@ -351,8 +375,9 @@ export async function sendAuditScheduled(audit, participants) {
 /**
  * @param {unknown} stats — typiquement report.summary + meta dates
  * @param {string[]} recipients
+ * @param {{ organizationName?: string | null }} [opts]
  */
-export async function sendWeeklyQhseSummary(stats, recipients) {
+export async function sendWeeklyQhseSummary(stats, recipients, opts) {
   const s = stats && typeof stats === 'object' ? stats : {};
   const meta = s.meta && typeof s.meta === 'object' ? s.meta : {};
   const summary = s.summary && typeof s.summary === 'object' ? s.summary : s;
@@ -385,14 +410,20 @@ export async function sendWeeklyQhseSummary(stats, recipients) {
     ctaLabel: 'Ouvrir le tableau de bord',
     ctaUrl
   });
+  const org =
+    opts && typeof opts === 'object' && opts.organizationName
+      ? String(opts.organizationName).trim()
+      : '';
+  const orgSeg = org ? ` — ${org}` : '';
+
   const to = [...new Set(recipients.map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
   if (!to.length) return;
   await sendMailHtml({
     to,
-    subject: `[AfricaQHSE] Synthèse QHSE — semaine ${start} → ${end}`,
+    subject: `[AfricaQHSE] Synthèse QHSE${orgSeg} — semaine ${start} → ${end}`,
     html,
     text: `Synthèse QHSE ${start} → ${end}\nIncidents : ${incidents}\nCritiques : ${crit}\nActions : ${actions}\nRetard : ${overdue}\nScore audits : ${score}\n\n${ctaUrl}`
   });
 }
 
-export { fetchPilotageRecipientEmails } from '../lib/emailRecipients.js';
+export { fetchPilotageRecipientEmailsForTenant } from '../lib/emailRecipients.js';

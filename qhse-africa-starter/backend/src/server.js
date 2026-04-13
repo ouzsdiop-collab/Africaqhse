@@ -39,6 +39,7 @@ import fdsParserRouter from './routes/fdsParser.routes.js';
 import conformityRouter from './routes/conformity.routes.js';
 import ptwRouter from './routes/ptw.routes.js';
 import { attachRequestUser } from './middleware/requestUser.middleware.js';
+import { requireTenantContext } from './middleware/requireTenantContext.middleware.js';
 import { attachRequestId } from './middleware/requestId.middleware.js';
 import {
   authLoginLimiter,
@@ -106,6 +107,7 @@ app.use(compression());
 app.use(express.json({ limit: getJsonBodyLimit() }));
 app.use(cookieParser());
 app.use(attachRequestUser);
+app.use(requireTenantContext);
 app.use(httpRequestLog);
 
 app.use('/api/health', healthRouter);

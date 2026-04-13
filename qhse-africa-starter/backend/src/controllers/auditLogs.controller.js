@@ -5,7 +5,7 @@ const MAX_TAKE = 100;
 /**
  * Liste paginée des entrées de journal serveur.
  * - ADMIN : toutes les entrées ; filtre optionnel `?tenantId=`
- * - Autres rôles autorisés : entrées du tenant JWT uniquement (sans entrées `tenantId` null sauf ADMIN).
+ * - Autres rôles : entrées du tenant courant uniquement (`requireTenantContext` garantit un tenant résolu).
  */
 export async function list(req, res) {
   const role = String(req.qhseUser?.role ?? '').trim().toUpperCase();
@@ -29,9 +29,6 @@ export async function list(req, res) {
       where.tenantId = tid;
     }
   } else {
-    if (!tenantFromJwt) {
-      return res.status(403).json({ error: 'Contexte organisation requis.' });
-    }
     where.tenantId = tenantFromJwt;
   }
 
