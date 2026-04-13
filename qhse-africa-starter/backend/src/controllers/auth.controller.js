@@ -12,21 +12,38 @@ import * as emailService from '../services/email.service.js';
 /** Nom du cookie httpOnly pour le refresh JWT (aligné ÉTAPE 1 H3-14). */
 export const QHSE_REFRESH_COOKIE = 'qhse_refresh';
 
+/**
+ * `lax` par défaut : meilleure compatibilité front et API sur des sous-domaines distincts (ex. Railway)
+ * tout en restant raisonnable côté CSRF. `none` + Secure si `AUTH_REFRESH_COOKIE_SAMESITE=none`
+ * (cross-site explicite, ex. domaines complètement différents).
+ */
 function refreshCookieOptions() {
+  const raw = String(process.env.AUTH_REFRESH_COOKIE_SAMESITE ?? '')
+    .trim()
+    .toLowerCase();
+  const sameSite = raw === 'strict' ? 'strict' : raw === 'none' ? 'none' : 'lax';
+  const secure =
+    sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure,
+    sameSite,
     maxAge: 30 * 24 * 60 * 60 * 1000,
     path: '/'
   };
 }
 
 function clearRefreshCookieOptions() {
+  const raw = String(process.env.AUTH_REFRESH_COOKIE_SAMESITE ?? '')
+    .trim()
+    .toLowerCase();
+  const sameSite = raw === 'strict' ? 'strict' : raw === 'none' ? 'none' : 'lax';
+  const secure =
+    sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure,
+    sameSite,
     path: '/'
   };
 }

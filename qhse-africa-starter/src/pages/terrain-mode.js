@@ -3,8 +3,15 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { queueTerrainIncident, queueTerrainRisk, getTerrainQueueState, syncAllTerrainQueues } from '../services/terrainOffline.service.js';
 import { appState } from '../utils/state.js';
 
+/**
+ * @param {HTMLElement} [container] — hôte optionnel (sinon un div est créé pour le shell).
+ * @returns {Promise<HTMLElement>}
+ */
 export async function renderTerrainMode(container) {
-  container.innerHTML = `
+  const root = container ?? document.createElement('div');
+  root.className = 'terrain-mode-page';
+
+  root.innerHTML = `
     <div class="offline-banner" id="terrain-offline-banner">
       Hors connexion — vos donnees seront synchronisees a la reconnexion
       </div>
@@ -258,4 +265,6 @@ export async function renderTerrainMode(container) {
       zone.append(err);
     }
   });
+
+  return root;
 }

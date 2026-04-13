@@ -3,6 +3,7 @@ import {
   getSessionUserId,
   setSessionUser,
   getAuthToken,
+  getSessionUser,
   clearSession,
   nativeFetch
 } from '../data/sessionUser.js';
@@ -64,7 +65,16 @@ export async function qhseFetch(path, init = {}) {
   const isRefreshUrl = url.includes('/api/auth/refresh');
   const isLoginUrl = url.includes('/api/auth/login');
 
-  const token = getAccessTokenForRequest() || getAuthToken();
+  let token = getAccessTokenForRequest() || getAuthToken();
+
+  /* Profil encore en session mais jeton absent (onglet rouvert, clés effacées) : tenter le refresh
+   * cookie avant de retomber sur X-User-Id — en production ce dernier est ignoré → 403 « contexte org ». */
+  if (!isRefreshUrl && !isLoginUrl && !token && getSessionUser()) {
+    const fromRefresh = await sharedRefreshAccessToken();
+    if (fromRefresh) {
+      token = fromRefresh;
+    }
+  }
 
   if (!isRefreshUrl) {
     if (token) {
