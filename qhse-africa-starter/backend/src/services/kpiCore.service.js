@@ -78,7 +78,7 @@ export function isNcOpen(status) {
 
 /**
  * Action « en retard » (dashboard / synthèse) : hors clôture, et
- * statut contenant « retard » **ou** échéance `dueDate` dépassée (SQLite `datetime('now')`).
+ * statut contenant « retard » **ou** échéance `dueDate` dépassée (PostgreSQL `NOW()` dans le SQL brut).
  * Aligné avec la dérivation client (`actionOverdueDashboard.js`).
  *
  * @param {{ status?: string; dueDate?: Date | string | null }} row
@@ -118,7 +118,7 @@ const SQL_ACTION_NOT_CLOSED_FOR_OVERDUE = `NOT (
 
 const SQL_ACTION_OVERDUE_BODY = `(
   LOWER(COALESCE(status, '')) LIKE '%retard%'
-  OR (dueDate IS NOT NULL AND datetime(dueDate) < datetime('now'))
+  OR ("dueDate" IS NOT NULL AND "dueDate" < NOW())
 )`;
 
 /**
@@ -137,10 +137,10 @@ export async function countActionsOverdue(tenantId, siteId) {
     });
     return rows.filter(isActionOverdueDashboardRow).length;
   }
-  const where = `tenantId = ? AND ${SQL_ACTION_NOT_CLOSED_FOR_OVERDUE} AND ${SQL_ACTION_OVERDUE_BODY}`;
+  const where = `"tenantId" = ? AND ${SQL_ACTION_NOT_CLOSED_FOR_OVERDUE} AND ${SQL_ACTION_OVERDUE_BODY}`;
   const rows = sid
     ? await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) AS c FROM actions WHERE ${where} AND siteId = ?`,
+        `SELECT COUNT(*) AS c FROM actions WHERE ${where} AND "siteId" = ?`,
         tid,
         sid
       )
@@ -167,15 +167,15 @@ export async function countNonConformitiesOpenHeuristic(tenantId, siteId) {
   const rows = sid
     ? await prisma.$queryRaw`
         SELECT COUNT(*) AS c FROM non_conformities
-        WHERE tenantId = ${tid}
+        WHERE "tenantId" = ${tid}
           AND LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%clôt%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%trait%'
-          AND siteId = ${sid}
+          AND "siteId" = ${sid}
       `
     : await prisma.$queryRaw`
         SELECT COUNT(*) AS c FROM non_conformities
-        WHERE tenantId = ${tid}
+        WHERE "tenantId" = ${tid}
           AND LOWER(COALESCE(status, '')) NOT LIKE '%clos%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%clôt%'
           AND LOWER(COALESCE(status, '')) NOT LIKE '%trait%'
