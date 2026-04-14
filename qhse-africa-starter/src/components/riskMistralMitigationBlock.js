@@ -2,7 +2,7 @@
  * Bloc « suggestions prévention IA » sur fiche risque (extrait de risks.js).
  */
 
-import { parseRiskMatrixGp } from './riskMatrixPanel.js';
+import { parseRiskMatrixGp } from '../utils/riskMatrixCore.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { appState } from '../utils/state.js';

@@ -13,7 +13,6 @@ import {
 } from '../services/ptw.service.js';
 import { getLinksFor, linkModules } from '../services/moduleLinks.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
-import { assembleQhsePdfDocument, downloadQhseChromePdf } from '../utils/qhsePdfChrome.js';
 
 const PTW_TYPES = [
   'travail en hauteur',
@@ -131,11 +130,6 @@ const MODULE_LABEL_FR = {
 function moduleLabelFr(id) {
   const k = String(id || '').trim();
   return MODULE_LABEL_FR[k] || k || '—';
-}
-
-function statusTone(v) {
-  const status = v === 'open' ? 'pending' : v;
-  return `ptw-status--${status}`;
 }
 
 function isExpiredPermit(permit) {
@@ -502,7 +496,7 @@ export function renderPermits() {
     h3.textContent = 'Permis ultra-rapide (30 s)';
     const badge = document.createElement('span');
     badge.className = 'ptw-step-badge';
-    badge.textContent = 'mode terrain';
+    badge.textContent = 'saisie rapide';
     head.append(h3, badge);
     const fields = document.createElement('div');
     fields.className = 'ptw-fields';
@@ -791,6 +785,7 @@ export function renderPermits() {
     pdfBtn.textContent = 'Export PDF';
     pdfBtn.addEventListener('click', async () => {
       try {
+        const { assembleQhsePdfDocument, downloadQhseChromePdf } = await import('../utils/qhsePdfChrome.js');
         const sigText = signatures.length
           ? signatures.map((s) => `${s.name} (${signatureRoleLabel(s.role)})`).join(', ')
           : 'Aucune';

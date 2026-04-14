@@ -1,17 +1,9 @@
 import { siteOptions, pageTopbarById } from '../data/navigation.js';
 import { appState } from '../utils/state.js';
 import { showToast } from '../components/toast.js';
-import { activityLogStore } from '../data/activityLog.js';
-function sanitizeClassToken(value, fallback = 'neutral') {
-  const token = String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '');
-  return token || fallback;
-}
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
-import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { setupIncidentDeclareFlow } from '../components/incidentFormDialog.js';
@@ -25,9 +17,7 @@ import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import {
   ensureUsersCached,
   getCachedUsersForActionsList,
-  createLinkedAction,
-  createCorrectiveAction,
-  proposeCorrectiveActionViaAssistant
+  createLinkedAction
 } from '../utils/incidentsActions.js';
 import { mapApiIncident as mapApiIncidentBase, mapRowToDisplay } from '../utils/incidentsMappers.js';
 import {
@@ -40,25 +30,6 @@ import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
 /* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
-import { downloadIncidentsRegisterPdf } from '../services/qhseReportsPdf.service.js';
-
-function incidentOperationalPhase(status) {
-  const s = String(status || '').toLowerCase();
-  if (/clos|ferm|termin|clôtur|clotur|résolu|resolu|done|complete|trait/.test(s)) {
-    return 'traite';
-  }
-  if (/invest|analys/.test(s) || /\bcours\b/.test(s)) {
-    return 'analyse';
-  }
-  return 'ouvert';
-}
-
-function incidentPhaseLabel(status) {
-  const p = incidentOperationalPhase(status);
-  if (p === 'traite') return 'Traité';
-  if (p === 'analyse') return 'En analyse';
-  return 'Ouvert';
-}
 
 const LIST_SUB_DEFAULT =
   'Tri : criticité puis date. Clic ligne ou « Ouvrir » → détail à droite.';
@@ -73,9 +44,6 @@ function readIncidentsTableColumnMode() {
     return 'essential';
   }
 }
-
-/** Statuts proposés pour le select rapide (libre côté API si autre valeur en base). */
-const STATUS_PRESETS = ['Nouveau', 'En cours', 'Investigation', 'Clôturé'];
 
 const INCIDENTS_STATES_STYLE_ID = 'qhse-incidents-states-styles';
 
@@ -151,15 +119,6 @@ function sortIncidentsForDisplay(list) {
     if (da !== db) return da - db;
     return (b.createdAtMs || 0) - (a.createdAtMs || 0);
   });
-}
-
-function statusOptionsForSelect(current) {
-  const cur = String(current || '').trim();
-  const set = new Set(STATUS_PRESETS);
-  if (cur && !set.has(cur)) {
-    return [cur, ...STATUS_PRESETS];
-  }
-  return [...STATUS_PRESETS];
 }
 
 function isStatusClosed(st) {
@@ -273,9 +232,9 @@ export function renderIncidents(onAddLog) {
     pageId: 'incidents',
     pageRoot: page,
     hintEssential:
-      'Vue terrain : en-tête, déclaration, priorités et registre — pilotage détaillé, analytics et journal masqués.',
+      'Essentiel : en-tête, déclaration, priorités et registre — analytics, journal et blocs avancés masqués.',
     hintAdvanced:
-      'Pilotage complet : tuiles synthèse, tendances, journal local et options étendues du registre.'
+      'Expert : tuiles synthèse, tendances, journal local et options étendues du registre.'
   });
 
   if (!isOnline()) {
@@ -429,8 +388,8 @@ export function renderIncidents(onAddLog) {
   const btnTerrain = document.createElement('button');
   btnTerrain.type = 'button';
   btnTerrain.className = 'btn btn-secondary incidents-quick-actions-card__terrain incidents-terrain-cta-sub';
-  btnTerrain.textContent = 'Déclaration terrain (rapide)';
-  btnTerrain.title = 'Même assistant — gros boutons, adapté mobile';
+  btnTerrain.textContent = 'Déclaration rapide';
+  btnTerrain.title = 'Assistant condensé, gros boutons — idéal mobile ou saisie express';
   const btnDash = document.createElement('button');
   btnDash.type = 'button';
   btnDash.className = 'incidents-page-header__linkish';
@@ -668,7 +627,7 @@ export function renderIncidents(onAddLog) {
 
   const exportBtnInc = document.createElement('button');
   exportBtnInc.type = 'button';
-  exportBtnInc.textContent = 'Export Excel';
+  exportBtnInc.textContent = 'Export CSV';
   exportBtnInc.className = 'btn btn-secondary btn-sm';
   exportBtnInc.setAttribute('aria-label', 'Exporter le registre incidents');
   exportBtnInc.addEventListener('click', async () => {
@@ -682,7 +641,7 @@ export function renderIncidents(onAddLog) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'incidents-export.xlsx';
+      a.download = 'incidents-export.csv';
       document.body.append(a);
       a.click();
       a.remove();
@@ -699,6 +658,7 @@ export function renderIncidents(onAddLog) {
   exportBtnPdf.setAttribute('aria-label', 'Exporter le registre incidents en PDF');
   exportBtnPdf.addEventListener('click', async () => {
     try {
+      const { downloadIncidentsRegisterPdf } = await import('../services/qhseReportsPdf.service.js');
       await downloadIncidentsRegisterPdf(getFilteredSortedRows(), {
         filtersSummary: incidentsFiltersSummaryForPdf()
       });

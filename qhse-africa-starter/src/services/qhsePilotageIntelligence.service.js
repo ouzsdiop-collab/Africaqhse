@@ -11,7 +11,7 @@ import {
   riskCriticalityFromMeta,
   riskTierFromGp,
   riskLevelLabelFromTier
-} from '../components/riskMatrixPanel.js';
+} from '../utils/riskMatrixCore.js';
 import {
   fetchControlledDocumentsFromApi,
   mergeControlledDocumentRows,

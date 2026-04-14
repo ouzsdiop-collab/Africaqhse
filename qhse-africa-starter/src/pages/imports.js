@@ -182,8 +182,9 @@ export function renderImports() {
     pageId: 'imports',
     pageRoot: page,
     hintEssential:
-      'Fichier + analyse + brouillon de préremplissage — feuille de route, sortie brute et historique masqués.',
-    hintAdvanced: 'Feuille de route imports, aperçu JSON brut complet et historique des traitements.'
+      'Essentiel : fichier, analyse et brouillon — feuille de route, JSON brut et historique masqués.',
+    hintAdvanced:
+      'Expert : feuille de route imports, aperçu JSON brut complet et historique des traitements.'
   });
 
   const roadmap = document.createElement('article');
@@ -214,10 +215,28 @@ export function renderImports() {
       <div>
         <div class="section-kicker">Documents</div>
         <h3>Import intelligent — phase 1</h3>
-        <p class="content-card-lead" style="margin:0;max-width:54ch;font-size:14px;line-height:1.5;color:var(--text2)">
-          PDF ou Excel : aperçu brut, pré-analyse et brouillon de préremplissage indicatif — rien n’est enregistré sans votre validation sur le module cible.
+        <p class="content-card-lead" style="margin:0;max-width:58ch;font-size:14px;line-height:1.5;color:var(--text2)">
+          CSV recommandé (modèle ci-dessous), PDF et tableur acceptés : aperçu brut, pré-analyse et brouillon indicatif. Aucune création en base tant que vous ne validez pas explicitement sur le module cible.
         </p>
       </div>
+    </div>
+  `;
+
+  const formatsHelp = document.createElement('div');
+  formatsHelp.style.cssText =
+    'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px';
+  formatsHelp.innerHTML = `
+    <div style="padding:10px;border-radius:10px;border:1px solid rgba(148,163,184,.2);background:rgba(15,23,42,.03)">
+      <div class="section-kicker" style="margin-bottom:6px">CSV / TSV (recommandé)</div>
+      <p style="margin:0;font-size:12px;line-height:1.45;color:var(--text2)">Colonnes explicites, modèle fourni, meilleur préremplissage.</p>
+    </div>
+    <div style="padding:10px;border-radius:10px;border:1px solid rgba(148,163,184,.2);background:rgba(15,23,42,.03)">
+      <div class="section-kicker" style="margin-bottom:6px">PDF</div>
+      <p style="margin:0;font-size:12px;line-height:1.45;color:var(--text2)">Lecture texte + indices détectés pour suggérer le module cible.</p>
+    </div>
+    <div style="padding:10px;border-radius:10px;border:1px solid rgba(148,163,184,.2);background:rgba(15,23,42,.03)">
+      <div class="section-kicker" style="margin-bottom:6px">Tableur (XLS/XLSX)</div>
+      <p style="margin:0;font-size:12px;line-height:1.45;color:var(--text2)">Accepté pour analyse. Pour les exports, utiliser les boutons CSV des registres.</p>
     </div>
   `;
 
@@ -225,12 +244,30 @@ export function renderImports() {
   row.style.cssText =
     'display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px';
 
+  const sampleBtn = document.createElement('button');
+  sampleBtn.type = 'button';
+  sampleBtn.className = 'btn btn-secondary';
+  sampleBtn.textContent = 'Télécharger modèle CSV';
+  sampleBtn.addEventListener('click', () => {
+    const sample = [
+      'type;site;date;description;gravite;statut;responsable',
+      'Incident;Site Nord;2026-04-14;Déversement mineur atelier;Moyen;Nouveau;Chef atelier',
+      'Risque;Site Sud;2026-04-13;Passage piéton obstrué;Élevé;Ouvert;Superviseur HSE'
+    ].join('\n');
+    const blob = new Blob([`\ufeff${sample}`], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'modele-import-qhse.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
   const input = document.createElement('input');
   input.type = 'file';
   input.accept =
-    '.pdf,.xlsx,.xls,.xlsm,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    '.csv,.tsv,.pdf,.xlsx,.xls,.xlsm,text/csv,text/tab-separated-values,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   input.className = 'control-input';
-  input.setAttribute('aria-label', 'Fichier à importer');
+  input.setAttribute('aria-label', 'Fichier à importer (CSV, PDF ou Excel)');
   input.style.flex = '1';
   input.style.minWidth = '200px';
 
@@ -607,8 +644,8 @@ export function renderImports() {
     }
   }
 
-  row.append(input, btn);
-  card.append(row, out, draftPanel);
+  row.append(sampleBtn, input, btn);
+  card.append(formatsHelp, row, out, draftPanel);
   page.append(card, historyCard);
   refreshHistory();
   return page;

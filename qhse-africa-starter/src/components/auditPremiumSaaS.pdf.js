@@ -1,13 +1,13 @@
 /**
- * PDF ISO / conformité — chargé à la demande (html2pdf.js) pour alléger le bundle page ISO / Audits.
+ * PDF ISO / conformité — chargé à la demande (html2canvas + jsPDF) pour alléger le bundle page ISO / Audits.
  * Même pipeline hôte + capture que les exports chrome (registre risques, performance).
+ * `qhsePdfChrome` est importé dynamiquement à l’export pour ne pas lier ce chunk lourd au parse du module.
  */
-
-import { downloadQhseChromePdf } from '../utils/qhsePdfChrome.js';
 
 const PDF_BRAND = '#1D9E75';
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
+  const { downloadQhseChromePdf } = await import('../utils/qhsePdfChrome.js');
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w.-]+/g, '_');
   const pdfName = safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`;
   await downloadQhseChromePdf(htmlString, pdfName, {

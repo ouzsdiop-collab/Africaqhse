@@ -16,8 +16,11 @@ export async function renderTerrainMode(container) {
       Hors connexion — vos donnees seront synchronisees a la reconnexion
       </div>
     <div style="padding:16px;max-width:480px;margin:auto">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-        <h1 style="margin:0;font-size:20px;font-weight:700">Mode terrain</h1>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h1 style="margin:0;font-size:20px;font-weight:700">Accueil Essentiel</h1>
+          <p style="margin:6px 0 0;font-size:12px;color:var(--text2,#94a3b8);max-width:42ch;line-height:1.4">Hub opérationnel — aligné sur le mode <strong>Essentiel</strong> de la barre supérieure.</p>
+        </div>
         <span class="sync-badge synced" id="terrain-sync-badge">Synchronise</span>
       </div>
 

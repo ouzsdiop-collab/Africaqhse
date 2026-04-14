@@ -1,15 +1,24 @@
-import * as XLSX from 'xlsx';
 import { prisma } from '../db.js';
 import { prismaTenantFilter } from '../lib/tenantScope.js';
 
-const HEADER_STYLE = { font: { bold: true }, fill: { fgColor: { rgb: '3b82f6' } } };
-void HEADER_STYLE;
+const CSV_SEP = ';';
 
 /**
- * @param {import('xlsx').WorkBook} wb
+ * @param {unknown} v
  */
-async function toBuffer(wb) {
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+function csvCell(v) {
+  const s = v == null || v === undefined ? '' : String(v);
+  if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+/**
+ * @param {string[][]} rows
+ * @returns {Buffer}
+ */
+function rowsToCsvBuffer(rows) {
+  const body = rows.map((cols) => cols.map(csvCell).join(CSV_SEP)).join('\n');
+  return Buffer.from(`\uFEFF${body}`, 'utf8');
 }
 
 /**
@@ -27,7 +36,7 @@ function buildWhere(tenantId, siteId) {
  * @param {unknown} tenantId
  * @param {string | null | undefined} siteId
  */
-export async function exportIncidentsExcel(tenantId, siteId) {
+export async function exportIncidentsCsv(tenantId, siteId) {
   const where = buildWhere(tenantId, siteId);
   const rows = await prisma.incident.findMany({ where, orderBy: { createdAt: 'desc' } });
   const data = [
@@ -43,18 +52,14 @@ export async function exportIncidentsExcel(tenantId, siteId) {
       r.createdAt?.toLocaleDateString('fr-FR') || ''
     ])
   ];
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [10, 15, 15, 12, 12, 30, 20, 12].map((w) => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws, 'Incidents');
-  return toBuffer(wb);
+  return rowsToCsvBuffer(data);
 }
 
 /**
  * @param {unknown} tenantId
  * @param {string | null | undefined} siteId
  */
-export async function exportRisksExcel(tenantId, siteId) {
+export async function exportRisksCsv(tenantId, siteId) {
   const where = buildWhere(tenantId, siteId);
   const rows = await prisma.risk.findMany({ where, orderBy: { createdAt: 'desc' } });
   const data = [
@@ -71,18 +76,14 @@ export async function exportRisksExcel(tenantId, siteId) {
       r.siteId || ''
     ])
   ];
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [10, 25, 15, 12, 10, 8, 12, 20, 15].map((w) => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws, 'Risques');
-  return toBuffer(wb);
+  return rowsToCsvBuffer(data);
 }
 
 /**
  * @param {unknown} tenantId
  * @param {string | null | undefined} siteId
  */
-export async function exportActionsExcel(tenantId, siteId) {
+export async function exportActionsCsv(tenantId, siteId) {
   const where = buildWhere(tenantId, siteId);
   const rows = await prisma.action.findMany({ where, orderBy: { createdAt: 'desc' } });
   const data = [
@@ -95,35 +96,25 @@ export async function exportActionsExcel(tenantId, siteId) {
       r.status
     ])
   ];
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [30, 20, 12, 12, 12].map((w) => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws, 'Actions');
-  return toBuffer(wb);
+  return rowsToCsvBuffer(data);
 }
 
 /**
  * @param {unknown} tenantId
  * @param {string | null | undefined} siteId
  */
-export async function exportAuditsExcel(tenantId, siteId) {
+export async function exportAuditsCsv(tenantId, siteId) {
   const where = buildWhere(tenantId, siteId);
   const rows = await prisma.audit.findMany({ where, orderBy: { createdAt: 'desc' } });
   const data = [
-    ['Ref', 'Titre', 'Site', 'Date', 'Score', 'Type', 'Statut'],
+    ['Ref', 'Site', 'Date', 'Score', 'Statut'],
     ...rows.map((r) => [
-      r.ref,
       r.ref,
       r.site || '',
       r.createdAt?.toLocaleDateString('fr-FR') || '',
       r.score ?? '',
-      '',
       r.status
     ])
   ];
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [10, 25, 15, 12, 8, 15, 12].map((w) => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws, 'Audits');
-  return toBuffer(wb);
+  return rowsToCsvBuffer(data);
 }

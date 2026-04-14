@@ -78,8 +78,8 @@ const MATRIX = {
 };
 
 /**
- * Menu profil TERRAIN en mode Complet : accès à tous les modules de la navigation métier
- * (le mode d’affichage Terrain réduit via {@link TERRAIN_ALLOWED_PAGE_IDS} + filtre sidebar).
+ * Menu profil TERRAIN en mode Expert : accès à tous les modules de la navigation métier
+ * (le mode global Essentiel réduit via {@link TERRAIN_ALLOWED_PAGE_IDS} + filtre sidebar).
  */
 const TERRAIN_NAV_EXPERT_PAGES = new Set([
   'dashboard',

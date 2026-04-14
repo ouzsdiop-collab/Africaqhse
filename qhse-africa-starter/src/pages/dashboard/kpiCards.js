@@ -207,7 +207,7 @@ export function renderKpiFilteredModal(
   kpiKey,
   kpiDashboardLists,
   kpiDetailDrawerSingleton,
-  getSessionUser
+  _getSessionUser
 ) {
   kpiDetailDrawerSingleton?.open(kpiKey);
 }

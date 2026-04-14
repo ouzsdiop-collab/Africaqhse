@@ -97,6 +97,20 @@ function filterDemoRisks(sp) {
   return out.slice(0, lim);
 }
 
+/**
+ * CSV démo aligné sur l’API (UTF-8 BOM, séparateur ;).
+ * @param {string[][]} rows
+ */
+function demoSemicolonCsv(rows) {
+  const esc = (v) => {
+    const s = String(v ?? '');
+    if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const body = rows.map((cols) => cols.map(esc).join(';')).join('\n');
+  return `\uFEFF${body}`;
+}
+
 function getMergedActions() {
   const { actionPatches, createdActions } = loadDemoRuntime();
   const created = Array.isArray(createdActions) ? createdActions : [];
@@ -434,30 +448,84 @@ export async function tryDemoFetchResponse(path, init = {}) {
 
   if (pathname === '/api/export/incidents') {
     const rows = filterIncidentsForList(sp);
-    const esc = (v) => {
-      const s = String(v ?? '');
-      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-      return s;
-    };
-    const header = 'ref,type,site,severity,status,createdAt,location,description';
-    const lines = rows.map((r) =>
-      [
-        esc(r.ref),
-        esc(r.type),
-        esc(r.site),
-        esc(r.severity),
-        esc(r.status),
-        esc(r.createdAt),
-        esc(r.location),
-        esc(r.description)
-      ].join(',')
-    );
-    const csv = `\uFEFF${header}\n${lines.join('\n')}`;
-    return new Response(csv, {
+    const data = [
+      ['Ref', 'Type', 'Site', 'Gravite', 'Statut', 'Description', 'Responsable', 'Date'],
+      ...rows.map((r) => [
+        r.ref,
+        r.type,
+        r.site,
+        r.severity,
+        r.status,
+        r.description || '',
+        r.responsible || '',
+        r.createdAt ? new Date(r.createdAt).toLocaleDateString('fr-FR') : ''
+      ])
+    ];
+    return new Response(demoSemicolonCsv(data), {
       status: 200,
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8'
-      }
+      headers: { 'Content-Type': 'text/csv; charset=utf-8' }
+    });
+  }
+
+  if (pathname === '/api/export/risks') {
+    const rows = filterDemoRisks(sp);
+    const data = [
+      ['Ref', 'Titre', 'Categorie', 'Probabilite', 'Gravite', 'GP', 'Statut', 'Proprietaire', 'Site'],
+      ...rows.map((r) => [
+        r.ref ?? '',
+        r.title,
+        r.category || '',
+        r.probability,
+        r.severity,
+        r.gp ?? r.gravity ?? '',
+        r.status,
+        r.owner || '',
+        r.siteId || ''
+      ])
+    ];
+    return new Response(demoSemicolonCsv(data), {
+      status: 200,
+      headers: { 'Content-Type': 'text/csv; charset=utf-8' }
+    });
+  }
+
+  if (pathname === '/api/export/actions') {
+    let rows = getMergedActions();
+    const siteId = sp.get('siteId');
+    if (siteId) rows = rows.filter((r) => r.siteId === siteId);
+    const data = [
+      ['Titre', 'Responsable', 'Echeance', 'Priorite', 'Statut'],
+      ...rows.map((r) => [
+        r.title,
+        r.owner || '',
+        r.dueDate ? new Date(r.dueDate).toLocaleDateString('fr-FR') : '',
+        '',
+        r.status
+      ])
+    ];
+    return new Response(demoSemicolonCsv(data), {
+      status: 200,
+      headers: { 'Content-Type': 'text/csv; charset=utf-8' }
+    });
+  }
+
+  if (pathname === '/api/export/audits') {
+    let rows = [...demoAudits];
+    const siteId = sp.get('siteId');
+    if (siteId) rows = rows.filter((r) => r.siteId === siteId);
+    const data = [
+      ['Ref', 'Site', 'Date', 'Score', 'Statut'],
+      ...rows.map((r) => [
+        r.ref,
+        r.site || '',
+        new Date(r.createdAt).toLocaleDateString('fr-FR'),
+        r.score ?? '',
+        r.status
+      ])
+    ];
+    return new Response(demoSemicolonCsv(data), {
+      status: 200,
+      headers: { 'Content-Type': 'text/csv; charset=utf-8' }
     });
   }
 

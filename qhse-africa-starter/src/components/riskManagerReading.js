@@ -2,7 +2,7 @@
  * Bloc « Lecture manager » — synthèse premium en tête de page Risques.
  */
 
-import { riskCriticalityFromMeta } from './riskMatrixPanel.js';
+import { riskCriticalityFromMeta } from '../utils/riskMatrixCore.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 const STYLE_ID = 'qhse-risk-manager-reading-styles';

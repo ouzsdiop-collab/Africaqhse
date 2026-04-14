@@ -1,6 +1,6 @@
 /**
  * Module Habilitations — pilotage conformité opérationnelle (terrain / industrie).
- * Liste chargée via GET /api/habilitations ; exports locaux CSV / XLSX / PDF.
+ * Liste chargée via GET /api/habilitations ; exports locaux CSV / PDF.
  */
 
 import { ensureHabilitationsStyles } from '../components/habilitationsStyles.js';
@@ -15,13 +15,11 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import {
   sortHabilitationsByCriticality,
-  habRowIsBlockedCritical,
-  habCriticalityScore
+  habRowIsBlockedCritical
 } from '../utils/habilitationsCriticality.js';
 import {
   formatHabilitationsFiltersSummary,
   downloadHabilitationsCsv,
-  downloadHabilitationsXlsx,
   downloadHabilitationsPdf,
   downloadHabilitationsConformitePdf
 } from '../services/habilitationsExport.service.js';
@@ -484,16 +482,8 @@ export function renderHabilitations() {
         try {
           downloadHabilitationsCsv(rows, `habilitations_registre_${Date.now()}`);
           showToast('Export CSV téléchargé.', 'info');
-        } catch (e) {
+        } catch {
           showToast('Échec export CSV.', 'warning');
-        }
-      }),
-      mk('Excel registre', 'btn-secondary', async () => {
-        try {
-          await downloadHabilitationsXlsx(rows, `habilitations_registre_${Date.now()}`);
-          showToast('Export Excel téléchargé.', 'info');
-        } catch (e) {
-          showToast('Échec export Excel.', 'warning');
         }
       }),
       mk('PDF registre', 'btn-primary', async () => {
@@ -522,9 +512,9 @@ export function renderHabilitations() {
         downloadHabilitationsCsv(expired, `habilitations_expirees_${Date.now()}`);
         showToast('Export expirées (CSV).', 'info');
       }),
-      mk('Excel < 30 j', 'btn-ghost', async () => {
-        await downloadHabilitationsXlsx(lt30, `habilitations_exp30_${Date.now()}`);
-        showToast('Export échéances < 30 j (Excel).', 'info');
+      mk('CSV < 30 j', 'btn-ghost', async () => {
+        downloadHabilitationsCsv(lt30, `habilitations_exp30_${Date.now()}`);
+        showToast('Export échéances < 30 j (CSV).', 'info');
       }),
       mk('PDF alertes', 'btn-ghost', async () => {
         try {

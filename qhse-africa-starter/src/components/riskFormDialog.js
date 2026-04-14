@@ -1,4 +1,4 @@
-import { riskTierFromGp, riskLevelLabelFromTier } from './riskMatrixPanel.js';
+import { riskTierFromGp, riskLevelLabelFromTier } from '../utils/riskMatrixCore.js';
 import { showToast } from './toast.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { pushCustomRiskTitle } from '../utils/riskIncidentLinks.js';

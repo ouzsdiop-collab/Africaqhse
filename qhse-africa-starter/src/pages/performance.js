@@ -11,7 +11,6 @@ import {
   interpretAuditScoreSeries
 } from '../components/dashboardCharts.js';
 import { createKpiDetailDrawer } from '../components/kpiDetailDrawer.js';
-import { downloadPerformanceQhsePdf } from '../services/qhseReportsPdf.service.js';
 import {
   buildActivityTimelineEntries,
   buildCockpitRecommendations,
@@ -22,8 +21,7 @@ import {
   createGlobalScoreSection,
   createPrimaryCtaBar,
   createRecommendationsSection,
-  createTimelineSection,
-  createUrgencySection
+  createTimelineSection
 } from '../components/performanceCockpitPremium.js';
 import { createPerformanceTfTgBlock } from '../components/tfTgKpi.js';
 
@@ -590,9 +588,8 @@ export function renderPerformance() {
       return;
     }
     try {
-      await downloadPerformanceQhsePdf(
-        /** @type {Parameters<typeof downloadPerformanceQhsePdf>[0]} */ (lastPerfPdfContext)
-      );
+      const { downloadPerformanceQhsePdf } = await import('../services/qhseReportsPdf.service.js');
+      await downloadPerformanceQhsePdf(lastPerfPdfContext);
     } catch (e) {
       console.error(e);
     }

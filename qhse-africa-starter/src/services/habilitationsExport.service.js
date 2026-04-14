@@ -1,16 +1,15 @@
 /**
- * Exports registre habilitations (CSV / XLSX / PDF) — génération côté navigateur.
+ * Exports registre habilitations (CSV / PDF) — génération côté navigateur.
  * PDF : gabarit premium QHSE Control Africa (bandeau #1D9E75, pied de page confidentiel).
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
-import {
-  assembleQhsePdfDocument,
-  chunkRowsForPdf,
-  downloadQhseChromePdf,
-  QHSE_PDF_EMPTY_MESSAGE
-} from '../utils/qhsePdfChrome.js';
 import { HABILITATIONS_STATUS_LABEL, habDaysUntil } from '../data/habilitationsDemo.js';
+
+/** @returns {Promise<typeof import('../utils/qhsePdfChrome.js')>} */
+function loadQhsePdfChrome() {
+  return import('../utils/qhsePdfChrome.js');
+}
 
 const CSV_COLS = [
   'collaborateur',
@@ -158,22 +157,13 @@ export function downloadHabilitationsCsv(rows, filename = 'habilitations-export'
   URL.revokeObjectURL(a.href);
 }
 
-/** @param {Record<string, unknown>[]} rows */
-export async function downloadHabilitationsXlsx(rows, filename = 'habilitations-export') {
-  const XLSX = await import('xlsx');
-  const data = rowsToPlainObjects(rows);
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Habilitations');
-  XLSX.writeFile(wb, `${filename.replace(/[^\w-]+/g, '_')}.xlsx`);
-}
-
-function buildRegistreTableHtml(rows) {
+/** @param {Record<string, unknown>[]} rows @param {string} emptyMessage */
+function buildRegistreTableHtml(rows, emptyMessage) {
   const head = `<tr>
     <th>Collaborateur</th><th>Poste</th><th>Type</th><th>Site</th><th>Expiration</th><th>Statut</th>
   </tr>`;
   if (!rows.length) {
-    return `<p class="qhse-chrome-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+    return `<p class="qhse-chrome-muted">${escapeHtml(emptyMessage)}</p>`;
   }
   const body = rows
     .map((r) => {
@@ -232,8 +222,10 @@ function buildAlertsSectionHtml(rows) {
  *   rows: Record<string, unknown>[];
  *   subtitle?: string;
  * }} opts
+ * @param {typeof import('../utils/qhsePdfChrome.js')} pdf
  */
-export function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, rows }) {
+async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, rows }, pdf) {
+  const { chunkRowsForPdf, assembleQhsePdfDocument, QHSE_PDF_EMPTY_MESSAGE } = pdf;
   const summary = computeHabilitationsSummary(rows);
   const h1 = title.toLowerCase().includes('alerte')
     ? 'RAPPORT ALERTES HABILITATIONS'
@@ -264,14 +256,20 @@ export function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, r
   const pageBodies = [];
   chunks.forEach((chunk, idx) => {
     if (idx === 0) {
-      pageBodies.push(`${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml(chunk)}`);
+      pageBodies.push(
+        `${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
+      );
     } else {
-      pageBodies.push(`<h2 class="qhse-chrome-h2">Tableau détaillé (suite)</h2>${buildRegistreTableHtml(chunk)}`);
+      pageBodies.push(
+        `<h2 class="qhse-chrome-h2">Tableau détaillé (suite)</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
+      );
     }
   });
 
   if (pageBodies.length === 0) {
-    pageBodies.push(`${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml([])}`);
+    pageBodies.push(
+      `${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml([], QHSE_PDF_EMPTY_MESSAGE)}`
+    );
   }
 
   return assembleQhsePdfDocument(docTitle, pageBodies);
@@ -287,9 +285,10 @@ export function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, r
  * }} opts
  */
 export async function downloadHabilitationsPdf(opts) {
-  const html = buildHabilitationsPdfHtml(opts);
+  const pdf = await loadQhsePdfChrome();
+  const html = await buildHabilitationsPdfHtml(opts, pdf);
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
-  await downloadQhseChromePdf(html, `${safeName}.pdf`, {
+  await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   });
@@ -302,8 +301,10 @@ export async function downloadHabilitationsPdf(opts) {
  *   bySite: { site: string; score: number; total: number; nonConf: number }[];
  *   rows?: Record<string, unknown>[];
  * }} opts
+ * @param {typeof import('../utils/qhsePdfChrome.js')} pdf
  */
-export function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }) {
+async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, pdf) {
+  const { assembleQhsePdfDocument } = pdf;
   const docTitle = 'Rapport de conformité Habilitations';
   const taux = Math.round(Number(kpis.taux) || 0);
   const byType = computeByType(rows);
@@ -386,9 +387,10 @@ export async function downloadHabilitationsConformitePdf({
   rows = [],
   filename
 }) {
-  const html = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
+  const pdf = await loadQhsePdfChrome();
+  const html = await buildConformitePdfHtml({ filtersText, kpis, bySite, rows }, pdf);
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
-  await downloadQhseChromePdf(html, `${safeName}.pdf`, {
+  await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   });

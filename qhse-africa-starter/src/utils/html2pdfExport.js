@@ -1,5 +1,6 @@
 /**
- * Options html2pdf.js partagées — netteté, capture DOM hors viewport, styles résolus sur le clone.
+ * Pipeline html2canvas + jsPDF — même contrat d’options qu’historiquement via html2pdf.js,
+ * sans le bundle Webpack html2pdf (~polyfills) pour réduire le JS chargé à l’export.
  * @param {string} filename
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}
@@ -157,6 +158,49 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
   return out;
 }
 
+/**
+ * Découpe une grande toile sur plusieurs pages A4 (marges mm), comme html2pdf « legacy ».
+ * @param {HTMLCanvasElement} canvas
+ * @param {Record<string, unknown>} opt — résultat de buildHtml2PdfOptions
+ * @param {typeof import('jspdf').jsPDF} JsPdf
+ */
+function renderCanvasToPdfAndSave(canvas, opt, JsPdf) {
+  const margin = Array.isArray(opt.margin) && opt.margin.length === 4 ? opt.margin : [10, 10, 10, 10];
+  const [mt, mr, mb, ml] = margin.map((x) => Number(x) || 0);
+
+  const imageCfg = opt.image && typeof opt.image === 'object' ? opt.image : {};
+  const asPng = imageCfg.type === 'png';
+  const imgType = asPng ? 'PNG' : 'JPEG';
+  const quality = typeof imageCfg.quality === 'number' ? imageCfg.quality : 0.98;
+  const imgData = asPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality);
+
+  const jsConf =
+    opt.jsPDF && typeof opt.jsPDF === 'object' ? { compress: true, ...opt.jsPDF } : { compress: true };
+  const pdf = new JsPdf(jsConf);
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const printableW = Math.max(1, pageW - ml - mr);
+  const printableH = Math.max(1, pageH - mt - mb);
+
+  const imgWidthMm = printableW;
+  const imgHeightMm = (canvas.height / Math.max(1, canvas.width)) * imgWidthMm;
+
+  let yDraw = mt;
+  pdf.addImage(imgData, imgType, ml, yDraw, imgWidthMm, imgHeightMm);
+
+  let heightLeft = imgHeightMm - printableH;
+  while (heightLeft > 0) {
+    pdf.addPage();
+    yDraw = mt - (imgHeightMm - heightLeft);
+    pdf.addImage(imgData, imgType, ml, yDraw, imgWidthMm, imgHeightMm);
+    heightLeft -= printableH;
+  }
+
+  const name = typeof opt.filename === 'string' && opt.filename.trim() ? opt.filename : 'export.pdf';
+  pdf.save(name);
+}
+
 function waitForPaintAndLayout() {
   return new Promise((resolve) => {
     requestAnimationFrame(() => {
@@ -276,10 +320,14 @@ export async function saveElementAsPdf(element, filename, overrides = {}) {
           }
         : { ...overrides, html2canvas: canvasHint };
 
-    const mod = await import('html2pdf.js');
-    const html2pdf = mod.default || mod;
     const opt = buildHtml2PdfOptions(filename, mergedOverrides);
-    await html2pdf().set(opt).from(element).save();
+    const [{ default: html2canvas }, { jsPDF: JsPdf }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf')
+    ]);
+    const h2cOpts = opt.html2canvas && typeof opt.html2canvas === 'object' ? opt.html2canvas : {};
+    const canvas = await html2canvas(element, h2cOpts);
+    renderCanvasToPdfAndSave(canvas, opt, JsPdf);
   } finally {
     Object.keys(snapshot).forEach((k) => {
       inline[k] = snapshot[k];

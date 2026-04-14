@@ -2,7 +2,7 @@
  * Fiche risque QHSE (ISO 45001 / 14001) — modal lecture + contexte opérationnel.
  */
 
-import { parseRiskMatrixGp, riskCriticalityFromMeta } from './riskMatrixPanel.js';
+import { parseRiskMatrixGp, riskCriticalityFromMeta } from '../utils/riskMatrixCore.js';
 import {
   computeEvolutionBadgeKind,
   EVOLUTION_BADGE_LABELS,

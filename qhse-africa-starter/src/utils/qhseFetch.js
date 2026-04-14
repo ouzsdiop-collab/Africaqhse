@@ -7,7 +7,7 @@ import {
   clearSession,
   nativeFetch
 } from '../data/sessionUser.js';
-import { getAccessTokenForRequest } from './auth.js';
+import { getAccessTokenForRequest, refreshAccessToken } from './auth.js';
 import { isDemoMode } from '../services/demoMode.service.js';
 import { tryDemoFetchResponse } from '../services/demoModeFetch.js';
 
@@ -18,7 +18,6 @@ function sharedRefreshAccessToken() {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     try {
-      const { refreshAccessToken } = await import('./auth.js');
       return await refreshAccessToken();
     } finally {
       refreshPromise = null;

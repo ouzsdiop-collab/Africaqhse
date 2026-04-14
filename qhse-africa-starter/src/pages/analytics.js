@@ -19,11 +19,6 @@ import {
   interpretAuditScoreSeries
 } from '../components/dashboardCharts.js';
 import { createAnalyticsQuadInsightSection } from '../components/analyticsQuadAiInsight.js';
-import {
-  downloadAnalyticsPeriodicPdf,
-  downloadAnalyticsSummaryPdf
-} from '../services/qhseReportsPdf.service.js';
-
 const ANALYTICS_LIST_CAP = 5;
 
 function formatFrDateTime(iso) {
@@ -1056,6 +1051,7 @@ export function renderAnalytics() {
       return;
     }
     try {
+      const { downloadAnalyticsSummaryPdf } = await import('../services/qhseReportsPdf.service.js');
       await downloadAnalyticsSummaryPdf(lastAnalyticsSummary);
     } catch (e) {
       console.error(e);

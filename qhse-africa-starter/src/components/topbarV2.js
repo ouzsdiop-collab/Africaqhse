@@ -909,21 +909,22 @@ export function createTopbar({
   const displayModeSwitch = document.createElement('div');
   displayModeSwitch.className = 'display-mode-switch';
   displayModeSwitch.setAttribute('role', 'group');
-  displayModeSwitch.setAttribute('aria-label', "Mode d'affichage");
+  displayModeSwitch.setAttribute('aria-label', 'Application : mode Essentiel ou Expert');
   const segTerrain = document.createElement('button');
   segTerrain.type = 'button';
   segTerrain.className = 'display-mode-seg' + (mode === 'terrain' ? ' is-active' : '');
   segTerrain.setAttribute('data-set-mode', 'terrain');
   segTerrain.setAttribute('aria-pressed', mode === 'terrain' ? 'true' : 'false');
-  segTerrain.title = 'Menu réduit, focus opérations terrain';
-  segTerrain.textContent = 'Terrain';
+  segTerrain.title =
+    'Navigation réduite et raccourcis opérationnels — sur mobile, ce mode est toujours actif.';
+  segTerrain.textContent = 'Essentiel';
   const segExpert = document.createElement('button');
   segExpert.type = 'button';
   segExpert.className = 'display-mode-seg' + (mode === 'expert' ? ' is-active' : '');
   segExpert.setAttribute('data-set-mode', 'expert');
   segExpert.setAttribute('aria-pressed', mode === 'expert' ? 'true' : 'false');
-  segExpert.title = 'Tous les modules QHSE';
-  segExpert.textContent = 'Complet';
+  segExpert.title = 'Menu latéral complet, tous les modules QHSE et recherche shell.';
+  segExpert.textContent = 'Expert';
   displayModeSwitch.append(segTerrain, segExpert);
 
   trailing.append(
@@ -1130,11 +1131,11 @@ export function createTopbar({
         setDisplayMode(target);
         syncModeSegments(target);
         if (target === 'terrain') {
-          showToast('Mode terrain — accès opérations et raccourcis chantier.', 'info');
+          showToast('Mode Essentiel — navigation réduite et raccourcis opérationnels.', 'info');
           if (typeof onNavigate === 'function') onNavigate('terrain-mode');
           else navigateByHash('terrain-mode');
         } else {
-          showToast('Mode complet — tous les modules du menu.', 'info');
+          showToast('Mode Expert — menu complet et tous les modules.', 'info');
           const dest = currentPage === 'terrain-mode' ? 'dashboard' : currentPage;
           if (typeof onNavigate === 'function') onNavigate(dest);
           else navigateByHash(dest);

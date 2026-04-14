@@ -1230,7 +1230,7 @@ function buildTerrainStrip(products, onOpenDetail) {
   head.className = 'products-terrain-head';
   const kicker = document.createElement('span');
   kicker.className = 'products-terrain-kicker';
-  kicker.textContent = 'Mode terrain';
+  kicker.textContent = 'Vue Essentiel';
   const title = document.createElement('h3');
   title.className = 'products-terrain-title';
   title.textContent = `Accès rapide — ${pick.name}`;
@@ -1291,7 +1291,7 @@ function buildTerrainStrip(products, onOpenDetail) {
     const sel = document.createElement('select');
     sel.id = 'products-terrain-product-select';
     sel.className = 'control-select products-terrain-select';
-    sel.setAttribute('aria-label', 'Choisir un produit pour le mode terrain');
+    sel.setAttribute('aria-label', 'Choisir un produit (bandeau Essentiel)');
     list.forEach((p, idx) => {
       const o = document.createElement('option');
       o.value = String(idx);

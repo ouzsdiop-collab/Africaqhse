@@ -10,10 +10,6 @@ import { getApiBase } from '../config.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import {
   buildIncidentMonthlySeries,
-  buildNcMajorMinorMonthlySeries,
-  buildAuditScoreSeriesFromAudits,
-  buildTopIncidentTypes,
-  classifyActionsForMix,
   createActionsMixChart,
   createDashboardLineChart,
   createIncidentTypeBreakdown,
@@ -37,24 +33,16 @@ import {
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { createKpiDetailDrawer } from '../components/kpiDetailDrawer.js';
-import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
 import {
   asDashboardCount,
-  isNcOpen,
   reconcileDashboardStatsWithLists,
   deriveDashboardStatsFromLists
 } from '../utils/reconcileDashboardStats.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
-import { Chart, registerables } from 'chart.js';
 import { initDashboardCharts } from '../components/dashboardCharts.js';
-import { listPermits, refreshPermitsFromApi } from '../services/ptw.service.js';
+import { refreshPermitsFromApi } from '../services/ptw.service.js';
 import { renderKpiCards } from '../components/dashboardKpiCards.js';
 import { createDashboardTfTgMiniRow } from '../components/tfTgKpi.js';
-import {
-  HABILITATIONS_DEMO_ROWS,
-  computeHabilitationsBySite,
-  computeHabilitationsKpis
-} from '../data/habilitationsDemo.js';
 import { refreshCharts as refreshChartsModule } from './dashboard/chartsSection.js';
 import { refreshActivity as refreshActivityModule } from './dashboard/actionsWidget.js';
 import { updateDecisionAlerts as updateDecisionAlertsModule } from './dashboard/decisionPanel.js';
@@ -67,25 +55,11 @@ import {
 } from './dashboard/kpiCards.js';
 
 /* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats — voir utils/dashboard*.js */
-import { pushDashboardIntent } from '../utils/dashboardNavigationIntent.js';
-import { fetchJsonList, fetchJsonListWithRetry, qhseFetchWithNetworkRetry } from '../utils/dashboardFetchHelpers.js';
+import { fetchJsonListWithRetry, qhseFetchWithNetworkRetry } from '../utils/dashboardFetchHelpers.js';
 import {
-  toneByValue,
-  safeNum,
-  trimTrailingZeroAuditScores,
-  computeDeltaLabel,
-  guessImpactedSite,
-  buildOperationalTiles,
   normalizeDashboardPayload,
-  buildMistralDashboardStatsPayload,
-  formatDashboardCount
+  buildMistralDashboardStatsPayload
 } from '../utils/dashboardMetrics.js';
-
-const DC_CHART_FONT = 'Inter, system-ui, sans-serif';
-
-function getCssVar(name, fallback = '') {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-}
 
 const DASH_DECISION_STYLE_ID = 'qhse-dashboard-decision-styles';
 const DASHBOARD_DEMO_LISTS = {
@@ -326,16 +300,6 @@ function ensureDashboardDecisionStyles() {
   document.head.append(el);
 }
 
-function upsertKpiFilterModal() {
-  let d = document.getElementById('qhse-kpi-filter-modal');
-  if (d) return d;
-  d = document.createElement('dialog');
-  d.id = 'qhse-kpi-filter-modal';
-  d.className = 'kpi-detail-drawer';
-  document.body.append(d);
-  return d;
-}
-
 /**
  * Listes chargées par le dashboard — référence stable pour le drawer KPI (pas de re-fetch).
  * @type {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[]; docs: unknown[] }}
@@ -509,7 +473,7 @@ export function renderDashboard() {
 
   function exportDirectionToast() {
     showToast(
-      'Export direction (PDF / Excel) : connecteur prêt à être relié à votre système documentaire.',
+      'Export direction (PDF / CSV) : connecteur prêt à être relié à votre système documentaire.',
       'info'
     );
   }
@@ -529,9 +493,9 @@ export function renderDashboard() {
     pageId: 'dashboard',
     pageRoot: page,
     hintEssential:
-      'Vue direction : en-tête, signaux, indicateurs et priorités du jour — analyses étendues et graphiques complémentaires masqués.',
+      'Essentiel (cette page) : en-tête, signaux, indicateurs et priorités du jour — analyses étendues et graphiques complémentaires masqués.',
     hintAdvanced:
-      'Pilotage complet : volet « Analyses & modules détaillés », graphiques, cockpit, habilitations, activité et assistant.'
+      'Expert (cette page) : analyses détaillées, graphiques, cockpit, habilitations, activité et assistant.'
   });
 
   const bandCeo = document.createElement('div');
@@ -561,7 +525,7 @@ export function renderDashboard() {
   bandCriticalAlerts.append(alertsSection);
 
   const decisionAlertsBand = document.createElement('section');
-  /* Même métrique que les cartes KPI + sous-lignes « variation » non métier : réservé à la vue avancée. */
+  /* Même métrique que les cartes KPI + sous-lignes « variation » non métier : réservé à la vue Expert (page). */
   decisionAlertsBand.className = 'dashboard-section qhse-page-advanced-only';
   const decisionAlerts = document.createElement('div');
   decisionAlerts.className = 'dashboard-decision-alerts';
@@ -1087,7 +1051,7 @@ export function renderDashboard() {
     );
   }
 
-  function refreshCharts(incidents, actions, audits, ncs) {
+  function refreshCharts(_incidents, _actions, _audits, _ncs) {
     const { ncList } = refreshChartsModule(
       { lineCard, mixCard, typeCard, auditCharts, pilotLoadCard },
       lastStats,

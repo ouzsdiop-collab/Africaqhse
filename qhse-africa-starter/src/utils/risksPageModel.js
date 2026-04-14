@@ -8,7 +8,9 @@ import {
   riskCriticalityFromMeta,
   riskTierFromGp,
   riskLevelLabelFromTier
-} from '../components/riskMatrixPanel.js';
+} from './riskMatrixCore.js';
+
+export { sortRisksByPriority } from './risksSort.js';
 
 /** Marqueur `[Risque lié: …]` dans la description d’incident (aligné API incidents). */
 export const RISK_LINK_RE = /\[Risque lié:\s*([^\]]+?)\]/gi;
@@ -196,20 +198,6 @@ export function computeGlobalRiskAnalysis(list) {
     if (seen.has(f.text)) return false;
     seen.add(f.text);
     return true;
-  });
-}
-
-/** @param {Array<{ title?: string, meta?: string, status?: string }>} list */
-export function sortRisksByPriority(list) {
-  return [...list].sort((a, b) => {
-    const ca = riskCriticalityFromMeta(a.meta);
-    const cb = riskCriticalityFromMeta(b.meta);
-    const ta = ca?.tier ?? 0;
-    const tb = cb?.tier ?? 0;
-    if (tb !== ta) return tb - ta;
-    const pa = ca?.product ?? 0;
-    const pb = cb?.product ?? 0;
-    return pb - pa;
   });
 }
 

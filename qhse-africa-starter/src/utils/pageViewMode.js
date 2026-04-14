@@ -49,8 +49,10 @@ export function mountPageViewModeSwitch(opts) {
   const {
     pageId,
     pageRoot,
-    hintEssential = 'Indicateurs et actions prioritaires — le détail métier est masqué.',
-    hintAdvanced = 'Filtres, analyses et options expertes visibles.',
+    hintEssential =
+      'Essentiel : ce qui compte pour décider vite sur cette page — le reste est masqué (indépendant du mode global en haut à droite).',
+    hintAdvanced =
+      'Expert : filtres étendus, analyses, journaux et blocs avancés visibles sur cette page seulement.',
     onChange
   } = opts;
 
@@ -66,11 +68,11 @@ export function mountPageViewModeSwitch(opts) {
   const group = document.createElement('div');
   group.className = 'qhse-page-view-switch';
   group.setAttribute('role', 'group');
-  group.setAttribute('aria-label', 'Niveau de détail de la page');
+  group.setAttribute('aria-label', 'Vue de cette page : Essentiel ou Expert');
 
   const lab = document.createElement('span');
   lab.className = 'qhse-page-view-switch__label';
-  lab.textContent = 'Affichage';
+  lab.textContent = 'Cette page';
 
   function mkBtn(value, text) {
     const b = document.createElement('button');
@@ -81,8 +83,8 @@ export function mountPageViewModeSwitch(opts) {
     return b;
   }
 
-  const bEss = mkBtn('essential', 'Essentielle');
-  const bAdv = mkBtn('advanced', 'Avancée');
+  const bEss = mkBtn('essential', 'Essentiel');
+  const bAdv = mkBtn('advanced', 'Expert');
 
   const hint = document.createElement('p');
   hint.className = 'qhse-page-view-bar__hint';

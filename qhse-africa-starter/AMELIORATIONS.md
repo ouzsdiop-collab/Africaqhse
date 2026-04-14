@@ -25,7 +25,7 @@ Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, r
 
 ## 3. Performance front
 
-- **Code-splitting** : certains chunks dépassent 500 Ko (build Vite) — découper `audits`, `iso`, exports lourds (xlsx, html2pdf) derrière des imports dynamiques déjà partiellement en place ; revoir `manualChunks` si besoin.
+- **Code-splitting** : certains chunks dépassent 500 Ko (build Vite) — découper `audits`, `iso`, et le pipeline PDF (`html2canvas`, `jspdf`) derrière des imports dynamiques ; la lib lourde `canvg` (SVG → canvas pour `jsPDF.addSvgAsImage`) est remplacée par un shim dans ce produit car non utilisée.
 - **Chart.js** : mutualiser options (thème, polices) ; éviter recréation inutile des graphiques au moindre refresh.
 
 ## 4. Backend & API
@@ -48,7 +48,7 @@ Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, r
 
 ## 7. Produit & modules métier
 
-- **Risques** : alignement complet backend + matrice + exports.
+- **Risques** : alignement complet backend + matrice + exports CSV.
 - **Habilitations** : basculer les jeux démo pur API quand le modèle Prisma sera prêt.
 - **Analytics / performance** : jeux de données réalistes ou mode « démo guidée » explicite.
 - **Notifications** : règles métier stables (non-conformités, échéances FDS, habilitations).

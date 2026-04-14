@@ -337,30 +337,6 @@ function createAuditIntelligentNotificationsCard(opts) {
   return card;
 }
 
-function meanAuditScore() {
-  const scores = [...HISTORY.map((h) => h.score), LAST_AUDIT.score];
-  const n = scores.length;
-  if (!n) return LAST_AUDIT.score;
-  return Math.round(scores.reduce((a, b) => a + b, 0) / n);
-}
-
-function buildAuditKpiStripItems() {
-  const planifies = PLANNED_AUDITS.length;
-  const enCours = countPlannedByStatut('en cours');
-  const retard = AUDITS_RETARD_COUNT;
-  return [
-    { label: 'Audits planifiés', value: String(planifies), tone: 'blue', hint: 'Vue planification active' },
-    { label: 'Audits en cours', value: String(enCours), tone: 'amber', hint: 'Exécution terrain' },
-    { label: 'Audits en retard', value: String(retard), tone: 'red', hint: 'À reprogrammer ou escalader' },
-    {
-      label: 'Score moyen',
-      value: `${meanAuditScore()}%`,
-      tone: 'green',
-      hint: 'Historique et dernier audit affichés'
-    }
-  ];
-}
-
 const PLANNED_AUDITS = [
   {
     id: 'AUD-P-021',
@@ -484,7 +460,7 @@ function getCockpitPreviousAuditScore() {
   return Number.isFinite(v) ? v : null;
 }
 
-/** Points pour le mode terrain (même thématique que la checklist synthèse) */
+/** Points pour la checklist chantier (même thématique que la synthèse) */
 const FIELD_POINTS = [
   { id: 'f1', point: 'Contrôles opérationnels documentés' },
   { id: 'f2', point: 'Gestion des déchets dangereux (registres)' },
@@ -514,25 +490,6 @@ function statutBadgeClass(statut) {
   if (statut === 'terminé') return 'green';
   if (statut === 'en cours') return 'amber';
   return 'blue';
-}
-
-function createChecklistRow(item) {
-  const row = document.createElement('article');
-  row.className = 'list-row audit-checklist-row';
-  const ok = Boolean(item?.conforme);
-  if (!ok) {
-    row.style.borderLeft = '4px solid rgba(239, 91, 107, 0.6)';
-    row.style.paddingLeft = '12px';
-  }
-  const left = document.createElement('div');
-  const strong = document.createElement('strong');
-  strong.textContent = item?.point != null ? String(item.point) : '—';
-  left.append(strong);
-  const badge = document.createElement('span');
-  badge.className = `badge ${ok ? 'green' : 'red'}`;
-  badge.textContent = ok ? 'Conforme' : 'Non conforme';
-  row.append(left, badge);
-  return row;
 }
 
 /**
@@ -740,18 +697,6 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   return wrap;
 }
 
-function proofBadgeClass(st) {
-  if (st === 'present') return 'audit-proof-badge--present';
-  if (st === 'missing') return 'audit-proof-badge--missing';
-  return 'audit-proof-badge--verify';
-}
-
-function proofBadgeLabel(st) {
-  if (st === 'present') return 'Présent';
-  if (st === 'missing') return 'Manquant';
-  return 'À vérifier';
-}
-
 /**
  * Ligne tableau NC + bouton risque (navigation module Risques).
  * @param {HTMLElement} treatmentTable
@@ -931,7 +876,7 @@ export async function renderAudits() {
     attachModeDirectionButton,
     runAuditExpertAlerts,
     buildAuditTimeline,
-    openAuditExcelImportModal,
+    openAuditCsvImportModal,
     enhanceAuditAssistantCard
   } = auditExpertUx;
   const { createAuditImportDraftSection, openAuditDialog } = auditFormMod;
@@ -963,9 +908,9 @@ export async function renderAudits() {
     pageId: 'audits',
     pageRoot: page,
     hintEssential:
-      'Vue synthèse : score, workflow et priorités critiques — checklist terrain, exports et options expertes en vue avancée.',
+      'Essentiel : score, workflow et priorités — checklist chantier, exports et blocs experts passent en vue Expert (cette page).',
     hintAdvanced:
-      'Parcours complet : avancement constats, plan d’action, traçabilité, preuves, mode terrain et exports CSV/PDF.'
+      'Expert : constats, plan d’action, traçabilité, preuves, checklist chantier et exports CSV/PDF.'
   });
 
   /** Ajustement local du score affiché (pas d’écriture serveur sur cet écran). */
@@ -998,11 +943,11 @@ export async function renderAudits() {
     fieldMode.reset();
     fieldMode.show();
     fieldMode.element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    showToast('Mode terrain activé — renseignez la checklist ci-dessous.', 'info');
+    showToast('Checklist chantier activée — renseignez les points ci-dessous.', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Ouverture mode audit terrain',
-      detail: 'Checklist interactive — mode terrain',
+      detail: 'Checklist interactive — parcours chantier',
       user: 'Auditeur terrain'
     });
   }
@@ -1064,7 +1009,7 @@ export async function renderAudits() {
         showToast('Aucun audit en base : impossible de générer le rapport PDF.', 'error');
         return;
       }
-      /* Même rendu HTML que « Export PDF ISO complet » (html2pdf), pas le PDF texte pdfkit du backend. */
+      /* Même rendu HTML que « Export PDF ISO complet » (html2canvas + jsPDF), pas le PDF texte pdfkit du backend. */
       if (latestRef !== LAST_AUDIT.ref) {
         showToast(
           'Le PDF reprend les données de l’audit affiché dans le cockpit (peut différer du premier audit API).',
@@ -1261,7 +1206,7 @@ export async function renderAudits() {
         { ...LAST_AUDIT, score: cur },
         {
           onEdit: () => {
-            showToast('Édition : utilisez le pilotage et le mode terrain sur cette page.', 'info');
+            showToast('Édition : basculez cette page en Expert pour le pilotage complet et la checklist chantier.', 'info');
           }
         }
       );
@@ -1412,29 +1357,29 @@ export async function renderAudits() {
       downloadAuditPlanActionsCsv();
     })();
   });
-  const exportExcelBtn = document.createElement('button');
-  exportExcelBtn.type = 'button';
-  exportExcelBtn.className = 'btn btn-secondary';
-  exportExcelBtn.textContent = 'Importer audit Excel';
-  exportExcelBtn.addEventListener('click', () => {
-    openAuditExcelImportModal((data) => {
+  const importAuditCsvBtn = document.createElement('button');
+  importAuditCsvBtn.type = 'button';
+  importAuditCsvBtn.className = 'btn btn-secondary';
+  importAuditCsvBtn.textContent = 'Importer audit CSV';
+  importAuditCsvBtn.addEventListener('click', () => {
+    openAuditCsvImportModal((data) => {
       showToast(
         `Import prêt : ${data.exigences.length} exig. · ${data.ncs.length} NC · ${data.preuves.length} preuves (aperçu local).`,
         'info'
       );
       activityLogStore.add({
         module: 'audits',
-        action: 'Import Excel audit (preview)',
+        action: 'Import CSV audit (preview)',
         detail: 'Validation locale — aperçu import',
         user: su?.name || 'Utilisateur'
       });
     });
   });
-  const exportAuditsXlsxBtn = document.createElement('button');
-  exportAuditsXlsxBtn.type = 'button';
-  exportAuditsXlsxBtn.className = 'btn btn-secondary btn-sm';
-  exportAuditsXlsxBtn.textContent = 'Export Excel';
-  exportAuditsXlsxBtn.addEventListener('click', async () => {
+  const exportAuditsCsvBtn = document.createElement('button');
+  exportAuditsCsvBtn.type = 'button';
+  exportAuditsCsvBtn.className = 'btn btn-secondary btn-sm';
+  exportAuditsCsvBtn.textContent = 'Export CSV';
+  exportAuditsCsvBtn.addEventListener('click', async () => {
     try {
       const res = await qhseFetch(withSiteQuery('/api/export/audits'));
       if (!res.ok) {
@@ -1445,7 +1390,7 @@ export async function renderAudits() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'audits-export.xlsx';
+      a.download = 'audits-export.csv';
       document.body.append(a);
       a.click();
       a.remove();
@@ -1454,7 +1399,7 @@ export async function renderAudits() {
       showToast('Erreur réseau', 'error');
     }
   });
-  exportActionsHost?.append(exportConstatsBtn, exportPlanBtn, exportExcelBtn, exportAuditsXlsxBtn);
+  exportActionsHost?.append(exportConstatsBtn, exportPlanBtn, importAuditCsvBtn, exportAuditsCsvBtn);
 
   const auditTrendCard = document.createElement('article');
   auditTrendCard.className = 'content-card card-soft audit-cockpit-chart-card audit-premium-chart-card';
@@ -2156,6 +2101,7 @@ export async function renderAudits() {
   tierScore.append(
     createAuditTerrainWorkflowStrip(page),
     heroCard,
+    auditExpertCockpitBlock,
     strategicKpis,
     docComplianceStrip,
     auditChartsRow

@@ -1792,7 +1792,7 @@ export function renderSettings() {
       <p class="settings-section__kicker">Aide &amp; support</p>
       <h4 class="settings-section__title" id="settings-help-title">Documentation utilisateur</h4>
       <p class="settings-section__lead">
-        Téléchargez le guide PDF pour la prise en main des modules (dashboard, incidents, risques, audits, mode terrain, etc.).
+        Téléchargez le guide PDF pour la prise en main des modules (dashboard, incidents, risques, audits, modes Essentiel / Expert, etc.).
       </p>
     </header>
     <div class="content-card card-soft">

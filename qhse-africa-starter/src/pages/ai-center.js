@@ -509,13 +509,6 @@ export function renderAiCenter(onAddLog) {
           }
           const rc = await rcRes.json();
           const act = await actRes.json();
-          const incStub = {
-            ref,
-            id,
-            type: row?.type || '',
-            site: row?.site || '',
-            severity: row?.severity || ''
-          };
 
           const prov = document.createElement('p');
           prov.className = 'qhse-ac-ia-provider';

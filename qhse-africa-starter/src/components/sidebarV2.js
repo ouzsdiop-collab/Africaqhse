@@ -881,7 +881,7 @@ export function createSidebar({
 
   const terrainDock = document.createElement('nav');
   terrainDock.className = 'sidebar-v2__terrain-dock';
-  terrainDock.setAttribute('aria-label', 'Navigation terrain mobile');
+  terrainDock.setAttribute('aria-label', 'Navigation mobile (mode Essentiel)');
 
   const brand = document.createElement('div');
   brand.className = 'sidebar-v2__brand';

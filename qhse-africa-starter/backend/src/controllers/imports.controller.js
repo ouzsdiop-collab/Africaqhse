@@ -56,7 +56,7 @@ export function uploadSingleFile(req, res, next) {
   });
 }
 
-export async function preview(req, res, next) {
+export async function preview(req, res, _next) {
   try {
     if (!req.file?.buffer) {
       return res.status(400).json({

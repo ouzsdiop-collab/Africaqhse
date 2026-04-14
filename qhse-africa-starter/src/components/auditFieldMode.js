@@ -15,7 +15,7 @@ function nextNcRef() {
 }
 
 /**
- * Mode terrain interactif : statuts + commentaires + non-conformités + actions.
+ * Mode chantier interactif (checklist audit) : statuts + commentaires + NC + actions.
  * @param {{ points: Array<{ id: string, point: string }>, auditRef?: string, siteId?: string }} options
  */
 export function createAuditFieldMode({ points, auditRef = 'AUD-0000', siteId }) {

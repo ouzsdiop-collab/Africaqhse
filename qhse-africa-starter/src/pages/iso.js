@@ -639,180 +639,6 @@ function updateGlobalSnapshot(el, s) {
 }
 
 /**
- * @param {(row: Record<string, unknown> & { normCode: string }) => void} onAnalyze
- */
-function buildPointsPanel(onAnalyze) {
-  const panel = document.createElement('section');
-  panel.className = 'iso-points-panel iso-actions-priority-section';
-  panel.setAttribute('aria-labelledby', 'iso-points-title');
-
-  const title = document.createElement('h3');
-  title.id = 'iso-points-title';
-  title.className = 'iso-points-panel-title';
-  title.textContent = 'Actions prioritaires';
-
-  const lead = document.createElement('p');
-  lead.className = 'iso-points-panel-lead';
-  lead.textContent = 'Ce qui demande une action maintenant — exigences, documents et audits.';
-
-  const grid = document.createElement('div');
-  grid.className = 'iso-points-grid';
-
-  const colReq = document.createElement('div');
-  colReq.className = 'iso-points-col';
-  const colDoc = document.createElement('div');
-  colDoc.className = 'iso-points-col';
-  const colAud = document.createElement('div');
-  colAud.className = 'iso-points-col';
-
-  grid.append(colReq, colDoc, colAud);
-  panel.append(title, lead, grid);
-
-  function renderColContent() {
-    const reqs = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
-    const { missing, obsolete, critical } = DOCUMENT_ATTENTION;
-
-    colReq.replaceChildren();
-    const hReq = document.createElement('div');
-    hReq.className = 'iso-points-col-head';
-    const hReqIc = document.createElement('span');
-    hReqIc.className = 'iso-points-icon iso-points-icon--req';
-    hReqIc.setAttribute('aria-hidden', 'true');
-    const hReqLab = document.createElement('span');
-    hReqLab.textContent = 'Exigences';
-    hReq.append(hReqIc, hReqLab);
-    const metricReq = document.createElement('div');
-    metricReq.className = 'iso-points-metric';
-    metricReq.textContent = reqs.length ? `${reqs.length} à consolider ou corriger` : 'Aucune exigence en écart';
-    const listReq = document.createElement('ul');
-    listReq.className = 'iso-points-list';
-    if (reqs.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'iso-points-list-empty';
-      li.textContent = 'Toutes les exigences suivies sont au vert.';
-      listReq.append(li);
-    } else {
-      reqs.slice(0, 4).forEach((row) => {
-        const norm = getNormById(row.normId);
-        const normCode = norm ? norm.code : row.normId;
-        const li = document.createElement('li');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'iso-points-action-link';
-        btn.textContent = `${row.clause} — ${row.title}`;
-        btn.addEventListener('click', () => onAnalyze({ ...row, normCode }));
-        const badge = document.createElement('span');
-        badge.className = `badge ${conformityBadgeClass(row.status)} iso-points-mini-badge`;
-        badge.textContent = conformityLabel(row.status);
-        li.append(btn, document.createTextNode(' '), badge, document.createElement('br'));
-        const sub = document.createElement('span');
-        sub.className = 'iso-points-list-sub';
-        sub.textContent = normCode;
-        li.append(sub);
-        listReq.append(li);
-      });
-      if (reqs.length > 4) {
-        const li = document.createElement('li');
-        li.className = 'iso-points-list-more';
-        li.textContent = `+ ${reqs.length - 4} autre(s) — voir « toutes les exigences » ci-dessous.`;
-        listReq.append(li);
-      }
-    }
-    colReq.append(hReq, metricReq, listReq);
-
-    colDoc.replaceChildren();
-    const hDoc = document.createElement('div');
-    hDoc.className = 'iso-points-col-head';
-    const hDocIc = document.createElement('span');
-    hDocIc.className = 'iso-points-icon iso-points-icon--doc';
-    hDocIc.setAttribute('aria-hidden', 'true');
-    const hDocLab = document.createElement('span');
-    hDocLab.textContent = 'Documents';
-    hDoc.append(hDocIc, hDocLab);
-    const nMiss = missing.length;
-    const nObs = obsolete.length;
-    const nCrit = critical.length;
-    const metricDoc = document.createElement('div');
-    metricDoc.className = 'iso-points-metric';
-    if (nMiss + nObs + nCrit === 0) {
-      metricDoc.textContent = 'Aucun document critique signalé';
-    } else {
-      const parts = [];
-      if (nMiss) parts.push(`${nMiss} manquant(s)`);
-      if (nObs) parts.push(`${nObs} obsolète(s)`);
-      if (nCrit) parts.push(`${nCrit} critique(s)`);
-      metricDoc.textContent = parts.join(' · ');
-    }
-    const listDoc = document.createElement('ul');
-    listDoc.className = 'iso-points-list';
-    const pushDocItem = (label, name, note) => {
-      const li = document.createElement('li');
-      const tag = document.createElement('span');
-      tag.className = 'iso-points-doc-tag';
-      tag.textContent = label;
-      const strong = document.createElement('strong');
-      strong.textContent = name;
-      const p = document.createElement('p');
-      p.className = 'iso-points-list-note';
-      p.textContent = note;
-      li.append(tag, strong, p);
-      listDoc.append(li);
-    };
-    missing.forEach((d) => pushDocItem('Manquant', d.name, d.note));
-    obsolete.forEach((d) => pushDocItem('Obsolète', d.name + (d.version ? ` v${d.version}` : ''), d.note));
-    critical.forEach((d) => pushDocItem('Critique', d.name + (d.version ? ` v${d.version}` : ''), d.note));
-    if (listDoc.children.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'iso-points-list-empty';
-      li.textContent = 'Rien à signaler sur les documents prioritaires.';
-      listDoc.append(li);
-    }
-    colDoc.append(hDoc, metricDoc, listDoc);
-
-    colAud.replaceChildren();
-    const hAud = document.createElement('div');
-    hAud.className = 'iso-points-col-head';
-    const hAudIc = document.createElement('span');
-    hAudIc.className = 'iso-points-icon iso-points-icon--aud';
-    hAudIc.setAttribute('aria-hidden', 'true');
-    const hAudLab = document.createElement('span');
-    hAudLab.textContent = 'Audits à faire';
-    hAud.append(hAudIc, hAudLab);
-    const metricAud = document.createElement('div');
-    metricAud.className = 'iso-points-metric';
-    metricAud.textContent = AUDITS_TO_SCHEDULE.length
-      ? `${AUDITS_TO_SCHEDULE.length} échéance(s) à piloter`                
-      : 'Aucun audit planifié pour l’instant';
-    const listAud = document.createElement('ul');
-    listAud.className = 'iso-points-list';
-    AUDITS_TO_SCHEDULE.forEach((a) => {
-      const li = document.createElement('li');
-      const tStrong = document.createElement('strong');
-      tStrong.textContent = a.title;
-      const noteP = document.createElement('p');
-      noteP.className = 'iso-points-list-note';
-      noteP.append(document.createTextNode(String(a.horizon ?? '')));
-      const ownSp = document.createElement('span');
-      ownSp.className = 'iso-points-list-sub';
-      ownSp.textContent = ` · ${a.owner}`;
-      noteP.append(ownSp);
-      li.append(tStrong, noteP);
-      listAud.append(li);
-    });
-    if (AUDITS_TO_SCHEDULE.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'iso-points-list-empty';
-      li.textContent = 'Ajoutez ou planifiez vos audits depuis le module Audits.';
-      listAud.append(li);
-    }
-    colAud.append(hAud, metricAud, listAud);
-  }
-
-  renderColContent();
-  return { panel, renderColContent };
-}
-
-/**
  * @param {{
  *   id: string;
  *   status: string;
@@ -1107,56 +933,6 @@ function createRequirementsTable(ctx, registryDocImpact) {
   return wrap;
 }
 
-/**
- * @param {{ onAnalyze: (row: Record<string, unknown> & { normCode: string }) => void }} ctx
- * @param {{ refreshHotList?: () => void }} [ref]
- */
-function createRequirementsHotList(ctx, ref) {
-  const wrap = document.createElement('div');
-  wrap.className = 'iso-req-hot-wrap';
-
-  function render() {
-    wrap.replaceChildren();
-    const problematic = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
-    if (problematic.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'iso-req-hot-empty';
-      empty.textContent =
-        'Aucune exigence problématique : les écarts partiels et non conformes apparaîtront ici pour action rapide.';
-      wrap.append(empty);
-      return;
-    }
-    problematic.forEach((row) => {
-      const norm = getNormById(row.normId);
-      const normCode = norm ? norm.code : row.normId;
-      const item = document.createElement('div');
-      item.className = 'iso-req-hot-item';
-      const left = document.createElement('div');
-      left.className = 'iso-req-hot-main';
-      const title = document.createElement('div');
-      title.className = 'iso-req-hot-title';
-      title.textContent = `${row.clause} — ${row.title}`;
-      const sub = document.createElement('div');
-      sub.className = 'iso-req-hot-sub';
-      sub.textContent = `${normCode} · ${row.owner}`;
-      left.append(title, sub);
-      const badge = document.createElement('span');
-      badge.className = `badge ${conformityBadgeClass(row.status)}`;
-      badge.textContent = conformityLabel(row.status);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-primary iso-req-hot-btn';
-      btn.textContent = 'Traiter';
-      btn.addEventListener('click', () => ctx.onAnalyze({ ...row, normCode }));
-      item.append(left, badge, btn);
-      wrap.append(item);
-    });
-  }
-
-  if (ref) ref.refreshHotList = render;
-  render();
-  return wrap;
-}
 
 /**
  * Liste documents critiques / manquants / obsolètes + zone repliable pour la liste complète.
@@ -1595,51 +1371,6 @@ function createDocProofStrip(getDocRows) {
   return { root: wrap, refresh: renderStrip };
 }
 
-function createAuditsLinkedStrip() {
-  const wrap = document.createElement('div');
-  wrap.className = 'iso-audits-linked';
-  const h = document.createElement('div');
-  h.className = 'iso-audits-linked-head';
-  h.textContent = 'Audits liés aux normes';
-  wrap.append(h);
-  if (!AUDITS_TO_SCHEDULE.length) {
-    const p = document.createElement('p');
-    p.className = 'iso-audits-linked-empty';
-    p.textContent = 'Aucun audit lié pour le moment — consultez le module Audits pour le planning complet.';
-    wrap.append(p);
-  } else {
-    const ul = document.createElement('ul');
-    ul.className = 'iso-audits-linked-list';
-    AUDITS_TO_SCHEDULE.forEach((a, i) => {
-      const li = document.createElement('li');
-      li.className = 'iso-audits-linked-item';
-      const rowTop = document.createElement('div');
-      rowTop.className = 'iso-audits-linked-item-top';
-      const strong = document.createElement('strong');
-      strong.textContent = a.title;
-      const stBadge = document.createElement('span');
-      stBadge.className = `badge ${i % 2 === 0 ? 'amber' : 'blue'} iso-audits-linked-status`;
-      stBadge.textContent = 'À planifier';
-      rowTop.append(strong, stBadge);
-      const sub = document.createElement('span');
-      sub.className = 'iso-audits-linked-sub';
-      sub.textContent = `${a.horizon} · ${a.owner}`;
-      li.append(rowTop, sub);
-      ul.append(li);
-    });
-    wrap.append(ul);
-  }
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'btn btn-secondary iso-audits-linked-cta';
-  b.textContent = 'Accès rapide module Audits';
-  b.addEventListener('click', () => {
-    window.location.hash = 'audits';
-    showToast('Navigation vers le module Audits.', 'info');
-  });
-  wrap.append(b);
-  return wrap;
-}
 
 function createReviewBlock() {
   const grid = document.createElement('div');
@@ -1702,9 +1433,9 @@ export function renderIso(onAddLog) {
     pageId: 'iso',
     pageRoot: page,
     hintEssential:
-      'Lecture terrain : préparation audit, synthèse, priorités et registre des exigences — normes, assistant et graphiques masqués.',
+      'Essentiel : préparation audit, synthèse, priorités et registre des exigences — normes, assistant et graphiques masqués.',
     hintAdvanced:
-      'Pilotage complet : cartographie normes, assistant conformité, graphique du registre et revue de direction.'
+      'Expert : cartographie normes, assistant conformité, graphique du registre et revue de direction.'
   });
 
   const isoMixChartHosts = { req: null };

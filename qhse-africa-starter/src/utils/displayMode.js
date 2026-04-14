@@ -19,7 +19,7 @@ function readStoredDisplayMode() {
 }
 
 /**
- * Mobile : toujours mode terrain (évite le mode Complet et ses layouts spécifiques).
+ * Mobile : toujours mode Essentiel (`terrain`) — évite le mode Expert et ses layouts bureau.
  * Bureau : préférence utilisateur (localStorage).
  */
 export function isMobileViewport() {

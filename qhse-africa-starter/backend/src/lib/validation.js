@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 /** Limite par défaut des listes API (évite findMany illimité). */
 export const LIST_DEFAULT_LIMIT = 300;
 
@@ -168,7 +166,7 @@ export function parseAuditScore(score) {
 
 /**
  * Middleware Express : valide `req.body` avec un schéma Zod.
- * @param {z.ZodTypeAny} schema
+ * @param {import('zod').ZodTypeAny} schema
  */
 export function validateBody(schema) {
   return (req, res, next) => {

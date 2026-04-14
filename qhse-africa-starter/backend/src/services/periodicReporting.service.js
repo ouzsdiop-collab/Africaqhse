@@ -198,12 +198,12 @@ export async function getPeriodicReport(p) {
       const parts = [];
       const params = [];
       if (tidStr) {
-        parts.push('tenantId = ?');
+        parts.push('"tenantId" = ?');
         params.push(tidStr);
       }
       parts.push(
-        'datetime(createdAt) >= datetime(?)',
-        'datetime(createdAt) <= datetime(?)',
+        '"createdAt" >= ?',
+        '"createdAt" <= ?',
         `(
           LOWER(status) LIKE '%clôtur%'
           OR (LOWER(status) LIKE '%clos%' AND LOWER(status) NOT LIKE '%non clos%')
@@ -218,11 +218,11 @@ export async function getPeriodicReport(p) {
       );
       params.push(start.toISOString(), end.toISOString());
       if (siteId) {
-        parts.push('siteId = ?');
+        parts.push('"siteId" = ?');
         params.push(siteId);
       }
       if (assigneeId) {
-        parts.push('assigneeId = ?');
+        parts.push('"assigneeId" = ?');
         params.push(assigneeId);
       }
       const row = await prisma.$queryRawUnsafe(
@@ -235,21 +235,21 @@ export async function getPeriodicReport(p) {
       const parts = [];
       const params = [];
       if (tidStr) {
-        parts.push('tenantId = ?');
+        parts.push('"tenantId" = ?');
         params.push(tidStr);
       }
       parts.push(
-        'datetime(createdAt) >= datetime(?)',
-        'datetime(createdAt) <= datetime(?)',
+        '"createdAt" >= ?',
+        '"createdAt" <= ?',
         `LOWER(severity) LIKE '%critique%'`
       );
       params.push(start.toISOString(), end.toISOString());
       if (siteId) {
-        parts.push('siteId = ?');
+        parts.push('"siteId" = ?');
         params.push(siteId);
       }
       const rows = await prisma.$queryRawUnsafe(
-        `SELECT ref, type, site, status, createdAt FROM incidents WHERE ${parts.join(' AND ')}`,
+        `SELECT ref, type, site, status, "createdAt" FROM incidents WHERE ${parts.join(' AND ')}`,
         ...params
       );
       return (Array.isArray(rows) ? rows : []).map((r) => ({
@@ -269,19 +269,19 @@ export async function getPeriodicReport(p) {
   const overdueSqlParts = [];
   const overdueParams = [];
   if (tidStr) {
-    overdueSqlParts.push('tenantId = ?');
+    overdueSqlParts.push('"tenantId" = ?');
     overdueParams.push(tidStr);
   }
   overdueSqlParts.push(`LOWER(status) LIKE '%retard%'`);
   if (siteId) {
-    overdueSqlParts.push('siteId = ?');
+    overdueSqlParts.push('"siteId" = ?');
     overdueParams.push(siteId);
   }
   if (assigneeId) {
-    overdueSqlParts.push('assigneeId = ?');
+    overdueSqlParts.push('"assigneeId" = ?');
     overdueParams.push(assigneeId);
   }
-  overdueSqlParts.push(`datetime(createdAt) <= datetime(?)`);
+  overdueSqlParts.push(`"createdAt" <= ?`);
   overdueParams.push(end.toISOString());
 
   const overdueRow = await prisma.$queryRawUnsafe(
@@ -291,9 +291,9 @@ export async function getPeriodicReport(p) {
   const actionsOverdue = Number(overdueRow[0]?.c ?? 0);
 
   const overdueSample = await prisma.$queryRawUnsafe(
-    `SELECT title, detail, status, owner, dueDate, createdAt FROM actions WHERE ${overdueSqlParts.join(
+    `SELECT title, detail, status, owner, "dueDate", "createdAt" FROM actions WHERE ${overdueSqlParts.join(
       ' AND '
-    )} ORDER BY COALESCE(dueDate, createdAt) ASC LIMIT ?`,
+    )} ORDER BY COALESCE("dueDate", "createdAt") ASC LIMIT ?`,
     ...overdueParams,
     LIST_SAMPLE
   );

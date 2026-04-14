@@ -175,7 +175,6 @@ export function setupIncidentDeclareFlow(ctx) {
     getIncidentRecords,
     onDeclared,
     onSave,
-    refreshList,
     refreshIncidentJournal,
     onAddLog
   } = ctx;
@@ -191,7 +190,7 @@ export function setupIncidentDeclareFlow(ctx) {
   head.className = 'content-card-head';
   head.innerHTML = `
       <div>
-        <div class="section-kicker">Terrain</div>
+        <div class="section-kicker">Essentiel</div>
         <h3>Déclaration express</h3>
         <p class="incidents-form-lead">
           5 étapes courtes — une seule question visible à la fois. Validation finale requise avant envoi API.

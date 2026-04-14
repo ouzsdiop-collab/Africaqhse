@@ -1,4 +1,4 @@
-import { parseRiskMatrixGp, riskCriticalityFromMeta } from './riskMatrixPanel.js';
+import { parseRiskMatrixGp, riskCriticalityFromMeta } from '../utils/riskMatrixCore.js';
 import { openRiskDetail } from './riskDetailPanel.js';
 import { getLinksFor } from '../services/moduleLinks.service.js';
 import { riskWorkflowStatusLabelFr } from '../utils/risksRegisterModel.js';

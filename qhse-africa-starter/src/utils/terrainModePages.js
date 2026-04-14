@@ -1,5 +1,5 @@
 /**
- * Pages accessibles en mode terrain : groupe Opérations + raccourcis pilotage.
+ * Pages accessibles en mode global Essentiel (`terrain` dans le code) : opérations + raccourcis.
  * Utilisé par shell (whitelist), sidebar, recherche topbar, barre mobile.
  */
 export const TERRAIN_ALLOWED_PAGE_IDS = new Set([

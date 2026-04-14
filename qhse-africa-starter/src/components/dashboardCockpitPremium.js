@@ -30,11 +30,6 @@ function isCritiqueSeverity(s) {
   return String(s || '').toLowerCase().includes('critique');
 }
 
-function isMoyenSeverity(s) {
-  const t = String(s || '').toLowerCase();
-  return t.includes('moyen');
-}
-
 function criticalOpenCount(incidents) {
   return safeArr(incidents).filter(
     (i) => isCritiqueSeverity(i?.severity) && !isClosedStatus(i?.status)
@@ -401,7 +396,6 @@ export function createDashboardCockpitPremium(opts = {}) {
     const max = Math.max(1, ...vals);
     const sum = vals.reduce((a, b) => a + b, 0);
     const avg = vals.length ? sum / vals.length : 0;
-    const now = new Date();
     const currentIdx = series.length - 1;
 
     const barsWrap = document.createElement('div');

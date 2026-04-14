@@ -34,8 +34,6 @@ const COLUMN_META = {
 /** En retard en premier : lecture immédiate du risque, sans changer la logique de partition. */
 const COLUMN_ORDER = ['overdue', 'todo', 'doing', 'done'];
 
-const EMPTY_COLUMNS = { todo: [], doing: [], overdue: [], done: [] };
-
 const COLUMN_EMPTY_COPY = {
   overdue: 'Aucune fiche en retard sur ce périmètre.',
   todo: 'Rien en attente de démarrage — ou filtre masque la colonne.',
@@ -460,7 +458,7 @@ function buildFilterToolbar(users, refs, opts = {}) {
   gExp.className = 'actions-filter-group';
   const exportBtnAct = document.createElement('button');
   exportBtnAct.type = 'button';
-  exportBtnAct.textContent = 'Export Excel';
+  exportBtnAct.textContent = 'Export CSV';
   exportBtnAct.className = 'btn btn-secondary btn-sm';
   exportBtnAct.addEventListener('click', async () => {
     try {
@@ -473,7 +471,7 @@ function buildFilterToolbar(users, refs, opts = {}) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'actions-export.xlsx';
+      a.download = 'actions-export.csv';
       document.body.append(a);
       a.click();
       a.remove();
@@ -516,9 +514,9 @@ export function renderActions() {
     pageId: 'actions',
     pageRoot: page,
     hintEssential:
-      'Vue terrain : synthèse, filtres principaux et kanban — lecture direction / synthèse manager masquée.',
+      'Essentiel : synthèse, filtres principaux et kanban — lecture direction / synthèse manager masquée.',
     hintAdvanced:
-      'Pilotage complet : synthèse direction, filtres étendus et options d’affichage du tableau.'
+      'Expert : synthèse direction, filtres étendus et options d’affichage du tableau.'
   });
 
   if (!isOnline()) {

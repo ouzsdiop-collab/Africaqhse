@@ -65,9 +65,9 @@ const NAV_ORPHAN_SEARCH_ITEMS = [];
 /** Métadonnées shell (topbar) — titres, fil d’Ariane perceptif, CTA principal */
 export const pageTopbarById = {
   'terrain-mode': {
-    title: 'Mode terrain',
-    kicker: 'Opérations terrain',
-    subtitle: 'Accès direct aux actions essentielles chantier, sans complexité.',
+    title: 'Accueil Essentiel',
+    kicker: 'Mode global Essentiel',
+    subtitle: 'Raccourcis incident, risque, actions — même bascule « Essentiel » que la barre du haut.',
     cta: { label: 'Déclarer incident', pageId: 'incidents' }
   },
   dashboard: {
@@ -135,7 +135,7 @@ export const pageTopbarById = {
   imports: {
     title: 'Import de documents',
     kicker: 'Documents',
-    subtitle: 'Chargement et aperçu brut des contenus (PDF, Excel) — base pour extraction intelligente ultérieure.',
+    subtitle: 'Chargement et aperçu brut des contenus (CSV, PDF, tableur) — base pour extraction intelligente ultérieure.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }
   },
   analytics: {

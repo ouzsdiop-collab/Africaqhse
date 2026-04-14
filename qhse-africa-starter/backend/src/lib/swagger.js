@@ -133,7 +133,7 @@ const options = {
         description: 'Assistant analyse de documents (corps texte) — droit `compliance:read`'
       },
       { name: 'ControlledDocuments', description: 'Documents contrôlés et FDS produits' },
-      { name: 'Export', description: 'Exports Excel et PDF' },
+      { name: 'Export', description: 'Exports tabulaires (CSV) et rapports PDF' },
       { name: 'Habilitations', description: 'Registre des habilitations' },
       { name: 'Imports', description: 'Historique et prévisualisation d’imports' },
       { name: 'NonConformities', description: 'Non-conformités' },
@@ -532,13 +532,13 @@ const options = {
       '/export/incidents': {
         get: {
           tags: ['Export'],
-          summary: 'Exporter les incidents en Excel',
+          summary: 'Exporter les incidents en CSV',
           parameters: [{ $ref: '#/components/parameters/XUserId' }],
           responses: {
             200: {
-              description: 'Fichier Excel',
+              description: 'Fichier CSV (UTF-8, séparateur ;)',
               content: {
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+                'text/csv': {}
               }
             },
             403: { $ref: '#/components/responses/TenantContextRequired' }
@@ -719,13 +719,13 @@ const options = {
       '/export/risks': {
         get: {
           tags: ['Export'],
-          summary: 'Export Excel des risques',
+          summary: 'Export CSV des risques',
           parameters: [{ $ref: '#/components/parameters/XUserId' }],
           responses: {
             200: {
-              description: 'Classeur XLSX',
+              description: 'Fichier CSV (UTF-8, séparateur ;)',
               content: {
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+                'text/csv': {}
               }
             },
             403: { $ref: '#/components/responses/TenantContextRequired' }
@@ -735,13 +735,13 @@ const options = {
       '/export/actions': {
         get: {
           tags: ['Export'],
-          summary: 'Export Excel des actions',
+          summary: 'Export CSV des actions',
           parameters: [{ $ref: '#/components/parameters/XUserId' }],
           responses: {
             200: {
-              description: 'Classeur XLSX',
+              description: 'Fichier CSV (UTF-8, séparateur ;)',
               content: {
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+                'text/csv': {}
               }
             },
             403: { $ref: '#/components/responses/TenantContextRequired' }
@@ -751,13 +751,13 @@ const options = {
       '/export/audits': {
         get: {
           tags: ['Export'],
-          summary: 'Export Excel des audits',
+          summary: 'Export CSV des audits',
           parameters: [{ $ref: '#/components/parameters/XUserId' }],
           responses: {
             200: {
-              description: 'Classeur XLSX',
+              description: 'Fichier CSV (UTF-8, séparateur ;)',
               content: {
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}
+                'text/csv': {}
               }
             },
             403: { $ref: '#/components/responses/TenantContextRequired' }

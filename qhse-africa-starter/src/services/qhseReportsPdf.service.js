@@ -15,8 +15,8 @@ import {
   parseRiskMatrixGp,
   riskCriticalityFromMeta,
   riskTierFromGp
-} from '../components/riskMatrixPanel.js';
-import { sortRisksByPriority } from '../utils/risksRegisterModel.js';
+} from '../utils/riskMatrixCore.js';
+import { sortRisksByPriority } from '../utils/risksSort.js';
 
 /** @param {unknown} r */
 function riskGpProduct(r) {

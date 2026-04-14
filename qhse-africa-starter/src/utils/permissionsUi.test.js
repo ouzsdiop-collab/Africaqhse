@@ -12,7 +12,7 @@ describe('canAccessNavPage', () => {
     expect(canAccessNavPage('', 'iso')).toBe(true);
   });
 
-  it('en mode Complet, TERRAIN voit tout le menu métier', () => {
+  it('en mode Expert, TERRAIN voit tout le menu métier', () => {
     document.documentElement.setAttribute('data-display-mode', 'expert');
     expect(canAccessNavPage('TERRAIN', 'dashboard')).toBe(true);
     expect(canAccessNavPage('TERRAIN', 'incidents')).toBe(true);
@@ -24,7 +24,7 @@ describe('canAccessNavPage', () => {
     expect(canAccessNavPage('TERRAIN', 'ai-center')).toBe(true);
   });
 
-  it('en mode Terrain, TERRAIN reste sur le périmètre opérations / raccourcis', () => {
+  it('en mode Essentiel (terrain), TERRAIN reste sur le périmètre opérations / raccourcis', () => {
     document.documentElement.setAttribute('data-display-mode', 'terrain');
     expect(canAccessNavPage('TERRAIN', 'incidents')).toBe(true);
     expect(canAccessNavPage('TERRAIN', 'audits')).toBe(true);

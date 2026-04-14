@@ -9,11 +9,7 @@ import { isRequireAuthEnabled } from '../lib/securityConfig.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
 import { prisma } from '../db.js';
 import { can } from '../lib/permissions.js';
-import {
-  assertDocumentSiteAllowed,
-  canUserAccessSiteId,
-  isEnforceDocumentSiteScopeEnabled
-} from '../lib/siteScope.service.js';
+import { assertDocumentSiteAllowed } from '../lib/siteScope.service.js';
 import { emitBusinessEvent } from '../services/businessEvents.service.js';
 import {
   getPresignedControlledDocumentDownloadUrl,
@@ -21,11 +17,6 @@ import {
 } from '../services/documentStorage.service.js';
 
 const S3_DOWNLOAD_PRESIGN_SECONDS = 3600;
-
-function mayAccessDocumentRow(user, row) {
-  if (!isEnforceDocumentSiteScopeEnabled()) return true;
-  return canUserAccessSiteId(user, row.siteId);
-}
 
 const MAX_BYTES = Number(process.env.CONTROLLED_DOCUMENT_MAX_BYTES) || 25 * 1024 * 1024;
 

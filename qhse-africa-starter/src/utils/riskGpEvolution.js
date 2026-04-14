@@ -11,7 +11,7 @@
  * @param {{ meta?: string }} risk
  * @returns {string} chaîne type "G3×P3 → G4×P3"
  */
-export function formatGpHistoryArrow(history, risk) {
+export function formatGpHistoryArrow(history, _risk) {
   if (!Array.isArray(history) || history.length < 2) return '—';
   const a = history[history.length - 2];
   const b = history[history.length - 1];

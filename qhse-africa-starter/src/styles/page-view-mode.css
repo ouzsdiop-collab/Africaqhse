@@ -1,5 +1,6 @@
 /**
- * Vue page essentielle / avancée — masquage déclaratif via data-qhse-page-view sur la racine .page-stack.
+ * Vue page Essentiel / Expert — masquage via data-qhse-page-view sur la racine .page-stack
+ * (indépendant du mode global data-display-mode terrain | expert).
  */
 
 [data-qhse-page-view='essential'] .qhse-page-advanced-only {

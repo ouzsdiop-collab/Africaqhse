@@ -28,7 +28,7 @@ export const appState = {
   /** Id Prisma du site actif ; null = vue groupe (pas de filtre API) */
   activeSiteId: null,
   notificationsOpen: false,
-  /** Mode Complet uniquement — menu latéral en tiroir sur mobile */
+  /** Mode Expert uniquement — menu latéral en tiroir sur mobile */
   expertMobileNavOpen: false
 };
 

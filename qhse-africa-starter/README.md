@@ -10,6 +10,13 @@ Plateforme web de **pilotage QHSE** : incidents, risques, audits, non-conformit�
 - Authentification sécurisée (JWT), rôles et **organisations multiples** par compte
 - Mode **exploration** sans compte pour prise en main et démonstration
 
+### Exports et imports
+
+- Les exports registres (`/api/export/incidents|risks|actions|audits`) sont fournis en **CSV UTF-8** (BOM, séparateur `;`).
+- Les imports supportent **CSV/TSV**, **PDF** et **tableurs XLS/XLSX** pour la pré-analyse et le préremplissage assisté.
+- **PDF dans le navigateur** : génération via **html2canvas** + **jsPDF** (le module lourd **canvg**, prévu pour `addSvgAsImage` dans jsPDF, est remplacé par un **shim** dans `vite.config.mjs` car non utilisé).
+- Après connexion, le front **précharge en idle** les modules des pages les plus ouvertes (incidents, risques, actions, audits — et accueil Essentiel si mode terrain), pour accélérer la navigation sans bloquer le premier rendu.
+
 ### Multi-organisations et réinitialisation de mot de passe
 
 - Chaque compte est rattaché à une ou plusieurs organisations via la table `tenant_members`. Le **jeton d’accès** JWT inclut la revendication `tid` (identifiant tenant) ; le middleware API vérifie l’adhésion avant de renseigner `req.qhseTenantId`. Ensuite, **`requireTenantContext`** impose un **tenant résolu sur presque toutes les routes `/api/*`** (sinon **403** `Contexte organisation requis.`), y compris si `REQUIRE_AUTH=false`. Exceptions documentées dans `backend/src/middleware/requireTenantContext.middleware.js` (`isApiTenantOptionalPath`) : notamment `/api/auth`, `/api/health`, `/api/docs`, **`GET /api/controlled-documents/stream`** (jeton signé), **`POST /api/fds/analyze`** (analyse sans persistance), **`/api/automation/*`** (déclencheurs internes).

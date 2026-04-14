@@ -44,7 +44,6 @@ import {
   riskWorkflowStatusLabelFr
 } from '../utils/risksRegisterModel.js';
 import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
-import { downloadRisksRegisterPdf } from '../services/qhseReportsPdf.service.js';
 
 export { openRiskCreateDialog } from '../components/riskFormDialog.js';
 export { openRiskDialog } from '../components/riskSheetModal.js';
@@ -60,9 +59,9 @@ export function renderRisks() {
     pageId: 'risks',
     pageRoot: page,
     hintEssential:
-      'Lecture pilotage : synthèse direction, priorités et registre compact — matrice, analyses et IA masqués.',
+      'Essentiel : synthèse direction, priorités et registre compact — matrice, analyses et IA masqués.',
     hintAdvanced:
-      'Matrice G×P, répartition par palier, analyse globale, tendances API, assistant IA et options complètes.'
+      'Expert : matrice G×P, paliers, tendances, assistant IA et options complètes.'
   });
 
   if (!isOnline()) {
@@ -1480,7 +1479,7 @@ export function renderRisks() {
 
   const exportBtnRisks = document.createElement('button');
   exportBtnRisks.type = 'button';
-  exportBtnRisks.textContent = 'Export Excel';
+  exportBtnRisks.textContent = 'Export CSV';
   exportBtnRisks.className = 'btn btn-secondary btn-sm';
   exportBtnRisks.addEventListener('click', async () => {
     try {
@@ -1493,7 +1492,7 @@ export function renderRisks() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'risques-export.xlsx';
+      a.download = 'risques-export.csv';
       document.body.append(a);
       a.click();
       a.remove();
@@ -1511,6 +1510,7 @@ export function renderRisks() {
   exportPdfRisks.setAttribute('aria-label', 'Exporter le registre risques en PDF');
     exportPdfRisks.addEventListener('click', async () => {
     try {
+      const { downloadRisksRegisterPdf } = await import('../services/qhseReportsPdf.service.js');
       await downloadRisksRegisterPdf(localRisks, {
         siteLabel: appState.currentSite || undefined
       });

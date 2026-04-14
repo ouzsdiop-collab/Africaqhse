@@ -17,14 +17,6 @@ export function initDashboardCharts(_stats) {
   qhseDashboardChartJsReady = true;
 }
 
-function formatChartAxisValue(v) {
-  if (!Number.isFinite(v)) return '—';
-  const a = Math.abs(v);
-  if (a >= 100) return String(Math.round(v));
-  if (a < 10 && v % 1 !== 0) return String(Math.round(v * 10) / 10);
-  return String(Math.round(v * 100) / 100);
-}
-
 /** Score audit API / formulaire — tolère chaîne, virgule décimale. */
 function normalizeAuditScoreValue(raw) {
   if (raw == null || raw === '') return NaN;
@@ -497,7 +489,7 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
     'Évolution comparée sur la période (une ou plusieurs séries).'
   );
 
-  [100, 75, 50, 25, 0].forEach((gv, idx) => {
+  [100, 75, 50, 25, 0].forEach((gv) => {
     if (!analytics && (gv === 75 || gv === 25)) return;
     const gy = yAt(gv);
     const gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1615,7 +1607,7 @@ export function createAuditIsoNormBarsChart(entries) {
   );
   const minS = Math.min(...scores);
   const weak = safe.find(
-    (e, i) =>
+    (e) =>
       Math.round(Math.max(0, Math.min(100, Number(e.score) || 0))) === minS
   );
 

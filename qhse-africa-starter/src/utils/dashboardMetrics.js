@@ -52,7 +52,7 @@ export function guessImpactedSite(rows = []) {
  *   docs: unknown[];
  * }} args
  */
-export function buildOperationalTiles({ stats, incidents, actions, audits, ncs, permits, docs }) {
+export function buildOperationalTiles({ stats, incidents, actions: _actions, audits, ncs, permits, docs }) {
   const criticalInc = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
   const overdueActions = safeNum(stats?.overdueActions);
   const permitsActive = Array.isArray(permits)

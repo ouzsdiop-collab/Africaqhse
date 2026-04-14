@@ -89,17 +89,17 @@ const CSS = `
 
 .audit-nc-risk-btn{margin-top:6px!important;font-size:10px!important;padding:4px 8px!important;width:100%;max-width:200px}
 
-.audit-excel-import-backdrop{
+.audit-csv-import-backdrop{
   position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;
 }
-.audit-excel-import-modal{
+.audit-csv-import-modal{
   width:min(640px,100%);max-height:min(88vh,900px);overflow:auto;border-radius:16px;border:1px solid rgba(148,163,184,.2);
   background:var(--bg,#0f172a);padding:16px 18px;box-shadow:0 24px 48px rgba(0,0,0,.45);
 }
-.audit-excel-import-modal h4{margin:0 0 8px;font-size:16px}
-.audit-excel-import-modal__preview{margin-top:10px;max-height:240px;overflow:auto;border-radius:10px;border:1px solid rgba(148,163,184,.15)}
-.audit-excel-import-modal__preview table{width:100%;border-collapse:collapse;font-size:11px}
-.audit-excel-import-modal__preview th,.audit-excel-import-modal__preview td{padding:6px 8px;border:1px solid rgba(148,163,184,.1);text-align:left}
+.audit-csv-import-modal h4{margin:0 0 8px;font-size:16px}
+.audit-csv-import-modal__preview{margin-top:10px;max-height:240px;overflow:auto;border-radius:10px;border:1px solid rgba(148,163,184,.15)}
+.audit-csv-import-modal__preview table{width:100%;border-collapse:collapse;font-size:11px}
+.audit-csv-import-modal__preview th,.audit-csv-import-modal__preview td{padding:6px 8px;border:1px solid rgba(148,163,184,.1);text-align:left}
 
 .audit-ia-expert-suggest{
   margin-top:12px;padding-top:12px;border-top:1px solid rgba(148,163,184,.12);
@@ -218,7 +218,6 @@ async function mountAuditStatusDoughnut(canvas, labels, values) {
     const { default: Chart } = await import('chart.js/auto');
     const safeLabels = labels?.length ? labels : ['—'];
     const safeVals = values?.length ? values : [1];
-    // eslint-disable-next-line no-new
     new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -431,32 +430,36 @@ export function buildAuditTimeline(events) {
 /**
  * @param {(data: { exigences: string[]; ncs: string[]; preuves: string[] }) => void} onValidate
  */
-export function openAuditExcelImportModal(onValidate) {
+export function openAuditCsvImportModal(onValidate) {
   const backdrop = document.createElement('div');
-  backdrop.className = 'audit-excel-import-backdrop';
+  backdrop.className = 'audit-csv-import-backdrop';
   backdrop.setAttribute('role', 'dialog');
   backdrop.setAttribute('aria-modal', 'true');
 
   const modal = document.createElement('div');
-  modal.className = 'audit-excel-import-modal';
+  modal.className = 'audit-csv-import-modal';
 
   modal.innerHTML = `
-    <h4>Importer un audit (Excel)</h4>
+    <h4>Importer un audit (CSV)</h4>
     <p style="margin:0 0 10px;font-size:12px;color:var(--text3);line-height:1.45">
-      Fichier .xlsx / .xls — détection heuristique des colonnes (exigences, NC, preuves). Aperçu local avant validation.
+      Fichier .csv / .tsv — détection heuristique des colonnes (exigences, NC, preuves). Aperçu local avant validation.
     </p>
-    <input type="file" accept=".xlsx,.xls" class="control-input" data-audit-xlsx-file style="width:100%;margin-bottom:10px" />
-    <div data-audit-xlsx-preview class="audit-excel-import-modal__preview"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button type="button" class="btn btn-ghost" data-audit-csv-template>Télécharger modèle CSV</button>
+    </div>
+    <input type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" class="control-input" data-audit-csv-file style="width:100%;margin-bottom:10px" />
+    <div data-audit-csv-preview class="audit-csv-import-modal__preview"></div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:flex-end">
-      <button type="button" class="btn btn-secondary" data-audit-xlsx-cancel>Annuler</button>
-      <button type="button" class="btn btn-primary" data-audit-xlsx-ok disabled>Valider l’import</button>
+      <button type="button" class="btn btn-secondary" data-audit-csv-cancel>Annuler</button>
+      <button type="button" class="btn btn-primary" data-audit-csv-ok disabled>Valider l’import</button>
     </div>
   `;
 
-  const fileInput = modal.querySelector('[data-audit-xlsx-file]');
-  const preview = modal.querySelector('[data-audit-xlsx-preview]');
-  const okBtn = modal.querySelector('[data-audit-xlsx-ok]');
-  const cancelBtn = modal.querySelector('[data-audit-xlsx-cancel]');
+  const fileInput = modal.querySelector('[data-audit-csv-file]');
+  const preview = modal.querySelector('[data-audit-csv-preview]');
+  const okBtn = modal.querySelector('[data-audit-csv-ok]');
+  const cancelBtn = modal.querySelector('[data-audit-csv-cancel]');
+  const templateBtn = modal.querySelector('[data-audit-csv-template]');
 
   /** @type {{ exigences: string[]; ncs: string[]; preuves: string[] }} */
   let parsed = { exigences: [], ncs: [], preuves: [] };
@@ -469,6 +472,19 @@ export function openAuditExcelImportModal(onValidate) {
   backdrop.addEventListener('click', (e) => {
     if (e.target === backdrop) close();
   });
+  templateBtn?.addEventListener('click', () => {
+    const sample = [
+      'exigence;nc;preuve',
+      'Port des EPI vérifié;Absence de gants nitrile;Photo stock EPI + bon de commande',
+      'Signalétique évacuation visible;;Photo panneau sortie'
+    ].join('\n');
+    const blob = new Blob([`\ufeff${sample}`], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'modele-audit-import.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0];
@@ -477,11 +493,14 @@ export function openAuditExcelImportModal(onValidate) {
     parsed = { exigences: [], ncs: [], preuves: [] };
     if (!f) return;
     try {
-      const XLSX = await import('xlsx');
-      const buf = await f.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      const raw = await f.text();
+      const lines = raw
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((ln) => ln.trim());
+      const delimiter = raw.includes('\t') ? '\t' : ';';
+      const rows = lines.map((ln) => ln.split(delimiter));
       const headers = (rows[0] || []).map((c) => String(c).toLowerCase());
       let iEx = headers.findIndex((h) => /exigence|point|critère/.test(h));
       let iNc = headers.findIndex((h) => /nc|non.?conform/.test(h));

@@ -7,10 +7,12 @@ import {
   riskCriticalityFromMeta,
   riskTierFromGp,
   riskLevelLabelFromTier
-} from '../components/riskMatrixPanel.js';
+} from './riskMatrixCore.js';
 import { qhseFetch } from './qhseFetch.js';
 import { withSiteQuery } from './siteFilter.js';
 import { showToast } from '../components/toast.js';
+
+export { sortRisksByPriority } from './risksSort.js';
 
 /** Statuts persistés (API / seed) → libellé affiché en français dans le registre. */
 const RISK_WORKFLOW_STATUS_FR = Object.freeze({
@@ -240,19 +242,6 @@ export function computeGlobalRiskAnalysis(list) {
 }
 
 /** @param {Array<{ title?: string, meta?: string, status?: string }>} list */
-export function sortRisksByPriority(list) {
-  return [...list].sort((a, b) => {
-    const ca = riskCriticalityFromMeta(a.meta);
-    const cb = riskCriticalityFromMeta(b.meta);
-    const ta = ca?.tier ?? 0;
-    const tb = cb?.tier ?? 0;
-    if (tb !== ta) return tb - ta;
-    const pa = ca?.product ?? 0;
-    const pb = cb?.product ?? 0;
-    return pb - pa;
-  });
-}
-
 export function levelToNum(v) {
   const s = String(v || '').toLowerCase();
   if (s.includes('élev') || s.includes('elev') || s === '5' || s === '4') return 5;

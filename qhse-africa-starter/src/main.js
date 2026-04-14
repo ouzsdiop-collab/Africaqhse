@@ -30,7 +30,12 @@ import { qhseFetch } from './utils/qhseFetch.js';
 import { withSiteQuery } from './utils/siteFilter.js';
 import { getDisplayMode } from './utils/displayMode.js';
 import { TERRAIN_ALLOWED_PAGE_IDS, TERRAIN_BOTTOM_NAV_ITEMS } from './utils/terrainModePages.js';
-import { getTerrainQueueState, syncTerrainIncidentQueue } from './services/terrainOffline.service.js';
+import {
+  getTerrainQueueState,
+  syncAllTerrainQueues,
+  syncTerrainIncidentQueue,
+  syncTerrainRiskQueue
+} from './services/terrainOffline.service.js';
 import { showToast } from './components/toast.js';
 import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
@@ -76,7 +81,7 @@ function ensureTerrainMobileStyles() {
 function createTerrainBottomNav(currentPage, onNavigate) {
   const nav = document.createElement('nav');
   nav.className = 'terrain-bottom-nav';
-  nav.setAttribute('aria-label', 'Navigation terrain');
+  nav.setAttribute('aria-label', 'Navigation mode Essentiel');
   const items = TERRAIN_BOTTOM_NAV_ITEMS;
   items.forEach((it) => {
     const b = document.createElement('button');
@@ -123,10 +128,10 @@ function installTerrainSyncClientBridge() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'SW_SYNC_INCIDENTS') {
-      import('./services/terrainOffline.service.js').then((m) => m.syncTerrainIncidentQueue());
+      void syncTerrainIncidentQueue().catch(() => {});
     }
     if (event.data?.type === 'SW_SYNC_RISKS') {
-      import('./services/terrainOffline.service.js').then((m) => m.syncTerrainRiskQueue());
+      void syncTerrainRiskQueue().catch(() => {});
     }
   });
 }
@@ -356,33 +361,81 @@ function logBootEvent() {
 
 const APP_BRAND_TITLE = 'QHSE Control';
 
+/** @type {string | null} — évite de précharger plusieurs fois pour la même session navigateur. */
+let qhseRoutePrefetchKey = null;
+
+const PAGE_IMPORT_LOADERS = {
+  dashboard: () => import('./pages/dashboard.js'),
+  incidents: () => import('./pages/incidents.js'),
+  audits: () => import('./pages/audits.js'),
+  iso: () => import('./pages/iso.js'),
+  analytics: () => import('./pages/analytics.js'),
+  risks: () => import('./pages/risks.js'),
+  actions: () => import('./pages/actions.js'),
+  settings: () => import('./pages/settings.js'),
+  habilitations: () => import('./pages/habilitations.js'),
+  'terrain-mode': () => import('./pages/terrain-mode.js'),
+  permits: () => import('./pages/permits.js'),
+  products: () => import('./pages/products.js'),
+  imports: () => import('./pages/imports.js'),
+  sites: () => import('./pages/sites.js'),
+  performance: () => import('./pages/performance.js'),
+  'ai-center': () => import('./pages/ai-center.js'),
+  'activity-log': () => import('./pages/activity-log.js'),
+  'audit-logs': () => import('./pages/activity-log.js')
+};
+
+/**
+ * Précharge en idle les chunks des pages les plus ouvertes (une fois par utilisateur connecté).
+ * Ne remplace pas le chargement du tableau de bord initial ; s’exécute après un court délai.
+ */
+function scheduleIdleRoutePrefetch() {
+  const su = getSessionUser();
+  if (!su?.role) {
+    qhseRoutePrefetchKey = null;
+    return;
+  }
+  const key = `${su.id || su.email || 'user'}:${su.role}`;
+  if (qhseRoutePrefetchKey === key) return;
+  qhseRoutePrefetchKey = key;
+
+  const run = () => {
+    const su2 = getSessionUser();
+    if (!su2?.role) return;
+    const cur = appState.currentPage;
+    const terrain = getDisplayMode() === 'terrain';
+    /** @type {Array<keyof typeof PAGE_IMPORT_LOADERS>} */
+    const want = ['incidents', 'risks', 'actions', 'audits'];
+    if (terrain) want.push('terrain-mode');
+    for (const pageId of want) {
+      if (pageId === cur) continue;
+      if (!canAccessNavPage(su2.role, pageId)) continue;
+      const load = PAGE_IMPORT_LOADERS[pageId];
+      if (load) void load().catch(() => {});
+    }
+  };
+
+  const kick = () => {
+    try {
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => run(), { timeout: 4500 });
+      } else {
+        setTimeout(run, 1800);
+      }
+    } catch {
+      setTimeout(run, 1800);
+    }
+  };
+  setTimeout(kick, 700);
+}
+
 /**
  * Charge le module de page à la demande (code-splitting).
  * @param {string} pageId
  * @returns {Promise<object | null>}
  */
 async function loadPage(pageId) {
-  const map = {
-    dashboard: () => import('./pages/dashboard.js'),
-    incidents: () => import('./pages/incidents.js'),
-    audits: () => import('./pages/audits.js'),
-    iso: () => import('./pages/iso.js'),
-    analytics: () => import('./pages/analytics.js'),
-    risks: () => import('./pages/risks.js'),
-    actions: () => import('./pages/actions.js'),
-    settings: () => import('./pages/settings.js'),
-    habilitations: () => import('./pages/habilitations.js'),
-    'terrain-mode': () => import('./pages/terrain-mode.js'),
-    permits: () => import('./pages/permits.js'),
-    products: () => import('./pages/products.js'),
-    imports: () => import('./pages/imports.js'),
-    sites: () => import('./pages/sites.js'),
-    performance: () => import('./pages/performance.js'),
-    'ai-center': () => import('./pages/ai-center.js'),
-    'activity-log': () => import('./pages/activity-log.js'),
-    'audit-logs': () => import('./pages/activity-log.js')
-  };
-  const loader = map[pageId];
+  const loader = PAGE_IMPORT_LOADERS[pageId];
   if (!loader) return null;
   const mod = await loader();
   return mod.default || mod;
@@ -602,6 +655,7 @@ function renderApp() {
       appState.currentPage === 'forgot-password' ||
       appState.currentPage === 'reset-password'
     ) {
+      qhseRoutePrefetchKey = null;
       syncDocumentTitle(appState.currentPage);
       const onAuthNavigate = () => {
         try {
@@ -774,6 +828,7 @@ function renderApp() {
 
     app.append(shell);
     syncDocumentTitle(appState.currentPage);
+    scheduleIdleRoutePrefetch();
 
     void refreshShellNavBadges(sidebar).catch((err) => {
       console.error('[QHSE] refreshShellNavBadges', err);
@@ -924,19 +979,15 @@ window.addEventListener('online', () => {
   void flushSyncQueue();
 });
 window.addEventListener('online', () => {
-  import('./services/terrainOffline.service.js')
-    .then(m => m.syncAllTerrainQueues())
-    .catch(() => {});
+  void syncAllTerrainQueues().catch(() => {});
 });
 
 navigator.serviceWorker?.addEventListener('message', (event) => {
   if (event.data?.type === 'SW_SYNC_INCIDENTS') {
-    import('./services/terrainOffline.service.js')
-      .then(m => m.syncTerrainIncidentQueue()).catch(() => {});
+    void syncTerrainIncidentQueue().catch(() => {});
   }
   if (event.data?.type === 'SW_SYNC_RISKS') {
-    import('./services/terrainOffline.service.js')
-      .then(m => m.syncTerrainRiskQueue()).catch(() => {});
+    void syncTerrainRiskQueue().catch(() => {});
   }
 });
 
