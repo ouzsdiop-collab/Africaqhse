@@ -4,6 +4,7 @@
  */
 export const TERRAIN_ALLOWED_PAGE_IDS = new Set([
   'terrain-mode',
+  'mines-demo',
   'dashboard',
   'incidents',
   'audits',

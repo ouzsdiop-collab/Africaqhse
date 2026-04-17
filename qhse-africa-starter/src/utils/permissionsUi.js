@@ -83,6 +83,7 @@ const MATRIX = {
  */
 const TERRAIN_NAV_EXPERT_PAGES = new Set([
   'dashboard',
+  'mines-demo',
   'terrain-mode',
   'analytics',
   'performance',
