@@ -76,6 +76,13 @@ export const pageTopbarById = {
     subtitle: 'Indicateurs critiques, alertes et priorités du jour, par organisation et par site.',
     cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
+  'mines-demo': {
+    title: 'Démo spéciale mines',
+    kicker: 'Pilotage',
+    subtitle:
+      'Parcours express orienté site minier : dashboard, PTW, habilitations, incidents, risques et synthèse direction.',
+    cta: { label: 'Lancer le parcours', pageId: 'dashboard' }
+  },
   sites: {
     title: 'Sites & périmètres',
     kicker: 'Organisation',

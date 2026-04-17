@@ -250,6 +250,14 @@ function ensureLoginV2Styles() {
 .lv2-demo-link:hover {
   color: rgba(148,163,184,.75);
 }
+.lv2-demo-launchers {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.lv2-demo-launchers .btn {
+  width: 100%;
+}
 .lv2-mobile-brand {
   display: none;
   align-items: center;
@@ -684,6 +692,9 @@ export function createLoginView({ onSuccess, onNavigate }) {
       </div>
       <div class="lv2-sep" style="margin:20px 0" aria-hidden="true"></div>
       <button type="button" class="lv2-demo-link">Continuer en exploration (sans compte) →</button>
+      <div class="lv2-demo-launchers">
+        <button type="button" class="btn btn-secondary lv2-demo-mines">Lancer démo mines</button>
+      </div>
     </form>
   `;
 
@@ -692,6 +703,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const passEl = inner.querySelector('.lv2-password');
   const submitBtn = inner.querySelector('.lv2-submit');
   const skipBtn = inner.querySelector('.lv2-demo-link');
+  const minesDemoBtn = inner.querySelector('.lv2-demo-mines');
   const forgotBtn = inner.querySelector('.lv2-forgot-btn');
   const lv2EyeBtn = inner.querySelector('.lv2-eye-btn');
   const orgPanel = inner.querySelector('.lv2-org-panel');
@@ -809,6 +821,11 @@ export function createLoginView({ onSuccess, onNavigate }) {
   skipBtn?.addEventListener('click', () => {
     setCurrentPage('dashboard');
     window.location.hash = 'dashboard';
+    onSuccess();
+  });
+  minesDemoBtn?.addEventListener('click', () => {
+    setCurrentPage('mines-demo');
+    window.location.hash = 'mines-demo';
     onSuccess();
   });
 

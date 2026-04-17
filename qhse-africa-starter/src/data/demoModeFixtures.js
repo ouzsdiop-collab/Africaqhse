@@ -5,6 +5,15 @@
 
 export const DEMO_SITE_ID = 'site-demo-kassa';
 export const DEMO_SITE_LABEL = 'Katiola Mining — Site Yakouro';
+export const DEMO_MINE_ZONES = [
+  'Fosse Nord',
+  'Usine de traitement',
+  'Atelier maintenance',
+  'Concassage',
+  'Parc engins',
+  'Zone explosifs',
+  'Base vie'
+];
 
 /** @type {object[]} */
 export const demoSites = [
@@ -717,5 +726,148 @@ export const demoControlledDocuments = [
     version: '—',
     pendingValidation: false,
     rejected: false
+  },
+  {
+    id: 'cldemo-doc-4',
+    name: 'FDS Emulsion explosive ANFO',
+    type: 'fds',
+    path: 'demo/fds-anfo.pdf',
+    classification: 'critique',
+    siteId: DEMO_SITE_ID,
+    createdAt: '2026-02-10T09:00:00.000Z',
+    updatedAt: '2026-04-03T09:00:00.000Z',
+    mimeType: 'application/pdf',
+    sizeBytes: 198000,
+    fdsProductRef: 'EXP-ANFO-01',
+    complianceTag: 'SST',
+    expiresAt: '2026-07-10T00:00:00.000Z',
+    responsible: 'Amina Mukendi',
+    version: '3.2',
+    pendingValidation: false,
+    rejected: false
+  },
+  {
+    id: 'cldemo-doc-5',
+    name: 'FDS Floculant traitement',
+    type: 'fds',
+    path: 'demo/fds-floculant.pdf',
+    classification: 'normal',
+    siteId: DEMO_SITE_ID,
+    createdAt: '2025-12-18T08:00:00.000Z',
+    updatedAt: '2026-03-28T08:00:00.000Z',
+    mimeType: 'application/pdf',
+    sizeBytes: 142000,
+    fdsProductRef: 'CHEM-FLOC-02',
+    complianceTag: 'Environnement',
+    expiresAt: '2026-06-30T00:00:00.000Z',
+    responsible: 'Jean-Paul Ilunga',
+    version: '2.4',
+    pendingValidation: false,
+    rejected: false
+  }
+];
+
+export const demoPtwBase = [
+  {
+    id: 'ptw-demo-001',
+    ref: 'PTW-DEMO-2026-001',
+    type: 'travail en hauteur',
+    zone: 'Concassage',
+    description: 'Remplacement garde-corps passerelle convoyeur C2.',
+    date: '2026-04-13',
+    team: 'Equipe maintenance mecanique',
+    checklist: ['Ancrage vérifié (OK)', 'Ligne de vie installée (OK)', 'Zone balisée au sol (OK)'],
+    epi: ['Casque', 'Harnais', 'Lunettes'],
+    safetyConditions: ['Permis feu non requis', 'Balisage renforcé'],
+    status: 'in_progress',
+    riskAnalysis: 'Risque chute hauteur et chute objet sur zone de circulation.',
+    validationMode: 'double',
+    signatures: [],
+    synced: true,
+    syncState: 'synced',
+    syncPendingCount: 0,
+    createdAt: '2026-04-12T08:10:00.000Z',
+    updatedAt: '2026-04-12T10:00:00.000Z'
+  },
+  {
+    id: 'ptw-demo-002',
+    ref: 'PTW-DEMO-2026-002',
+    type: 'espace confiné',
+    zone: 'Usine de traitement',
+    description: 'Inspection interne cuve réactifs section flottation.',
+    date: '2026-04-14',
+    team: 'Equipe process',
+    checklist: ['Mesure atmosphère OK (OK)', 'Ventilation en place (OK)', 'Surveillant extérieur présent (OK)'],
+    epi: ['Casque', 'Détecteur gaz', 'Masque filtrant'],
+    safetyConditions: ['Permis valide 1 jour', 'Secours stand-by'],
+    status: 'validated',
+    riskAnalysis: 'Asphyxie, gaz résiduels et évacuation difficile.',
+    validationMode: 'double',
+    signatures: [],
+    synced: true,
+    syncState: 'synced',
+    syncPendingCount: 0,
+    createdAt: '2026-04-11T16:20:00.000Z',
+    updatedAt: '2026-04-12T07:30:00.000Z'
+  },
+  {
+    id: 'ptw-demo-003',
+    ref: 'PTW-DEMO-2026-003',
+    type: 'explosifs',
+    zone: 'Zone explosifs',
+    description: 'Préparation tir contrôlé secteur front FN-12.',
+    date: '2026-04-13',
+    team: 'Equipe forage-minage',
+    checklist: ['Zone sécurisée (OK)', 'Autorisation spéciale confirmée (OK)', 'Brief sécurité fait (OK)'],
+    epi: ['Casque', 'Gants anti-coupure', 'Protection auditive'],
+    safetyConditions: ['Périmètre évacué', 'Radio canal sécurité'],
+    status: 'pending',
+    riskAnalysis: 'Risque détonation prématurée et projection.',
+    validationMode: 'double',
+    signatures: [],
+    synced: true,
+    syncState: 'synced',
+    syncPendingCount: 0,
+    createdAt: '2026-04-12T12:00:00.000Z',
+    updatedAt: '2026-04-12T12:00:00.000Z'
+  }
+];
+
+export const demoHabilitationsBase = [
+  {
+    id: 'hab-demo-001',
+    user: { id: 'usr-demo-terrain-1', name: 'Patrick Kasaï', role: 'TERRAIN', email: 'patrick.kasai@demo.qhse' },
+    siteRecord: { id: DEMO_SITE_ID, name: DEMO_SITE_LABEL },
+    type: 'Conduite engin lourd',
+    level: 'N3',
+    validFrom: '2025-05-12T00:00:00.000Z',
+    validUntil: '2026-10-01T00:00:00.000Z',
+    organisme: 'INHST',
+    status: 'active',
+    justificatif: true
+  },
+  {
+    id: 'hab-demo-002',
+    user: { id: 'usr-demo-qhse-1', name: 'Amina Mukendi', role: 'QHSE', email: 'amina.mukendi@demo.qhse' },
+    siteRecord: { id: DEMO_SITE_ID, name: DEMO_SITE_LABEL },
+    type: 'Atmosphère explosible',
+    level: 'N3',
+    validFrom: '2024-09-02T00:00:00.000Z',
+    validUntil: '2026-04-24T00:00:00.000Z',
+    organisme: 'APAVE',
+    status: 'expire_bientot',
+    justificatif: true
+  },
+  {
+    id: 'hab-demo-003',
+    user: { id: 'usr-demo-dir-1', name: 'Jean-Paul Ilunga', role: 'ADMIN', email: 'jp.ilunga@demo.qhse' },
+    siteRecord: { id: DEMO_SITE_ID, name: DEMO_SITE_LABEL },
+    type: 'Permis feu',
+    level: 'N2',
+    validFrom: '2023-11-03T00:00:00.000Z',
+    validUntil: '2026-03-10T00:00:00.000Z',
+    organisme: 'Bureau Veritas',
+    status: 'expired',
+    justificatif: true
   }
 ];

@@ -366,6 +366,7 @@ let qhseRoutePrefetchKey = null;
 
 const PAGE_IMPORT_LOADERS = {
   dashboard: () => import('./pages/dashboard.js'),
+  'mines-demo': () => import('./pages/mines-demo.js'),
   incidents: () => import('./pages/incidents.js'),
   audits: () => import('./pages/audits.js'),
   iso: () => import('./pages/iso.js'),
@@ -505,6 +506,8 @@ function createRouteLoadingView() {
  */
 async function renderPageRootFromModule(targetPage, mod, onAddLog) {
   switch (targetPage) {
+    case 'mines-demo':
+      return mod.renderMinesDemo();
     case 'terrain-mode':
       return mod.renderTerrainMode();
     case 'incidents':

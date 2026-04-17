@@ -12,6 +12,8 @@ import {
   demoNonConformities,
   demoNotifications,
   demoControlledDocuments,
+  demoPtwBase,
+  demoHabilitationsBase,
   demoRisks,
   buildDemoDashboardStats,
   buildDemoReportingSummary,
@@ -25,6 +27,16 @@ import {
   appendDemoCreatedIncident,
   appendDemoCreatedAction
 } from './demoModeRuntime.service.js';
+
+/** @type {null | Array<Record<string, unknown>>} */
+let demoPtwRuntime = null;
+
+function getDemoPtwRows() {
+  if (!Array.isArray(demoPtwRuntime)) {
+    demoPtwRuntime = demoPtwBase.map((row) => ({ ...row }));
+  }
+  return demoPtwRuntime;
+}
 
 /**
  * @param {unknown} body
@@ -362,6 +374,67 @@ export async function tryDemoFetchResponse(path, init = {}) {
     return jsonResponse({ suggestion });
   }
 
+  if (pathname === '/api/ptw' && method === 'POST') {
+    const body = await readJsonBody(init.body);
+    const now = new Date().toISOString();
+    const id = `ptw-demo-${Date.now()}`;
+    const row = {
+      id,
+      ref: `PTW-DEMO-${new Date().getFullYear()}-${String(getDemoPtwRows().length + 1).padStart(3, '0')}`,
+      type: String(body.type || 'travail en hauteur'),
+      description: String(body.description || ''),
+      zone: String(body.zone || 'Fosse Nord'),
+      date: String(body.date || now.slice(0, 10)),
+      team: String(body.team || 'Equipe terrain'),
+      checklist: Array.isArray(body.checklist) ? body.checklist : [],
+      epi: Array.isArray(body.epi) ? body.epi : [],
+      safetyConditions: Array.isArray(body.safetyConditions) ? body.safetyConditions : [],
+      status: String(body.status || 'pending'),
+      riskAnalysis: String(body.riskAnalysis || ''),
+      validationMode: String(body.validationMode || 'double'),
+      signatures: [],
+      synced: true,
+      syncState: 'synced',
+      syncPendingCount: 0,
+      createdAt: now,
+      updatedAt: now
+    };
+    getDemoPtwRows().unshift(row);
+    return jsonResponse(row, 201);
+  }
+
+  const mPtwPatch = /^\/api\/ptw\/([^/]+)$/.exec(pathname);
+  if (mPtwPatch && method === 'PATCH') {
+    const id = decodeURIComponent(mPtwPatch[1]);
+    const patch = await readJsonBody(init.body);
+    const row = getDemoPtwRows().find((r) => r.id === id);
+    if (!row) return jsonResponse({ error: 'Permis introuvable' }, 404);
+    Object.assign(row, patch || {}, { updatedAt: new Date().toISOString() });
+    return jsonResponse(row);
+  }
+
+  const mPtwSign = /^\/api\/ptw\/([^/]+)\/sign$/.exec(pathname);
+  if (mPtwSign && method === 'PATCH') {
+    const id = decodeURIComponent(mPtwSign[1]);
+    const body = await readJsonBody(init.body);
+    const row = getDemoPtwRows().find((r) => r.id === id);
+    if (!row) return jsonResponse({ error: 'Permis introuvable' }, 404);
+    const sig = {
+      id: `ptw-sig-${Date.now()}`,
+      role: String(body.role || 'supervisor'),
+      name: String(body.name || 'Signataire'),
+      signedAt: new Date().toISOString(),
+      signatureDataUrl: String(body.signatureDataUrl || ''),
+      userId: String(body.userId || ''),
+      userLabel: String(body.userLabel || ''),
+      syncStatus: 'synced'
+    };
+    row.signatures = Array.isArray(row.signatures) ? row.signatures : [];
+    row.signatures.push(sig);
+    row.updatedAt = new Date().toISOString();
+    return jsonResponse(row);
+  }
+
   if (method !== 'GET') {
     return null;
   }
@@ -386,6 +459,17 @@ export async function tryDemoFetchResponse(path, init = {}) {
 
   if (pathname === '/api/actions') {
     return jsonResponse(filterDemoActions(getMergedActions(), sp));
+  }
+
+  if (pathname === '/api/ptw') {
+    let rows = [...getDemoPtwRows()];
+    const siteId = sp.get('siteId');
+    if (siteId) rows = rows.filter((r) => !r.siteId || r.siteId === siteId);
+    return jsonResponse(rows);
+  }
+
+  if (pathname === '/api/habilitations') {
+    return jsonResponse(demoHabilitationsBase);
   }
 
   const mActGet = /^\/api\/actions\/([^/]+)$/.exec(pathname);

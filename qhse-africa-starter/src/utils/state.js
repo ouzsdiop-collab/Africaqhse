@@ -1,6 +1,7 @@
 const allowedPages = [
   'login',
   'dashboard',
+  'mines-demo',
   'terrain-mode',
   'incidents',
   'permits',
