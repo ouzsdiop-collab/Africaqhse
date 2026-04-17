@@ -1,7 +1,17 @@
 import { isDemoMode, setDemoMode } from '../services/demoMode.service.js';
-import { DEMO_SITE_ID, DEMO_SITE_LABEL, DEMO_MINE_ZONES } from '../data/demoModeFixtures.js';
+import {
+  DEMO_SITE_ID,
+  DEMO_SITE_LABEL,
+  DEMO_MINE_ZONES,
+  demoIncidentsBase,
+  demoRisks,
+  demoActionsBase,
+  demoPtwBase,
+  demoHabilitationsBase,
+  demoAudits,
+  demoNonConformities
+} from '../data/demoModeFixtures.js';
 import { appState, setActiveSiteContext } from '../utils/state.js';
-import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 const MINES_DEMO_STYLE_ID = 'qhse-mines-demo-styles';
@@ -43,13 +53,6 @@ function card(title, subtitle) {
   art.className = 'content-card card-soft';
   art.innerHTML = `<div class="content-card-head"><div><div class="section-kicker">Démo mines</div><h3>${escapeHtml(title)}</h3><p class="ptw-mini">${escapeHtml(subtitle)}</p></div></div>`;
   return art;
-}
-
-function apiList(path) {
-  return qhseFetch(path)
-    .then((r) => (r.ok ? r.json() : []))
-    .then((x) => (Array.isArray(x) ? x : []))
-    .catch(() => []);
 }
 
 function kpiCard(label, value, detail, tone, onClick) {
@@ -161,92 +164,98 @@ export function renderMinesDemo() {
 
   page.append(hero, tour, grid);
 
-  void Promise.all([
-    apiList('/api/incidents?limit=300'),
-    apiList('/api/risks?limit=300'),
-    apiList('/api/actions?limit=300'),
-    apiList('/api/ptw'),
-    apiList('/api/habilitations'),
-    apiList('/api/audits?limit=120'),
-    apiList('/api/nonconformities?limit=200')
-  ]).then(([incidents, risks, actions, ptw, habs, audits, ncs]) => {
-    const now = Date.now();
-    const d30 = now - 30 * 24 * 3600 * 1000;
-    const critInc = incidents.filter((i) => String(i?.severity || '').toLowerCase().includes('critique')).length;
-    const quasi30 = incidents.filter(
-      (i) =>
-        String(i?.type || '').toLowerCase().includes('quasi') &&
-        new Date(String(i?.createdAt || 0)).getTime() >= d30
-    ).length;
-    const overdue = actions.filter((a) => String(a?.status || '').toLowerCase().includes('retard')).length;
-    const ptwActifs = ptw.filter((p) => !String(p?.status || '').toLowerCase().includes('closed')).length;
-    const hab30 = habs.filter((h) => {
-      const d = new Date(String(h?.validUntil || 0)).getTime() - now;
-      const dd = Math.ceil(d / (24 * 3600 * 1000));
-      return dd >= 0 && dd <= 30;
-    }).length;
-    const auditsTerrain = audits.length;
-    const ncMaj = ncs.filter(
-      (n) =>
-        !String(n?.status || '').toLowerCase().includes('closed') &&
-        String(n?.detail || '').toLowerCase().includes('majeure')
-    ).length;
-    const epiRate =
-      ptw.length > 0 ? Math.round((ptw.filter((p) => Array.isArray(p?.epi) && p.epi.length > 0).length / ptw.length) * 100) : 100;
+  const incidents = [...demoIncidentsBase];
+  const risks = [...demoRisks];
+  const actions = [...demoActionsBase];
+  const ptw = [...demoPtwBase];
+  const habs = [...demoHabilitationsBase];
+  const audits = [...demoAudits];
+  const ncs = [...demoNonConformities];
 
-    kpis.replaceChildren(
-      kpiCard('Incidents critiques', critInc, 'Cliquez pour ouvrir les incidents', 'danger', () => go('incidents')),
-      kpiCard('Quasi-accidents (30j)', quasi30, 'Retour d’expérience terrain', 'warn', () => go('incidents')),
-      kpiCard('Actions en retard', overdue, 'Plan correctif à relancer', 'danger', () => go('actions')),
-      kpiCard('PTW actifs', ptwActifs, 'Permis en attente/validés/en cours', 'ok', () => go('permits')),
-      kpiCard('Habilitations < 30 j', hab30, 'Renouvellements à sécuriser', 'warn', () => go('habilitations')),
-      kpiCard('Audits terrain', auditsTerrain, 'Inspections et audits récents', 'ok', () => go('audits')),
-      kpiCard('NC majeures ouvertes', ncMaj, 'Priorité direction de site', 'danger', () => go('audits')),
-      kpiCard('Taux conformité EPI', `${epiRate}%`, 'Pilotage sécurité opérationnelle', epiRate >= 85 ? 'ok' : 'warn', () => go('permits'))
-    );
+  const now = Date.now();
+  const d30 = now - 30 * 24 * 3600 * 1000;
+  const critInc = incidents.filter((i) => String(i?.severity || '').toLowerCase().includes('critique')).length;
+  const quasi30 = incidents.filter(
+    (i) =>
+      String(i?.type || '').toLowerCase().includes('quasi') &&
+      new Date(String(i?.createdAt || 0)).getTime() >= d30
+  ).length;
+  const overdue = actions.filter((a) => String(a?.status || '').toLowerCase().includes('retard')).length;
+  const ptwActifs = ptw.filter((p) => !String(p?.status || '').toLowerCase().includes('closed')).length;
+  const hab30 = habs.filter((h) => {
+    const d = new Date(String(h?.validUntil || 0)).getTime() - now;
+    const dd = Math.ceil(d / (24 * 3600 * 1000));
+    return dd >= 0 && dd <= 30;
+  }).length;
+  const auditsTerrain = audits.length;
+  const ncMaj = ncs.filter(
+    (n) =>
+      !String(n?.status || '').toLowerCase().includes('closed') &&
+      String(n?.detail || '').toLowerCase().includes('majeure')
+  ).length;
+  const epiRate =
+    ptw.length > 0
+      ? Math.round((ptw.filter((p) => Array.isArray(p?.epi) && p.epi.length > 0).length / ptw.length) * 100)
+      : 100;
 
-    renderItems(
-      incidentsHost,
-      incidents.slice(0, 5),
-      (r) => ({
-        title: `${r.ref || 'INC'} · ${r.type || 'Événement'} · ${r.severity || 'N/A'}`,
-        detail: `${r.location || r.site || DEMO_SITE_LABEL} · ${r.status || 'Nouveau'}`
-      }),
-      'Aucun incident à afficher.'
-    );
-    renderItems(
-      risksHost,
-      risks.slice(0, 5),
-      (r) => ({
-        title: `${r.ref || 'RSK'} · ${r.title || 'Risque'}`,
-        detail: `${r.site || DEMO_SITE_LABEL} · GP ${r.gp || r.gravity || '?'} · ${r.owner || 'Owner à affecter'}`
-      }),
-      'Aucun risque prioritaire.'
-    );
-    renderItems(
-      ptwHost,
-      ptw.slice(0, 5),
-      (r) => ({
-        title: `${r.ref || r.id || 'PTW'} · ${r.type || 'Permis'} · ${r.status || 'pending'}`,
-        detail: `${r.zone || 'Zone non définie'} · équipe ${r.team || 'N/A'}`
-      }),
-      'Aucun PTW actif.'
-    );
-    const auditMix = [
-      ...audits.slice(0, 3).map((a) => ({
-        title: `${a.ref || 'AUD'} · score ${a.score || 'N/A'}%`,
-        detail: `${a.site || DEMO_SITE_LABEL} · ${a.status || 'En cours'}`
-      })),
-      ...actions
-        .filter((a) => String(a?.status || '').toLowerCase().includes('retard'))
-        .slice(0, 2)
-        .map((a) => ({
-          title: `Action retard · ${a.title || 'Action'}`,
-          detail: `${a.owner || 'Responsable à affecter'} · échéance ${a.dueDate ? String(a.dueDate).slice(0, 10) : 'N/A'}`
-        }))
-    ];
-    renderItems(auditHost, auditMix, (x) => x, 'Aucun élément audit/action.');
-  });
+  kpis.replaceChildren(
+    kpiCard('Incidents critiques', critInc, 'Cliquez pour ouvrir les incidents', 'danger', () => go('incidents')),
+    kpiCard('Quasi-accidents (30j)', quasi30, 'Retour d’expérience terrain', 'warn', () => go('incidents')),
+    kpiCard('Actions en retard', overdue, 'Plan correctif à relancer', 'danger', () => go('actions')),
+    kpiCard('PTW actifs', ptwActifs, 'Permis en attente/validés/en cours', 'ok', () => go('permits')),
+    kpiCard('Habilitations < 30 j', hab30, 'Renouvellements à sécuriser', 'warn', () => go('habilitations')),
+    kpiCard('Audits terrain', auditsTerrain, 'Inspections et audits récents', 'ok', () => go('audits')),
+    kpiCard('NC majeures ouvertes', ncMaj, 'Priorité direction de site', 'danger', () => go('audits')),
+    kpiCard(
+      'Taux conformité EPI',
+      `${epiRate}%`,
+      'Pilotage sécurité opérationnelle',
+      epiRate >= 85 ? 'ok' : 'warn',
+      () => go('permits')
+    )
+  );
+
+  renderItems(
+    incidentsHost,
+    incidents.slice(0, 5),
+    (r) => ({
+      title: `${r.ref || 'INC'} · ${r.type || 'Événement'} · ${r.severity || 'N/A'}`,
+      detail: `${r.location || r.site || DEMO_SITE_LABEL} · ${r.status || 'Nouveau'}`
+    }),
+    'Aucun incident à afficher.'
+  );
+  renderItems(
+    risksHost,
+    risks.slice(0, 5),
+    (r) => ({
+      title: `${r.ref || 'RSK'} · ${r.title || 'Risque'}`,
+      detail: `${r.site || DEMO_SITE_LABEL} · GP ${r.gp || r.gravity || '?'} · ${r.owner || 'Owner à affecter'}`
+    }),
+    'Aucun risque prioritaire.'
+  );
+  renderItems(
+    ptwHost,
+    ptw.slice(0, 5),
+    (r) => ({
+      title: `${r.ref || r.id || 'PTW'} · ${r.type || 'Permis'} · ${r.status || 'pending'}`,
+      detail: `${r.zone || 'Zone non définie'} · équipe ${r.team || 'N/A'}`
+    }),
+    'Aucun PTW actif.'
+  );
+  const auditMix = [
+    ...audits.slice(0, 3).map((a) => ({
+      title: `${a.ref || 'AUD'} · score ${a.score || 'N/A'}%`,
+      detail: `${a.site || DEMO_SITE_LABEL} · ${a.status || 'En cours'}`
+    })),
+    ...actions
+      .filter((a) => String(a?.status || '').toLowerCase().includes('retard'))
+      .slice(0, 2)
+      .map((a) => ({
+        title: `Action retard · ${a.title || 'Action'}`,
+        detail: `${a.owner || 'Responsable à affecter'} · échéance ${a.dueDate ? String(a.dueDate).slice(0, 10) : 'N/A'}`
+      }))
+  ];
+  renderItems(auditHost, auditMix, (x) => x, 'Aucun élément audit/action.');
 
   return page;
 }
