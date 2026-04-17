@@ -36,6 +36,27 @@ function ensureMinesDemoStyles() {
 .mines-demo-page .mines-demo-item span{display:block;font-size:12px;color:var(--text2)}
 .mines-demo-page .mines-demo-tour{display:flex;flex-wrap:wrap;gap:8px}
 .mines-demo-page .mines-demo-empty{font-size:12px;color:var(--text2)}
+.mines-demo-page .mines-demo-value{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mines-demo-page .mines-demo-value-card{padding:12px;border-radius:12px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.mines-demo-page .mines-demo-value-card strong{display:block;font-size:14px}
+.mines-demo-page .mines-demo-value-card span{display:block;font-size:12px;color:var(--text2);margin-top:4px}
+.mines-demo-page .mines-demo-pitch{display:grid;gap:8px}
+.mines-demo-page .mines-demo-pitch p{margin:0;font-size:13px;color:var(--text2);line-height:1.45}
+.mines-demo-page .mines-demo-cta{display:flex;flex-wrap:wrap;gap:8px}
+.mines-demo-page .mines-demo-sales{display:grid;grid-template-columns:1.1fr .9fr;gap:12px}
+.mines-demo-page .mines-demo-sales-card{padding:12px;border-radius:12px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.mines-demo-page .mines-demo-sales-card h4{margin:0 0 8px;font-size:14px}
+.mines-demo-page .mines-demo-sales-card p{margin:0;font-size:12px;color:var(--text2);line-height:1.45}
+.mines-demo-page .mines-demo-sales-list{display:grid;gap:8px}
+.mines-demo-page .mines-demo-sales-row{padding:8px;border-radius:10px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary)}
+.mines-demo-page .mines-demo-sales-row strong{display:block;font-size:12px}
+.mines-demo-page .mines-demo-sales-row span{display:block;font-size:12px;color:var(--text2);margin-top:3px}
+.mines-demo-page .mines-demo-roi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.mines-demo-page .mines-demo-roi div{padding:8px;border-radius:10px;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary)}
+.mines-demo-page .mines-demo-roi strong{display:block;font-size:16px;line-height:1.1}
+.mines-demo-page .mines-demo-roi span{display:block;font-size:11px;color:var(--text2);margin-top:2px}
+@media (max-width:1000px){.mines-demo-page .mines-demo-value{grid-template-columns:1fr}}
+@media (max-width:1000px){.mines-demo-page .mines-demo-sales{grid-template-columns:1fr}.mines-demo-page .mines-demo-roi{grid-template-columns:1fr}}
 @media (max-width:1000px){.mines-demo-page .mines-demo-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.mines-demo-page .mines-demo-grid{grid-template-columns:1fr}}
 `;
   document.head.append(el);
@@ -130,6 +151,103 @@ export function renderMinesDemo() {
   });
   tour.append(tourRow);
 
+  const value = card(
+    'Pourquoi cette démo est vendable',
+    'Arguments orientés DG mine, HSE manager et exploitation terrain.'
+  );
+  const valueGrid = document.createElement('div');
+  valueGrid.className = 'mines-demo-value';
+  [
+    ['Réduction du délai de réaction', 'Signalement terrain vers action corrective en quelques minutes.'],
+    ['Maîtrise du risque opérationnel', 'Vision consolidée incidents, PTW, risques et habilitations.'],
+    ['Traçabilité audit-ready', 'Audits, NC majeures et preuves disponibles pour les revues direction.']
+  ].forEach(([title, detail]) => {
+    const box = document.createElement('article');
+    box.className = 'mines-demo-value-card';
+    box.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span>`;
+    valueGrid.append(box);
+  });
+  value.append(valueGrid);
+
+  const pitch = card(
+    'Pitch oral 90 secondes',
+    'Support de présentation pour cadrer la proposition de valeur avant la navigation.'
+  );
+  const pitchBody = document.createElement('div');
+  pitchBody.className = 'mines-demo-pitch';
+  pitchBody.innerHTML = `
+    <p>QHSE Control centralise la sécurité et la conformité d’un site minier sur un seul cockpit, sans écran vide et avec des indicateurs directement exploitables en comité de pilotage.</p>
+    <p>La démonstration montre la chaîne complète : un événement terrain, son traitement en risque/PTW/habilitation, puis la consolidation en synthèse direction avec priorités claires.</p>
+    <p>Le bénéfice business est concret : moins de retards d’actions, meilleure discipline opérationnelle, et décisions plus rapides entre direction, exploitation et HSE.</p>
+  `;
+  const pitchCta = document.createElement('div');
+  pitchCta.className = 'mines-demo-cta';
+  [
+    ['Voir synthèse direction', 'analytics'],
+    ['Ouvrir plan d’actions', 'actions'],
+    ['Afficher audits terrain', 'audits']
+  ].forEach(([label, pageId]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-primary';
+    b.textContent = label;
+    b.addEventListener('click', () => go(pageId));
+    pitchCta.append(b);
+  });
+  pitch.append(pitchBody, pitchCta);
+
+  const sales = card(
+    'Scénario commercial prêt à pitcher',
+    'Structure “avant/après”, réponses aux objections et ordre de grandeur ROI.'
+  );
+  const salesGrid = document.createElement('div');
+  salesGrid.className = 'mines-demo-sales';
+  const beforeAfter = document.createElement('article');
+  beforeAfter.className = 'mines-demo-sales-card';
+  beforeAfter.innerHTML = `
+    <h4>Avant / Après QHSE Control</h4>
+    <div class="mines-demo-sales-list">
+      <div class="mines-demo-sales-row">
+        <strong>Avant</strong>
+        <span>Données éclatées (Excel, WhatsApp, mails), retards de remontée, faible traçabilité audits.</span>
+      </div>
+      <div class="mines-demo-sales-row">
+        <strong>Après</strong>
+        <span>Un cockpit unique: incidents, PTW, risques, habilitations et actions reliés à la synthèse direction.</span>
+      </div>
+      <div class="mines-demo-sales-row">
+        <strong>Impact</strong>
+        <span>Décisions plus rapides, meilleure discipline terrain et revues managériales factuelles.</span>
+      </div>
+    </div>
+  `;
+  const objections = document.createElement('article');
+  objections.className = 'mines-demo-sales-card';
+  objections.innerHTML = `
+    <h4>Objections fréquentes & réponses</h4>
+    <div class="mines-demo-sales-list">
+      <div class="mines-demo-sales-row">
+        <strong>“Le terrain n’adoptera pas.”</strong>
+        <span>Parcours mobile court, mode démo orienté opérations, KPI simples et actions guidées.</span>
+      </div>
+      <div class="mines-demo-sales-row">
+        <strong>“On a déjà des tableaux.”</strong>
+        <span>Ici, les tableaux pilotent des flux vivants (incident → action → audit → synthèse).</span>
+      </div>
+      <div class="mines-demo-sales-row">
+        <strong>“Quel ROI concret ?”</strong>
+        <span>Réduction du délai de traitement incidents, baisse des retards actions, meilleure préparation audits.</span>
+      </div>
+    </div>
+    <div class="mines-demo-roi">
+      <div><strong>-30% à -45%</strong><span>Délai de traitement incident</span></div>
+      <div><strong>-20% à -35%</strong><span>Actions en retard</span></div>
+      <div><strong>+15 à +25 pts</strong><span>Conformité audits internes</span></div>
+    </div>
+  `;
+  salesGrid.append(beforeAfter, objections);
+  sales.append(salesGrid);
+
   const grid = document.createElement('div');
   grid.className = 'mines-demo-grid';
 
@@ -155,7 +273,7 @@ export function renderMinesDemo() {
 
   grid.append(incidentsCard, risksCard, ptwCard, auditCard);
 
-  page.append(hero, tour, grid);
+  page.append(hero, value, tour, pitch, sales, grid);
 
   const incidents = [...demoIncidentsBase];
   const risks = [...demoRisks];

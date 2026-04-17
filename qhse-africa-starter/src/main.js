@@ -24,7 +24,7 @@ import {
   refreshNotificationSmartContext
 } from './services/notificationIntelligence.service.js';
 import { appState, setActiveSiteContext, setCurrentPage } from './utils/state.js';
-import { getSessionUser, restoreSessionFromToken } from './data/sessionUser.js';
+import { getAuthToken, getSessionUser, restoreSessionFromToken } from './data/sessionUser.js';
 import { getNavContextForPage, pageTopbarById } from './data/navigation.js';
 import { qhseFetch } from './utils/qhseFetch.js';
 import { withSiteQuery } from './utils/siteFilter.js';
@@ -37,7 +37,7 @@ import {
   syncTerrainRiskQueue
 } from './services/terrainOffline.service.js';
 import { showToast } from './components/toast.js';
-import { ensureProductionDemoModeOff } from './services/demoMode.service.js';
+import { ensureProductionDemoModeOff, isDemoMode } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
 import './styles/ui-density-saas.css';
@@ -640,6 +640,11 @@ function renderApp() {
   }
 
   try {
+    const demoGuestMode = isDemoMode() && !getAuthToken() && !getSessionUser();
+    if (demoGuestMode && appState.currentPage === 'dashboard') {
+      setCurrentPage('mines-demo');
+    }
+
     const terrainMode = getDisplayMode() === 'terrain';
     const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
