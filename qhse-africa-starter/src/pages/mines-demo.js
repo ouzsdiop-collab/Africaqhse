@@ -1,6 +1,6 @@
-import { setDemoMode } from '../services/demoMode.service.js';
+import { isDemoMode, setDemoMode } from '../services/demoMode.service.js';
 import { DEMO_SITE_ID, DEMO_SITE_LABEL, DEMO_MINE_ZONES } from '../data/demoModeFixtures.js';
-import { setActiveSiteContext } from '../utils/state.js';
+import { appState, setActiveSiteContext } from '../utils/state.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
@@ -80,8 +80,10 @@ function renderItems(host, rows, mapFn, emptyLabel) {
 }
 
 export function renderMinesDemo() {
-  setDemoMode(true);
-  setActiveSiteContext(DEMO_SITE_ID, DEMO_SITE_LABEL);
+  if (!isDemoMode()) setDemoMode(true);
+  if (appState.activeSiteId !== DEMO_SITE_ID || appState.currentSite !== DEMO_SITE_LABEL) {
+    setActiveSiteContext(DEMO_SITE_ID, DEMO_SITE_LABEL);
+  }
   ensureMinesDemoStyles();
 
   const page = document.createElement('section');
