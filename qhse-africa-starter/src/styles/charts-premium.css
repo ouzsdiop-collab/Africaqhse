@@ -550,3 +550,36 @@
   color: var(--text2);
   font-weight: 500;
 }
+
+/* Chart.js — incidents 6 mois */
+.dashboard-incidents-chartjs-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: clamp(188px, 22vw, 216px);
+  min-height: 184px;
+}
+
+.dashboard-incidents-chartjs-canvas-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.dashboard-incidents-chartjs-frame.dashboard-line-chart-frame--enter {
+  opacity: 1;
+  animation: none;
+}
+
+.dashboard-incidents-chartjs-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 2px;
+}
+
+.dashboard-incidents-chartjs-cta__btn {
+  font-size: 11px !important;
+  padding: 6px 12px !important;
+  font-weight: 600 !important;
+}

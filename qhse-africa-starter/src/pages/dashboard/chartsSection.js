@@ -26,6 +26,11 @@ import { asDashboardCount, isNcOpen } from '../../utils/reconcileDashboardStats.
  * @param {unknown[]} [data.ncs]
  * @returns {{ ncList: unknown[] }}
  */
+function destroyIncidentsChartIfMounted(host) {
+  const el = host?.querySelector?.('[data-qhse-chartjs="1"]');
+  if (el && typeof el.__qhseChartDestroy === 'function') el.__qhseChartDestroy();
+}
+
 export function refreshCharts(refs, stats, data) {
   const { lineCard, mixCard, typeCard, auditCharts, pilotLoadCard } = refs;
   const s = stats || {};
@@ -41,6 +46,7 @@ export function refreshCharts(refs, stats, data) {
   const aud = audits || [];
   const ncList = ncs || [];
 
+  destroyIncidentsChartIfMounted(lineCard.body);
   lineCard.body.replaceChildren(
     createDashboardLineChart(buildIncidentMonthlySeries(inc), { lineTheme: 'incidents' })
   );

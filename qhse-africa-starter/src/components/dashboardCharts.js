@@ -1,9 +1,11 @@
 /**
- * Graphiques dashboard — SVG / barres CSS, données injectées (pas de lib externe).
+ * Graphiques dashboard — SVG / barres CSS + Chart.js (courbe incidents 6 mois).
  */
 
 import { Chart, registerables } from 'chart.js';
 import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
+import { interpretIncidentTrend } from '../utils/dashboardIncidentSeriesNarrative.js';
+import { createIncidentsMonthlyLineChartChartJs } from './dashboardIncidentsLineChart.js';
 
 let qhseDashboardChartJsReady = false;
 
@@ -75,7 +77,6 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
   function hide() {
     tip.hidden = true;
     tip.setAttribute('data-visible', 'false');
-    tip.classList.remove('qhse-chart-tooltip--incidents-premium');
     wrap.classList.remove('dashboard-line-chart-wrap--hovering');
     valueSpans.forEach((s) => s.classList.remove('dashboard-line-chart-value-cell--active'));
     labelSpans.forEach((s) => s.classList.remove('dashboard-line-chart-label-cell--active'));
@@ -90,124 +91,65 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
     const p = safe[idx];
     if (!p) return;
     const valStr = options.valueTitle ? options.valueTitle(p) : String(p.value);
-    const nar = options.incidentNarrative;
+    const seriesLine =
+      options.lineTheme === 'incidents'
+        ? 'Incidents déclarés'
+        : options.lineTheme === 'audits'
+          ? 'Score d’audit'
+          : 'Valeur';
 
     tip.replaceChildren();
-    if (options.lineTheme === 'incidents' && nar) {
-      tip.classList.add('qhse-chart-tooltip--incidents-premium');
-      const head = document.createElement('div');
-      head.className = 'qhse-chart-tooltip__inc-head';
-      const mo = document.createElement('span');
-      mo.className = 'qhse-chart-tooltip__inc-month';
-      mo.textContent = p.label || '—';
-      const cnt = document.createElement('span');
-      cnt.className = 'qhse-chart-tooltip__inc-count';
-      const n = Number.isFinite(p.value) ? p.value : 0;
-      cnt.textContent = `${n} incident${n > 1 ? 's' : ''}`;
-      head.append(mo, cnt);
-      tip.append(head);
+    const ks = document.createElement('div');
+    ks.className = 'qhse-chart-tooltip__k';
+    ks.textContent = 'Série';
+    const vs = document.createElement('div');
+    vs.className = 'qhse-chart-tooltip__v';
+    vs.style.fontSize = '11px';
+    vs.style.fontWeight = '600';
+    vs.style.marginBottom = '8px';
+    vs.textContent = seriesLine;
 
-      const rowEv = document.createElement('div');
-      rowEv.className = 'qhse-chart-tooltip__inc-row';
-      const evL = document.createElement('span');
-      evL.className = 'qhse-chart-tooltip__inc-row-l';
-      evL.textContent = 'vs mois précédent';
-      const evV = document.createElement('span');
-      evV.className = 'qhse-chart-tooltip__inc-row-v';
-      const dlt = nar.deltas[idx];
-      if (dlt == null) {
-        evV.textContent = '—';
-        evV.classList.add('qhse-chart-tooltip__inc-delta--na');
-      } else if (dlt === 0) {
-        evV.textContent = 'Stable';
-        evV.classList.add('qhse-chart-tooltip__inc-delta--flat');
-      } else if (dlt > 0) {
-        evV.textContent = `+${dlt}`;
-        evV.classList.add('qhse-chart-tooltip__inc-delta--up');
-      } else {
-        evV.textContent = `${dlt}`;
-        evV.classList.add('qhse-chart-tooltip__inc-delta--down');
-      }
-      rowEv.append(evL, evV);
-      tip.append(rowEv);
+    const k1 = document.createElement('div');
+    k1.className = 'qhse-chart-tooltip__k';
+    k1.textContent = 'Période';
+    const v1 = document.createElement('div');
+    v1.className = 'qhse-chart-tooltip__v';
+    v1.textContent = p.label || '—';
+    const k2 = document.createElement('div');
+    k2.className = 'qhse-chart-tooltip__k';
+    k2.textContent = 'Valeur';
+    const v2 = document.createElement('div');
+    v2.className = 'qhse-chart-tooltip__v';
+    v2.textContent = valStr;
 
-      const vigRow = document.createElement('div');
-      vigRow.className = 'qhse-chart-tooltip__inc-vig';
-      const vig = nar.vigilance[idx] || 'Normale';
-      const pill = document.createElement('span');
-      pill.className = 'qhse-chart-tooltip__inc-pill';
-      if (vig === 'Critique') pill.classList.add('qhse-chart-tooltip__inc-pill--crit');
-      else if (vig === 'Vigilance') pill.classList.add('qhse-chart-tooltip__inc-pill--warn');
-      else pill.classList.add('qhse-chart-tooltip__inc-pill--ok');
-      pill.textContent = `Vigilance : ${vig}`;
-      vigRow.append(pill);
-      tip.append(vigRow);
-
-      const hint = document.createElement('p');
-      hint.className = 'qhse-chart-tooltip__inc-hint';
-      hint.textContent = nar.microHints[idx] || '';
-      tip.append(hint);
-    } else {
-      tip.classList.remove('qhse-chart-tooltip--incidents-premium');
-      const seriesLine =
-        options.lineTheme === 'incidents'
-          ? 'Incidents déclarés'
-          : options.lineTheme === 'audits'
-            ? 'Score d’audit'
-            : 'Valeur';
-
-      const ks = document.createElement('div');
-      ks.className = 'qhse-chart-tooltip__k';
-      ks.textContent = 'Série';
-      const vs = document.createElement('div');
-      vs.className = 'qhse-chart-tooltip__v';
-      vs.style.fontSize = '11px';
-      vs.style.fontWeight = '600';
-      vs.style.marginBottom = '8px';
-      vs.textContent = seriesLine;
-
-      const k1 = document.createElement('div');
-      k1.className = 'qhse-chart-tooltip__k';
-      k1.textContent = 'Période';
-      const v1 = document.createElement('div');
-      v1.className = 'qhse-chart-tooltip__v';
-      v1.textContent = p.label || '—';
-      const k2 = document.createElement('div');
-      k2.className = 'qhse-chart-tooltip__k';
-      k2.textContent = 'Valeur';
-      const v2 = document.createElement('div');
-      v2.className = 'qhse-chart-tooltip__v';
-      v2.textContent = valStr;
-
-      tip.append(ks, vs, k1, v1, k2, v2);
-      if (
-        options.targetYPercent != null &&
-        Number.isFinite(Number(options.targetYPercent)) &&
-        options.lineTheme === 'audits'
-      ) {
-        const tgt = Math.round(Number(options.targetYPercent));
-        const ko = document.createElement('div');
-        ko.className = 'qhse-chart-tooltip__k';
-        ko.textContent = 'Objectif';
-        const vo = document.createElement('div');
-        vo.className = 'qhse-chart-tooltip__v';
-        vo.style.fontSize = '11px';
-        vo.style.opacity = '0.92';
-        vo.textContent =
-          typeof options.targetLabel === 'string' && options.targetLabel.trim()
-            ? options.targetLabel.trim()
-            : `${tgt} %`;
-        const gap = p.value - tgt;
-        const cmp = document.createElement('div');
-        cmp.className = 'qhse-chart-tooltip__delta';
-        cmp.textContent =
-          gap >= 0.5
-            ? `+${gap.toFixed(0)} pt vs objectif`
-            : gap <= -0.5
-              ? `${gap.toFixed(0)} pt vs objectif`
-              : 'À l’objectif';
-        tip.append(ko, vo, cmp);
-      }
+    tip.append(ks, vs, k1, v1, k2, v2);
+    if (
+      options.targetYPercent != null &&
+      Number.isFinite(Number(options.targetYPercent)) &&
+      options.lineTheme === 'audits'
+    ) {
+      const tgt = Math.round(Number(options.targetYPercent));
+      const ko = document.createElement('div');
+      ko.className = 'qhse-chart-tooltip__k';
+      ko.textContent = 'Objectif';
+      const vo = document.createElement('div');
+      vo.className = 'qhse-chart-tooltip__v';
+      vo.style.fontSize = '11px';
+      vo.style.opacity = '0.92';
+      vo.textContent =
+        typeof options.targetLabel === 'string' && options.targetLabel.trim()
+          ? options.targetLabel.trim()
+          : `${tgt} %`;
+      const gap = p.value - tgt;
+      const cmp = document.createElement('div');
+      cmp.className = 'qhse-chart-tooltip__delta';
+      cmp.textContent =
+        gap >= 0.5
+          ? `+${gap.toFixed(0)} pt vs objectif`
+          : gap <= -0.5
+            ? `${gap.toFixed(0)} pt vs objectif`
+            : 'À l’objectif';
+      tip.append(ko, vo, cmp);
     }
     tip.hidden = false;
     tip.setAttribute('data-visible', 'true');
@@ -215,8 +157,7 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
     const rect = svg.getBoundingClientRect();
     const px = (pts[idx].x / w) * rect.width + rect.left;
     const py = (pts[idx].y / h) * rect.height + rect.top;
-    const tipW = options.lineTheme === 'incidents' && nar ? 304 : 230;
-    tip.style.left = `${Math.min(window.innerWidth - tipW - 16, px + 14)}px`;
+    tip.style.left = `${Math.min(window.innerWidth - 246, px + 14)}px`;
     tip.style.top = `${Math.max(10, py - 8)}px`;
 
     wrap.classList.add('dashboard-line-chart-wrap--hovering');
@@ -239,7 +180,7 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
         best = i;
       }
     });
-    if (bestD > 52) {
+    if (bestD > 72) {
       hide();
       return;
     }
@@ -722,162 +663,6 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
 }
 
 /**
- * Narratif décisionnel pour la courbe incidents (6 mois) — tooltip + bandeaux + texte exécutif.
- * @param {{ label: string; value: number }[]} safe
- */
-function computeIncidentSeriesNarrative(safe) {
-  const series = Array.isArray(safe) ? safe : [];
-  const vals = series.map((p) => (Number.isFinite(p.value) ? Math.max(0, p.value) : 0));
-  const n = vals.length;
-  const total = vals.reduce((a, b) => a + b, 0);
-  if (n === 0) {
-    return {
-      trendKey: 'silence',
-      badgeLabel: 'Aucun signal',
-      badgeCls: 'dashboard-incidents-badge--neutral',
-      peakIdx: 0,
-      peakVal: 0,
-      peakLabel: '—',
-      total: 0,
-      avg: 0,
-      deltas: [],
-      vigilance: [],
-      microHints: [],
-      refCeiling: null
-    };
-  }
-  let peakIdx = 0;
-  vals.forEach((v, i) => {
-    if (v > vals[peakIdx]) peakIdx = i;
-  });
-  const peakVal = vals[peakIdx];
-  const peakLabel = series[peakIdx]?.label || '—';
-  const deltas = vals.map((v, i) => (i === 0 ? null : v - vals[i - 1]));
-  const avg = total / n;
-  const vigilance = vals.map((v) => {
-    if (avg <= 0.001) return v > 0 ? 'Vigilance' : 'Normale';
-    if (peakVal > 0 && v === peakVal && v >= avg * 1.05) return 'Critique';
-    if (v >= avg * 1.35) return 'Critique';
-    if (v >= avg * 1.12) return 'Vigilance';
-    return 'Normale';
-  });
-  const microHints = series.map((_, idx) => {
-    const vg = vigilance[idx];
-    const d = deltas[idx];
-    if (vg === 'Critique') {
-      return 'Arbitrage direction / HSE : sévériser briefs, permis et contrôles poste sur cette période.';
-    }
-    if (vg === 'Vigilance') {
-      return 'Renforcer observations terrain et lien avec PTW / habilitations sur les postes sensibles.';
-    }
-    if (d != null && d > 1) {
-      return 'Hausse locale — corréler avec maintenance, intempéries ou charge sous-traitants.';
-    }
-    if (d != null && d < -1) {
-      return 'Baisse marquée — vérifier que la remontée terrain reste exhaustive.';
-    }
-    return 'Rythme compatible avec un pilotage HSE standard sur ce mois.';
-  });
-  let signFlips = 0;
-  for (let i = 2; i < n; i += 1) {
-    const s0 = Math.sign(vals[i - 1] - vals[i - 2]);
-    const s1 = Math.sign(vals[i] - vals[i - 1]);
-    if (s0 !== 0 && s1 !== 0 && s0 !== s1) signFlips += 1;
-  }
-  const first3 = vals.slice(0, Math.min(3, n)).reduce((a, b) => a + b, 0);
-  const last3 = vals.slice(Math.max(0, n - 3)).reduce((a, b) => a + b, 0);
-  const mean = total / n;
-  const variance =
-    n > 1 ? vals.reduce((acc, v) => acc + (v - mean) ** 2, 0) / n : 0;
-  const cv = mean > 0.4 ? Math.sqrt(variance) / mean : 0;
-  const instableByVar = n >= 5 && cv > 0.38;
-  /** @type {'silence'|'degradation'|'amelioration'|'instable'|'stable'} */
-  let trendKey = 'stable';
-  if (total === 0) trendKey = 'silence';
-  else if (first3 > 0 && last3 > first3 * 1.22) trendKey = 'degradation';
-  else if (first3 > 0 && last3 < first3 * 0.78) trendKey = 'amelioration';
-  else if (signFlips >= 2 || instableByVar) trendKey = 'instable';
-  const badgeMap = {
-    silence: { label: 'Aucun signal', cls: 'dashboard-incidents-badge--neutral' },
-    degradation: { label: 'Dégradation', cls: 'dashboard-incidents-badge--bad' },
-    instable: { label: 'Instable', cls: 'dashboard-incidents-badge--warn' },
-    amelioration: { label: 'Amélioration', cls: 'dashboard-incidents-badge--good' },
-    stable: { label: 'Stable', cls: 'dashboard-incidents-badge--neutral' }
-  };
-  const bm = badgeMap[trendKey];
-  const refCeiling =
-    mean > 0.2 && peakVal > 0 ? Math.max(1, Math.round(mean * 1.15)) : null;
-  return {
-    trendKey,
-    badgeLabel: bm.label,
-    badgeCls: bm.cls,
-    peakIdx,
-    peakVal,
-    peakLabel,
-    total,
-    avg,
-    deltas,
-    vigilance,
-    microHints,
-    refCeiling
-  };
-}
-
-/**
- * @param {{ label: string; value: number }[]} safe
- * @param {ReturnType<typeof computeIncidentSeriesNarrative>} nar
- */
-function buildIncidentExecutiveInterpret(safe, nar) {
-  if (nar.trendKey === 'silence') {
-    return 'Aucun incident sur six mois : capitalisez sur ce socle et sécurisez la crédibilité du dispositif de remontée terrain.';
-  }
-  const { total, peakLabel, peakVal, trendKey } = nar;
-  const last = safe[safe.length - 1]?.value ?? 0;
-  const prev = safe.length > 1 ? safe[safe.length - 2]?.value ?? 0 : last;
-  const tailEase = last < prev || (last === prev && last < peakVal * 0.75);
-  if (trendKey === 'degradation') {
-    const extra = tailEase
-      ? ' Les derniers mois montrent un léger repli : utile, mais insuffisant pour lever la vigilance sans plan d’actions ciblé.'
-      : ' La fin de période reste élevée : maintenir une revue HSE hebdomadaire ciblée sur les zones à risque.';
-    return `La charge récente dépasse nettement le début de fenêtre (${total} incidents cumulés, pic ${peakVal} en ${peakLabel}).${extra}`;
-  }
-  if (trendKey === 'amelioration') {
-    return `Après un pic à ${peakVal} (${peakLabel}), la courbe se referme (${total} sur six mois). Capitaliser sur les actions engagées sans relâcher le pilotage au sol.`;
-  }
-  if (trendKey === 'instable') {
-    return `Volume irrégulier (${total} sur six mois, max ${peakVal} en ${peakLabel}) : lecture typique d’activité variable ou de qualité de déclaration hétérogène — cadrer une revue commune direction / terrain.`;
-  }
-  return `Rythme modéré (${total} sur six mois). Point d’attention principal : ${peakLabel} (${peakVal}) — garder ce pic sous surveillance renforcée en comité de pilotage.`;
-}
-
-/**
- * @param {{ label: string; value: number }[]} safe
- */
-function interpretIncidentTrend(safe) {
-  return buildIncidentExecutiveInterpret(safe, computeIncidentSeriesNarrative(safe));
-}
-
-/** Animation discrète du tracé (SVG path). */
-function animateDashboardLineStroke(linePath) {
-  if (!linePath || typeof linePath.getTotalLength !== 'function') return;
-  try {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
-    const len = linePath.getTotalLength();
-    if (!Number.isFinite(len) || len <= 0) return;
-    linePath.style.strokeDasharray = `${len}`;
-    linePath.style.strokeDashoffset = `${len}`;
-    linePath.getBoundingClientRect();
-    requestAnimationFrame(() => {
-      linePath.style.transition =
-        'stroke-dashoffset 1050ms cubic-bezier(0.22, 1, 0.36, 1)';
-      linePath.style.strokeDashoffset = '0';
-    });
-  } catch {
-    /* ignore */
-  }
-}
-
-/**
  * @param {{ overdue: number; done: number; other: number }} parts
  */
 function interpretActionsMixParts(parts) {
@@ -957,6 +742,13 @@ export function createDashboardLineChart(series, options = {}) {
     document.head.append(ks);
   }
 
+  const lineTheme = options.lineTheme;
+
+  if (lineTheme === 'incidents') {
+    const safeInc = Array.isArray(series) && series.length ? series : [{ label: '—', value: 0 }];
+    return createIncidentsMonthlyLineChartChartJs(safeInc, options);
+  }
+
   const wrap = document.createElement('div');
   const wrapScopedId = `qhse-dlc-${Math.random().toString(36).slice(2, 11)}`;
   wrap.id = wrapScopedId;
@@ -964,10 +756,7 @@ export function createDashboardLineChart(series, options = {}) {
   if (options.variant === 'analytics') {
     wrap.classList.add('dashboard-line-chart-wrap--analytics');
   }
-  const lineTheme = options.lineTheme;
-  if (lineTheme === 'incidents') {
-    wrap.classList.add('dashboard-line-chart-wrap--theme-incidents');
-  } else if (lineTheme === 'audits') {
+  if (lineTheme === 'audits') {
     wrap.classList.add('dashboard-line-chart-wrap--theme-audits');
   }
 
@@ -1005,11 +794,9 @@ export function createDashboardLineChart(series, options = {}) {
   }
 
   const safe = Array.isArray(series) && series.length ? series : [{ label: '—', value: 0 }];
-  const isIncPremium = lineTheme === 'incidents';
-  const incidentNarrative = isIncPremium ? computeIncidentSeriesNarrative(safe) : null;
-  const w = isIncPremium ? 432 : 400;
+  const w = 400;
   const h = 188;
-  const padL = isIncPremium ? 40 : 12;
+  const padL = 12;
   const padR = 12;
   const padV = 14;
   const plotW = w - padL - padR;
@@ -1044,7 +831,7 @@ export function createDashboardLineChart(series, options = {}) {
     const y = yScale(v);
     return { x, y, ...p };
   });
-  const lineTension = isIncPremium ? 0.32 : 0.4;
+  const lineTension = 0.4;
   const d = buildSmoothLinePathD(pts, lineTension);
   const baseY = yScale(Math.max(0, vmin));
   const lastX = pts[pts.length - 1].x;
@@ -1062,9 +849,9 @@ export function createDashboardLineChart(series, options = {}) {
   svg.setAttribute(
     'aria-label',
     options.ariaLabel ||
-      (isIncPremium && incidentNarrative
-        ? `Tendance incidents six mois : ${incidentNarrative.badgeLabel}, ${incidentNarrative.total} incidents cumulés, pic ${incidentNarrative.peakVal} en ${incidentNarrative.peakLabel}.`
-        : 'Courbe du nombre d’incidents déclarés par mois sur les six derniers mois.')
+      (lineTheme === 'audits'
+        ? 'Courbe des scores d’audit par période.'
+        : 'Courbe des valeurs par période.')
   );
 
   const gradId = `dlaf-${Math.random().toString(36).slice(2, 11)}`;
@@ -1076,24 +863,17 @@ export function createDashboardLineChart(series, options = {}) {
   lg.setAttribute('x2', '0');
   lg.setAttribute('y2', '1');
   const gradStops =
-    lineTheme === 'incidents'
+    lineTheme === 'audits'
       ? [
-          { off: '0%', color: 'rgba(249, 115, 22, 0.34)' },
-          { off: '26%', color: 'rgba(251, 146, 60, 0.18)' },
-          { off: '58%', color: 'rgba(253, 186, 116, 0.08)' },
-          { off: '100%', color: 'rgba(249, 115, 22, 0)' }
+          { off: '0%', color: 'rgba(99, 102, 241, 0.25)' },
+          { off: '60%', color: 'rgba(45, 212, 191, 0.1)' },
+          { off: '100%', color: 'rgba(13, 148, 136, 0)' }
         ]
-      : lineTheme === 'audits'
-        ? [
-            { off: '0%', color: 'rgba(99, 102, 241, 0.25)' },
-            { off: '60%', color: 'rgba(45, 212, 191, 0.1)' },
-            { off: '100%', color: 'rgba(13, 148, 136, 0)' }
-          ]
-        : [
-            { off: '0%', color: 'rgba(20, 184, 166, 0.22)' },
-            { off: '60%', color: 'rgba(20, 184, 166, 0.08)' },
-            { off: '100%', color: 'rgba(20, 184, 166, 0)' }
-          ];
+      : [
+          { off: '0%', color: 'rgba(20, 184, 166, 0.22)' },
+          { off: '60%', color: 'rgba(20, 184, 166, 0.08)' },
+          { off: '100%', color: 'rgba(20, 184, 166, 0)' }
+        ];
   const lgKids = gradStops.map((gs) => {
     const stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
     stop.setAttribute('offset', gs.off);
@@ -1108,97 +888,17 @@ export function createDashboardLineChart(series, options = {}) {
   areaPath.setAttribute('class', 'dashboard-line-chart-area');
   areaPath.setAttribute('fill', `url(#${gradId})`);
 
-  const lineStroke =
-    lineTheme === 'incidents' ? '#ea580c' : lineTheme === 'audits' ? '#6366f1' : 'rgb(20, 184, 166)';
+  const lineStroke = lineTheme === 'audits' ? '#6366f1' : 'rgb(20, 184, 166)';
   const linePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   linePath.setAttribute('d', d);
   linePath.setAttribute('fill', 'none');
   linePath.setAttribute('class', 'dashboard-line-chart-line');
   linePath.style.stroke = lineStroke;
-  linePath.style.strokeWidth = isIncPremium ? '2.85px' : '2.5px';
+  linePath.style.strokeWidth = '2.5px';
   linePath.setAttribute('stroke-linecap', 'round');
   linePath.setAttribute('stroke-linejoin', 'round');
 
   svg.append(defs);
-
-  if (isIncPremium && incidentNarrative) {
-    const spanV = vmax - vmin || 1;
-    const vHi = vmin + (spanV * 2) / 3;
-    const vLo = vmin + spanV / 3;
-    const addBand = (vA, vB, cls) => {
-      const y1 = yScale(vA);
-      const y2 = yScale(vB);
-      const top = Math.min(y1, y2);
-      const height = Math.max(1, Math.abs(y2 - y1));
-      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      r.setAttribute('x', String(padL));
-      r.setAttribute('y', String(top.toFixed(1)));
-      r.setAttribute('width', String(plotW));
-      r.setAttribute('height', String(height.toFixed(1)));
-      r.setAttribute('class', cls);
-      r.setAttribute('pointer-events', 'none');
-      svg.append(r);
-    };
-    addBand(vmax, vHi, 'dashboard-line-chart-risk-band dashboard-line-chart-risk-band--hi');
-    addBand(vHi, vLo, 'dashboard-line-chart-risk-band dashboard-line-chart-risk-band--mid');
-    addBand(vLo, vmin, 'dashboard-line-chart-risk-band dashboard-line-chart-risk-band--low');
-
-    const tickVals = [vmax, vmin + spanV * 0.5, vmin];
-    tickVals.forEach((tv) => {
-      const gy = yScale(tv);
-      const gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      gl.setAttribute('x1', String(padL));
-      gl.setAttribute('y1', String(gy.toFixed(1)));
-      gl.setAttribute('x2', String(w - padR));
-      gl.setAttribute('y2', String(gy.toFixed(1)));
-      gl.setAttribute('class', 'dashboard-line-chart-grid dashboard-line-chart-grid--soft');
-      gl.setAttribute('pointer-events', 'none');
-      const tk = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      tk.setAttribute('x', String(padL - 5));
-      tk.setAttribute('y', String(gy + 3.8));
-      tk.setAttribute('text-anchor', 'end');
-      tk.setAttribute('class', 'dashboard-line-chart-y-tick');
-      tk.textContent = String(Math.round(tv));
-      svg.append(gl, tk);
-    });
-
-    const rc = incidentNarrative.refCeiling;
-    if (rc != null && rc >= vmin && rc <= vmax) {
-      const ry = yScale(rc);
-      const dl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      dl.setAttribute('x1', String(padL));
-      dl.setAttribute('y1', String(ry.toFixed(1)));
-      dl.setAttribute('x2', String(w - padR));
-      dl.setAttribute('y2', String(ry.toFixed(1)));
-      dl.setAttribute('class', 'dashboard-line-chart-ref-threshold');
-      dl.setAttribute('pointer-events', 'none');
-      svg.append(dl);
-      const rtl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      rtl.setAttribute('x', String(padL + 4));
-      rtl.setAttribute('y', String(ry - 5));
-      rtl.setAttribute('class', 'dashboard-line-chart-ref-threshold-label');
-      rtl.textContent = `Réf. ${rc}/mois`;
-      svg.append(rtl);
-    }
-
-    const pi = incidentNarrative.peakIdx;
-    if (incidentNarrative.peakVal > 0 && pts[pi]) {
-      const px = pts[pi].x;
-      const pv = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      pv.setAttribute('x1', String(px.toFixed(1)));
-      pv.setAttribute('x2', String(px.toFixed(1)));
-      pv.setAttribute('y1', String(padV + 2));
-      pv.setAttribute('y2', String(h - padV));
-      pv.setAttribute('class', 'dashboard-line-chart-peak-guide');
-      pv.setAttribute('pointer-events', 'none');
-      svg.append(pv);
-    }
-  }
-
-  if (isIncPremium) {
-    areaPath.classList.add('dashboard-line-chart-area--premium');
-    linePath.classList.add('dashboard-line-chart-line--premium');
-  }
 
   svg.append(areaPath, linePath);
   if (lineTheme === 'audits') {
@@ -1232,31 +932,18 @@ export function createDashboardLineChart(series, options = {}) {
     options.variant === 'analytics' && n > 5
       ? '3.6'
       : '4';
-  const dotStroke =
-    lineTheme === 'incidents' ? '#ea580c' : lineTheme === 'audits' ? '#6366f1' : 'rgb(20, 184, 166)';
-  const peakIdxMark = isIncPremium && incidentNarrative ? incidentNarrative.peakIdx : -1;
-  pts.forEach((p, i) => {
-    const isPeak = i === peakIdxMark && incidentNarrative && incidentNarrative.peakVal > 0;
+  const dotStroke = lineTheme === 'audits' ? '#6366f1' : 'rgb(20, 184, 166)';
+  pts.forEach((p) => {
     const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     c.setAttribute('cx', String(p.x));
     c.setAttribute('cy', String(p.y));
-    c.setAttribute('r', isPeak ? '5.35' : dotR);
-    c.setAttribute('class', `dashboard-line-chart-dot${isPeak ? ' dashboard-line-chart-dot--peak' : ''}`);
+    c.setAttribute('r', dotR);
+    c.setAttribute('class', 'dashboard-line-chart-dot');
     c.setAttribute('fill', '#ffffff');
     c.setAttribute('stroke', dotStroke);
-    c.setAttribute('stroke-width', isPeak ? '2.35' : '2');
+    c.setAttribute('stroke-width', '2');
     svg.append(c);
   });
-
-  if (isIncPremium && incidentNarrative && incidentNarrative.peakVal > 0 && pts[incidentNarrative.peakIdx]) {
-    const pk = pts[incidentNarrative.peakIdx];
-    const pt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    pt.setAttribute('x', String(Math.min(w - padR - 26, pk.x + 6)));
-    pt.setAttribute('y', String(Math.max(padV + 11, pk.y - 9)));
-    pt.setAttribute('class', 'dashboard-line-chart-peak-label');
-    pt.textContent = 'Pic';
-    svg.append(pt);
-  }
 
   const tip = createChartTooltipEl();
   const frame = document.createElement('div');
@@ -1299,36 +986,16 @@ export function createDashboardLineChart(series, options = {}) {
       ? options.interpretText
       : lineTheme === 'audits'
         ? interpretAuditScoreSeries(safe)
-        : isIncPremium && incidentNarrative
-          ? buildIncidentExecutiveInterpret(safe, incidentNarrative)
-          : interpretIncidentTrend(safe);
+        : interpretIncidentTrend(safe);
 
   const tail = [frame, labels];
   if (String(foot.textContent || '').trim()) tail.push(foot);
   if (String(interpret.textContent || '').trim()) tail.push(interpret);
   const dotHoverStyle = document.createElement('style');
-  dotHoverStyle.textContent = `#${wrapScopedId} .dashboard-line-chart-dot--active{r:6px}#${wrapScopedId} .dashboard-line-chart-dot--peak.dashboard-line-chart-dot--active{r:7.25px}`;
+  dotHoverStyle.textContent = `#${wrapScopedId} .dashboard-line-chart-dot--active{r:6px}`;
   wrap.prepend(dotHoverStyle);
-  if (isIncPremium && incidentNarrative) {
-    const metaHead = document.createElement('div');
-    metaHead.className = 'dashboard-incidents-chart-meta';
-    const badge = document.createElement('span');
-    badge.className = `dashboard-incidents-badge ${incidentNarrative.badgeCls}`;
-    badge.textContent = incidentNarrative.badgeLabel;
-    const sub = document.createElement('span');
-    sub.className = 'dashboard-incidents-chart-meta__sub';
-    sub.textContent =
-      incidentNarrative.total === 0
-        ? 'Aucun incident sur la fenêtre'
-        : `${incidentNarrative.total} cumulés · pic ${incidentNarrative.peakVal} (${incidentNarrative.peakLabel})`;
-    metaHead.append(badge, sub);
-    wrap.append(metaHead);
-  }
   wrap.append(...tail);
-  bindDashboardLineChartHover(wrap, svg, tip, pts, safe, { ...options, incidentNarrative }, { w, h });
-  if (isIncPremium) {
-    requestAnimationFrame(() => animateDashboardLineStroke(linePath));
-  }
+  bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, { w, h });
   return wrap;
 }
 
