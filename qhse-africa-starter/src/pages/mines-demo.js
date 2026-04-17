@@ -1,6 +1,4 @@
-import { isDemoMode, setDemoMode } from '../services/demoMode.service.js';
 import {
-  DEMO_SITE_ID,
   DEMO_SITE_LABEL,
   DEMO_MINE_ZONES,
   demoIncidentsBase,
@@ -11,7 +9,6 @@ import {
   demoAudits,
   demoNonConformities
 } from '../data/demoModeFixtures.js';
-import { appState, setActiveSiteContext } from '../utils/state.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 const MINES_DEMO_STYLE_ID = 'qhse-mines-demo-styles';
@@ -83,10 +80,6 @@ function renderItems(host, rows, mapFn, emptyLabel) {
 }
 
 export function renderMinesDemo() {
-  if (!isDemoMode()) setDemoMode(true);
-  if (appState.activeSiteId !== DEMO_SITE_ID || appState.currentSite !== DEMO_SITE_LABEL) {
-    setActiveSiteContext(DEMO_SITE_ID, DEMO_SITE_LABEL);
-  }
   ensureMinesDemoStyles();
 
   const page = document.createElement('section');

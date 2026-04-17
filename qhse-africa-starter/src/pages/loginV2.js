@@ -3,7 +3,9 @@ import { setAuthSession } from '../data/sessionUser.js';
 import { persistTokensFromLoginResponse } from '../utils/auth.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
-import { setCurrentPage } from '../utils/state.js';
+import { setCurrentPage, setActiveSiteContext } from '../utils/state.js';
+import { setDemoMode } from '../services/demoMode.service.js';
+import { DEMO_SITE_ID, DEMO_SITE_LABEL } from '../data/demoModeFixtures.js';
 
 const LOGIN_V2_STYLE_ID = 'qhse-loginv2-styles';
 
@@ -807,6 +809,8 @@ export function createLoginView({ onSuccess, onNavigate }) {
   });
 
   skipBtn?.addEventListener('click', () => {
+    setDemoMode(true);
+    setActiveSiteContext(DEMO_SITE_ID, DEMO_SITE_LABEL);
     setCurrentPage('mines-demo');
     window.location.hash = 'mines-demo';
     onSuccess();
