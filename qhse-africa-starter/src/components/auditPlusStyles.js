@@ -418,7 +418,6 @@ const CSS = `
 .content-card-head--tight h3{margin:0 0 4px}
 .content-card-head--tight .content-card-lead{font-size:12px;margin:0;max-width:52ch;line-height:1.45}
 
-.audit-cockpit-page.page-stack.audit-premium-page{gap:20px}
 .audit-premium-header{
   padding:14px 16px 16px;margin-bottom:0;
   border-radius:16px;border:1px solid rgba(125,211,252,.2);

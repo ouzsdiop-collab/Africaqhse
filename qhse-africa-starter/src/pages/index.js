@@ -129,7 +129,7 @@ async function importAndRenderPage(pageId, onAddLog) {
 
 /**
  * @param {{ currentPage: string; onAddLog: (entry: unknown) => void }} opts
- * @returns {HTMLElement} conteneur `.page-stack` avec slot async (compatible `attachPageIntro`).
+ * @returns {HTMLElement} conteneur `.qhse-page-host` + `.qhse-page-slot` (page `.page-stack` à l’intérieur).
  */
 export function createPageRenderer({ currentPage, onAddLog }) {
   if (currentPage === 'login') {
@@ -137,7 +137,7 @@ export function createPageRenderer({ currentPage, onAddLog }) {
   }
 
   const host = document.createElement('div');
-  host.className = 'page-stack qhse-page-host';
+  host.className = 'qhse-page-host';
   const slot = document.createElement('div');
   slot.className = 'qhse-page-slot';
   host.append(slot);

@@ -4,13 +4,6 @@
  * Aucun module retiré — ajustements transverses légers (desktop d’abord).
  */
 
-/* ISO hub : respiration entre blocs majeurs sur grand écran */
-@media (min-width: 900px) {
-  [data-theme='dark'] .iso-page.page-stack {
-    gap: clamp(1.25rem, 2.2vw, 1.75rem);
-  }
-}
-
 /* En-têtes de section dashboard : barre verticale = repère, pas élément décoratif dominant */
 [data-theme='dark'] .dashboard-section-head {
   padding-bottom: 10px;

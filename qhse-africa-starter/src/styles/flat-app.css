@@ -593,6 +593,34 @@ p,
   --page-content-max: 1460px;
 }
 
+/* Hôte de route : aucun padding/gap — le rythme est porté par le .page-stack interne (évite double marge). */
+.qhse-page-host {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.qhse-page-host > .page-intro {
+  flex-shrink: 0;
+  width: min(100%, var(--page-content-max, 1460px));
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.qhse-page-host > .qhse-page-slot {
+  flex: 1 1 auto;
+  min-height: 120px;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .page-stack > * {
   width: min(100%, var(--page-content-max));
   margin-inline: auto;
@@ -621,7 +649,19 @@ p,
 /* Cohérence inter-pages (Dashboard / Incidents / Audits / Performance) */
 .page-stack.dashboard-page,
 .page-stack.kpi-performance-page,
-.page-stack.audit-plus-page {
+.page-stack.audit-plus-page,
+.page-stack.imports-page,
+.page-stack.sites-page,
+.page-stack.ptw-page,
+.page-stack.iso-page,
+.page-stack.settings-page,
+.page-stack.audit-products-page,
+.page-stack.habilitations-page,
+.page-stack.analytics-cockpit-page,
+.page-stack.risks-page,
+.page-stack.activity-log-page,
+.page-stack.ai-center-page,
+.page-stack.terrain-mode-page {
   --page-stack-gap: clamp(20px, 2.4vw, 32px);
 }
 
@@ -1775,7 +1815,7 @@ p,
     box-sizing: border-box;
   }
 
-  [data-display-mode='expert'] .main-shell > .page-stack.qhse-page-host {
+  [data-display-mode='expert'] .main-shell > .qhse-page-host {
     flex: 1;
     min-height: 0;
     overflow-x: hidden;

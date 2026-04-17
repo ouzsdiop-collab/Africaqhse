@@ -283,7 +283,7 @@ function attachPageIntro(pageRoot, currentPage) {
   ) {
     return;
   }
-  if (!pageRoot?.classList?.contains('page-stack')) return;
+  if (!pageRoot?.classList?.contains('qhse-page-host')) return;
   if (pageRoot.querySelector('.page-intro')) return;
   const meta = pageTopbarById[currentPage];
   if (!meta?.title) return;
@@ -560,7 +560,7 @@ function createPageRenderer(opts) {
   }
 
   const host = document.createElement('div');
-  host.className = 'page-stack qhse-page-host';
+  host.className = 'qhse-page-host';
   const slot = document.createElement('div');
   slot.className = 'qhse-page-slot';
   host.append(slot);

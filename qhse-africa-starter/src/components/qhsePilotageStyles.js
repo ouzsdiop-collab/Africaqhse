@@ -1,8 +1,8 @@
 const STYLE_ID = 'qhse-pilotage-module-styles';
 
 const CSS = `
-/* —— Page Risques : structure & blocs —— */
-.risks-page{display:flex;flex-direction:column;gap:1.5rem}
+/* —— Page Risques : structure & blocs (rythme vertical : .page-stack + --page-stack-gap) —— */
+.risks-page{min-width:0}
 .risks-page__kpi{
   padding:16px 18px;
   border-radius:16px;

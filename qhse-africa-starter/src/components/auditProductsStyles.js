@@ -177,7 +177,6 @@ const CSS = `
 .products-ia-preview-sub{margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
 .products-ia-preview-list{margin:0;padding-left:1.1rem;font-size:12px;line-height:1.45;color:var(--text2)}
 .products-ia-preview-empty{list-style:none;margin-left:-1.1rem;color:var(--text3)}
-.audit-products-page{display:flex;flex-direction:column;gap:20px;padding-bottom:1.5rem}
 .products-page--premium{width:100%;max-width:min(1120px,100%);margin-inline:auto;box-sizing:border-box}
 .products-detail-head-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:flex-end}
 .products-detail-summary{

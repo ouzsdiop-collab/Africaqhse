@@ -1887,10 +1887,6 @@ body {
 }
 
 /* Chargement lazy des routes (pages/index.js) */
-.qhse-page-host .qhse-page-slot {
-  min-height: 120px;
-}
-
 .qhse-route-loading {
   margin: 0;
   padding: 1.25rem 1.35rem;

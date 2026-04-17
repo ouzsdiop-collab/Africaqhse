@@ -4,8 +4,8 @@ Document de synthèse (front + back démo). Prioriser selon votre produit cible 
 
 ## Avancement récent (version poussée)
 
-Les points suivants ont été traités dans le dépôt : alignement **`permissionsUi` ↔ `permissions.js`** (risques, conformité, documents contrôlés, suggestions IA) ; **validation Zod** sur `POST /api/auth/login` (422 + `code`) ; **erreurs API** homogènes (`code`, `requestId`) ; **Sentry** avec filtrage mots de passe dans le corps de requête ; **module `reconcileDashboardStats`** extrait + tests Vitest ; message **périmètre vide** sur les KPI dashboard ; **ESLint** (`eslint.config.mjs`) + script `npm run lint` ; **E2E** étendus (readiness, page Risques).  
-Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, réduction des chunks Vite, et règles métier notifications / habilitations branchées Prisma.
+Les points suivants ont été traités dans le dépôt : alignement **`permissionsUi` ↔ `permissions.js`** (risques, conformité, documents contrôlés, suggestions IA) ; **validation Zod** sur `POST /api/auth/login` (422 + `code`) ; **erreurs API** homogènes (`code`, `requestId`) ; **Sentry** avec filtrage mots de passe dans le corps de requête ; **module `reconcileDashboardStats`** extrait + tests Vitest ; message **périmètre vide** sur les KPI dashboard ; **ESLint** (`eslint.config.mjs`) + script `npm run lint` ; **`npm audit` assaini** (upgrade `jspdf@^4.2.1` + correctif Vite) ; **E2E** étendus (readiness, page Risques, navigation Audits, login + hash `#settings`, bascule Essentiel/Expert).
+Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, réduction des chunks front, et règles métier notifications / habilitations branchées Prisma.
 
 ---
 
@@ -38,10 +38,10 @@ Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, r
 ## 5. Tests & qualité
 
 - **Vitest** : étendre les tests sur `reconcileDashboardStatsWithLists`, normalisation payload dashboard, `siteFilter`.
-- **Playwright** : parcours critiques (login démo, dashboard, toggle terrain, création incident).
+- **Playwright** : parcours critiques en place (login démo, dashboard, toggle terrain/expert, création incident, hash navigation). Étendre ensuite aux chemins métiers longs (clôture incident, exports multi-modules, rôles non-admin).
 - **Lint / format** : ESLint + Prettier sur tout le monorepo si pas déjà homogène.
 
-## 6. Sécurité (hors démo)
+## 6. Sécurité (hors démo, hors dépendances déjà corrigées)
 
 - Auth réelle (JWT refresh, CSRF si cookies), rate limiting, validation uploads (photos incidents), sanitization HTML côté serveur si rich text.
 - Sentry : filtrer PII, variables d’environnement pour DSN.
@@ -63,7 +63,7 @@ Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, r
 ## Prochaines actions recommandées (court terme)
 
 1. Vérifier en base que les enregistrements critiques ont `siteId` renseigné lorsque l’utilisateur filtre par site.
-2. Ajouter 2–3 tests unitaires sur la réconciliation dashboard.
+2. Étendre Zod + contrats d’erreur sur les routes API restantes (incidents, risques, actions, audits).
 3. Passer une revue visuelle module par module avec la même `page-stack` / cartes (checklist design).
 
 ---

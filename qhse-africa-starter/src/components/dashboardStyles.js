@@ -1921,7 +1921,6 @@ const CSS = `
 
 /* —— Analytics / Synthèse cockpit —— */
 .page-stack.analytics-cockpit-page {
-  gap: 1.15rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;

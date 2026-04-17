@@ -3,9 +3,12 @@
  * Complète sidebarV2 / topbarV2 (styles injectés) sans renommer les classes existantes.
  */
 
-/* —— Rythme vertical « SaaS » : pages rendues dans .qhse-page-slot —— */
+/* —— Rythme vertical : gap porté par .page-stack (token --page-stack-gap) —— */
 .main-shell .qhse-page-slot > .page-stack {
-  row-gap: var(--page-stack-row-gap, clamp(22px, 2.7vw, 38px));
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .main-shell .qhse-page-slot .page-stack > .content-card + .content-card,
@@ -23,7 +26,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(-0.5 * var(--page-stack-row-gap, clamp(22px, 2.7vw, 38px)) - 1px);
+  top: calc(-0.5 * var(--page-stack-gap, clamp(22px, 2.6vw, 36px)) - 1px);
   height: 1px;
   background: linear-gradient(
     90deg,

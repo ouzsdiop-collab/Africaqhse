@@ -1,7 +1,7 @@
 const STYLE_ID = 'qhse-settings-page-styles';
 
 const CSS = `
-.settings-page{gap:1.5rem;display:flex;flex-direction:column;min-width:0}
+.settings-page{min-width:0}
 .settings-page .settings-hero.content-card{
   border-radius:18px;border:1px solid var(--color-border-tertiary);
   background:var(--surface-2);box-shadow:var(--shadow-md);
@@ -145,12 +145,11 @@ const CSS = `
 .settings-human-row span{font-size:12px;font-weight:700;color:var(--color-success-text);letter-spacing:.02em}
 .settings-actions-bar{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 /* —— HQ / premium layer (additive — classes existantes inchangées) —— */
-.settings-page--hq{gap:0}
 .settings-page--hq > .settings-hero.content-card{
-  margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--color-border-tertiary);
+  margin-bottom:0;padding-bottom:20px;border-bottom:1px solid var(--color-border-tertiary);
 }
 .settings-page--hq > .settings-section:not(:last-child){
-  margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--color-border-tertiary);
+  margin-bottom:0;
 }
 .settings-page--hq .settings-section{
   padding:22px 24px 24px;border-radius:18px;

@@ -13,9 +13,9 @@
   --dash-accent: var(--palette-accent);
   --dash-surface-glow: color-mix(in srgb, var(--color-primary) 16%, transparent);
   gap: var(--dash-gap-section);
-  padding-top: 0.35rem;
-  padding-bottom: 2.5rem;
-  max-width: 1440px;
+  padding-top: var(--page-stack-pad-top, 20px);
+  padding-bottom: var(--page-stack-pad-bottom, 32px);
+  max-width: min(100%, var(--page-content-max, 1460px));
   margin-inline: auto;
 }
 

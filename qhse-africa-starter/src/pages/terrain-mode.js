@@ -9,13 +9,13 @@ import { appState } from '../utils/state.js';
  */
 export async function renderTerrainMode(container) {
   const root = container ?? document.createElement('div');
-  root.className = 'terrain-mode-page';
+  root.className = 'page-stack terrain-mode-page';
 
   root.innerHTML = `
     <div class="offline-banner" id="terrain-offline-banner">
       Hors connexion — vos donnees seront synchronisees a la reconnexion
       </div>
-    <div style="padding:16px;max-width:480px;margin:auto">
+    <div style="max-width:480px;margin-inline:auto;width:100%;box-sizing:border-box">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div>
           <h1 style="margin:0;font-size:20px;font-weight:700">Accueil Essentiel</h1>

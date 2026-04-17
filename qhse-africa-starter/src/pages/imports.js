@@ -176,7 +176,7 @@ export function renderImports() {
   let lastImportHistoryId = null;
 
   const page = document.createElement('section');
-  page.className = 'page-stack';
+  page.className = 'page-stack imports-page';
 
   const { bar: importsPageViewBar } = mountPageViewModeSwitch({
     pageId: 'imports',
@@ -189,7 +189,6 @@ export function renderImports() {
 
   const roadmap = document.createElement('article');
   roadmap.className = 'content-card card-soft qhse-page-advanced-only';
-  roadmap.style.marginBottom = '14px';
   roadmap.style.border = '1px solid rgba(125,211,252,.22)';
   roadmap.style.background = 'linear-gradient(135deg,rgba(56,189,248,.08),rgba(255,255,255,.02))';
   roadmap.innerHTML = `

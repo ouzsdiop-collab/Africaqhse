@@ -8,7 +8,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 
 export function renderSites() {
   const page = document.createElement('section');
-  page.className = 'page-stack';
+  page.className = 'page-stack sites-page';
 
   const su = getSessionUser();
   const canRead = canResource(su?.role, 'sites', 'read');
@@ -28,7 +28,7 @@ export function renderSites() {
       </div>
       <div class="sites-list-host stack" style="margin-top:12px"></div>
     </article>
-    <article class="content-card card-soft" style="margin-top:14px">
+    <article class="content-card card-soft">
       <div class="content-card-head">
         <div>
           <div class="section-kicker">Nouveau</div>

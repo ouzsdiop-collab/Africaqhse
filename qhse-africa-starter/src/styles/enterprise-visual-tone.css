@@ -64,9 +64,9 @@ html[data-theme='dark'] {
   box-shadow: none;
 }
 
-/* Rythme vertical zone contenu */
+/* Rythme vertical zone contenu (dark) — aligné sur --page-stack-gap */
 [data-theme='dark'] .main-shell .qhse-page-slot > .page-stack {
-  --page-stack-row-gap: clamp(26px, 2.85vw, 42px);
+  --page-stack-gap: clamp(26px, 2.85vw, 42px);
 }
 
 /* Cartes : pas de « lift » + pas de double liseré teal au survol */

@@ -4,7 +4,6 @@ const CSS = `
 /* —— Page : hiérarchie type SaaS premium —— */
 .habilitations-page{
   --hab-cockpit-rad:16px;
-  gap:clamp(16px,2vw,24px);
 }
 
 .hab-page-head{

@@ -1,7 +1,6 @@
 const STYLE_ID = 'qhse-ptw-styles';
 
 const CSS = `
-.ptw-page{gap:12px}
 .ptw-toolbar{display:flex;gap:10px;flex-wrap:wrap}
 .ptw-create-btn{min-height:46px;padding:0 18px}
 .ptw-net-badge{
