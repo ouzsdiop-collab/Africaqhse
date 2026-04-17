@@ -7,7 +7,8 @@ import {
   demoPtwBase,
   demoHabilitationsBase,
   demoAudits,
-  demoNonConformities
+  demoNonConformities,
+  demoUsers
 } from '../data/demoModeFixtures.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
@@ -22,7 +23,9 @@ function ensureMinesDemoStyles() {
 .mines-demo-page .mines-demo-zones{display:flex;flex-wrap:wrap;gap:8px}
 .mines-demo-page .mines-demo-zones .hab-pill{font-weight:700}
 .mines-demo-page .mines-demo-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.mines-demo-page .mines-demo-kpi{padding:12px;border-radius:12px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);cursor:pointer}
+.mines-demo-page .mines-demo-kpi{padding:12px;border-radius:12px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+.mines-demo-page .mines-demo-kpi:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.mines-demo-page .mines-demo-kpi:focus-visible{outline:2px solid var(--color-accent-primary);outline-offset:2px}
 .mines-demo-page .mines-demo-kpi__k{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
 .mines-demo-page .mines-demo-kpi__v{display:block;font-size:24px;font-weight:800;line-height:1.1;margin:4px 0}
 .mines-demo-page .mines-demo-kpi__d{display:block;font-size:12px;color:var(--text2)}
@@ -31,7 +34,10 @@ function ensureMinesDemoStyles() {
 .mines-demo-page .mines-demo-kpi--ok{border-color:rgba(16,185,129,.45)}
 .mines-demo-page .mines-demo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .mines-demo-page .mines-demo-list{display:grid;gap:8px}
-.mines-demo-page .mines-demo-item{padding:10px;border-radius:10px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary)}
+.mines-demo-page .mines-demo-item{padding:10px;border-radius:10px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);transition:border-color .12s ease,background .12s ease,transform .12s ease}
+.mines-demo-page .mines-demo-item--click{cursor:pointer}
+.mines-demo-page .mines-demo-item--click:hover{border-color:var(--color-accent-primary);background:var(--color-background-secondary);transform:translateY(-1px)}
+.mines-demo-page .mines-demo-item--click:focus-visible{outline:2px solid var(--color-accent-primary);outline-offset:2px}
 .mines-demo-page .mines-demo-item strong{display:block;font-size:13px}
 .mines-demo-page .mines-demo-item span{display:block;font-size:12px;color:var(--text2)}
 .mines-demo-page .mines-demo-tour{display:flex;flex-wrap:wrap;gap:8px}
@@ -55,6 +61,9 @@ function ensureMinesDemoStyles() {
 .mines-demo-page .mines-demo-roi div{padding:8px;border-radius:10px;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary)}
 .mines-demo-page .mines-demo-roi strong{display:block;font-size:16px;line-height:1.1}
 .mines-demo-page .mines-demo-roi span{display:block;font-size:11px;color:var(--text2);margin-top:2px}
+.mines-demo-page .mines-demo-presenter{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;border:1px dashed var(--color-border-tertiary);background:var(--color-background-primary);font-size:12px;color:var(--text2);line-height:1.4}
+.mines-demo-page .mines-demo-presenter strong{color:var(--text1);font-weight:700}
+.mines-demo-page .mines-demo-tip{margin:0;font-size:12px;color:var(--text2);line-height:1.45;padding:8px 0 0;border-top:1px solid var(--color-border-tertiary)}
 @media (max-width:1000px){.mines-demo-page .mines-demo-value{grid-template-columns:1fr}}
 @media (max-width:1000px){.mines-demo-page .mines-demo-sales{grid-template-columns:1fr}.mines-demo-page .mines-demo-roi{grid-template-columns:1fr}}
 @media (max-width:1000px){.mines-demo-page .mines-demo-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.mines-demo-page .mines-demo-grid{grid-template-columns:1fr}}
@@ -95,7 +104,21 @@ function renderItems(host, rows, mapFn, emptyLabel) {
     const box = document.createElement('div');
     box.className = 'mines-demo-item';
     const mapped = mapFn(r);
+    const pageId = mapped && typeof mapped.pageId === 'string' ? mapped.pageId : '';
     box.innerHTML = `<strong>${escapeHtml(mapped.title)}</strong><span>${escapeHtml(mapped.detail)}</span>`;
+    if (pageId) {
+      box.classList.add('mines-demo-item--click');
+      box.tabIndex = 0;
+      box.setAttribute('role', 'button');
+      const nav = () => go(pageId);
+      box.addEventListener('click', nav);
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          nav();
+        }
+      });
+    }
     host.append(box);
   });
 }
@@ -121,9 +144,16 @@ export function renderMinesDemo() {
     zones.append(chip);
   });
 
+  const qhseLead = demoUsers.find((u) => u.role === 'QHSE')?.name || 'Référent QHSE';
+  const terrainLead = demoUsers.find((u) => u.role === 'TERRAIN')?.name || 'Référent terrain';
+  const auditEnCours = demoAudits.find((a) => String(a?.status || '').toLowerCase().includes('cours')) || demoAudits[0];
+  const presenter = document.createElement('div');
+  presenter.className = 'mines-demo-presenter';
+  presenter.innerHTML = `<span><strong>Contexte présentateur</strong> — Astreinte HSE&nbsp;: ${escapeHtml(qhseLead)} · Référent terrain&nbsp;: ${escapeHtml(terrainLead)} · Dernier audit affiché&nbsp;: ${escapeHtml(auditEnCours?.ref || '—')} (${escapeHtml(auditEnCours?.status || '—')})</span>`;
+
   const kpis = document.createElement('div');
   kpis.className = 'mines-demo-kpis';
-  hero.append(zones, kpis);
+  hero.append(zones, presenter, kpis);
 
   const tour = card(
     'Storyboard commercial',
@@ -136,11 +166,11 @@ export function renderMinesDemo() {
     ['2. PTW', 'permits'],
     ['3. Habilitations', 'habilitations'],
     ['4. Incidents', 'incidents'],
-    ['4. Risques terrain', 'risks'],
-    ['5. Audits/inspections', 'audits'],
-    ['6. Actions correctives', 'actions'],
-    ['7. Synthèse direction', 'analytics'],
-    ['Sous-traitants & FDS', 'products']
+    ['5. Risques terrain', 'risks'],
+    ['6. Audits / inspections', 'audits'],
+    ['7. Actions correctives', 'actions'],
+    ['8. Synthèse direction', 'analytics'],
+    ['9. Sous-traitants & FDS', 'products']
   ].forEach(([label, id]) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -149,7 +179,11 @@ export function renderMinesDemo() {
     b.addEventListener('click', () => go(id));
     tourRow.append(b);
   });
-  tour.append(tourRow);
+  const tourTip = document.createElement('p');
+  tourTip.className = 'mines-demo-tip';
+  tourTip.textContent =
+    'Conseil : en 3 minutes, enchaînez PTW → habilitations → incidents, puis terminez par synthèse direction pour montrer la chaîne de valeur complète.';
+  tour.append(tourRow, tourTip);
 
   const value = card(
     'Pourquoi cette démo est vendable',
@@ -331,7 +365,8 @@ export function renderMinesDemo() {
     incidents.slice(0, 5),
     (r) => ({
       title: `${r.ref || 'INC'} · ${r.type || 'Événement'} · ${r.severity || 'N/A'}`,
-      detail: `${r.location || r.site || DEMO_SITE_LABEL} · ${r.status || 'Nouveau'}`
+      detail: `${r.location || r.site || DEMO_SITE_LABEL} · ${r.status || 'Nouveau'}`,
+      pageId: 'incidents'
     }),
     'Aucun incident à afficher.'
   );
@@ -340,7 +375,8 @@ export function renderMinesDemo() {
     risks.slice(0, 5),
     (r) => ({
       title: `${r.ref || 'RSK'} · ${r.title || 'Risque'}`,
-      detail: `${r.site || DEMO_SITE_LABEL} · GP ${r.gp || r.gravity || '?'} · ${r.owner || 'Owner à affecter'}`
+      detail: `${r.site || DEMO_SITE_LABEL} · GP ${r.gp || r.gravity || '?'} · ${r.owner || 'Owner à affecter'}`,
+      pageId: 'risks'
     }),
     'Aucun risque prioritaire.'
   );
@@ -349,21 +385,24 @@ export function renderMinesDemo() {
     ptw.slice(0, 5),
     (r) => ({
       title: `${r.ref || r.id || 'PTW'} · ${r.type || 'Permis'} · ${r.status || 'pending'}`,
-      detail: `${r.zone || 'Zone non définie'} · équipe ${r.team || 'N/A'}`
+      detail: `${r.zone || 'Zone non définie'} · équipe ${r.team || 'N/A'}`,
+      pageId: 'permits'
     }),
     'Aucun PTW actif.'
   );
   const auditMix = [
     ...audits.slice(0, 3).map((a) => ({
       title: `${a.ref || 'AUD'} · score ${a.score || 'N/A'}%`,
-      detail: `${a.site || DEMO_SITE_LABEL} · ${a.status || 'En cours'}`
+      detail: `${a.site || DEMO_SITE_LABEL} · ${a.status || 'En cours'}`,
+      pageId: 'audits'
     })),
     ...actions
       .filter((a) => String(a?.status || '').toLowerCase().includes('retard'))
       .slice(0, 2)
       .map((a) => ({
         title: `Action retard · ${a.title || 'Action'}`,
-        detail: `${a.owner || 'Responsable à affecter'} · échéance ${a.dueDate ? String(a.dueDate).slice(0, 10) : 'N/A'}`
+        detail: `${a.owner || 'Responsable à affecter'} · échéance ${a.dueDate ? String(a.dueDate).slice(0, 10) : 'N/A'}`,
+        pageId: 'actions'
       }))
   ];
   renderItems(auditHost, auditMix, (x) => x, 'Aucun élément audit/action.');
