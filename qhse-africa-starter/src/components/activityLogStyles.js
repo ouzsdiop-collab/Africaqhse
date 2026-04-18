@@ -10,7 +10,9 @@ const CSS = `
 .activity-log-cert-badge{
   font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
   padding:5px 10px;border-radius:999px;
-  border:1px solid rgba(45,212,191,.35);color:#99f6e4;background:rgba(13,148,136,.12);
+  border:1px solid var(--color-primary-border);
+  color:var(--color-primary-text);
+  background:var(--color-primary-bg);
 }
 .activity-log-cert-badge--subtle{opacity:.85;border-color:rgba(148,163,184,.25);color:var(--text2);background:rgba(0,0,0,.12)}
 .activity-log-cert-lead{margin:0;font-size:12px;font-weight:600;color:var(--text2);line-height:1.45;max-width:62ch}

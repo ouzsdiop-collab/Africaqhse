@@ -52,9 +52,9 @@
   text-transform: uppercase;
   padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(94, 234, 212, 0.35);
-  color: #99f6e4;
-  background: rgba(13, 148, 136, 0.15);
+  border: 1px solid var(--color-primary-border, rgba(94, 234, 212, 0.35));
+  color: var(--color-primary-text, #e2e8f0);
+  background: var(--color-primary-bg, rgba(13, 148, 136, 0.15));
 }
 
 .iso-copilot-conformite-premium__list {

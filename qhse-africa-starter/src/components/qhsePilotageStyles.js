@@ -462,7 +462,9 @@ const CSS = `
   border:1px solid rgba(248,113,113,.35);background:rgba(248,113,113,.12);color:#fecaca;
 }
 .action-detail-type-badge--preventive{
-  border:1px solid rgba(45,212,191,.4);background:rgba(45,212,191,.12);color:#99f6e4;
+  border:1px solid color-mix(in srgb,var(--palette-accent,#14b8a6) 34%,var(--color-border-tertiary));
+  background:color-mix(in srgb,var(--palette-accent,#14b8a6) 14%,var(--color-background-primary));
+  color:var(--color-text-primary);
 }
 .action-detail-type-badge--improvement{
   border:1px solid rgba(129,140,248,.4);background:rgba(129,140,248,.14);color:#c7d2fe;
@@ -529,10 +531,10 @@ const CSS = `
 .actions-filter-toolbar select{padding:8px 10px;font-size:12px;font-weight:600;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:var(--text);min-width:180px;max-width:100%}
 .actions-filter-toolbar .actions-filter-prevention-btn{font-size:12px;font-weight:700;padding:8px 14px;min-height:38px;align-self:flex-end}
 .actions-filter-prevention-btn--on{
-  border-color:rgba(45,212,191,.45)!important;
-  background:rgba(45,212,191,.12)!important;
-  color:#99f6e4!important;
-  box-shadow:0 0 0 1px rgba(45,212,191,.2);
+  border-color:color-mix(in srgb,var(--palette-accent,#14b8a6) 40%,var(--color-border-tertiary))!important;
+  background:color-mix(in srgb,var(--palette-accent,#14b8a6) 14%,var(--color-background-primary))!important;
+  color:var(--color-text-primary)!important;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--palette-accent,#14b8a6) 22%,transparent);
 }
 
 /* —— Plan d’actions premium : KPI, filtres compacts, Kanban aéré, cartes menu ⋯ —— */
@@ -681,7 +683,9 @@ const CSS = `
   border:1px solid rgba(248,113,113,.35);background:rgba(248,113,113,.12);color:#fecaca;
 }
 .action-card__type-badge--preventive{
-  border:1px solid rgba(45,212,191,.4);background:rgba(45,212,191,.12);color:#99f6e4;
+  border:1px solid color-mix(in srgb,var(--palette-accent,#14b8a6) 34%,var(--color-border-tertiary));
+  background:color-mix(in srgb,var(--palette-accent,#14b8a6) 14%,var(--color-background-primary));
+  color:var(--color-text-primary);
 }
 .action-card__type-badge--improvement{
   border:1px solid rgba(129,140,248,.4);background:rgba(129,140,248,.14);color:#c7d2fe;

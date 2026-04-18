@@ -132,7 +132,7 @@ export function ensureIncidentsSlideOverStyles() {
 .inc-ia-section__title { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text2, rgba(255,255,255,.55)); margin: 0 0 10px; }
 .inc-ia-row { padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); margin-bottom: 10px; background: rgba(255,255,255,.04); }
 .inc-ia-row__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
-.inc-ia-confidence { font-size: 12px; font-weight: 800; white-space: nowrap; color: var(--color-primary-text, #99f6e4); }
+.inc-ia-confidence { font-size: 12px; font-weight: 800; white-space: nowrap; color: var(--color-primary-text, #0f766e); }
 .inc-ia-cat { font-size: 11px; color: var(--text2, rgba(255,255,255,.5)); margin-top: 4px; }
 .inc-ia-actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 .inc-ia-provider { font-size: 11px; color: var(--text2, rgba(255,255,255,.45)); margin-bottom: 12px; }
