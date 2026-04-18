@@ -308,6 +308,33 @@ const kpiDashboardLists = { incidents: [], actions: [], audits: [], ncs: [], doc
 /** @type {{ open: (k: string) => void; element: HTMLDialogElement } | null} */
 let kpiDetailDrawerSingleton = null;
 
+/**
+ * Texte d’insight : échappement HTML + gras léger `**…**` + paragraphes sur doubles sauts de ligne.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+function formatDashboardInsightBody(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) {
+    return '<p class="dashboard-ai-insight__para dashboard-ai-insight__para--muted">—</p>';
+  }
+  const formatInline = (block) => {
+    const parts = block.split('**');
+    return parts
+      .map((part, i) => {
+        const escaped = escapeHtml(part);
+        return i % 2 === 1 ? `<strong class="dashboard-ai-insight__strong">${escaped}</strong>` : escaped;
+      })
+      .join('');
+  };
+  return text
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((block) => `<p class="dashboard-ai-insight__para">${formatInline(block)}</p>`)
+    .join('');
+}
+
 async function loadDashboardInsight(stats) {
   const zone = document.getElementById('dashboard-ai-insight');
   if (!zone) return;
@@ -324,8 +351,14 @@ async function loadDashboardInsight(stats) {
         <div class="dashboard-ai-insight__shell">
           <div class="dashboard-ai-insight__rail" aria-hidden="true"></div>
           <div class="dashboard-ai-insight__content">
-            <p class="section-kicker dashboard-ai-insight__kicker">Analyse IA de la semaine</p>
-            <div class="dashboard-ai-insight__body">${escapeHtml(String(insight ?? ''))}</div>
+            <header class="dashboard-ai-insight__head">
+              <div class="dashboard-ai-insight__head-text">
+                <p class="section-kicker dashboard-ai-insight__kicker">Analyse IA de la semaine</p>
+                <p class="dashboard-ai-insight__lede">Synthèse à partir des indicateurs et événements récents.</p>
+              </div>
+              <span class="dashboard-ai-insight__chip">Hebdo</span>
+            </header>
+            <div class="dashboard-ai-insight__body" role="region" aria-label="Texte de synthèse">${formatDashboardInsightBody(insight)}</div>
           </div>
         </div>
       </article>`;

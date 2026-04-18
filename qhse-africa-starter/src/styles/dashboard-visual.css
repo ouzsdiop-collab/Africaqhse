@@ -929,6 +929,19 @@ button.dashboard-kpi-card.metric-card {
   min-width: 0;
 }
 
+/* Analyse IA : alignée sur la largeur utile du dashboard */
+.dashboard-page.page-stack .dashboard-ai-insight {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-self: stretch;
+}
+
+/* Rail bord à bord : annule le padding générique des .content-card */
+.dashboard-page.page-stack .dashboard-ai-insight__card.content-card {
+  padding: 0;
+}
+
 .dashboard-kpi-grid--executive {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }

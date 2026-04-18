@@ -31,25 +31,27 @@ export function createDashboardPilotageAssistant(opts = {}) {
           <span class="dashboard-pilotage-assistant__score-sub">Risques · actions · documents · audits (vue affichée)</span>
         </div>
       </div>
-      <div class="dashboard-pilotage-assistant__synthesis">
-        <h4 class="dashboard-pilotage-assistant__h">Synthèse</h4>
-        <p class="dashboard-pilotage-assistant__synthesis-text">Chargement…</p>
-      </div>
-      <div class="dashboard-pilotage-assistant__ia">
-        <h4 class="dashboard-pilotage-assistant__h">Avis IA — pilotage</h4>
-        <p class="dashboard-pilotage-assistant__ia-loading" hidden>Analyse IA en cours…</p>
-        <p class="dashboard-pilotage-assistant__ia-text" hidden></p>
-        <ul class="dashboard-pilotage-assistant__ia-actions" hidden></ul>
-      </div>
-      <div class="dashboard-pilotage-assistant__recs">
-        <h4 class="dashboard-pilotage-assistant__h">Recommandations intelligentes</h4>
-        <ul class="dashboard-pilotage-assistant__rec-list"></ul>
-      </div>
-      <div class="dashboard-pilotage-assistant__anomalies" hidden>
-        <h4 class="dashboard-pilotage-assistant__h">Détection d’anomalies</h4>
-        <div class="dashboard-pilotage-assistant__anomaly-panel">
-          <ul class="dashboard-pilotage-assistant__anomaly-list"></ul>
-        </div>
+      <div class="dashboard-pilotage-assistant__panels">
+        <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__synthesis" aria-label="Synthèse pilotage">
+          <h4 class="dashboard-pilotage-assistant__h">Synthèse</h4>
+          <p class="dashboard-pilotage-assistant__synthesis-text">Chargement…</p>
+        </section>
+        <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__ia" aria-label="Avis IA pilotage">
+          <h4 class="dashboard-pilotage-assistant__h">Avis IA — pilotage</h4>
+          <p class="dashboard-pilotage-assistant__ia-loading" hidden>Analyse IA en cours…</p>
+          <p class="dashboard-pilotage-assistant__ia-text" hidden></p>
+          <ul class="dashboard-pilotage-assistant__ia-actions" hidden></ul>
+        </section>
+        <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__recs" aria-label="Recommandations">
+          <h4 class="dashboard-pilotage-assistant__h">Recommandations intelligentes</h4>
+          <ul class="dashboard-pilotage-assistant__rec-list"></ul>
+        </section>
+        <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__anomalies" hidden aria-label="Anomalies">
+          <h4 class="dashboard-pilotage-assistant__h">Détection d’anomalies</h4>
+          <div class="dashboard-pilotage-assistant__anomaly-panel">
+            <ul class="dashboard-pilotage-assistant__anomaly-list"></ul>
+          </div>
+        </section>
       </div>
     </article>
   `;

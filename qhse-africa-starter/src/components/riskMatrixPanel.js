@@ -465,7 +465,11 @@ export function createRiskMatrixPanel(opts = {}) {
           chip.classList.add('risk-matrix-hotspot-chip--active');
         }
         chip.innerHTML = `<span class="risk-matrix-hotspot-chip__gp">G${g}×P${p}</span><span class="risk-matrix-hotspot-chip__mid"><strong>${escapeHtml(String(n))}</strong> fiche${n > 1 ? 's' : ''}</span><span class="risk-matrix-hotspot-chip__score">score ${escapeHtml(String(product))}</span>`;
-        chip.title = `${riskLevelLabelFromTier(tier)} — ${titles.slice(0, 3).join(' · ')}${titles.length > 3 ? '…' : ''}`;
+        const preview = titles.slice(0, 3).join(' · ') + (titles.length > 3 ? '…' : '');
+        chip.setAttribute(
+          'aria-label',
+          `${riskLevelLabelFromTier(tier)}, G${g} par P${p}, ${n} fiche${n > 1 ? 's' : ''}. ${preview}. Appui pour filtrer la matrice.`
+        );
         chip.addEventListener('click', () => selectCellFilter(g, p));
         hotspots.append(chip);
       });
@@ -517,7 +521,7 @@ export function createRiskMatrixPanel(opts = {}) {
               const tierDot = c?.tier ?? 1;
               const d = document.createElement('span');
               d.className = `risk-matrix-cell__dot risk-matrix-cell__dot--t${tierDot}`;
-              d.title = String(risk.title || 'Risque');
+              d.setAttribute('aria-hidden', 'true');
               dotWrap.append(d);
             });
             if (n > 6) {
@@ -536,10 +540,10 @@ export function createRiskMatrixPanel(opts = {}) {
           btn.append(trendEl);
         }
         btn.setAttribute(
-          'title',
+          'aria-label',
           n === 0
-            ? `Case G${g}×P${p} — score ${prod} (${lvl}) — vide`
-            : `G${g}×P${p} — score ${prod} (${lvl}) — ${n} fiche(s). Clic : filtre registre et actions · second clic : tout afficher.`
+            ? `Gravité ${g}, probabilité ${p}, score ${prod}, ${lvl}, case sans fiche`
+            : `Gravité ${g}, probabilité ${p}, score ${prod}, ${lvl}, ${n} fiche${n > 1 ? 's' : ''}. Appui : filtrer le registre et les actions liées ; second appui sur la même case : tout afficher.`
         );
       }
     }

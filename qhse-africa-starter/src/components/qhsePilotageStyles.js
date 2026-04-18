@@ -1430,34 +1430,44 @@ const CSS = `
 .risk-matrix-cell-tooltip{
   position:absolute;
   z-index:50;
-  min-width:210px;
-  max-width:280px;
-  padding:12px 14px;
+  min-width:220px;
+  max-width:292px;
+  padding:14px 16px;
   border-radius:14px;
-  border:1px solid rgba(125,211,252,.22);
-  background:linear-gradient(165deg,rgba(15,23,42,.98),rgba(30,41,59,.96));
-  box-shadow:0 24px 56px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.07);
+  border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  color:var(--color-text-primary);
+  box-shadow:
+    0 1px 0 color-mix(in srgb,var(--color-text-primary) 4%,transparent) inset,
+    0 20px 50px rgba(15,23,42,.14),
+    0 0 0 1px color-mix(in srgb,var(--color-text-primary) 5%,transparent);
   pointer-events:auto;
   animation:risk-matrix-tooltip-in .24s ease;
+}
+[data-theme='dark'] .risk-matrix-cell-tooltip{
+  box-shadow:
+    0 1px 0 color-mix(in srgb,#fff 8%,transparent) inset,
+    0 24px 56px rgba(0,0,0,.55),
+    0 0 0 1px color-mix(in srgb,#fff 10%,transparent);
 }
 @keyframes risk-matrix-tooltip-in{
   from{opacity:0;transform:translateY(8px) scale(.98)}
   to{opacity:1;transform:translateY(0) scale(1)}
 }
-.risk-matrix-cell-tooltip__title{display:block;font-size:14px;font-weight:800;margin-bottom:4px;color:var(--text)}
-.risk-matrix-cell-tooltip__meta{display:block;font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.4}
+.risk-matrix-cell-tooltip__title{display:block;font-size:14px;font-weight:800;margin-bottom:6px;color:var(--color-text-primary);letter-spacing:-.02em}
+.risk-matrix-cell-tooltip__meta{display:block;font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.45}
 .risk-matrix-cell-tooltip__preview-kicker{
-  display:block;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:6px 0 4px;
+  display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-secondary);margin:8px 0 5px;
 }
 .risk-matrix-cell-tooltip__count{
-  display:block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#93c5fd;margin-bottom:6px;
+  display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-info,var(--color-primary-text));margin-bottom:6px;
 }
-.risk-matrix-cell-tooltip__list{margin:0;padding-left:1.1em;font-size:11px;line-height:1.45;color:var(--text2);max-height:128px;overflow:auto}
+.risk-matrix-cell-tooltip__list{margin:0;padding-left:1.15em;font-size:12px;line-height:1.55;color:var(--color-text-secondary);max-height:132px;overflow:auto}
 .risk-matrix-cell-tooltip__hint{
-  display:block;margin-top:10px;font-size:10px;line-height:1.4;color:var(--text3);
-  border-top:1px solid rgba(255,255,255,.08);padding-top:8px;
+  display:block;margin-top:12px;font-size:11px;line-height:1.45;color:var(--color-text-tertiary);
+  border-top:1px solid var(--color-border-tertiary);padding-top:10px;
 }
-.risk-matrix-cell-tooltip__empty{font-size:11px;color:var(--text3);line-height:1.45}
+.risk-matrix-cell-tooltip__empty{font-size:12px;color:var(--color-text-secondary);line-height:1.55}
 
 /* —— Risques : hub QHSE premium (KPI, matrice héro, analyse, détail fiche) —— */
 .risks-pilot-banner--qhse-hub .risks-pilot-banner__head{margin-bottom:14px}
@@ -1693,7 +1703,7 @@ const CSS = `
 .risk-register-table-row__gxp-abbr{cursor:help;text-decoration:dotted underline rgba(148,163,184,.45);text-underline-offset:2px}
 .risks-form-confirm-row{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--text2);margin-top:10px;line-height:1.45}
 .risks-form-confirm-row input{margin-top:3px;accent-color:#2dd4bf}
-.risk-matrix-cell-tooltip__list li.risk-matrix-cell-tooltip__preview{font-weight:800;color:var(--text)}
+.risk-matrix-cell-tooltip__list li.risk-matrix-cell-tooltip__preview{font-weight:800;color:var(--color-text-primary)}
 
 @media (prefers-reduced-motion:reduce){
   .risk-matrix-cell--premium{animation:none}

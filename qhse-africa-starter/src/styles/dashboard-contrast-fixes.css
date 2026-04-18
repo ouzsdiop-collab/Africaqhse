@@ -380,6 +380,41 @@ html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__card {
   box-shadow: var(--dash-shadow) !important;
 }
 
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__head {
+  border-bottom-color: color-mix(in srgb, var(--dash-border, var(--color-border-tertiary)) 78%, transparent) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__panel {
+  background: var(--dash-surface, var(--surface-1)) !important;
+  border-color: var(--dash-border-strong, var(--dash-border)) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.98) inset,
+    0 12px 32px rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__h {
+  color: color-mix(in srgb, var(--palette-accent) 42%, var(--color-text-secondary)) !important;
+  border-bottom-color: color-mix(in srgb, var(--dash-border) 70%, transparent) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__ia-text {
+  color: var(--color-text-primary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__ia-loading {
+  color: var(--color-text-secondary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__ia-action {
+  background: color-mix(in srgb, var(--palette-accent) 5%, var(--dash-surface, var(--surface-1))) !important;
+  border-color: var(--dash-border) !important;
+  border-left-color: color-mix(in srgb, var(--palette-accent) 58%, var(--dash-border)) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__ia-action strong {
+  color: var(--color-text-primary) !important;
+}
+
 html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-block {
   background: var(--dash-surface-muted) !important;
   border-color: var(--dash-border) !important;
@@ -433,8 +468,7 @@ html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly-
   color: #b45309 !important;
 }
 html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-lbl,
-html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-sub,
-html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__h {
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-sub {
   color: var(--color-text-secondary) !important;
 }
 html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-detail {
@@ -479,6 +513,24 @@ html[data-theme='light'] .dashboard-page .dashboard-ai-insight__card {
 
 html[data-theme='light'] .dashboard-page .dashboard-ai-insight__body {
   color: var(--color-text-primary) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__lede {
+  color: color-mix(in srgb, var(--color-text-secondary) 88%, var(--palette-accent) 12%) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__chip {
+  background: color-mix(in srgb, var(--palette-accent) 10%, var(--dash-surface-muted, var(--dash-surface))) !important;
+  border-color: var(--dash-accent-border) !important;
+  color: color-mix(in srgb, var(--palette-accent) 55%, var(--color-text-primary)) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__strong {
+  color: color-mix(in srgb, var(--color-text-primary) 62%, var(--palette-accent) 38%) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__head {
+  border-bottom-color: color-mix(in srgb, var(--dash-border, var(--color-border-tertiary)) 75%, transparent) !important;
 }
 
 @media (hover: hover) {
