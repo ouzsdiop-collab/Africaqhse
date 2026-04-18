@@ -913,10 +913,20 @@ button.dashboard-kpi-card.metric-card {
 
 .dashboard-section--primary-chart {
   margin-top: 0.15rem;
+  width: 100%;
+  min-width: 0;
 }
 
+/* Tendance incidents : même largeur utile que le reste du dashboard (pas de cap 960px). */
 .dashboard-section--primary-chart .dashboard-chart-card {
-  max-width: min(100%, 960px);
+  max-width: 100%;
+  width: 100%;
+  align-self: stretch;
+}
+
+.dashboard-section--primary-chart .dashboard-chart-body {
+  width: 100%;
+  min-width: 0;
 }
 
 .dashboard-kpi-grid--executive {
