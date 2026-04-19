@@ -127,7 +127,7 @@ export function renderMinesDemo() {
   ensureMinesDemoStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack mines-demo-page';
+  page.className = 'page-stack page-stack--premium-saas mines-demo-page';
 
   const hero = card(
     `Parcours minier 3 à 5 minutes — ${DEMO_SITE_LABEL}`,

@@ -5,10 +5,11 @@ import { showToast } from '../components/toast.js';
 import { getApiBase } from '../config.js';
 import { invalidateSitesCatalog } from '../services/sitesCatalog.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 export function renderSites() {
   const page = document.createElement('section');
-  page.className = 'page-stack sites-page';
+  page.className = 'page-stack page-stack--premium-saas sites-page';
 
   const su = getSessionUser();
   const canRead = canResource(su?.role, 'sites', 'read');
@@ -80,8 +81,29 @@ export function renderSites() {
       }
       const rows = await res.json();
       if (!Array.isArray(rows) || rows.length === 0) {
-        listHost.innerHTML =
-          '<p style="margin:0;font-size:13px;color:var(--text2)">Aucun site — créez le premier ci-dessous.</p>';
+        listHost.replaceChildren();
+        if (canWrite) {
+          listHost.append(
+            createEmptyState(
+              '\u{1F3E2}',
+              'Aucun site enregistré',
+              'Le référentiel sert au filtrage des modules et aux API. Créez le premier site ci-dessous.',
+              'Renseigner le nom',
+              () => {
+                nameIn?.focus();
+                nameIn?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            )
+          );
+        } else {
+          listHost.append(
+            createEmptyState(
+              '\u{1F3E2}',
+              'Aucun site enregistré',
+              'Connectez-vous avec un rôle autorisé à la création pour ajouter des sites.'
+            )
+          );
+        }
         return;
       }
       listHost.replaceChildren();

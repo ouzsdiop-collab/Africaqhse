@@ -276,7 +276,7 @@ export function renderSettings() {
     String(sessionUserEarly?.role || '').toUpperCase() === 'ADMIN';
 
   const page = document.createElement('section');
-  page.className = 'page-stack settings-page settings-page--hq';
+  page.className = 'page-stack page-stack--premium-saas settings-page settings-page--hq';
 
   const hero = document.createElement('article');
   hero.className = 'content-card card-soft settings-hero';

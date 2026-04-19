@@ -544,7 +544,7 @@ export function renderPerformance() {
   }
 
   const page = document.createElement('section');
-  page.className = 'page-stack kpi-performance-page';
+  page.className = 'page-stack page-stack--premium-saas kpi-performance-page';
   page.append(kpiDrawer.element);
 
   const header = document.createElement('header');

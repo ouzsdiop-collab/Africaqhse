@@ -1,0 +1,88 @@
+/**
+ * Alignement SaaS premium — espacement vertical cohérent pour les pages métier
+ * (ISO & Conformité, Audits, Risques, Actions).
+ * À combiner avec la classe utilitaire `.page-stack--premium-saas` sur le conteneur `.page-stack`.
+ */
+
+.page-stack--premium-saas {
+  --page-stack-gap: clamp(24px, 2.65vw, 40px);
+}
+
+html[data-theme='light'] .main-shell .page-stack--premium-saas {
+  --page-stack-gap: clamp(22px, 2.5vw, 38px);
+}
+
+/* États vides : carte douce lisible en clair comme en sombre */
+.page-stack--premium-saas .empty-state {
+  padding: clamp(2rem, 3.5vw, 2.75rem) clamp(1.25rem, 3vw, 2rem);
+  border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--color-border-secondary, #334155) 55%, transparent);
+  background: color-mix(in srgb, var(--color-background-secondary, var(--surface-2)) 96%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-text-primary) 4%, transparent) inset;
+}
+
+html[data-theme='light'] .page-stack--premium-saas .empty-state {
+  border-color: color-mix(in srgb, var(--color-primary, #14b8a6) 22%, var(--color-border-tertiary));
+  background: color-mix(in srgb, var(--color-background-secondary, #f8fafc) 100%, white);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme='dark'] .page-stack--premium-saas .empty-state {
+  border-color: color-mix(in srgb, var(--color-border-secondary) 65%, transparent);
+  background: color-mix(in srgb, var(--color-background-secondary) 88%, rgba(0, 0, 0, 0.15));
+}
+
+.page-stack--premium-saas .empty-state__icon {
+  opacity: 0.65;
+}
+
+/* Chargements : respiration sous les filtres (incidents, risques…) */
+.page-stack--premium-saas .incidents-skeleton-host,
+.page-stack--premium-saas .risks-register-skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 0 6px;
+  min-height: 120px;
+}
+
+/* Cartes racines : même ordre de padding que le dashboard (hors page dashboard déjà couverte) */
+.main-shell .page-stack--premium-saas:not(.dashboard-page) > .content-card,
+.main-shell .page-stack--premium-saas:not(.dashboard-page) > .card-soft {
+  padding: clamp(18px, 1.85vw, 22px) clamp(20px, 2.1vw, 24px);
+}
+
+/* Volets secondaires (Analytics, listes produits, historique IA) : état vide plus compact */
+.page-stack--premium-saas .empty-state.empty-state--analytics-inline,
+.page-stack--premium-saas .empty-state.empty-state--ai-history,
+.page-stack--premium-saas .empty-state.empty-state--products-kpi,
+.page-stack--premium-saas .empty-state.empty-state--products-terrain,
+.page-stack--premium-saas .empty-state.empty-state--products-list {
+  padding: 12px 14px;
+  margin: 0;
+  max-width: none;
+  text-align: left;
+}
+
+.page-stack--premium-saas .empty-state.empty-state--analytics-inline .empty-state__icon,
+.page-stack--premium-saas .empty-state.empty-state--ai-history .empty-state__icon,
+.page-stack--premium-saas .empty-state.empty-state--products-kpi .empty-state__icon {
+  font-size: 16px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.page-stack--premium-saas .empty-state.empty-state--analytics-inline .empty-state__title,
+.page-stack--premium-saas .empty-state.empty-state--ai-history .empty-state__title,
+.page-stack--premium-saas .empty-state.empty-state--products-kpi .empty-state__title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.page-stack--premium-saas .empty-state.empty-state--products-terrain .empty-state__title,
+.page-stack--premium-saas .empty-state.empty-state--products-list .empty-state__title {
+  font-size: 14px;
+}

@@ -632,6 +632,27 @@ const CSS = `
   color:var(--text3);
   font-style:italic;
 }
+.empty-state.empty-state--kanban-slot{
+  padding:10px 8px 12px;
+  margin:0;
+  max-width:none;
+}
+.empty-state.empty-state--kanban-slot .empty-state__icon{
+  font-size:18px;
+  line-height:1;
+  margin-bottom:6px;
+}
+.empty-state.empty-state--kanban-slot .empty-state__title{
+  font-size:12px;
+  font-weight:700;
+  margin:0 0 6px;
+  letter-spacing:-.01em;
+}
+.empty-state.empty-state--kanban-slot .empty-state__subtitle{
+  font-size:11px;
+  line-height:1.4;
+  margin:0;
+}
 .kanban-column--pilotage-premium.kanban-column--overdue{
   border-color:rgba(239,91,107,.28);
   box-shadow:inset 0 0 0 1px rgba(239,91,107,.1),0 4px 20px rgba(220,38,38,.08);

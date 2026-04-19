@@ -33,6 +33,7 @@ import {
 } from '../components/isoAuditReadiness.js';
 import { buildIsoCopilotSuggestions } from '../components/isoCopilotSuggestions.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { createEmptyState } from '../utils/designSystem.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 /* Préférences colonnes table exigences ISO — localStorage centralisé dans isoTablePreferences.js */
@@ -273,6 +274,21 @@ function createControlledDocumentsTableSection(opts) {
   function render() {
     const rows = getRows();
     wrap.replaceChildren();
+    if (!rows.length) {
+      const es = createEmptyState(
+        '\u{1F4CE}',
+        'Aucun document dans le registre maîtrisé',
+        'Les lignes synchronisées depuis l’API s’affichent ici. Vous pouvez aussi joindre des preuves depuis « Documents & preuves ».',
+        'Voir documents & preuves',
+        () => {
+          ensureIsoDocsPanelOpen();
+          document.querySelector('.iso-page .iso-docs-hub-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      );
+      es.classList.add('empty-state--iso-doc-table');
+      wrap.append(es);
+      return;
+    }
     const table = document.createElement('div');
     table.className = 'iso-table iso-doc-table';
     const head = document.createElement('div');
@@ -1318,12 +1334,30 @@ function createDocProofStrip(getDocRows) {
     title.textContent = 'Documents maîtrisés (conformité / échéance)';
     wrap.append(title);
     const rows = typeof getDocRows === 'function' ? getDocRows() : [];
+    const imports = getImportedDocumentProofs();
+
+    if (!rows.length && !imports.length) {
+      const es = createEmptyState(
+        '\u{1F4CE}',
+        'Aucun document ni preuve importée',
+        'Synchronisez le registre ou joignez une preuve fichier rattachée à une exigence.',
+        'Aller à la zone d’import',
+        () => {
+          document.querySelector('.iso-page .iso-docs-priority')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          document.querySelector('.iso-page .iso-doc-import-btn')?.focus();
+        }
+      );
+      es.classList.add('empty-state--iso-strip');
+      wrap.append(es);
+      return;
+    }
+
     if (!rows.length) {
-      const empty = document.createElement('p');
-      empty.className = 'iso-doc-proof-strip-title';
-      empty.style.opacity = '0.85';
-      empty.textContent = 'Aucun document listé.';
-      wrap.append(empty);
+      const hint = document.createElement('p');
+      hint.className = 'iso-doc-proof-strip-hint';
+      hint.textContent =
+        'Aucun document maîtrisé synchronisé sur ce périmètre — les preuves importées sont listées ci-dessous.';
+      wrap.append(hint);
     }
     rows.forEach((row) => {
       const st = row.complianceStatus || 'sans_echeance';
@@ -1339,7 +1373,6 @@ function createDocProofStrip(getDocRows) {
       line.append(name, badge);
       wrap.append(line);
     });
-    const imports = getImportedDocumentProofs();
     if (imports.length) {
       const sub = document.createElement('div');
       sub.className = 'iso-doc-proof-strip-title';
@@ -1427,7 +1460,8 @@ export function renderIso(onAddLog) {
   ensureDashboardStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack iso-page iso-page--hub iso-page--cockpit iso-page--conformite-premium';
+  page.className =
+    'page-stack page-stack--premium-saas iso-page iso-page--hub iso-page--cockpit iso-page--conformite-premium';
 
   const { bar: isoPageViewBar } = mountPageViewModeSwitch({
     pageId: 'iso',

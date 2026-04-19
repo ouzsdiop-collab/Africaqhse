@@ -13,6 +13,7 @@ import {
 } from '../services/ptw.service.js';
 import { getLinksFor, linkModules } from '../services/moduleLinks.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 const PTW_TYPES = [
   'travail en hauteur',
@@ -181,7 +182,7 @@ function createStatusSelect(value, onChange) {
 export function renderPermits() {
   ensurePtwStyles();
   const page = document.createElement('section');
-  page.className = 'page-stack ptw-page';
+  page.className = 'page-stack page-stack--premium-saas ptw-page';
   page.innerHTML = `
     <section class="page-intro module-page-hero">
       <div class="module-page-hero__inner">
@@ -904,16 +905,24 @@ export function renderPermits() {
     openHost.replaceChildren();
     closedHost.replaceChildren();
     if (!opened.length) {
-      const p = document.createElement('p');
-      p.className = 'ptw-mini';
-      p.textContent = 'Aucun permis en cours.';
-      openHost.append(p);
+      const es = createEmptyState(
+        '\u2692',
+        'Aucun permis en cours',
+        'Créez un permis terrain guidé ou passez par la création ultra-rapide depuis la barre d’outils.',
+        'Créer un permis terrain',
+        () => toolbar.querySelector('.ptw-create-btn')?.click()
+      );
+      es.classList.add('empty-state--ptw-column');
+      openHost.append(es);
     } else opened.forEach((it) => openHost.append(permitCard(it)));
     if (!closed.length) {
-      const p = document.createElement('p');
-      p.className = 'ptw-mini';
-      p.textContent = 'Aucun permis clôturé.';
-      closedHost.append(p);
+      const es = createEmptyState(
+        '\u2714',
+        'Aucun permis clôturé',
+        'Les dossiers terminés et validés apparaissent ici une fois le statut « clôturé » enregistré.'
+      );
+      es.classList.add('empty-state--ptw-column');
+      closedHost.append(es);
     } else closed.forEach((it) => closedHost.append(permitCard(it)));
 
     const meta = getSyncState();

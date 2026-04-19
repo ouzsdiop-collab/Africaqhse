@@ -35,6 +35,14 @@ const CSS = `
   color:var(--color-text-secondary);
   max-width:62ch;
 }
+.hab-empty-cell{
+  padding:clamp(20px,3vw,32px) 16px;
+  vertical-align:middle;
+}
+.hab-mobile-card--empty{
+  padding:clamp(16px,2.5vw,24px) 14px;
+}
+
 .hab-page-head__badge{
   display:inline-flex;
   align-items:center;

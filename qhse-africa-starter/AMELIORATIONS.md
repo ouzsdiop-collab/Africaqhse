@@ -18,6 +18,7 @@ Reste notamment : stockage objet (S3), refresh JWT, Zod sur les autres routes, r
 
 ## 2. UX / design system
 
+- **Checklist mesurable par page** : voir [`docs/CHECKLIST_PREMIUM_PAGES.md`](docs/CHECKLIST_PREMIUM_PAGES.md). Les routes métier sous shell utilisent **`page-stack--premium-saas`** (`page-premium-unified.css`) pour harmoniser `--page-stack-gap`, le rendu des **états vides** (`.empty-state`), le **padding des cartes racines** (`> .content-card` / `> .card-soft`, hors dashboard), et l’espace des **skeletons**. **Incidents** : liste vide après filtres → CTA *Réinitialiser les filtres*. **Journal d’activité** : vue filtrée vide alors que le store contient des entrées → CTA *Réinitialiser les filtres* (période → tout, type, utilisateur, vue audit).
 - **Densité** : le rythme vertical global (`.page-stack`, blocs dashboard) a été augmenté ; poursuivre module par module (actions, audits, risques) pour uniformiser marges internes des `.content-card`.
 - **États vides** : remplacer les `0` ambigus par des libellés du type « Aucune donnée sur ce périmètre » + CTA (changer de site, rafraîchir, lien doc).
 - **Mode terrain / expert** : garder la logique permissions + mode d’affichage documentée ; tests E2E sur bascule et profils.

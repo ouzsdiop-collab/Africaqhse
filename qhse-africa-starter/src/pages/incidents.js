@@ -226,7 +226,7 @@ export function renderIncidents(onAddLog) {
   incidentRecords = [];
 
   const page = document.createElement('section');
-  page.className = 'page-stack incidents-page incidents-page--premium';
+  page.className = 'page-stack page-stack--premium-saas incidents-page incidents-page--premium';
 
   const { bar: incidentsPageViewBar } = mountPageViewModeSwitch({
     pageId: 'incidents',
@@ -1124,16 +1124,14 @@ export function renderIncidents(onAddLog) {
     }
 
     if (apiLoadState === 'ok' && rows.length === 0 && incidentRecords.length > 0) {
-      const wrap = document.createElement('div');
-      wrap.className = 'incidents-empty';
-      const t = document.createElement('p');
-      t.className = 'incidents-empty__title';
-      t.textContent = 'Aucun résultat';
-      const s = document.createElement('p');
-      s.className = 'incidents-empty__sub';
-      s.textContent =
-        'Ajustez les filtres (statut, gravité, période) pour retrouver des fiches dans le registre.';
-      wrap.append(t, s);
+      const wrap = createEmptyState(
+        '◎',
+        'Aucun résultat sur ce périmètre',
+        'Ajustez la recherche, la période, la vue statut ou les filtres précis (gravité, statut catalogue, site).',
+        'Réinitialiser les filtres',
+        resetIncidentsFilters
+      );
+      wrap.classList.add('incidents-empty');
       listHost.append(wrap);
       refreshAnalytics();
       refreshPrioritiesStrip();
@@ -1189,6 +1187,22 @@ export function renderIncidents(onAddLog) {
     refreshAnalytics();
     refreshPrioritiesStrip();
     refreshIncidentJournal();
+  }
+
+  function resetIncidentsFilters() {
+    filterText = '';
+    searchInp.value = '';
+    filterSeverity = '';
+    filSevSel.value = '';
+    filterStatus = '';
+    filStSel.value = '';
+    filterSite = '';
+    filSiteSel.value = '';
+    filterDateRange = 'all';
+    dateSel.value = 'all';
+    panelFilterStatus = 'all';
+    statusSel.value = 'all';
+    refreshList();
   }
 
   try {

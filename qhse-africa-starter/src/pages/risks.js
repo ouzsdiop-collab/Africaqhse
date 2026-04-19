@@ -53,7 +53,7 @@ export function renderRisks() {
   ensureQhsePilotageStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack risks-page risks-page--premium';
+  page.className = 'page-stack page-stack--premium-saas risks-page risks-page--premium';
 
   const { bar: risksPageViewBar } = mountPageViewModeSwitch({
     pageId: 'risks',

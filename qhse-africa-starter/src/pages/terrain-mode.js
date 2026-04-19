@@ -9,7 +9,7 @@ import { appState } from '../utils/state.js';
  */
 export async function renderTerrainMode(container) {
   const root = container ?? document.createElement('div');
-  root.className = 'page-stack terrain-mode-page';
+  root.className = 'page-stack page-stack--premium-saas terrain-mode-page';
 
   root.innerHTML = `
     <div class="offline-banner" id="terrain-offline-banner">

@@ -6,6 +6,7 @@ import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import { appState } from '../utils/state.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 /** Registre produits / FDS — jeu d’exemple (peut être complété par import). */
 const PRODUCT_REGISTRY = [
@@ -1178,10 +1179,13 @@ function buildKpiAndVizCard(products) {
   alertsTitle.textContent = 'Alertes';
   alertsBlock.append(alertsTitle);
   if (alerts.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'products-alerts-empty';
-    empty.textContent = 'Aucune alerte sur le périmètre affiché.';
-    alertsBlock.append(empty);
+    const es = createEmptyState(
+      '\u26A0',
+      'Aucune alerte',
+      'RAS sur le périmètre et la période affichés pour ce bandeau.'
+    );
+    es.classList.add('empty-state--products-kpi');
+    alertsBlock.append(es);
   } else {
     const ul = document.createElement('ul');
     ul.className = 'products-alerts-list';
@@ -1212,17 +1216,25 @@ function bindAlertLinks(card, onPickProduct) {
   });
 }
 
-function buildTerrainStrip(products, onOpenDetail) {
+function buildTerrainStrip(products, onOpenDetail, onGoImport) {
   const wrap = document.createElement('div');
   wrap.className = 'content-card card-soft products-terrain-card';
   const dangerous = products.filter((p) => isDangerElev(p));
   const list = dangerous.length ? dangerous : products;
   let pick = list[0];
   if (!pick) {
-    const emptyP = document.createElement('p');
-    emptyP.className = 'products-terrain-empty';
-    emptyP.textContent = 'Aucun produit enregistré.';
-    wrap.append(emptyP);
+    const es =
+      typeof onGoImport === 'function'
+        ? createEmptyState(
+            '\u2697',
+            'Aucun produit pour la vue terrain',
+            'Ajoutez une fiche ou importez une FDS pour afficher les raccourcis sécurité.',
+            'Importer une FDS',
+            onGoImport
+          )
+        : createEmptyState('\u2697', 'Aucun produit enregistré', '');
+    es.classList.add('empty-state--products-terrain');
+    wrap.append(es);
     return wrap;
   }
 
@@ -1329,7 +1341,7 @@ export function renderProducts() {
   ensureAuditProductsStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack audit-products-page products-page--premium';
+  page.className = 'page-stack page-stack--premium-saas audit-products-page products-page--premium';
 
   const header = document.createElement('header');
   header.className = 'products-page-header content-card card-soft';
@@ -1601,10 +1613,17 @@ export function renderProducts() {
     });
     terrainHost.replaceChildren();
     if (isTerrainSessionRole()) {
-      const strip = buildTerrainStrip(products, (p) => {
-        renderProductDetail(p, detailHost);
-        detailHost.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
+      const strip = buildTerrainStrip(
+        products,
+        (p) => {
+          renderProductDetail(p, detailHost);
+          detailHost.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        },
+        () => {
+          importCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          fileInput?.focus();
+        }
+      );
       terrainHost.append(strip);
     }
   }
@@ -1892,24 +1911,44 @@ export function renderProducts() {
   function refreshList() {
     const q = (input.value || '').trim().toLowerCase();
     listHost.replaceChildren();
-    getAllProducts()
-      .filter((p) => matchesFilter(p, q))
-      .forEach((p) =>
-        listHost.append(
-          createProductRow(p, {
-            onDetail: (pr) => {
-              renderProductDetail(pr, detailHost);
-              detailHost.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            },
-            onFds: openProductFds
-          })
-        )
-      );
+    const all = getAllProducts();
+    const filtered = all.filter((p) => matchesFilter(p, q));
+    filtered.forEach((p) =>
+      listHost.append(
+        createProductRow(p, {
+          onDetail: (pr) => {
+            renderProductDetail(pr, detailHost);
+            detailHost.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          },
+          onFds: openProductFds
+        })
+      )
+    );
     if (!listHost.children.length) {
-      const empty = document.createElement('p');
-      empty.className = 'products-list-empty';
-      empty.textContent = 'Aucun produit ne correspond à la recherche.';
-      listHost.append(empty);
+      const hasQuery = q.length > 0;
+      const es = hasQuery
+        ? createEmptyState(
+            '\u25CE',
+            'Aucun résultat',
+            'Aucun produit ne correspond à votre recherche.',
+            'Réinitialiser la recherche',
+            () => {
+              input.value = '';
+              refreshList();
+            }
+          )
+        : createEmptyState(
+            '\u2697',
+            'Registre vide',
+            'Importez une FDS ou complétez une fiche produit.',
+            'Importer une FDS',
+            () => {
+              importCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              fileInput?.focus();
+            }
+          );
+      es.classList.add('empty-state--products-list');
+      listHost.append(es);
     }
   }
 

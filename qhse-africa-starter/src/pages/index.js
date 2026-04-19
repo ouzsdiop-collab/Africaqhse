@@ -5,7 +5,7 @@ import { canAccessNavPage } from '../utils/permissionsUi.js';
 function buildRenderErrorView(err) {
   console.error('[QHSE] Rendu page', err);
   const wrap = document.createElement('div');
-  wrap.className = 'page-stack';
+  wrap.className = 'page-stack page-stack--premium-saas';
   const article = document.createElement('article');
   article.className = 'content-card card-soft qhse-render-error-card';
   const h = document.createElement('h2');

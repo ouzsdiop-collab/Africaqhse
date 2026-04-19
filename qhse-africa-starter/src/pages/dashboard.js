@@ -520,7 +520,7 @@ export function renderDashboard() {
   });
 
   const page = document.createElement('section');
-  page.className = 'page-stack dashboard-page';
+  page.className = 'page-stack page-stack--premium-saas dashboard-page';
 
   const { bar: pageViewBar } = mountPageViewModeSwitch({
     pageId: 'dashboard',

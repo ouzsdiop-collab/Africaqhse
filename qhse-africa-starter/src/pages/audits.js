@@ -902,7 +902,7 @@ export async function renderAudits() {
 
   const page = document.createElement('section');
   page.className =
-    'page-stack audit-products-page audit-plus-page audit-cockpit-page audit-premium-page';
+    'page-stack page-stack--premium-saas audit-products-page audit-plus-page audit-cockpit-page audit-premium-page';
 
   const { bar: auditsPageViewBar } = mountPageViewModeSwitch({
     pageId: 'audits',

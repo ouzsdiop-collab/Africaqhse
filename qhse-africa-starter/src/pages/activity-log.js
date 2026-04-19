@@ -17,6 +17,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { consumeJournalServerTabIntent } from '../utils/state.js';
 import { createAuditLogsServerPanel } from './audit-logs.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 const LS_SCHEDULE = 'qhse-activity-log-schedule';
 const LS_SCOPE = 'qhse-activity-log-export-scope';
@@ -25,8 +26,10 @@ const LS_CRITICAL = 'qhse-activity-log-critical-only';
 /**
  * Tableau du journal — réutilisable avec une liste filtrée / triée (futur).
  * @param {Array} entries liste déjà ordonnée (ex. antichronologique)
+ * @param {{ filtersActive?: boolean; onResetFilters?: () => void; storeHasEntries?: boolean }} [opts]
  */
-export function createActivityLogTable(entries) {
+export function createActivityLogTable(entries, opts = {}) {
+  const { filtersActive = false, onResetFilters, storeHasEntries = false } = opts;
   const table = document.createElement('div');
   table.className = 'activity-log-table';
   table.setAttribute('data-activity-log-table', '');
@@ -43,10 +46,26 @@ export function createActivityLogTable(entries) {
   table.append(head);
 
   if (!entries.length) {
+    if (filtersActive && typeof onResetFilters === 'function') {
+      const es = createEmptyState(
+        '◇',
+        'Aucune entrée sur ces filtres',
+        'Élargissez la période (24 h / 7 j / tout) ou réinitialisez type, utilisateur et vue audit.',
+        'Réinitialiser les filtres',
+        onResetFilters
+      );
+      es.classList.add('activity-log-empty-msg');
+      table.append(es);
+      return table;
+    }
+    const msg =
+      storeHasEntries === false
+        ? 'Aucune activité enregistrée dans cette session pour l’instant.'
+        : 'Aucune entrée ne correspond aux filtres.';
     const empty = document.createElement('div');
     empty.className = 'activity-log-empty-msg';
     empty.setAttribute('role', 'status');
-    empty.textContent = 'Aucune entrée ne correspond aux filtres.';
+    empty.textContent = msg;
     table.append(empty);
     return table;
   }
@@ -115,7 +134,7 @@ export function renderActivityLog(opts = {}) {
   ensureActivityLogStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack activity-log-page';
+  page.className = 'page-stack page-stack--premium-saas activity-log-page';
   if (localStorage.getItem(LS_CRITICAL) === '1') {
     page.classList.add('activity-log-page--audit-view');
   }
@@ -449,7 +468,32 @@ export function renderActivityLog(opts = {}) {
     }
 
     summaryMount.replaceChildren(createActivityLogSummary(buildActivityLogSnapshot(filtered)));
-    tableMount.replaceChildren(createActivityLogTable(filtered));
+    const canResetFilters = all.length > 0 && filtered.length === 0;
+    tableMount.replaceChildren(
+      createActivityLogTable(filtered, {
+        filtersActive: canResetFilters,
+        storeHasEntries: all.length > 0,
+        onResetFilters: canResetFilters
+          ? () => {
+              state.kind = 'all';
+              state.user = '';
+              state.criticalOnly = false;
+              state.period = 'all';
+              critCb.checked = false;
+              localStorage.setItem(LS_CRITICAL, '0');
+              kindSel.value = 'all';
+              userSel.value = '';
+              quickSection.querySelectorAll('.activity-log-chip[data-period]').forEach((b) => {
+                b.classList.toggle(
+                  'activity-log-chip--on',
+                  b.getAttribute('data-period') === 'all'
+                );
+              });
+              refresh();
+            }
+          : undefined
+      })
+    );
     syncPeriodChips();
     syncAuditUi();
   }

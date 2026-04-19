@@ -7,6 +7,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { saveImportDraft } from '../utils/importDraft.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 function labelImportStatus(status) {
   switch (status) {
@@ -176,7 +177,7 @@ export function renderImports() {
   let lastImportHistoryId = null;
 
   const page = document.createElement('section');
-  page.className = 'page-stack imports-page';
+  page.className = 'page-stack page-stack--premium-saas imports-page';
 
   const { bar: importsPageViewBar } = mountPageViewModeSwitch({
     pageId: 'imports',
@@ -572,10 +573,25 @@ export function renderImports() {
       }
       const rows = await res.json().catch(() => []);
       if (!Array.isArray(rows) || rows.length === 0) {
-        const empty = document.createElement('p');
-        empty.style.cssText = 'margin:0;font-size:13px;color:var(--text3)';
-        empty.textContent = 'Aucun import enregistré pour le moment.';
-        historyHost.append(empty);
+        if (canWrite) {
+          historyHost.append(
+            createEmptyState(
+              '\u{1F4E5}',
+              'Aucun import enregistré',
+              'Les analyses et validations apparaîtront ici pour la traçabilité.',
+              'Choisir un fichier',
+              () => input.click()
+            )
+          );
+        } else {
+          historyHost.append(
+            createEmptyState(
+              '\u{1F4E5}',
+              'Aucun import enregistré',
+              'Les analyses et validations apparaîtront ici pour la traçabilité.'
+            )
+          );
+        }
         return;
       }
       rows.forEach((row) => {

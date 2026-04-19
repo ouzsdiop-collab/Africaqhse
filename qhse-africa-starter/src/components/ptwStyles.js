@@ -93,6 +93,9 @@ html[data-theme='dark'] .ptw-sync-pill--local{
 .ptw-card{padding:12px}
 .ptw-list-title{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ptw-items{display:grid;gap:10px}
+.ptw-items .empty-state--ptw-column{padding:clamp(14px,2vw,22px) 12px;margin:0;max-width:none;text-align:left}
+.ptw-items .empty-state--ptw-column .empty-state__title{font-size:14px}
+.ptw-items .empty-state--ptw-column .empty-state__subtitle{font-size:12px;line-height:1.45}
 .ptw-item{padding:12px;border:1px solid var(--color-border-tertiary);border-radius:12px;background:var(--color-background-primary)}
 .ptw-item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start}
 .ptw-item-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}

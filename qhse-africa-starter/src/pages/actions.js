@@ -41,6 +41,14 @@ const COLUMN_EMPTY_COPY = {
   done: 'Aucune action terminée ne correspond aux filtres.'
 };
 
+/** Glyphes compacts pour colonnes vides (évite dépendance à une police emoji). */
+const COLUMN_EMPTY_ICON = {
+  overdue: '\u26A0',
+  todo: '\u25CB',
+  doing: '\u25B6',
+  done: '\u2713'
+};
+
 const ACTIONS_LIST_CACHE_KEY = 'qhse.cache.actions.list.v1';
 
 function readActionsListCache() {
@@ -316,10 +324,13 @@ function buildKanbanBoard(actionColumns, opts = {}) {
     column.append(head);
 
     if (items.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'kanban-column-empty';
-      empty.textContent = COLUMN_EMPTY_COPY[key] || 'Aucune fiche.';
-      column.append(empty);
+      const slot = createEmptyState(
+        COLUMN_EMPTY_ICON[key] || '\u2014',
+        `${meta.label} : vide`,
+        COLUMN_EMPTY_COPY[key] || 'Aucune fiche.'
+      );
+      slot.classList.add('empty-state--kanban-slot');
+      column.append(slot);
     } else {
       items.forEach((item) => column.append(createActionKanbanCard(item, key)));
     }
@@ -508,7 +519,7 @@ export function renderActions() {
   ensureDashboardStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack page-stack--actions-premium';
+  page.className = 'page-stack page-stack--premium-saas page-stack--actions-premium';
 
   const { bar: actionsPageViewBar } = mountPageViewModeSwitch({
     pageId: 'actions',
@@ -564,6 +575,8 @@ export function renderActions() {
   mainCreateBtn.textContent = 'Créer une action';
   mainHead.append(mainHeadIntro, mainCreateBtn);
   main.append(mainHead);
+
+  const createBtn = /** @type {HTMLButtonElement | null} */ (main.querySelector('.actions-create-btn'));
 
   const lead = main.querySelector('.content-card-lead');
   const summaryEl = document.createElement('p');
@@ -696,6 +709,16 @@ export function renderActions() {
     refreshWithFilters();
   }
 
+  function resetActionsFilters() {
+    kpiStripFilterKey = null;
+    filterStatus = 'all';
+    filterPriority = 'all';
+    if (filterRefs.status) filterRefs.status.value = 'all';
+    if (filterRefs.priority) filterRefs.priority.value = 'all';
+    syncPreventionToolbar();
+    refreshWithFilters();
+  }
+
   async function patchActionStatusFromDnD(actionId, targetColumnKey) {
     if (!canAssignActions) {
       showToast('Changement de statut réservé aux profils avec écriture sur Actions.', 'warning');
@@ -825,7 +848,33 @@ export function renderActions() {
       return;
     }
     if (cachedRows.length === 0) {
-      boardHost.replaceChildren(createEmptyState('✓', 'Aucune action en cours', ''));
+      boardHost.replaceChildren(
+        canAssignActions
+          ? createEmptyState(
+              '\u2714',
+              'Aucune action sur ce périmètre',
+              'Créez une première fiche ou passez la vue « Toutes les actions » pour voir le registre.',
+              'Créer une action',
+              () => createBtn?.click()
+            )
+          : createEmptyState(
+              '\u2714',
+              'Aucune action sur ce périmètre',
+              'Les créations et imports apparaîtront ici selon vos droits et le périmètre sélectionné.'
+            )
+      );
+      return;
+    }
+    if (filtered.length === 0) {
+      boardHost.replaceChildren(
+        createEmptyState(
+          '\u25CE',
+          'Aucun résultat sur ce périmètre',
+          'Les filtres (bandeau KPI, statut colonne, priorité, prévention) masquent toutes les fiches.',
+          'Réinitialiser les filtres',
+          resetActionsFilters
+        )
+      );
       return;
     }
     boardHost.replaceChildren(
@@ -989,8 +1038,7 @@ export function renderActions() {
     await loadActionsFromApi();
   })();
 
-  const createBtn = main.querySelector('.actions-create-btn');
-
+  if (createBtn) {
   createBtn.addEventListener('click', () => {
     if (createBtn.disabled) return;
     openActionCreateDialog({
@@ -1006,6 +1054,7 @@ export function renderActions() {
       }
     });
   });
+  }
 
   const actionsModeGuide = createSimpleModeGuide({
     title: 'Plan d’actions — par où commencer ?',

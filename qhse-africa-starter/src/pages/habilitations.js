@@ -25,6 +25,7 @@ import {
 } from '../services/habilitationsExport.service.js';
 import { showToast } from '../components/toast.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 /**
  * @param {unknown} raw
@@ -154,7 +155,7 @@ function mobileCardClass(r) {
 export function renderHabilitations() {
   ensureHabilitationsStyles();
   const page = document.createElement('section');
-  page.className = 'page-stack habilitations-page';
+  page.className = 'page-stack page-stack--premium-saas habilitations-page';
 
   const dataState = { rows: [], loading: true, error: null };
 
@@ -328,6 +329,18 @@ export function renderHabilitations() {
 
   function filtersText() {
     return formatHabilitationsFiltersSummary(state);
+  }
+
+  function resetHabilitationsFilters() {
+    state.q = '';
+    state.site = '';
+    state.service = '';
+    state.statut = '';
+    state.entreprise = '';
+    state.type = '';
+    state.expiration = '';
+    state.subcontractorOnly = false;
+    render();
   }
 
   /** Badge périmètre : distinguer « tout le registre » vs filtres actifs */
@@ -628,7 +641,13 @@ export function renderHabilitations() {
         dataState.error instanceof Error ? escapeHtml(dataState.error.message) : 'Registre indisponible.'
       }</p></td></tr>`;
     } else if (!sorted.length) {
-      tbodyRows = `<tr><td colspan="11"><p class="ptw-mini">Aucune habilitation sur ce périmètre (filtre site / recherche).</p></td></tr>`;
+      const storeEmpty = allRows().length === 0;
+      const narrowedByFilters = !storeEmpty && habFiltersActive();
+      if (storeEmpty || narrowedByFilters) {
+        tbodyRows = `<tr class="hab-tr--empty"><td colspan="11" class="hab-empty-cell" data-hab-empty-desktop></td></tr>`;
+      } else {
+        tbodyRows = `<tr><td colspan="11"><p class="ptw-mini">Aucune habilitation sur ce périmètre.</p></td></tr>`;
+      }
     } else {
       tbodyRows = sorted
         .map((r) => {
@@ -664,7 +683,13 @@ export function renderHabilitations() {
         dataState.error instanceof Error ? escapeHtml(dataState.error.message) : 'Registre indisponible.'
       }</p></article>`;
     } else if (!sorted.length) {
-      mobileBlocks = `<article class="hab-mobile-card"><p class="ptw-mini">Aucune habilitation sur ce périmètre.</p></article>`;
+      const storeEmpty = allRows().length === 0;
+      const narrowedByFilters = !storeEmpty && habFiltersActive();
+      if (storeEmpty || narrowedByFilters) {
+        mobileBlocks = `<article class="hab-mobile-card hab-mobile-card--empty" data-hab-empty-mobile></article>`;
+      } else {
+        mobileBlocks = `<article class="hab-mobile-card"><p class="ptw-mini">Aucune habilitation sur ce périmètre.</p></article>`;
+      }
     } else {
       mobileBlocks = sorted
         .map((r) => {
@@ -714,6 +739,43 @@ export function renderHabilitations() {
         render();
       });
     });
+    const desktopEmpty = card.querySelector('[data-hab-empty-desktop]');
+    const mobileEmpty = card.querySelector('[data-hab-empty-mobile]');
+    if (desktopEmpty || mobileEmpty) {
+      const storeEmpty = allRows().length === 0;
+      const desktopEs = storeEmpty
+        ? createEmptyState(
+            '\u{1F4CB}',
+            'Aucune habilitation enregistrée',
+            'Le registre est vide pour ce périmètre ou les données ne sont pas encore synchronisées.',
+            'Actualiser le registre',
+            () => void loadHabilitations()
+          )
+        : createEmptyState(
+            '\u25CE',
+            'Aucun résultat sur ce périmètre',
+            'Élargissez la recherche ou réinitialisez les filtres pour afficher à nouveau les lignes du registre.',
+            'Réinitialiser les filtres',
+            resetHabilitationsFilters
+          );
+      const mobileEs = storeEmpty
+        ? createEmptyState(
+            '\u{1F4CB}',
+            'Aucune habilitation enregistrée',
+            'Le registre est vide pour ce périmètre ou les données ne sont pas encore synchronisées.',
+            'Actualiser le registre',
+            () => void loadHabilitations()
+          )
+        : createEmptyState(
+            '\u25CE',
+            'Aucun résultat sur ce périmètre',
+            'Élargissez la recherche ou réinitialisez les filtres pour afficher à nouveau les lignes du registre.',
+            'Réinitialiser les filtres',
+            resetHabilitationsFilters
+          );
+      desktopEmpty?.append(desktopEs);
+      mobileEmpty?.append(mobileEs);
+    }
     attachFilterListeners(card);
     return card;
   }

@@ -12,6 +12,7 @@ import { canResource } from '../utils/permissionsUi.js';
 import { openActionCreateDialog } from '../components/actionCreateDialog.js';
 import { fetchUsers } from '../services/users.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { createEmptyState } from '../utils/designSystem.js';
 
 const AI_SUGGEST_BASE = '/api/ai-suggestions/suggest';
 const AI_CENTER_IA_SHELL_ID = 'qhse-ai-center-api-slideover-css';
@@ -99,20 +100,23 @@ function formatHistoryTime(ts) {
   }
 }
 
-function refreshHistoryList(listEl) {
-  listEl.innerHTML = '';
+function refreshHistoryList(listEl, runAnalysisBtn) {
+  listEl.replaceChildren();
   const hist = getSimulationHistory();
   if (hist.length === 0) {
-    const li = document.createElement('li');
-    li.className = 'ai-sim-history__item';
-    li.style.fontStyle = 'italic';
-    li.style.color = 'var(--text3)';
-    li.textContent = 'Aucun scénario exécuté dans cette session — lancez une analyse pour alimenter l’historique.';
-    listEl.append(li);
+    const es = createEmptyState(
+      '\u2606',
+      'Historique de session vide',
+      'Lancez une analyse locale pour voir les entrées s’accumuler dans ce fil.',
+      'Lancer une analyse',
+      () => runAnalysisBtn?.click()
+    );
+    es.classList.add('empty-state--ai-history');
+    listEl.append(es);
     return;
   }
   hist.forEach((h) => {
-    const li = document.createElement('li');
+    const li = document.createElement('div');
     li.className = 'ai-sim-history__item';
     const time = document.createElement('span');
     time.className = 'ai-sim-history__time';
@@ -199,7 +203,7 @@ function createSimulationZone(onAddLog) {
       title: lastResult.title,
       ref: lastResult.ref
     });
-    refreshHistoryList(historyListEl);
+    refreshHistoryList(historyListEl, runBtn);
 
     showToast('Analyse générée (scénario illustratif) — prête à être copiée ou enregistrée.', 'info');
     if (typeof onAddLog === 'function') {
@@ -256,10 +260,10 @@ function createSimulationZone(onAddLog) {
   const hTitle = document.createElement('p');
   hTitle.className = 'ai-sim-history__title';
   hTitle.textContent = 'Historique de session';
-  const historyListEl = document.createElement('ul');
+  const historyListEl = document.createElement('div');
   historyListEl.className = 'ai-sim-history__list';
   history.append(hTitle, historyListEl);
-  refreshHistoryList(historyListEl);
+  refreshHistoryList(historyListEl, runBtn);
 
   controls.append(lab, select);
   main.append(outWrap, toolbar, history);
@@ -272,7 +276,7 @@ export function renderAiCenter(onAddLog) {
   ensureQhsePilotageStyles();
 
   const page = document.createElement('section');
-  page.className = 'page-stack ai-center-page';
+  page.className = 'page-stack page-stack--premium-saas ai-center-page';
 
   const intro = document.createElement('article');
   intro.className = 'content-card card-soft ai-hero';

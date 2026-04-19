@@ -73,6 +73,11 @@ const CSS = `
 .iso-section-stack{display:grid;gap:14px;min-width:0}
 .iso-table-wrap{overflow-x:auto;margin-top:8px;border-radius:12px;border:1px solid rgba(148,163,184,.1);max-width:100%}
 .iso-doc-proof-strip{display:flex;flex-direction:column;align-items:stretch;gap:0;min-width:0;width:100%;box-sizing:border-box}
+.iso-doc-proof-strip-hint{margin:8px 0 4px;font-size:12px;line-height:1.45;color:var(--text2)}
+.empty-state.empty-state--iso-strip{padding:14px 12px;margin:8px 0 0;max-width:none;text-align:left}
+.empty-state.empty-state--iso-strip .empty-state__title{font-size:13px}
+.empty-state.empty-state--iso-strip .empty-state__subtitle{font-size:11px;line-height:1.4}
+.empty-state.empty-state--iso-doc-table{padding:clamp(18px,2.5vw,28px) 16px;margin:0;max-width:62ch;text-align:left}
 .iso-table{display:grid;grid-auto-rows:auto;gap:0;min-width:720px;width:100%;box-sizing:border-box}
 .iso-table-head,.iso-table-row{display:grid;grid-template-columns:minmax(180px,2.2fr) minmax(100px,1fr) minmax(110px,1fr) minmax(100px,1fr) minmax(110px,1fr);gap:10px;padding:10px 14px;align-items:center;font-size:12px}
 .iso-req-table .iso-table-head,.iso-req-table .iso-table-row{

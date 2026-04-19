@@ -85,6 +85,17 @@ export default defineConfig(({ mode }) => {
             if (n.includes('src/pages/audits')) return 'page-audits';
             if (n.includes('src/pages/iso')) return 'page-iso';
             if (n.includes('src/pages/analytics')) return 'page-analytics';
+            if (n.includes('src/pages/actions')) return 'page-actions';
+            if (n.includes('src/pages/risks')) return 'page-risks';
+            if (n.includes('src/pages/habilitations')) return 'page-habilitations';
+            if (n.includes('src/pages/imports')) return 'page-imports';
+            if (n.includes('src/pages/performance')) return 'page-performance';
+            if (n.includes('src/pages/activity-log')) return 'page-activity-log';
+            if (n.includes('src/pages/products')) return 'page-products';
+            if (n.includes('src/pages/permits')) return 'page-permits';
+            if (n.includes('src/pages/settings')) return 'page-settings';
+            if (n.includes('src/pages/ai-center')) return 'page-ai-center';
+            if (n.includes('src/pages/sites')) return 'page-sites';
             if (n.includes('src/components/dashboardCharts')) return 'charts';
             if (
               n.includes('src/components/auditExpertUx') ||

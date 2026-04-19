@@ -6,6 +6,7 @@ import { appState } from '../utils/state.js';
 import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
 import { fetchUsers } from '../services/users.service.js';
 import { showToast } from '../components/toast.js';
+import { createEmptyState } from '../utils/designSystem.js';
 import { ensureSensitiveAccess } from '../components/sensitiveAccessGate.js';
 import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
@@ -56,12 +57,9 @@ function alertBadgeClass(level) {
 }
 
 function emptyNote(text) {
-  const p = document.createElement('p');
-  p.style.margin = '0';
-  p.style.fontSize = '13px';
-  p.style.color = 'var(--text3)';
-  p.textContent = text;
-  return p;
+  const es = createEmptyState('\u25CB', text, '');
+  es.classList.add('empty-state--analytics-inline');
+  return es;
 }
 
 function listOverflowNote(hidden, singular, plural) {
@@ -1015,7 +1013,7 @@ export function renderAnalytics() {
   let lastAnalyticsSummary = null;
 
   const page = document.createElement('section');
-  page.className = 'page-stack analytics-cockpit-page';
+  page.className = 'page-stack page-stack--premium-saas analytics-cockpit-page';
 
   const aMeta = pageTopbarById.analytics;
   const hero = document.createElement('header');
