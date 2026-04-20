@@ -9,6 +9,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 export function renderSaasClients() {
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas saas-clients-page';
+  page.setAttribute('tabindex', '-1');
 
   const su = getSessionUser();
   if (String(su?.role ?? '').toUpperCase() !== 'SUPER_ADMIN') {
@@ -131,9 +132,9 @@ export function renderSaasClients() {
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
-      .sc-status-active  { background: #d1fae5; color: #065f46; }
+      .sc-status-active    { background: #d1fae5; color: #065f46; }
       .sc-status-suspended { background: #fee2e2; color: #991b1b; }
-      .sc-status-default { background: #e2e8f0; color: #475569; }
+      .sc-status-default   { background: #e2e8f0; color: #475569; }
     </style>
 
     <article class="content-card card-soft">
@@ -174,9 +175,9 @@ export function renderSaasClients() {
     </article>
 
     <!-- Modal mot de passe provisoire -->
-    <div class="sc-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title">
+    <div class="sc-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title-id">
       <div class="sc-modal-inner">
-        <p class="sc-modal-title" id="sc-modal-title">Mot de passe provisoire</p>
+        <p class="sc-modal-title" id="sc-modal-title-id">Mot de passe provisoire</p>
         <p class="sc-modal-lead sc-modal-lead-text"></p>
         <pre class="sc-modal-secret" title="Cliquez pour sélectionner tout"></pre>
         <p class="sc-modal-hint">Ce message ne sera plus affiché après fermeture.</p>
@@ -188,17 +189,25 @@ export function renderSaasClients() {
     </div>
   `;
 
-  const companyIn  = page.querySelector('.sc-in-company');
-  const contactIn  = page.querySelector('.sc-in-contact');
-  const emailIn    = page.querySelector('.sc-in-email');
-  const codeIn     = page.querySelector('.sc-in-code');
-  const createBtn  = page.querySelector('.sc-btn-create');
-  const listHost   = page.querySelector('.sc-list-host');
-  const modal      = page.querySelector('.sc-modal-overlay');
-  const modalLead  = page.querySelector('.sc-modal-lead-text');
+  const companyIn   = page.querySelector('.sc-in-company');
+  const contactIn   = page.querySelector('.sc-in-contact');
+  const emailIn     = page.querySelector('.sc-in-email');
+  const codeIn      = page.querySelector('.sc-in-code');
+  const createBtn   = page.querySelector('.sc-btn-create');
+  const listHost    = page.querySelector('.sc-list-host');
+  const modal       = page.querySelector('.sc-modal-overlay');
+  const modalInner  = page.querySelector('.sc-modal-inner');
+  const modalLead   = page.querySelector('.sc-modal-lead-text');
   const modalSecret = page.querySelector('.sc-modal-secret');
-  const modalClose = page.querySelector('.sc-btn-close-modal');
-  const modalCopy  = page.querySelector('.sc-btn-copy');
+  const modalClose  = page.querySelector('.sc-btn-close-modal');
+  const modalCopy   = page.querySelector('.sc-btn-copy');
+
+  // ── Fermer la modal ──────────────────────────────────────────────
+  function closeModal() {
+    modal?.classList.remove('is-open');
+    if (modalLead)   modalLead.innerHTML = '';
+    if (modalSecret) modalSecret.textContent = '';
+  }
 
   // ── Ouvrir la modal ──────────────────────────────────────────────
   function showOnceModal(leadHtml, secret, extraHtml) {
@@ -210,35 +219,38 @@ export function renderSaasClients() {
         ? `<br><span style="font-size:12.5px;color:var(--text2)">${extraHtml}</span>`
         : '');
     modal.classList.add('is-open');
-    modalClose?.focus();
+    setTimeout(() => modalClose?.focus(), 50);
   }
 
-  // ── Fermer la modal ──────────────────────────────────────────────
-  function closeModal() {
-    modal?.classList.remove('is-open');
-    if (modalLead)   modalLead.innerHTML = '';
-    if (modalSecret) modalSecret.textContent = '';
-  }
+  // Le clic sur la carte intérieure ne remonte pas à l'overlay
+  modalInner?.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
 
-  modalClose?.addEventListener('click', closeModal);
+  // Bouton Fermer
+  modalClose?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeModal();
+  });
 
-  // Clic en dehors = fermeture
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
+  // Clic sur l'overlay (fond sombre) = fermeture
+  modal?.addEventListener('click', () => {
+    closeModal();
   });
 
   // Touche Échap
-  document.addEventListener('keydown', (e) => {
+  page.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal?.classList.contains('is-open')) closeModal();
   });
 
-  // Bouton copier
-  modalCopy?.addEventListener('click', async () => {
+  // Bouton Copier
+  modalCopy?.addEventListener('click', async (e) => {
+    e.stopPropagation();
     const text = modalSecret?.textContent || '';
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      modalCopy.textContent = 'Copié !';
+      modalCopy.textContent = 'Copié ✓';
       setTimeout(() => { if (modalCopy) modalCopy.textContent = 'Copier'; }, 2000);
     } catch {
       showToast('Impossible de copier automatiquement.', 'error');
@@ -248,8 +260,8 @@ export function renderSaasClients() {
   // ── Badge statut ─────────────────────────────────────────────────
   function statusBadge(status) {
     const s = String(status || '').toLowerCase();
-    const cls = s === 'active' ? 'sc-status-active'
-      : s === 'suspended' ? 'sc-status-suspended'
+    const cls = s === 'active'    ? 'sc-status-active'
+      : s === 'suspended'         ? 'sc-status-suspended'
       : 'sc-status-default';
     return `<span class="sc-status-badge ${cls}">${escapeHtml(status || '—')}</span>`;
   }
