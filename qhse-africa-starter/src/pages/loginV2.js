@@ -1,5 +1,11 @@
 import { getApiBase } from '../config.js';
-import { setAuthSession } from '../data/sessionUser.js';
+import {
+  setAuthSession,
+  getPasswordSetupToken,
+  getPasswordSetupMeta,
+  clearPasswordSetupContext,
+  setPasswordSetupContext
+} from '../data/sessionUser.js';
 import { persistTokensFromLoginResponse } from '../utils/auth.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
@@ -285,6 +291,13 @@ function readResetTokenFromHash() {
   return new URLSearchParams(h.slice(qi + 1)).get('token')?.trim() || '';
 }
 
+/** @param {unknown} s */
+function escapeHtmlText(s) {
+  const el = document.createElement('div');
+  el.textContent = String(s ?? '');
+  return el.innerHTML;
+}
+
 function lv2AuthLeftColumnMini(title, subtitle) {
   const left = document.createElement('div');
   left.className = 'lv2-left';
@@ -546,6 +559,180 @@ export function createResetPasswordView({ onNavigate }) {
 }
 
 /**
+ * Changement obligatoire après mot de passe provisoire (jeton dédié, sans accès métier).
+ * @param {{ onSuccess: () => void, onNavigate?: () => void }} params
+ */
+export function createFirstPasswordChangeView({ onSuccess, onNavigate }) {
+  ensureDashboardStyles();
+  ensureLoginV2Styles();
+
+  const token = getPasswordSetupToken();
+  const screen = document.createElement('div');
+  screen.className = 'lv2-screen';
+  const left = lv2AuthLeftColumnMini(
+    'Sécurisez<br>votre accès',
+    'Votre administrateur vous a fourni un mot de passe provisoire. Choisissez un mot de passe définitif pour accéder à la plateforme.'
+  );
+  const right = document.createElement('div');
+  right.className = 'lv2-right';
+  const inner = document.createElement('div');
+  inner.className = 'lv2-right-inner';
+
+  if (!token) {
+    inner.innerHTML = `
+      <div class="lv2-mobile-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>QHSE Control</span>
+      </div>
+      <p class="lv2-form-title">Session expirée</p>
+      <p class="lv2-form-sub">Reconnectez-vous avec votre mot de passe provisoire pour recommencer.</p>
+      <button type="button" class="btn btn-primary lv2-submit lv2-back-login-pwd">Retour à la connexion</button>
+    `;
+    inner.querySelector('.lv2-back-login-pwd')?.addEventListener('click', () => {
+      clearPasswordSetupContext();
+      window.location.hash = 'login';
+      onNavigate?.();
+    });
+    right.append(inner);
+    screen.append(left, right);
+    return screen;
+  }
+
+  const meta = getPasswordSetupMeta() || {};
+  const who =
+    typeof meta.name === 'string' && meta.name
+      ? meta.name
+      : typeof meta.email === 'string'
+        ? meta.email
+        : 'votre compte';
+  const whoSafe = escapeHtmlText(who);
+  const tenantName =
+    typeof meta.tenantName === 'string' && meta.tenantName ? escapeHtmlText(meta.tenantName) : '';
+  const orgLine = tenantName
+    ? `<br>Organisation : <strong>${tenantName}</strong>`
+    : '';
+
+  inner.innerHTML = `
+    <div class="lv2-mobile-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>QHSE Control</span>
+    </div>
+    <form class="lv2-form lv2-first-pwd-form" novalidate>
+      <p class="lv2-form-title">Nouveau mot de passe</p>
+      <p class="lv2-form-sub">Compte : <strong>${whoSafe}</strong>${orgLine}<br>
+        Règles : au moins 10 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.</p>
+      <label class="lv2-field">
+        <span class="lv2-field-label">Mot de passe</span>
+        <div class="lv2-password-wrap">
+          <input type="password" name="password" class="control-input lv2-input lv2-first-pwd" autocomplete="new-password" />
+          <button type="button" class="lv2-eye-btn" aria-label="Afficher le mot de passe">${EYE_OPEN_SVG}</button>
+        </div>
+      </label>
+      <label class="lv2-field">
+        <span class="lv2-field-label">Confirmation</span>
+        <input type="password" name="password2" class="control-input lv2-input lv2-first-pwd2" autocomplete="new-password" />
+      </label>
+      <button type="submit" class="btn btn-primary lv2-submit">Valider et accéder à l’application</button>
+      <button type="button" class="lv2-demo-link lv2-first-pwd-cancel">Annuler</button>
+    </form>
+  `;
+
+  const form = inner.querySelector('.lv2-first-pwd-form');
+  const passEl = inner.querySelector('.lv2-first-pwd');
+  const pass2El = inner.querySelector('.lv2-first-pwd2');
+  const eyeBtn = inner.querySelector('.lv2-eye-btn');
+  const cancelBtn = inner.querySelector('.lv2-first-pwd-cancel');
+  const submitBtn = form?.querySelector('.lv2-submit');
+
+  cancelBtn?.addEventListener('click', () => {
+    clearPasswordSetupContext();
+    window.location.hash = 'login';
+    onNavigate?.();
+  });
+
+  if (eyeBtn && passEl) {
+    eyeBtn.addEventListener('click', () => {
+      const isHidden = passEl.type === 'password';
+      passEl.type = isHidden ? 'text' : 'password';
+      eyeBtn.innerHTML = isHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
+      eyeBtn.setAttribute(
+        'aria-label',
+        isHidden ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+      );
+    });
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPassword = passEl?.value || '';
+    const confirm = pass2El?.value || '';
+    if (!newPassword || newPassword !== confirm) {
+      showToast('Les mots de passe ne correspondent pas ou sont vides', 'error');
+      return;
+    }
+    const prev = submitBtn?.textContent || '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enregistrement…';
+    }
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/change-temporary-password`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          changePasswordToken: token,
+          newPassword,
+          confirmPassword: confirm
+        })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof body.error === 'string' ? body.error : 'Impossible de mettre à jour le mot de passe.';
+        showToast(msg, 'error');
+        return;
+      }
+      if (!body.token || !body.user?.id) {
+        showToast('Réponse serveur invalide', 'error');
+        return;
+      }
+      clearPasswordSetupContext();
+      persistTokensFromLoginResponse(body);
+      setAuthSession(
+        {
+          id: body.user.id,
+          name: body.user.name || '',
+          email: body.user.email || '',
+          role: body.user.role || ''
+        },
+        body.token,
+        { tenant: body.tenant, tenants: body.tenants }
+      );
+      showToast('Mot de passe enregistré. Bienvenue !', 'success');
+      setCurrentPage('dashboard');
+      window.location.hash = 'dashboard';
+      onSuccess();
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prev;
+      }
+    }
+  });
+
+  right.append(inner);
+  screen.append(left, right);
+  return screen;
+}
+
+/**
  * @param {{ onSuccess: () => void, onNavigate?: () => void }} params
  */
 export function createLoginView({ onSuccess, onNavigate }) {
@@ -652,8 +839,8 @@ export function createLoginView({ onSuccess, onNavigate }) {
       <p class="lv2-form-title">Connexion à votre espace</p>
       <p class="lv2-form-sub">Bienvenue sur QHSE Control — la plateforme QHSE dédiée à l'Afrique.</p>
       <label class="lv2-field">
-        <span class="lv2-field-label">Adresse e-mail</span>
-        <input type="email" name="email" class="control-input lv2-input lv2-email" autocomplete="username" placeholder="vous@votre-entreprise.com" />
+        <span class="lv2-field-label">E-mail ou identifiant client</span>
+        <input type="text" name="identifier" class="control-input lv2-input lv2-email" autocomplete="username" placeholder="vous@entreprise.com ou cli-…" />
       </label>
       <label class="lv2-field">
         <span class="lv2-field-label">Mot de passe</span>
@@ -721,10 +908,10 @@ export function createLoginView({ onSuccess, onNavigate }) {
   }
 
   async function submitLogin(tenantSlug) {
-    const email = String(emailEl?.value || '').trim();
+    const identifier = String(emailEl?.value || '').trim();
     const password = passEl?.value || '';
-    if (!email || !password) {
-      showToast('Saisissez e-mail et mot de passe', 'error');
+    if (!identifier || !password) {
+      showToast('Saisissez votre identifiant et le mot de passe', 'error');
       return;
     }
     const prevLabel = submitBtn?.textContent || '';
@@ -734,7 +921,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
     }
     hideOrgPanel();
     try {
-      const payload = { email, password };
+      const payload = { identifier, password };
       if (tenantSlug) payload.tenantSlug = tenantSlug;
       const res = await fetch(`${getApiBase()}/api/auth/login`, {
         method: 'POST',
@@ -750,6 +937,17 @@ export function createLoginView({ onSuccess, onNavigate }) {
       }
       if (!res.ok) {
         showToast(typeof body.error === 'string' ? body.error : 'Connexion impossible', 'error');
+        return;
+      }
+      if (body.mustChangePassword === true && body.changePasswordToken) {
+        setPasswordSetupContext(body.changePasswordToken, {
+          name: body.user?.name,
+          email: body.user?.email,
+          tenantName: body.tenant?.name
+        });
+        showToast('Première connexion : définissez un mot de passe définitif.', 'success');
+        window.location.hash = 'first-password';
+        onNavigate?.();
         return;
       }
       if (!body.token || !body.user?.id) {

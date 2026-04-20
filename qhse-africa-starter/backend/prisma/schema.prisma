@@ -15,7 +15,10 @@ model Tenant {
   id        String   @id @default(cuid())
   slug      String   @unique
   name      String
+  /// active | suspended — les tenants suspendus ne sont plus proposés à la connexion.
+  status    String   @default("active")
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   members TenantMember[]
   sites   Site[]
@@ -132,6 +135,21 @@ model User {
   role         String
   passwordHash String?
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  /// Identifiant métier optionnel (slug court) — login par e-mail reste la référence.
+  clientCode String? @unique
+
+  /// false = compte désactivé (connexion refusée).
+  isActive Boolean @default(true)
+
+  /// Premier login avec mot de passe provisoire : l’utilisateur doit changer avant accès complet.
+  mustChangePassword Boolean @default(false)
+
+  /// Horodatage de la dernière attribution d’un mot de passe provisoire (audit / support).
+  temporaryPasswordCreatedAt DateTime?
+
+  lastLoginAt DateTime?
 
   onboardingCompleted Boolean @default(false)
   onboardingStep      Int     @default(0)

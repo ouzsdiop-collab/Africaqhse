@@ -51,7 +51,10 @@ export const navigationGroups = [
   {
     label: 'Administration',
     collapsible: false,
-    items: [{ id: 'settings', label: 'Paramètres', icon: '⚙' }]
+    items: [
+      { id: 'settings', label: 'Paramètres', icon: '⚙' },
+      { id: 'saas-clients', label: 'Clients SaaS', icon: '◈' }
+    ]
   }
 ];
 
@@ -178,6 +181,13 @@ export const pageTopbarById = {
     subtitle:
       'Organisation, sécurité des accès, alertes, notifications, exports et options d’affichage — centralisez vos préférences métier.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }
+  },
+  'saas-clients': {
+    title: 'Clients SaaS',
+    kicker: 'Super administration',
+    subtitle:
+      'Création d’espaces entreprise, comptes administrateur client et mots de passe provisoires (affichage unique).',
+    cta: { label: 'Paramètres', pageId: 'settings' }
   }
 };
 

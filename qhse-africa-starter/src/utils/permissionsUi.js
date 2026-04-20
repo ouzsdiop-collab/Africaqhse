@@ -9,7 +9,28 @@ const ALL = ['read', 'write'];
 
 /** @type {Record<string, Record<string, string[] | true>>} */
 const MATRIX = {
+  SUPER_ADMIN: { '*': true },
   ADMIN: { '*': true },
+  CLIENT_ADMIN: {
+    audit_logs: ['read'],
+    settings: ['read'],
+    incidents: ALL,
+    risks: ALL,
+    actions: ALL,
+    audits: ALL,
+    nonconformities: ALL,
+    sites: ALL,
+    dashboard: ['read'],
+    compliance: ['read'],
+    conformity: ALL,
+    controlled_documents: ALL,
+    ptw: ALL,
+    ai_suggestions: ALL,
+    notifications: ['read'],
+    users: ALL,
+    reports: ALL,
+    imports: ALL
+  },
   QHSE: {
     audit_logs: ['read'],
     settings: ['read'],
@@ -126,7 +147,10 @@ export function canResource(role, resource, verb) {
  */
 export function canAccessNavPage(role, pageId) {
   if (!role) return true;
-  if (String(role).toUpperCase() === 'TERRAIN') {
+  const r = String(role).toUpperCase();
+  if (pageId === 'saas-clients' && r !== 'SUPER_ADMIN') return false;
+  if (pageId === 'first-password') return true;
+  if (r === 'TERRAIN') {
     return getDisplayMode() === 'terrain'
       ? TERRAIN_ALLOWED_PAGE_IDS.has(pageId)
       : TERRAIN_NAV_EXPERT_PAGES.has(pageId);

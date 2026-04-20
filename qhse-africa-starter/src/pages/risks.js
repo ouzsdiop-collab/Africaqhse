@@ -44,8 +44,9 @@ import {
   riskWorkflowStatusLabelFr
 } from '../utils/risksRegisterModel.js';
 import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
+import { openRiskCreateDialog } from '../components/riskFormDialog.js';
 
-export { openRiskCreateDialog } from '../components/riskFormDialog.js';
+export { openRiskCreateDialog };
 export { openRiskDialog } from '../components/riskSheetModal.js';
 export { openRiskDetail } from '../components/riskDetailPanel.js';
 
@@ -119,10 +120,20 @@ export function renderRisks() {
 
   async function openPreventiveActionFromRisks(riskTitle) {
     const preset = riskTitle != null ? String(riskTitle).trim() : '';
-    const linked =
-      preset || window.prompt('Libellé du risque (comme dans le registre) :', '') || '';
-    if (!String(linked).trim()) return;
-    const t = String(linked).trim();
+    let linked = preset;
+    if (!linked) {
+      const prompted = window.prompt('Libellé du risque (comme dans le registre) :', '');
+      if (prompted == null) {
+        showToast('Création annulée.', 'info');
+        return;
+      }
+      linked = String(prompted).trim();
+    }
+    if (!linked) {
+      showToast('Indiquez le libellé du risque (identique au registre) pour lier l’action.', 'warning');
+      return;
+    }
+    const t = linked;
     const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
       import('../components/actionCreateDialog.js'),
       import('../services/users.service.js')

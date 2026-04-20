@@ -1,6 +1,11 @@
 import { prisma } from '../db.js';
 import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
 
+function tenantIsActive(t) {
+  const st = String(t?.status ?? 'active').toLowerCase();
+  return st !== 'suspended';
+}
+
 /**
  * @param {string} userId
  * @returns {Promise<{ id: string, slug: string, name: string, role: string }[]>}
@@ -10,15 +15,17 @@ export async function listTenantsForUser(userId) {
   if (!uid) return [];
   const rows = await prisma.tenantMember.findMany({
     where: { userId: uid },
-    include: { tenant: { select: { id: true, slug: true, name: true } } },
+    include: { tenant: { select: { id: true, slug: true, name: true, status: true } } },
     orderBy: { createdAt: 'asc' }
   });
-  return rows.map((r) => ({
-    id: r.tenant.id,
-    slug: r.tenant.slug,
-    name: r.tenant.name,
-    role: String(r.role ?? 'MEMBER').trim().toUpperCase()
-  }));
+  return rows
+    .filter((r) => tenantIsActive(r.tenant))
+    .map((r) => ({
+      id: r.tenant.id,
+      slug: r.tenant.slug,
+      name: r.tenant.name,
+      role: String(r.role ?? 'MEMBER').trim().toUpperCase()
+    }));
 }
 
 /**
@@ -39,9 +46,9 @@ export async function resolveTenantForLogin(userId, tenantSlug) {
   if (slug) {
     const tenant = await prisma.tenant.findUnique({
       where: { slug },
-      select: { id: true, slug: true, name: true }
+      select: { id: true, slug: true, name: true, status: true }
     });
-    if (!tenant) return null;
+    if (!tenant || !tenantIsActive(tenant)) return null;
     const m = await prisma.tenantMember.findUnique({
       where: { tenantId_userId: { tenantId: tenant.id, userId: uid } },
       select: { role: true }
@@ -49,29 +56,29 @@ export async function resolveTenantForLogin(userId, tenantSlug) {
     if (!m) return null;
     return {
       mode: 'ok',
-      tenant,
+      tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
       memberRole: String(m.role ?? 'MEMBER').trim().toUpperCase()
     };
   }
 
   const memberships = await prisma.tenantMember.findMany({
     where: { userId: uid },
-    include: { tenant: { select: { id: true, slug: true, name: true } } },
-    orderBy: { createdAt: 'asc' },
-    take: 2
+    include: { tenant: { select: { id: true, slug: true, name: true, status: true } } },
+    orderBy: { createdAt: 'asc' }
   });
 
-  if (memberships.length === 0) {
+  const activeMemberships = memberships.filter((m) => tenantIsActive(m.tenant));
+  if (activeMemberships.length === 0) {
     return null;
   }
-  if (memberships.length > 1) {
+  if (activeMemberships.length > 1) {
     return { mode: 'pick', tenants: await listTenantsForUser(uid) };
   }
 
-  const m0 = memberships[0];
+  const m0 = activeMemberships[0];
   return {
     mode: 'ok',
-    tenant: m0.tenant,
+    tenant: { id: m0.tenant.id, slug: m0.tenant.slug, name: m0.tenant.name },
     memberRole: String(m0.role ?? 'MEMBER').trim().toUpperCase()
   };
 }
@@ -87,9 +94,10 @@ export async function assertUserTenantAccess(userId, tenantId) {
   if (!uid || !tid) return null;
   const m = await prisma.tenantMember.findUnique({
     where: { tenantId_userId: { tenantId: tid, userId: uid } },
-    include: { tenant: { select: { id: true, slug: true, name: true } } }
+    include: { tenant: { select: { id: true, slug: true, name: true, status: true } } }
   });
-  return m?.tenant ?? null;
+  if (!m?.tenant || !tenantIsActive(m.tenant)) return null;
+  return { id: m.tenant.id, slug: m.tenant.slug, name: m.tenant.name };
 }
 
 /**
@@ -98,12 +106,14 @@ export async function assertUserTenantAccess(userId, tenantId) {
 export async function getFirstTenantForUser(userId) {
   const uid = String(userId ?? '').trim();
   if (!uid) return null;
-  const m = await prisma.tenantMember.findFirst({
+  const rows = await prisma.tenantMember.findMany({
     where: { userId: uid },
-    include: { tenant: { select: { id: true, slug: true, name: true } } },
+    include: { tenant: { select: { id: true, slug: true, name: true, status: true } } },
     orderBy: { createdAt: 'asc' }
   });
-  return m?.tenant ?? null;
+  const m = rows.find((r) => tenantIsActive(r.tenant));
+  if (!m?.tenant) return null;
+  return { id: m.tenant.id, slug: m.tenant.slug, name: m.tenant.name };
 }
 
 export function defaultTenantIdForSeed() {

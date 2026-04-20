@@ -4,7 +4,8 @@ import { prisma } from '../db.js';
 import {
   loginBodySchema,
   forgotPasswordBodySchema,
-  resetPasswordBodySchema
+  resetPasswordBodySchema,
+  changeTemporaryPasswordBodySchema
 } from '../validation/authSchemas.js';
 import { sendJsonError } from '../lib/apiErrors.js';
 import * as emailService from '../services/email.service.js';
@@ -57,14 +58,23 @@ export async function login(req, res, next) {
         fieldErrors: parsed.error.flatten().fieldErrors
       });
     }
-    const { email, password, tenantSlug } = parsed.data;
-    const em = email.toLowerCase();
+    const { identifier, password, tenantSlug } = parsed.data;
 
-    const user = await authService.authenticateWithEmailPassword(em, password);
-    if (!user) {
+    const authResult = await authService.authenticateWithIdentifierAndPassword(identifier, password);
+    if (!authResult) {
       return sendJsonError(res, 401, 'Identifiants invalides', req, { code: 'AUTH_INVALID' });
     }
+    if ('code' in authResult && authResult.code === 'PROVISIONAL_EXPIRED') {
+      return sendJsonError(
+        res,
+        403,
+        'Le mot de passe provisoire a expiré. Contactez votre administrateur pour une réinitialisation.',
+        req,
+        { code: 'PROVISIONAL_PASSWORD_EXPIRED' }
+      );
+    }
 
+    const user = authResult;
     const role = String(user.role ?? '').trim().toUpperCase();
     const resolved = await tenantAuth.resolveTenantForLogin(user.id, tenantSlug);
 
@@ -83,12 +93,38 @@ export async function login(req, res, next) {
     }
 
     const { tenant } = resolved;
+
+    if (user.mustChangePassword) {
+      const changePasswordToken = authService.issuePasswordSetupToken(user.id, tenant.id);
+      const tenants = await tenantAuth.listTenantsForUser(user.id);
+      return res.json({
+        success: true,
+        mustChangePassword: true,
+        changePasswordToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role
+        },
+        tenant,
+        tenants
+      });
+    }
+
     const accessToken = authService.issueAccessToken(user, tenant.id);
     const refreshToken = authService.issueRefreshToken(user, tenant.id);
 
     res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
 
     const tenants = await tenantAuth.listTenantsForUser(user.id);
+
+    await prisma.user
+      .update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      })
+      .catch(() => {});
 
     res.json({
       accessToken,
@@ -141,11 +177,18 @@ export async function refreshHandler(req, res, next) {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, role: true }
+      select: { id: true, name: true, email: true, role: true, mustChangePassword: true, isActive: true }
     });
 
-    if (!user) {
-      return res.status(401).json({ error: 'Compte introuvable.' });
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: 'Compte introuvable ou désactivé.' });
+    }
+    if (user.mustChangePassword) {
+      res.clearCookie(QHSE_REFRESH_COOKIE, clearRefreshCookieOptions());
+      return res.status(403).json({
+        error: 'Vous devez d’abord définir un nouveau mot de passe.',
+        code: 'MUST_CHANGE_PASSWORD'
+      });
     }
 
     let activeTenantId = typeof payload.tid === 'string' ? payload.tid.trim() : '';
@@ -209,6 +252,20 @@ export async function postSwitchTenant(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé pour cette organisation.' });
     }
 
+    const dbUser = await prisma.user.findUnique({
+      where: { id: req.qhseUser.id },
+      select: { mustChangePassword: true, isActive: true }
+    });
+    if (!dbUser?.isActive) {
+      return res.status(403).json({ error: 'Compte désactivé.' });
+    }
+    if (dbUser.mustChangePassword) {
+      return res.status(403).json({
+        error: 'Définissez d’abord votre mot de définitif avant de changer d’organisation.',
+        code: 'MUST_CHANGE_PASSWORD'
+      });
+    }
+
     const role = String(req.qhseUser.role ?? '').trim().toUpperCase();
     const userPayload = {
       id: req.qhseUser.id,
@@ -253,9 +310,83 @@ export async function getMe(req, res, next) {
         id,
         name,
         email,
-        role
+        role,
+        mustChangePassword: false
       },
       tenant: req.qhseTenant,
+      tenants
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/auth/change-temporary-password — après login avec mot de passe provisoire.
+ */
+export async function changeTemporaryPassword(req, res, next) {
+  try {
+    const parsed = changeTemporaryPasswordBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return sendJsonError(res, 422, 'Données invalides', req, {
+        code: 'VALIDATION_ERROR',
+        fieldErrors: parsed.error.flatten().fieldErrors
+      });
+    }
+    const { changePasswordToken, newPassword, confirmPassword } = parsed.data;
+    if (confirmPassword != null && confirmPassword !== '' && confirmPassword !== newPassword) {
+      return sendJsonError(res, 422, 'Les mots de passe ne correspondent pas.', req, {
+        code: 'PASSWORD_MISMATCH'
+      });
+    }
+
+    const result = await authService.fulfillMandatoryPasswordChange(changePasswordToken, newPassword);
+    if (!result.ok) {
+      if (result.code === 'password_policy' && result.message) {
+        return res.status(422).json({ error: result.message, code: 'PASSWORD_POLICY' });
+      }
+      /** @type {Record<string, [number, string]>} */
+      const map = {
+        invalid_setup_token: [400, 'Session de changement invalide ou expirée. Reconnectez-vous.'],
+        account_inactive: [403, 'Compte désactivé.'],
+        no_change_required: [400, 'Aucun changement obligatoire en cours pour ce compte.'],
+        tenant_mismatch: [400, 'Jeton incohérent avec l’organisation.']
+      };
+      const m = map[result.code] || [400, 'Changement impossible.'];
+      return res.status(m[0]).json({ error: m[1], code: result.code.toUpperCase() });
+    }
+
+    const { user } = result;
+    const resolved = await tenantAuth.resolveTenantForLogin(user.id, undefined);
+    if (!resolved || resolved.mode !== 'ok') {
+      return res.status(500).json({ error: 'Organisation introuvable après mise à jour.' });
+    }
+    const { tenant } = resolved;
+    const accessToken = authService.issueAccessToken(user, tenant.id);
+    const refreshToken = authService.issueRefreshToken(user, tenant.id);
+    res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+    const tenants = await tenantAuth.listTenantsForUser(user.id);
+    const role = String(user.role ?? '').trim().toUpperCase();
+
+    await prisma.user
+      .update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      })
+      .catch(() => {});
+
+    res.json({
+      success: true,
+      accessToken,
+      expiresIn: 3600,
+      token: accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role
+      },
+      tenant,
       tenants
     });
   } catch (err) {

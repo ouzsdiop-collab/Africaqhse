@@ -97,6 +97,42 @@ export function validatePasswordPolicy(password) {
   return { ok: true };
 }
 
+const MANDATORY_PWD_MIN = 10;
+
+/**
+ * Politique renforcée : premier changement après compte provisoire (aligné produit SaaS).
+ * @param {unknown} password
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function validateMandatoryPasswordChangePolicy(password) {
+  const p = String(password ?? '');
+  if (p.length < MANDATORY_PWD_MIN) {
+    return {
+      ok: false,
+      error: `Mot de passe trop court (minimum ${MANDATORY_PWD_MIN} caractères)`
+    };
+  }
+  if (p.length > PASSWORD_MAX_LENGTH) {
+    return { ok: false, error: 'Mot de passe trop long' };
+  }
+  if (!/[A-Z]/.test(p)) {
+    return { ok: false, error: 'Le mot de passe doit contenir au moins une majuscule' };
+  }
+  if (!/[a-z]/.test(p)) {
+    return { ok: false, error: 'Le mot de passe doit contenir au moins une minuscule' };
+  }
+  if (!/\d/.test(p)) {
+    return { ok: false, error: 'Le mot de passe doit contenir au moins un chiffre' };
+  }
+  if (!/[^A-Za-z0-9]/.test(p)) {
+    return {
+      ok: false,
+      error: 'Le mot de passe doit contenir au moins un caractère spécial (ponctuation ou symbole)'
+    };
+  }
+  return { ok: true };
+}
+
 /**
  * @param {unknown} score
  * @returns {{ ok: true, value: number } | { ok: false, error: string }}

@@ -9,6 +9,7 @@ describe('loginBodySchema', () => {
     });
     expect(r.success).toBe(true);
     if (r.success) {
+      expect(r.data.identifier).toBe('user@qhse.local');
       expect(r.data.email).toBe('user@qhse.local');
       expect(r.data.tenantSlug).toBeUndefined();
     }

@@ -17,7 +17,9 @@ const allowedPages = [
   'performance',
   'ai-center',
   'activity-log',
-  'settings'
+  'settings',
+  'saas-clients',
+  'first-password'
 ];
 
 export const appState = {
@@ -39,7 +41,7 @@ export function setCurrentPage(page) {
     appState.journalServerTabOnce = true;
   }
   const id = pathOnly === 'audit-logs' ? 'activity-log' : pathOnly;
-  const publicAuthPages = ['login', 'forgot-password', 'reset-password'];
+  const publicAuthPages = ['login', 'forgot-password', 'reset-password', 'first-password'];
   if (publicAuthPages.includes(id)) {
     appState.currentPage = id;
     return;

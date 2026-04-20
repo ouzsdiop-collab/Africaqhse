@@ -96,8 +96,8 @@ async function main() {
   const DEFAULT_TENANT_ID = 'qhse_default_tenant';
   await prisma.tenant.upsert({
     where: { id: DEFAULT_TENANT_ID },
-    create: { id: DEFAULT_TENANT_ID, slug: 'default', name: 'Katiola Mining (démo)' },
-    update: { name: 'Katiola Mining (démo)' }
+    create: { id: DEFAULT_TENANT_ID, slug: 'default', name: 'Katiola Mining (démo)', status: 'active' },
+    update: { name: 'Katiola Mining (démo)', status: 'active' }
   });
 
   /** 8 comptes — rôles limités à ceux listés (permissions V1). */
@@ -120,15 +120,39 @@ async function main() {
         name: u.name,
         email,
         role: u.role,
-        passwordHash
+        passwordHash,
+        isActive: true,
+        mustChangePassword: false
       },
       update: {
         name: u.name,
         role: u.role,
-        passwordHash
+        passwordHash,
+        isActive: true
       }
     });
   }
+
+  await prisma.user.upsert({
+    where: { email: 'superadmin@qhse.local' },
+    create: {
+      name: 'Super Administrateur',
+      email: 'superadmin@qhse.local',
+      role: 'SUPER_ADMIN',
+      passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+      clientCode: 'superadmin'
+    },
+    update: {
+      name: 'Super Administrateur',
+      role: 'SUPER_ADMIN',
+      passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+      clientCode: 'superadmin'
+    }
+  });
 
   for (const u of seedUsers) {
     const email = u.email.toLowerCase();
@@ -140,6 +164,15 @@ async function main() {
         update: { role: u.role }
       });
     }
+  }
+
+  const superRow = await prisma.user.findUnique({ where: { email: 'superadmin@qhse.local' } });
+  if (superRow) {
+    await prisma.tenantMember.upsert({
+      where: { tenantId_userId: { tenantId: DEFAULT_TENANT_ID, userId: superRow.id } },
+      create: { tenantId: DEFAULT_TENANT_ID, userId: superRow.id, role: 'SUPER_ADMIN' },
+      update: { role: 'SUPER_ADMIN' }
+    });
   }
 
   await prisma.aiSuggestion.deleteMany({});

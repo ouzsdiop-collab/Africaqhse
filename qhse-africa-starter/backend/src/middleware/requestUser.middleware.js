@@ -19,6 +19,12 @@ export async function attachRequestUser(req, res, next) {
     const token = bearerMatch[1];
     try {
       const payload = jwt.verify(token, getJwtSecret());
+      if (payload.typ === 'pwd_setup') {
+        return res.status(403).json({
+          error: 'Ce jeton ne permet pas d’accéder à l’API. Utilisez l’écran de changement de mot de passe.',
+          code: 'PWD_SETUP_TOKEN_NOT_ALLOWED'
+        });
+      }
       const sub = typeof payload.sub === 'string' ? payload.sub.trim() : '';
       if (!sub) {
         return res.status(401).json({
@@ -28,11 +34,20 @@ export async function attachRequestUser(req, res, next) {
 
       const user = await prisma.user.findUnique({
         where: { id: sub },
-        select: { id: true, name: true, email: true, role: true }
+        select: { id: true, name: true, email: true, role: true, mustChangePassword: true, isActive: true }
       });
 
       if (!user) {
         return res.status(401).json({ error: 'Session invalide — compte introuvable.' });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'Compte désactivé.' });
+      }
+      if (user.mustChangePassword) {
+        return res.status(403).json({
+          error: 'Vous devez d’abord définir un nouveau mot de passe.',
+          code: 'MUST_CHANGE_PASSWORD'
+        });
       }
 
       const role = String(user.role ?? '').trim().toUpperCase();
@@ -86,7 +101,7 @@ export async function attachRequestUser(req, res, next) {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, role: true }
+      select: { id: true, name: true, email: true, role: true, mustChangePassword: true, isActive: true }
     });
     if (!user) {
       req.qhseUser = null;
@@ -100,6 +115,16 @@ export async function attachRequestUser(req, res, next) {
         });
       }
       return next();
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Compte désactivé.' });
+    }
+    if (user.mustChangePassword) {
+      return res.status(403).json({
+        error: 'Vous devez d’abord définir un nouveau mot de passe.',
+        code: 'MUST_CHANGE_PASSWORD'
+      });
     }
 
     req.qhseUser = {

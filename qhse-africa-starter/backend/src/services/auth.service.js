@@ -3,11 +3,17 @@ import jwt from 'jsonwebtoken';
 import { createHash, randomBytes } from 'crypto';
 import { prisma } from '../db.js';
 import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
-import { validatePasswordPolicy } from '../lib/validation.js';
+import { validatePasswordPolicy, validateMandatoryPasswordChangePolicy } from '../lib/validation.js';
 
 const JWT_EXPIRES = '1h';
 
 const REFRESH_EXPIRES = '30d';
+
+/** Jeton court dédié au flux « changement obligatoire du mot de passe » (pas d’accès API métier). */
+const PASSWORD_SETUP_EXPIRES = '15m';
+
+/** Durée de validité d’un mot de passe provisoire après attribution (réinitialisation admin). */
+export const PROVISIONAL_PASSWORD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** @deprecated Utiliser le tenant issu de la DB / JWT (`tid`). Conservé pour compatibilité d’import. */
 export const MONO_ORG = Object.freeze({
@@ -63,6 +69,130 @@ export function issueRefreshToken(user, tenantId) {
     getJwtSecret(),
     { expiresIn: REFRESH_EXPIRES }
   );
+}
+
+/**
+ * Jeton limité au POST /api/auth/change-temporary-password (claim `typ: pwd_setup`).
+ * @param {string} userId
+ * @param {string} tenantId
+ */
+export function issuePasswordSetupToken(userId, tenantId) {
+  const uid = String(userId ?? '').trim();
+  const tid = String(tenantId ?? '').trim();
+  if (!uid || !tid) {
+    throw new Error('issuePasswordSetupToken: userId et tenantId requis');
+  }
+  return jwt.sign(
+    { sub: uid, typ: 'pwd_setup', tid },
+    getJwtSecret(),
+    { expiresIn: PASSWORD_SETUP_EXPIRES }
+  );
+}
+
+/**
+ * @param {string} token
+ * @returns {{ sub: string, tid: string } | null}
+ */
+export function verifyPasswordSetupToken(token) {
+  const raw = typeof token === 'string' ? token.trim() : '';
+  if (!raw) return null;
+  try {
+    const payload = jwt.verify(raw, getJwtSecret());
+    if (payload.typ !== 'pwd_setup') return null;
+    const sub = typeof payload.sub === 'string' ? payload.sub.trim() : '';
+    const tid = typeof payload.tid === 'string' ? payload.tid.trim() : '';
+    if (!sub || !tid) return null;
+    return { sub, tid };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string} rawToken
+ * @param {string} newPassword
+ * @returns {Promise<{ ok: true, user: { id: string, name: string, email: string, role: string } } | { ok: false, code: string, message?: string }>}
+ */
+export async function fulfillMandatoryPasswordChange(rawToken, newPassword) {
+  const parsed = verifyPasswordSetupToken(rawToken);
+  if (!parsed) {
+    return { ok: false, code: 'invalid_setup_token' };
+  }
+  const pv = validateMandatoryPasswordChangePolicy(newPassword);
+  if (!pv.ok) {
+    return { ok: false, code: 'password_policy', message: pv.error };
+  }
+
+  const row = await prisma.user.findUnique({
+    where: { id: parsed.sub },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      mustChangePassword: true,
+      isActive: true
+    }
+  });
+  if (!row?.isActive) {
+    return { ok: false, code: 'account_inactive' };
+  }
+  if (!row.mustChangePassword) {
+    return { ok: false, code: 'no_change_required' };
+  }
+
+  const m = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId: parsed.tid, userId: parsed.sub } },
+    select: { userId: true }
+  });
+  if (!m) {
+    return { ok: false, code: 'tenant_mismatch' };
+  }
+
+  const passwordHash = await bcrypt.hash(String(newPassword), 12);
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: parsed.sub },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+        temporaryPasswordCreatedAt: null
+      }
+    }),
+    prisma.refreshToken.deleteMany({ where: { userId: parsed.sub } })
+  ]);
+
+  return {
+    ok: true,
+    user: {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: String(row.role ?? '').trim().toUpperCase()
+    }
+  };
+}
+
+/** Génère un mot de passe provisoire lisible (affichage unique côté admin). */
+export function generateProvisioningPassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '@%+-_!';
+  const pick = (set, n) => {
+    let s = '';
+    for (let i = 0; i < n; i += 1) {
+      s += set[randomBytes(1)[0] % set.length];
+    }
+    return s;
+  };
+  const core = pick(upper, 3) + pick(lower, 3) + pick(digits, 3) + pick(special, 2);
+  const arr = core.split('');
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = randomBytes(1)[0] % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join('');
 }
 
 /** @returns {import('jsonwebtoken').JwtPayload & { sub?: string, tid?: string } | null} */
@@ -162,37 +292,91 @@ export async function cleanupExpiredRefreshTokens() {
 }
 
 /**
- * @param {string} email
+ * Authentification par e-mail ou par `clientCode` (insensible à la casse pour le code).
+ * @param {string} identifier — e-mail ou code client
  * @param {string} password
- * @returns {Promise<{ id: string, name: string, email: string, role: string } | null>}
+ * @returns {Promise<
+ *   | null
+ *   | { code: 'PROVISIONAL_EXPIRED' }
+ *   | {
+ *       id: string;
+ *       name: string;
+ *       email: string;
+ *       role: string;
+ *       mustChangePassword: boolean;
+ *     }
+ * >}
  */
-export async function authenticateWithEmailPassword(email, password) {
-  const normalizedEmail = String(email ?? '')
-    .trim()
-    .toLowerCase();
-  if (!normalizedEmail || password == null) return null;
+export async function authenticateWithIdentifierAndPassword(identifier, password) {
+  const idRaw = String(identifier ?? '').trim();
+  if (!idRaw || password == null) return null;
   const pwd = String(password);
   if (pwd.length === 0 || pwd.length > 128) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      passwordHash: true
-    }
-  });
+  const looksEmail = idRaw.includes('@');
+  const user = looksEmail
+    ? await prisma.user.findUnique({
+        where: { email: idRaw.toLowerCase() },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          passwordHash: true,
+          mustChangePassword: true,
+          isActive: true,
+          temporaryPasswordCreatedAt: true,
+          clientCode: true
+        }
+      })
+    : await prisma.user.findUnique({
+        where: { clientCode: idRaw.toLowerCase() },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          passwordHash: true,
+          mustChangePassword: true,
+          isActive: true,
+          temporaryPasswordCreatedAt: true,
+          clientCode: true
+        }
+      });
 
-  if (!user?.passwordHash) return null;
+  if (!user?.passwordHash || user.isActive === false) return null;
   const ok = await bcrypt.compare(pwd, user.passwordHash);
   if (!ok) return null;
+
+  if (
+    user.mustChangePassword &&
+    user.temporaryPasswordCreatedAt instanceof Date &&
+    Date.now() - user.temporaryPasswordCreatedAt.getTime() > PROVISIONAL_PASSWORD_TTL_MS
+  ) {
+    return { code: 'PROVISIONAL_EXPIRED' };
+  }
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: String(user.role ?? '').trim().toUpperCase()
+    role: String(user.role ?? '').trim().toUpperCase(),
+    mustChangePassword: Boolean(user.mustChangePassword)
+  };
+}
+
+/**
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<{ id: string, name: string, email: string, role: string } | null>}
+ */
+export async function authenticateWithEmailPassword(email, password) {
+  const r = await authenticateWithIdentifierAndPassword(email, password);
+  if (!r || 'code' in r) return null;
+  return {
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    role: r.role
   };
 }

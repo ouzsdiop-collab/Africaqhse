@@ -9,7 +9,8 @@ import { createNotificationsPanel } from './components/notifications.js';
 import {
   createLoginView,
   createForgotPasswordView,
-  createResetPasswordView
+  createResetPasswordView,
+  createFirstPasswordChangeView
 } from './pages/loginV2.js';
 import { showOnboardingWizard, shouldShowOnboarding } from './components/onboardingWizard.js';
 import { canAccessNavPage } from './utils/permissionsUi.js';
@@ -24,7 +25,12 @@ import {
   refreshNotificationSmartContext
 } from './services/notificationIntelligence.service.js';
 import { appState, setActiveSiteContext, setCurrentPage } from './utils/state.js';
-import { getAuthToken, getSessionUser, restoreSessionFromToken } from './data/sessionUser.js';
+import {
+  getAuthToken,
+  getSessionUser,
+  getPasswordSetupToken,
+  restoreSessionFromToken
+} from './data/sessionUser.js';
 import { getNavContextForPage, pageTopbarById } from './data/navigation.js';
 import { qhseFetch } from './utils/qhseFetch.js';
 import { withSiteQuery } from './utils/siteFilter.js';
@@ -383,7 +389,8 @@ const PAGE_IMPORT_LOADERS = {
   performance: () => import('./pages/performance.js'),
   'ai-center': () => import('./pages/ai-center.js'),
   'activity-log': () => import('./pages/activity-log.js'),
-  'audit-logs': () => import('./pages/activity-log.js')
+  'audit-logs': () => import('./pages/activity-log.js'),
+  'saas-clients': () => import('./pages/saas-clients.js')
 };
 
 /**
@@ -542,6 +549,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderActivityLog({ initialTab: 'server' });
     case 'settings':
       return mod.renderSettings();
+    case 'saas-clients':
+      return mod.renderSaasClients();
     case 'dashboard':
     default:
       return mod.renderDashboard();
@@ -557,7 +566,8 @@ function createPageRenderer(opts) {
   if (
     currentPage === 'login' ||
     currentPage === 'forgot-password' ||
-    currentPage === 'reset-password'
+    currentPage === 'reset-password' ||
+    currentPage === 'first-password'
   ) {
     return document.createElement('div');
   }
@@ -612,6 +622,14 @@ function syncDocumentTitle(pageId) {
     document.title = `${APP_BRAND_TITLE} — Nouveau mot de passe`;
     return;
   }
+  if (pageId === 'first-password') {
+    document.title = `${APP_BRAND_TITLE} — Mot de passe définitif`;
+    return;
+  }
+  if (pageId === 'saas-clients') {
+    document.title = `Clients SaaS · ${APP_BRAND_TITLE}`;
+    return;
+  }
   const meta = pageTopbarById[pageId];
   if (meta?.title) {
     document.title = `${meta.title} · ${APP_BRAND_TITLE}`;
@@ -640,6 +658,14 @@ function renderApp() {
   }
 
   try {
+    const pwdTok = getPasswordSetupToken();
+    if (pwdTok && appState.currentPage !== 'first-password') {
+      setCurrentPage('first-password');
+      window.location.hash = 'first-password';
+      renderApp();
+      return;
+    }
+
     const demoGuestMode = isDemoMode() && !getAuthToken() && !getSessionUser();
     if (demoGuestMode && appState.currentPage === 'dashboard') {
       setCurrentPage('mines-demo');
@@ -649,7 +675,7 @@ function renderApp() {
     const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
     if (terrainMode) {
-      const publicAuthPages = new Set(['login', 'forgot-password', 'reset-password']);
+      const publicAuthPages = new Set(['login', 'forgot-password', 'reset-password', 'first-password']);
       if (
         !publicAuthPages.has(appState.currentPage) &&
         !TERRAIN_ALLOWED_PAGE_IDS.has(appState.currentPage)
@@ -661,7 +687,8 @@ function renderApp() {
     if (
       appState.currentPage === 'login' ||
       appState.currentPage === 'forgot-password' ||
-      appState.currentPage === 'reset-password'
+      appState.currentPage === 'reset-password' ||
+      appState.currentPage === 'first-password'
     ) {
       qhseRoutePrefetchKey = null;
       syncDocumentTitle(appState.currentPage);
@@ -673,6 +700,18 @@ function renderApp() {
           captureQhseException(err, { phase: 'auth-navigate' });
         }
       };
+      if (appState.currentPage === 'first-password') {
+        app.append(
+          createFirstPasswordChangeView({
+            onSuccess: async () => {
+              renderApp();
+              scheduleProductOnboardingTour();
+            },
+            onNavigate: onAuthNavigate
+          })
+        );
+        return;
+      }
       if (appState.currentPage === 'forgot-password') {
         app.append(createForgotPasswordView({ onNavigate: onAuthNavigate }));
         return;

@@ -121,6 +121,11 @@ export async function qhseFetch(path, init = {}) {
       if (msg.includes('Profil inconnu')) {
         setSessionUser(null);
       }
+      if (typeof window !== 'undefined' && data?.code === 'MUST_CHANGE_PASSWORD') {
+        const { clearAuthSession } = await import('../data/sessionUser.js');
+        clearAuthSession();
+        window.location.hash = 'login';
+      }
       if (typeof window !== 'undefined' && msg.includes('Contexte organisation')) {
         window.dispatchEvent(
           new CustomEvent('qhse:tenant-context-required', {

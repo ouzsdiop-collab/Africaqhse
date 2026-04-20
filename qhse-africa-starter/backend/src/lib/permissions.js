@@ -11,7 +11,29 @@ const ALL = ['read', 'write'];
 
 /** @type {Record<string, Record<string, string[] | true>>} */
 const MATRIX = {
+  SUPER_ADMIN: { '*': true },
   ADMIN: { '*': true },
+  CLIENT_ADMIN: {
+    audit_logs: ['read'],
+    settings: ['read'],
+    incidents: ALL,
+    risks: ALL,
+    actions: ALL,
+    audits: ALL,
+    nonconformities: ALL,
+    habilitations: ALL,
+    sites: ALL,
+    dashboard: ['read'],
+    compliance: ['read'],
+    conformity: ALL,
+    controlled_documents: ALL,
+    ptw: ALL,
+    ai_suggestions: ALL,
+    notifications: ['read'],
+    users: ALL,
+    reports: ALL,
+    imports: ALL
+  },
   QHSE: {
     audit_logs: ['read'],
     incidents: ALL,

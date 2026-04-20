@@ -4,6 +4,8 @@ const STORAGE_KEY = 'qhseSessionUser';
 const TOKEN_KEY = 'qhseAuthToken';
 const TENANT_KEY = 'qhseSessionTenant';
 const TENANTS_KEY = 'qhseSessionTenants';
+const PWD_SETUP_TOKEN_KEY = 'qhsePwdSetupToken';
+const PWD_SETUP_META_KEY = 'qhsePwdSetupMeta';
 
 /** Fetch navigateur d’origine (capturé avant le patch global ci-dessous) — utilisé par qhseFetch pour éviter les boucles. */
 export const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -150,12 +152,61 @@ export function setAuthToken(token) {
   sessionStorage.setItem(TOKEN_KEY, token);
 }
 
+/**
+ * Contexte « changement de mot de passe obligatoire » (sans JWT d’accès métier).
+ * @param {string | null | undefined} token
+ * @param {{ name?: string, email?: string, tenantName?: string }} [meta]
+ */
+export function setPasswordSetupContext(token, meta = {}) {
+  try {
+    if (!token) {
+      sessionStorage.removeItem(PWD_SETUP_TOKEN_KEY);
+      sessionStorage.removeItem(PWD_SETUP_META_KEY);
+      return;
+    }
+    sessionStorage.setItem(PWD_SETUP_TOKEN_KEY, token);
+    sessionStorage.setItem(PWD_SETUP_META_KEY, JSON.stringify(meta));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getPasswordSetupToken() {
+  try {
+    return sessionStorage.getItem(PWD_SETUP_TOKEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+/** @returns {{ name?: string, email?: string, tenantName?: string } | null} */
+export function getPasswordSetupMeta() {
+  try {
+    const raw = sessionStorage.getItem(PWD_SETUP_META_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' ? o : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPasswordSetupContext() {
+  try {
+    sessionStorage.removeItem(PWD_SETUP_TOKEN_KEY);
+    sessionStorage.removeItem(PWD_SETUP_META_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Supprime le jeton et le profil stocké (déconnexion). Le refresh httpOnly est effacé côté serveur via POST /api/auth/logout. */
 export function clearAuthSession() {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TENANT_KEY);
   sessionStorage.removeItem(TENANTS_KEY);
   setSessionUser(null);
+  clearPasswordSetupContext();
 }
 
 /** Access / refresh (clés auth.js) + session utilisateur, puis écran de connexion. */

@@ -5,6 +5,11 @@ import * as controller from '../controllers/auth.controller.js';
 const router = Router();
 
 router.post('/login', authLimiter, controller.login);
+router.post(
+  '/change-temporary-password',
+  passwordResetLimiter,
+  controller.changeTemporaryPassword
+);
 router.post('/forgot-password', passwordResetLimiter, controller.forgotPassword);
 router.post('/reset-password', passwordResetLimiter, controller.resetPassword);
 router.post('/switch-tenant', controller.postSwitchTenant);
