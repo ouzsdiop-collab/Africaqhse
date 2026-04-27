@@ -104,7 +104,12 @@ function parseOptDate(v) {
  * @param {Record<string, unknown>} body
  */
 export async function createPermitToWork(tenantId, body) {
-  const tid = normalizeTenantId(tenantId) || null;
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const ref = await nextRef(tenantId);
   const type = String(body.type ?? 'permis').trim().slice(0, 200) || 'permis';
   const status = String(body.status ?? 'pending').trim().slice(0, 80) || 'pending';

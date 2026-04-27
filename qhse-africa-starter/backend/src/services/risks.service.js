@@ -108,6 +108,11 @@ export async function findRiskById(tenantId, id) {
 
 export async function createRisk(tenantId, data) {
   const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
   const title = typeof data.title === 'string' ? data.title.trim() : '';
   if (!title) {
@@ -120,7 +125,7 @@ export async function createRisk(tenantId, data) {
   const ref = await computeNextRiskRef(tenantId);
   const created = await prisma.risk.create({
     data: {
-      tenantId: t || null,
+      tenantId: t,
       ref,
       title,
       description: data.description ?? null,
@@ -176,7 +181,13 @@ export async function updateRiskById(tenantId, id, patch) {
   if ('probability' in data || 'gravity' in data || 'severity' in data) {
     data.gp = computeGp(nextProbability, nextGravity);
   }
-  const updated = await prisma.risk.update({ where: { id: current.id }, data });
+  const upd = await prisma.risk.updateMany({ where: { id: current.id, ...tf }, data });
+  if (!upd?.count) {
+    const err = new Error('Risque introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  const updated = await prisma.risk.findFirst({ where: { id: current.id, ...tf } });
   return withDerivedRiskFields(updated);
 }
 
@@ -188,7 +199,12 @@ export async function deleteRiskById(tenantId, id) {
     err.code = 'P2025';
     throw err;
   }
-  await prisma.risk.delete({ where: { id: row.id } });
+  const del = await prisma.risk.deleteMany({ where: { id: row.id, ...tf } });
+  if (!del?.count) {
+    const err = new Error('Risque introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
   return { deleted: true, id: row.id };
 }
 

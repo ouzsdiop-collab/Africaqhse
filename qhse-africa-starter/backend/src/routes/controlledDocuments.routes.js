@@ -80,6 +80,9 @@ router.get(
   async (req, res, next) => {
     try {
       const tenantId = normalizeTenantId(req.qhseTenantId);
+      if (!tenantId) {
+        return res.status(403).json({ error: 'Contexte organisation requis' });
+      }
       const siteIdRaw = req.query.siteId;
       const siteId =
         typeof siteIdRaw === 'string' && siteIdRaw.trim() ? siteIdRaw.trim() : undefined;
@@ -105,6 +108,9 @@ router.post(
   async (req, res, next) => {
     try {
       const tenantId = normalizeTenantId(req.qhseTenantId);
+      if (!tenantId) {
+        return res.status(403).json({ error: 'Contexte organisation requis' });
+      }
       if (String(req.body?.confirm || '') === '1' && req.body?.productId) {
         const id = String(req.body.productId).trim();
         if (!id) {

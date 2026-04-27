@@ -164,6 +164,11 @@ export async function getControlledDocumentByIdUnscoped(id) {
  */
 export async function createControlledDocument(buffer, meta) {
   const tenantRowId = normalizeTenantId(meta.tenantId);
+  if (!tenantRowId) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const { relativePath, sizeBytes } = await saveControlledFile(buffer, {
     originalName: meta.name || 'document',
     contentType: meta.mimeType || null
@@ -181,7 +186,7 @@ export async function createControlledDocument(buffer, meta) {
 
   const row = await prisma.controlledDocument.create({
     data: {
-      tenantId: tenantRowId || null,
+      tenantId: tenantRowId,
       name: String(meta.name || 'Sans titre').slice(0, 500),
       type: String(meta.type || 'other').slice(0, 120),
       path: relativePath,
@@ -219,6 +224,7 @@ export async function updateControlledDocumentMeta(tenantId, id, patch) {
     err.statusCode = 404;
     throw err;
   }
+  const tf = prismaTenantFilter(tenantId);
   const data = {};
   if ('expiresAt' in patch) {
     if (patch.expiresAt == null || String(patch.expiresAt).trim() === '') {
@@ -249,10 +255,16 @@ export async function updateControlledDocumentMeta(tenantId, id, patch) {
     err.statusCode = 400;
     throw err;
   }
-  return prisma.controlledDocument.update({
-    where: { id: existing.id },
+  const upd = await prisma.controlledDocument.updateMany({
+    where: { id: existing.id, ...tf },
     data
   });
+  if (!upd?.count) {
+    const err = new Error('Document introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  return prisma.controlledDocument.findFirst({ where: { id: existing.id, ...tf } });
 }
 
 /**
@@ -264,8 +276,9 @@ export async function deleteControlledDocumentRecord(tenantId, id) {
   const doc = await getControlledDocumentById(tenantId, id);
   if (!doc) return false;
   await deleteControlledFile(doc.path);
-  await prisma.controlledDocument.delete({ where: { id } });
-  return true;
+  const tf = prismaTenantFilter(tenantId);
+  const del = await prisma.controlledDocument.deleteMany({ where: { id: doc.id, ...tf } });
+  return Boolean(del?.count);
 }
 
 /**

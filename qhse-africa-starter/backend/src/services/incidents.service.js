@@ -29,9 +29,14 @@ export async function assertIncidentExistsOrNull(tenantId, incidentId) {
  * @param {string | null | undefined} tenantId
  */
 export async function computeNextIncidentRef(tenantId) {
-  const tf = prismaTenantFilter(tenantId);
+  const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const rows = await prisma.incident.findMany({
-    where: Object.keys(tf).length ? tf : {},
+    where: { tenantId: t },
     select: { ref: true },
     orderBy: { createdAt: 'desc' },
     take: 3000
@@ -70,10 +75,15 @@ export async function findAllIncidents(tenantId, filters = {}) {
 
 export async function createIncident(tenantId, data) {
   const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
   return prisma.incident.create({
     data: {
-      tenantId: t || null,
+      tenantId: t,
       ref: data.ref,
       type: data.type,
       site: data.site,
@@ -106,6 +116,11 @@ const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
  */
 export async function updateIncidentByRef(tenantId, ref, data) {
   const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const patch = {};
   if (data.status != null && String(data.status).trim() !== '') {
     patch.status = data.status;
@@ -139,31 +154,8 @@ export async function updateIncidentByRef(tenantId, ref, data) {
     err.statusCode = 400;
     throw err;
   }
-
-  if (t) {
-    return prisma.incident.update({
-      where: { tenantId_ref: { tenantId: t, ref } },
-      data: patch
-    });
-  }
-
-  const matches = await prisma.incident.findMany({
-    where: { ref },
-    select: { id: true },
-    take: 2
-  });
-  if (matches.length === 0) {
-    const err = new Error('Incident introuvable');
-    err.code = 'P2025';
-    throw err;
-  }
-  if (matches.length > 1) {
-    const err = new Error('Référence incident ambiguë — contactez l’administrateur.');
-    err.statusCode = 409;
-    throw err;
-  }
   return prisma.incident.update({
-    where: { id: matches[0].id },
+    where: { tenantId_ref: { tenantId: t, ref } },
     data: patch
   });
 }
@@ -180,28 +172,14 @@ export async function deleteIncident(tenantId, ref) {
     err.statusCode = 400;
     throw err;
   }
-  if (t) {
-    return prisma.incident.delete({
-      where: { tenantId_ref: { tenantId: t, ref: refStr } }
-    });
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
   }
-
-  const matches = await prisma.incident.findMany({
-    where: { ref: refStr },
-    select: { id: true },
-    take: 2
+  return prisma.incident.delete({
+    where: { tenantId_ref: { tenantId: t, ref: refStr } }
   });
-  if (matches.length === 0) {
-    const err = new Error('Incident introuvable');
-    err.code = 'P2025';
-    throw err;
-  }
-  if (matches.length > 1) {
-    const err = new Error('Référence incident ambiguë — contactez l’administrateur.');
-    err.statusCode = 409;
-    throw err;
-  }
-  return prisma.incident.delete({ where: { id: matches[0].id } });
 }
 
 /** Heures travaillées de référence / an (mining & pétrole) — surchargeable par env. */

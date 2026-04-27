@@ -10,6 +10,7 @@ import {
 } from '../utils/riskGpEvolution.js';
 import { addMockIncidentRefToRisk } from '../utils/riskMockIncidentLinks.js';
 import { showToast } from './toast.js';
+import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
 
 export { openRiskCreateDialog as openRiskDialog } from './riskFormDialog.js';
 
@@ -256,15 +257,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   const dialog = document.createElement('dialog');
   dialog.className = 'risk-sheet-modal';
   dialog.setAttribute('aria-labelledby', 'risk-sheet-modal-title');
-  {
-    const themeAttr = document.documentElement.getAttribute('data-theme');
-    const useDark =
-      themeAttr === 'dark' ||
-      (themeAttr !== 'light' &&
-        typeof window.matchMedia === 'function' &&
-        window.matchMedia('(prefers-color-scheme: dark)').matches);
-    dialog.style.colorScheme = useDark ? 'dark' : 'light';
-  }
+  applyNativeDialogColorScheme(dialog);
 
   const inner = document.createElement('div');
   inner.className = 'risk-sheet-modal__inner';

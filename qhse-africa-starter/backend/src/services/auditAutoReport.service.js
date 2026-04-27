@@ -56,18 +56,24 @@ export function isFinalAuditStatus(status) {
 const RECIPIENT_ROLES = new Set(['ADMIN', 'QHSE', 'DIRECTION']);
 
 /** Destinataires des rapports auto : utilisateurs avec rôles pilotage. */
-async function collectAutomaticRecipientEmails() {
-  const users = await prisma.user.findMany({
-    where: { role: { in: Array.from(RECIPIENT_ROLES) } },
-    select: { email: true }
+async function collectAutomaticRecipientEmails(tenantId) {
+  const tf = prismaTenantFilter(tenantId);
+  const t = tf.tenantId;
+  if (!t) return [];
+  const members = await prisma.tenantMember.findMany({
+    where: {
+      tenantId: t,
+      role: { in: Array.from(RECIPIENT_ROLES) }
+    },
+    include: { user: { select: { email: true } } }
   });
   const out = [];
   const seen = new Set();
-  for (const u of users) {
-    const e = String(u?.email ?? '').trim().toLowerCase();
+  for (const m of members) {
+    const e = String(m?.user?.email ?? '').trim().toLowerCase();
     if (!e || !EMAIL_RE.test(e) || seen.has(e)) continue;
     seen.add(e);
-    out.push(String(u.email).trim());
+    out.push(String(m.user.email).trim());
   }
   return out;
 }
@@ -89,7 +95,7 @@ export async function trySendFinalAuditReport(_previous, current) {
     return { sent: false, reason: 'already_sent' };
   }
 
-  const recipients = await collectAutomaticRecipientEmails();
+  const recipients = await collectAutomaticRecipientEmails(current.tenantId);
   if (!recipients.length) {
     console.warn(
       '[auditAutoReport] Aucun destinataire (rôles ADMIN / QHSE / DIRECTION avec e-mail valide).'

@@ -215,9 +215,17 @@ export async function updateHabilitation(tenantId, id, patch) {
     throw err;
   }
 
-  const updated = await prisma.habilitation.update({
-    where: { id: hid },
-    data,
+  const upd = await prisma.habilitation.updateMany({
+    where: { id: hid, ...tf },
+    data
+  });
+  if (!upd?.count) {
+    const err = new Error('Habilitation introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  const updated = await prisma.habilitation.findFirst({
+    where: { id: hid, ...tf },
     include: habilitationInclude
   });
   return serializeRow(updated);
@@ -243,5 +251,10 @@ export async function deleteHabilitation(tenantId, id) {
     err.statusCode = 404;
     throw err;
   }
-  await prisma.habilitation.delete({ where: { id: hid } });
+  const del = await prisma.habilitation.deleteMany({ where: { id: hid, ...tf } });
+  if (!del?.count) {
+    const err = new Error('Habilitation introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
 }

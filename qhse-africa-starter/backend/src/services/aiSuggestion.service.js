@@ -76,7 +76,12 @@ export async function generateSuggestion(opts) {
     riskRef,
     userId
   } = opts;
-  const tenantRow = normalizeTenantId(tenantId) || null;
+  const tenantRow = normalizeTenantId(tenantId);
+  if (!tenantRow) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
 
   const typeKey = String(type || 'generic').slice(0, 64);
   let structured = buildStructuredContent({
@@ -149,7 +154,12 @@ export async function generateSuggestion(opts) {
  */
 export async function analyzeDocument(opts) {
   const { tenantId, text, fileName = '', importHistoryId, userId } = opts;
-  const tenantRow = normalizeTenantId(tenantId) || null;
+  const tenantRow = normalizeTenantId(tenantId);
+  if (!tenantRow) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const excerpt = String(text || '')
     .trim()
     .slice(0, 12000);
@@ -227,7 +237,12 @@ export async function analyzeDocument(opts) {
  */
 export async function proposeActions(opts) {
   const { tenantId, targetIncidentId, targetAuditId, userId, note = '' } = opts;
-  const tenantRow = normalizeTenantId(tenantId) || null;
+  const tenantRow = normalizeTenantId(tenantId);
+  if (!tenantRow) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const tf = prismaTenantFilter(tenantId);
 
   const items = [];

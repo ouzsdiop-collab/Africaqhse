@@ -10,6 +10,7 @@ import {
   getSessionTenants
 } from '../data/sessionUser.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { logoutAndClear } from '../utils/logout.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
 
 /** Icônes SVG 20×20, stroke — cohérentes et sobres. */
@@ -208,8 +209,7 @@ export function createSidebar({
       logoutBtn.className = 'shell-btn-ghost shell-btn-ghost--full';
       logoutBtn.textContent = 'Déconnexion';
       logoutBtn.addEventListener('click', () => {
-        qhseFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        clearAuthSession();
+        void logoutAndClear({ redirectToLogin: false });
         if (typeof onSessionUserChange === 'function') onSessionUserChange();
       });
       const switchBtn = document.createElement('button');
@@ -217,8 +217,7 @@ export function createSidebar({
       switchBtn.className = 'shell-btn-link';
       switchBtn.textContent = 'Changer de compte';
       switchBtn.addEventListener('click', () => {
-        qhseFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        clearAuthSession();
+        void logoutAndClear({ redirectToLogin: false });
         if (typeof onSessionUserChange === 'function') onSessionUserChange();
         window.location.hash = 'login';
       });

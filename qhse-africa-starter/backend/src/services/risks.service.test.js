@@ -8,7 +8,9 @@ const { prismaMock } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
-      delete: vi.fn()
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn()
     }
   }
 }));
@@ -87,7 +89,8 @@ describe('risks.service', () => {
       gravity: 4,
       severity: 4
     });
-    prismaMock.risk.update.mockResolvedValueOnce({ id: 'r1', status: 'en_traitement' });
+    prismaMock.risk.updateMany.mockResolvedValueOnce({ count: 1 });
+    prismaMock.risk.findFirst.mockResolvedValueOnce({ id: 'r1', status: 'en_traitement' });
     const out = await risksService.updateRiskById(TENANT, 'r1', { status: 'en_traitement' });
     expect(out.status).toBe('en_traitement');
   });
@@ -100,7 +103,7 @@ describe('risks.service', () => {
 
   it('deleteRiskById supprime un risque', async () => {
     prismaMock.risk.findFirst.mockResolvedValueOnce({ id: 'r1' });
-    prismaMock.risk.delete.mockResolvedValueOnce({ id: 'r1', title: 'R1' });
+    prismaMock.risk.deleteMany.mockResolvedValueOnce({ count: 1 });
     const out = await risksService.deleteRiskById(TENANT, 'r1');
     expect(out).toEqual({ deleted: true, id: 'r1' });
   });

@@ -34,7 +34,12 @@ export async function listConformityStatuses(tenantId) {
  * @param {{ status: string, siteId?: string | null, userId?: string | null }} input
  */
 export async function upsertConformityStatus(tenantId, requirementId, input) {
-  const tid = normalizeTenantId(tenantId) || null;
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const rid = String(requirementId ?? '').trim();
   if (!rid) {
     const err = new Error('Identifiant d’exigence requis');

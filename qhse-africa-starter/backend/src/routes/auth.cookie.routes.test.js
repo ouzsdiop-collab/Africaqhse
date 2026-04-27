@@ -10,7 +10,8 @@ const { mockFindUnique } = vi.hoisted(() => ({
 vi.mock('../db.js', () => ({
   prisma: {
     user: {
-      findUnique: (...args) => mockFindUnique(...args)
+      findUnique: (...args) => mockFindUnique(...args),
+      update: vi.fn(async () => ({}))
     }
   }
 }));
@@ -40,13 +41,15 @@ vi.mock('../services/auth.service.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    authenticateWithEmailPassword: vi.fn(async (email, password) => {
-      if (String(email).toLowerCase() === 'admin@qhse.local' && password === 'Demo2026!') {
+    authenticateWithIdentifierAndPassword: vi.fn(async (identifier, password) => {
+      if (String(identifier).toLowerCase() === 'admin@qhse.local' && password === 'Demo2026!') {
         return {
           id: 'user-test-cookie',
           name: 'Admin Test',
           email: 'admin@qhse.local',
-          role: 'ADMIN'
+          role: 'ADMIN',
+          isActive: true,
+          mustChangePassword: false
         };
       }
       return null;
@@ -82,7 +85,9 @@ describe('Auth httpOnly refresh cookie', () => {
           id: 'user-test-cookie',
           name: 'Admin Test',
           email: 'admin@qhse.local',
-          role: 'ADMIN'
+          role: 'ADMIN',
+          isActive: true,
+          mustChangePassword: false
         };
       }
       return null;
@@ -92,7 +97,7 @@ describe('Auth httpOnly refresh cookie', () => {
   it('POST /api/auth/login — pas de refreshToken dans le JSON, cookie qhse_refresh', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@qhse.local', password: 'Demo2026!' })
+      .send({ identifier: 'admin@qhse.local', password: 'Demo2026!' })
       .expect(200);
 
     expect(res.body.refreshToken).toBeUndefined();
@@ -108,7 +113,7 @@ describe('Auth httpOnly refresh cookie', () => {
     const agent = request.agent(app);
     await agent
       .post('/api/auth/login')
-      .send({ email: 'admin@qhse.local', password: 'Demo2026!' })
+      .send({ identifier: 'admin@qhse.local', password: 'Demo2026!' })
       .expect(200);
 
     const res = await agent.post('/api/auth/refresh').send({}).expect(200);
@@ -129,7 +134,7 @@ describe('Auth httpOnly refresh cookie', () => {
     const agent = request.agent(app);
     await agent
       .post('/api/auth/login')
-      .send({ email: 'admin@qhse.local', password: 'Demo2026!' })
+      .send({ identifier: 'admin@qhse.local', password: 'Demo2026!' })
       .expect(200);
 
     const res = await agent.post('/api/auth/logout').send({}).expect(204);

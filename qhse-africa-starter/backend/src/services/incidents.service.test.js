@@ -179,18 +179,11 @@ describe('incidents.service', () => {
       ).rejects.toMatchObject({ statusCode: 400 });
     });
 
-    it('sans tenant : incident introuvable si aucune ligne', async () => {
-      prismaMock.incident.findMany.mockResolvedValueOnce([]);
+    it('refuse sans tenant (protection multi-tenant)', async () => {
       await expect(
         incidentsService.updateIncidentByRef('', 'INC-99', { status: 'X' })
-      ).rejects.toMatchObject({ code: 'P2025' });
-    });
-
-    it('sans tenant : conflit si plusieurs lignes même ref', async () => {
-      prismaMock.incident.findMany.mockResolvedValueOnce([{ id: 'a' }, { id: 'b' }]);
-      await expect(
-        incidentsService.updateIncidentByRef('', 'INC-dup', { status: 'X' })
-      ).rejects.toMatchObject({ statusCode: 409 });
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(prismaMock.incident.update).not.toHaveBeenCalled();
     });
   });
 
@@ -211,11 +204,11 @@ describe('incidents.service', () => {
       expect(prismaMock.incident.delete).not.toHaveBeenCalled();
     });
 
-    it('sans tenant : introuvable', async () => {
-      prismaMock.incident.findMany.mockResolvedValueOnce([]);
+    it('refuse sans tenant (protection multi-tenant)', async () => {
       await expect(incidentsService.deleteIncident('', 'INC-x')).rejects.toMatchObject({
-        code: 'P2025'
+        statusCode: 403
       });
+      expect(prismaMock.incident.delete).not.toHaveBeenCalled();
     });
   });
 });

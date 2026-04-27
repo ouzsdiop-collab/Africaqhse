@@ -278,6 +278,23 @@ export async function consumePasswordResetToken(rawToken, newPassword) {
  */
 export async function revokeRefreshToken(_token) {
   /* no-op */
+  /**
+   * TODO(auth-refresh): Passer à une stratégie refresh “rotating”.
+   *
+   * État actuel:
+   * - Le refresh token est un JWT stateless stocké en cookie httpOnly.
+   * - `revokeRefreshToken()` ne peut pas invalider un token déjà émis (pas de stockage server-side).
+   *
+   * Risque:
+   * - Si le cookie refresh est volé, il reste utilisable jusqu’à expiration (30 jours par défaut),
+   *   même après “logout” côté client (qui ne fait qu’effacer le cookie).
+   *
+   * Cible:
+   * - Rotation à chaque refresh (ancien refresh invalide après usage),
+   * - `jti` (ou hash de refresh) stocké en DB/Redis (allowlist/denylist),
+   * - Révocation à logout (suppression/invalidation du `jti` courant),
+   * - Détection de réutilisation (reuse detection) → invalidation de la session.
+   */
 }
 
 /**

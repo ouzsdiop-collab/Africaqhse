@@ -56,6 +56,18 @@ function alertBadgeClass(level) {
   return 'blue';
 }
 
+/** Cible #hash pour une alerte pilotage (aperçu synthèse / période). */
+function navigateHashForPilotageAlert(a) {
+  const c = String(a?.code || '').toUpperCase();
+  if (c.includes('ACTION')) return '#actions';
+  if (c.includes('AUDIT')) return '#audits';
+  if (c.includes('NC') || c.includes('NON_CONFORM') || c.includes('CONFORM')) {
+    return '#iso';
+  }
+  if (c.includes('INCIDENT') || c.includes('CRIT')) return '#incidents';
+  return '#dashboard';
+}
+
 function emptyNote(text) {
   const es = createEmptyState('\u25CB', text, '');
   es.classList.add('empty-state--analytics-inline');
@@ -72,11 +84,12 @@ function listOverflowNote(hidden, singular, plural) {
 /**
  * Ligne type « list-row » analytics (texte uniquement, pas d’HTML injecté).
  * @param {HTMLElement} row
- * @param {{ primary: string; secondary?: string; badgeText: string; badgeTone: string; secondaryLineHeight?: string }} opts
+ * @param {{ primary: string; secondary?: string; badgeText: string; badgeTone: string; secondaryLineHeight?: string; navigateHash?: string; navigateLabel?: string }} opts
  */
 function mountAnalyticsListRow(row, opts) {
   row.replaceChildren();
   const left = document.createElement('div');
+  left.className = 'list-row__main';
   const strong = document.createElement('strong');
   strong.textContent = opts.primary;
   left.append(strong);
@@ -92,7 +105,36 @@ function mountAnalyticsListRow(row, opts) {
   const badge = document.createElement('span');
   badge.className = `badge ${opts.badgeTone}`;
   badge.textContent = opts.badgeText;
-  row.append(left, badge);
+  const end = document.createElement('div');
+  end.className = 'list-row__end';
+  end.append(badge);
+  const hashRaw = opts.navigateHash;
+  if (hashRaw) {
+    const h = String(hashRaw).startsWith('#') ? hashRaw : `#${hashRaw}`;
+    row.classList.add('list-row--interactive');
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.setAttribute(
+      'aria-label',
+      opts.navigateLabel ||
+        `Ouvrir le module : ${String(opts.primary).slice(0, 120)}`
+    );
+    const chev = document.createElement('span');
+    chev.className = 'list-row__chevron';
+    chev.setAttribute('aria-hidden', 'true');
+    chev.textContent = '›';
+    end.append(chev);
+    row.addEventListener('click', () => {
+      window.location.hash = h;
+    });
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        window.location.hash = h;
+      }
+    });
+  }
+  row.append(left, end);
 }
 
 /**
@@ -548,7 +590,7 @@ function buildKpiGrid(counts, kpis) {
 
 function buildStackSection(title, kicker, host) {
   const card = document.createElement('article');
-  card.className = 'content-card card-soft';
+  card.className = 'content-card card-soft analytics-stack-section';
   const head = document.createElement('div');
   head.className = 'content-card-head';
   const headInner = document.createElement('div');
@@ -790,7 +832,8 @@ function mountPeriodicReportingBlock(periodicCard) {
             badgeText:
               a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info',
             badgeTone: tone,
-            secondaryLineHeight: '1.45'
+            secondaryLineHeight: '1.45',
+            navigateHash: navigateHashForPilotageAlert(a)
           });
           alertsStack.append(row);
         });
@@ -813,7 +856,8 @@ function mountPeriodicReportingBlock(periodicCard) {
             primary: `${inc.ref} — ${inc.type}`,
             secondary: `${inc.site} · ${inc.status}`,
             badgeText: formatFrDate(inc.createdAt),
-            badgeTone: 'blue'
+            badgeTone: 'blue',
+            navigateHash: '#incidents'
           });
           incStack.append(row);
         });
@@ -832,7 +876,8 @@ function mountPeriodicReportingBlock(periodicCard) {
             primary: String(a.ref ?? '—'),
             secondary: `${a.site} · ${a.status}`,
             badgeText: `${a.score} %`,
-            badgeTone: 'blue'
+            badgeTone: 'blue',
+            navigateHash: '#audits'
           });
           audStack.append(row);
         });
@@ -859,7 +904,8 @@ function mountPeriodicReportingBlock(periodicCard) {
             primary: String(nc.title ?? '—'),
             secondary: `Audit ${nc.auditRef} · ${nc.status}`,
             badgeText: 'NC',
-            badgeTone: 'amber'
+            badgeTone: 'amber',
+            navigateHash: '#iso'
           });
           ncStack.append(row);
         });
@@ -878,7 +924,8 @@ function mountPeriodicReportingBlock(periodicCard) {
             primary: String(act.title ?? '—'),
             secondary: `${act.owner || '—'} · Échéance ${due}`,
             badgeText: 'Retard',
-            badgeTone: 'amber'
+            badgeTone: 'amber',
+            navigateHash: '#actions'
           });
           actStack.append(row);
         });
@@ -1176,7 +1223,8 @@ export function renderAnalytics() {
             primary: String(nc.title ?? '—'),
             secondary: `Audit ${nc.auditRef} · ${nc.status}`,
             badgeText: 'NC',
-            badgeTone: 'amber'
+            badgeTone: 'amber',
+            navigateHash: '#iso'
           });
           ncStack.append(row);
         });
@@ -1208,7 +1256,8 @@ export function renderAnalytics() {
             primary: String(act.title ?? '—'),
             secondary: `${act.owner || '—'} · Échéance ${due}`,
             badgeText: 'Retard',
-            badgeTone: 'amber'
+            badgeTone: 'amber',
+            navigateHash: '#actions'
           });
           actStack.append(row);
         });
@@ -1237,7 +1286,8 @@ export function renderAnalytics() {
             primary: String(a.ref ?? '—'),
             secondary: `${a.site} · ${a.status}`,
             badgeText: `${a.score} %`,
-            badgeTone: 'blue'
+            badgeTone: 'blue',
+            navigateHash: '#audits'
           });
           auditStack.append(row);
         });
@@ -1269,7 +1319,8 @@ export function renderAnalytics() {
             primary: `${inc.ref} — ${inc.type}`,
             secondary: `${inc.site} · ${inc.status}`,
             badgeText: formatFrDate(inc.createdAt),
-            badgeTone: 'red'
+            badgeTone: 'red',
+            navigateHash: '#incidents'
           });
           critStack.append(row);
         });
@@ -1290,7 +1341,8 @@ export function renderAnalytics() {
             badgeText:
               a.level === 'critical' ? 'Critique' : a.level === 'high' ? 'Priorité' : 'Info',
             badgeTone: tone,
-            secondaryLineHeight: '1.45'
+            secondaryLineHeight: '1.45',
+            navigateHash: navigateHashForPilotageAlert(a)
           });
           alertsStack.append(row);
         });

@@ -668,6 +668,10 @@ export function createTimelineSection(entries, openKpi) {
       sub.className = 'kpi-perf-timeline-sub';
       sub.textContent = e.sub;
       body.append(kindEl, strong, sub);
+      const chev = document.createElement('span');
+      chev.className = 'kpi-perf-timeline-chev';
+      chev.setAttribute('aria-hidden', 'true');
+      chev.textContent = '›';
       const time = document.createElement('time');
       time.className = 'kpi-perf-timeline-time';
       time.textContent = e.t
@@ -678,7 +682,7 @@ export function createTimelineSection(entries, openKpi) {
             minute: '2-digit'
           })
         : '—';
-      btn.append(dot, body, time);
+      btn.append(dot, body, chev, time);
       btn.addEventListener('click', () => {
         if (e.kpiKey && openKpi) openKpi(e.kpiKey, e.preset ?? null);
       });

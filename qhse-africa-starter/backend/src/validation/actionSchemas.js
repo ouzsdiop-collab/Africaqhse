@@ -19,7 +19,8 @@ export const createActionSchema = z.object({
 export const patchActionSchema = z
   .object({
     title: z.string().min(2).max(500).optional(),
-    status: z.enum(['open', 'in_progress', 'done', 'cancelled']).optional(),
+    /** Statuts métier FR / Kanban (aligné `actions.controller` + Prisma). */
+    status: z.string().min(1).max(120).optional(),
     priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
     dueDate: z.string().datetime({ offset: true }).optional().nullable(),
     responsible: z.string().max(200).optional(),

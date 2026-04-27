@@ -1,4 +1,5 @@
 import { getApiBase } from '../config.js';
+import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
 import {
   addActionComment,
   appendActionHistory,
@@ -360,6 +361,7 @@ export function createActionDetailDialog(opts = {}) {
       renderLinkEditors(currentActionId);
       fillCommentsHistory(currentActionId);
 
+      applyNativeDialogColorScheme(dlg);
       dlg.showModal();
       requestAnimationFrame(() => {
         inner.querySelector('.action-detail-dialog__close')?.focus?.();

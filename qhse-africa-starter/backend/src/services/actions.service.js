@@ -20,17 +20,26 @@ function normalizeAssigneeIdInput(value) {
 /**
  * @param {string | null | undefined} userId
  */
-async function assertAssigneeExists(userId) {
+async function assertAssigneeExistsInTenant(tenantId, userId) {
   const uid = normalizeAssigneeIdInput(userId);
   if (!uid) {
     const err = new Error('Utilisateur assigné introuvable');
     err.statusCode = 400;
     throw err;
   }
-  const user = await prisma.user.findUnique({
-    where: { id: uid },
-    select: { id: true, name: true, email: true, role: true }
+  const tf = prismaTenantFilter(tenantId);
+  const t = tf.tenantId;
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const m = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId: t, userId: uid } },
+    include: { user: { select: { id: true, name: true, email: true, role: true } } }
   });
+  const user = m?.user ?? null;
   if (!user) {
     const err = new Error('Utilisateur assigné introuvable');
     err.statusCode = 400;
@@ -120,13 +129,18 @@ export async function findOverdueActions(tenantId, filters = {}) {
 
 export async function createAction(tenantId, data) {
   const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   let assigneeId = null;
   let owner =
     typeof data.owner === 'string' ? data.owner.trim() : data.owner ?? null;
 
   const rawAssignee = normalizeAssigneeIdInput(data.assigneeId);
   if (rawAssignee) {
-    const user = await assertAssigneeExists(rawAssignee);
+    const user = await assertAssigneeExistsInTenant(tenantId, rawAssignee);
     assigneeId = user.id;
     owner = owner && owner !== '' ? owner : user.name;
   }
@@ -135,7 +149,7 @@ export async function createAction(tenantId, data) {
 
   /** @type {Record<string, unknown>} */
   const createData = {
-    tenantId: t || null,
+    tenantId: t,
     title: data.title,
     detail: data.detail ?? '',
     status: data.status,
@@ -169,9 +183,15 @@ export async function updateActionFields(tenantId, actionId, data) {
     err.statusCode = 400;
     throw err;
   }
-  return prisma.action.update({
-    where: { id },
-    data: patch,
+  const tf = prismaTenantFilter(tenantId);
+  const upd = await prisma.action.updateMany({ where: { id, ...tf }, data: patch });
+  if (!upd?.count) {
+    const err = new Error('Action introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  return prisma.action.findFirst({
+    where: { id, ...tf },
     include: {
       assignee: { select: assigneeSelect },
       incident: { select: { id: true, ref: true } }
@@ -181,15 +201,24 @@ export async function updateActionFields(tenantId, actionId, data) {
 
 export async function assignAction(tenantId, actionId, assigneeId) {
   await assertActionInTenant(tenantId, actionId);
+  const tf = prismaTenantFilter(tenantId);
   const targetAssigneeId = normalizeAssigneeIdInput(assigneeId);
   if (targetAssigneeId) {
-    const user = await assertAssigneeExists(targetAssigneeId);
-    return prisma.action.update({
-      where: { id: actionId },
+    const user = await assertAssigneeExistsInTenant(tenantId, targetAssigneeId);
+    const upd = await prisma.action.updateMany({
+      where: { id: actionId, ...tf },
       data: {
         assigneeId: user.id,
         owner: user.name
-      },
+      }
+    });
+    if (!upd?.count) {
+      const err = new Error('Action introuvable');
+      err.code = 'P2025';
+      throw err;
+    }
+    return prisma.action.findFirst({
+      where: { id: actionId, ...tf },
       include: {
         assignee: { select: assigneeSelect },
         incident: { select: { id: true, ref: true } }
@@ -197,12 +226,20 @@ export async function assignAction(tenantId, actionId, assigneeId) {
     });
   }
 
-  return prisma.action.update({
-    where: { id: actionId },
+  const upd = await prisma.action.updateMany({
+    where: { id: actionId, ...tf },
     data: {
       assigneeId: null,
       owner: 'À assigner'
-    },
+    }
+  });
+  if (!upd?.count) {
+    const err = new Error('Action introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  return prisma.action.findFirst({
+    where: { id: actionId, ...tf },
     include: {
       assignee: { select: assigneeSelect },
       incident: { select: { id: true, ref: true } }

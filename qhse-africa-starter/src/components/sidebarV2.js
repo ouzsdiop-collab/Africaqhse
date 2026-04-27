@@ -10,6 +10,7 @@ import {
   getSessionTenants
 } from '../data/sessionUser.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { logoutAndClear } from '../utils/logout.js';
 import { canAccessNavPage, canResource } from '../utils/permissionsUi.js';
 import { getDisplayMode } from '../utils/displayMode.js';
 import { TERRAIN_ALLOWED_PAGE_IDS } from '../utils/terrainModePages.js';
@@ -1120,8 +1121,7 @@ export function createSidebar({
       logoutBtn.className = 'sidebar-v2__btn-logout';
       logoutBtn.textContent = 'Déconnexion';
       logoutBtn.addEventListener('click', () => {
-        qhseFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        clearAuthSession();
+        void logoutAndClear({ redirectToLogin: false });
         if (typeof onSessionUserChange === 'function') onSessionUserChange();
       });
       const switchBtn = document.createElement('button');
@@ -1129,8 +1129,7 @@ export function createSidebar({
       switchBtn.className = 'sidebar-v2__btn-link';
       switchBtn.textContent = 'Changer de compte';
       switchBtn.addEventListener('click', () => {
-        qhseFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        clearAuthSession();
+        void logoutAndClear({ redirectToLogin: false });
         if (typeof onSessionUserChange === 'function') onSessionUserChange();
         window.location.hash = 'login';
       });
