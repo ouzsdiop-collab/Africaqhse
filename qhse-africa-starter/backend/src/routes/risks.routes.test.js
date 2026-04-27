@@ -140,7 +140,9 @@ describe('risks routes', () => {
           id: 'test-api-user',
           name: 'API Test',
           email: 'api@test.local',
-          role: 'ADMIN'
+          role: 'ADMIN',
+          isActive: true,
+          mustChangePassword: false
         };
       }
       return null;

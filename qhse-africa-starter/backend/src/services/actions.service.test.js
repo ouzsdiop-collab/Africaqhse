@@ -6,7 +6,11 @@ const { prismaMock, assertSiteMock } = vi.hoisted(() => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
-      update: vi.fn()
+      update: vi.fn(),
+      updateMany: vi.fn()
+    },
+    tenantMember: {
+      findUnique: vi.fn()
     },
     user: {
       findUnique: vi.fn()
@@ -55,11 +59,8 @@ describe('actions.service', () => {
     });
 
     it('résout assigneeId et enrichit owner depuis l’utilisateur', async () => {
-      prismaMock.user.findUnique.mockResolvedValueOnce({
-        id: 'u1',
-        name: 'Alice',
-        email: 'a@test',
-        role: 'QHSE'
+      prismaMock.tenantMember.findUnique.mockResolvedValueOnce({
+        user: { id: 'u1', name: 'Alice', email: 'a@test', role: 'QHSE' }
       });
       prismaMock.action.create.mockResolvedValueOnce({
         id: 'a2',
@@ -73,7 +74,7 @@ describe('actions.service', () => {
         assigneeId: 'u1'
       });
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalled();
+      expect(prismaMock.tenantMember.findUnique).toHaveBeenCalled();
       expect(prismaMock.action.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ assigneeId: 'u1', owner: 'Alice' })
@@ -82,7 +83,7 @@ describe('actions.service', () => {
     });
 
     it('rejette un assigné inexistant', async () => {
-      prismaMock.user.findUnique.mockResolvedValueOnce(null);
+      prismaMock.tenantMember.findUnique.mockResolvedValueOnce(null);
       await expect(
         actionsService.createAction(TENANT, {
           title: 'T',
@@ -168,7 +169,8 @@ describe('actions.service', () => {
   describe('updateAction (updateActionFields)', () => {
     it('met à jour le statut', async () => {
       prismaMock.action.findFirst.mockResolvedValueOnce({ id: 'a1' });
-      prismaMock.action.update.mockResolvedValueOnce({
+      prismaMock.action.updateMany.mockResolvedValueOnce({ count: 1 });
+      prismaMock.action.findFirst.mockResolvedValueOnce({
         id: 'a1',
         status: 'Terminé',
         assignee: null,
@@ -180,12 +182,7 @@ describe('actions.service', () => {
       });
 
       expect(out.status).toBe('Terminé');
-      expect(prismaMock.action.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'a1' },
-          data: { status: 'Terminé' }
-        })
-      );
+      expect(prismaMock.action.updateMany).toHaveBeenCalled();
     });
 
     it('rejette si aucun champ à mettre à jour', async () => {
@@ -193,13 +190,21 @@ describe('actions.service', () => {
       await expect(
         actionsService.updateActionFields(TENANT, 'a1', {})
       ).rejects.toMatchObject({ statusCode: 400 });
-      expect(prismaMock.action.update).not.toHaveBeenCalled();
+      expect(prismaMock.action.updateMany).not.toHaveBeenCalled();
     });
 
     it('rejette si l’action n’existe pas dans le tenant', async () => {
       prismaMock.action.findFirst.mockResolvedValueOnce(null);
       await expect(
         actionsService.updateActionFields(TENANT, 'missing', { status: 'X' })
+      ).rejects.toMatchObject({ code: 'P2025' });
+    });
+
+    it('rejette proprement si updateMany count=0 (write non effectué)', async () => {
+      prismaMock.action.findFirst.mockResolvedValueOnce({ id: 'a1' });
+      prismaMock.action.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(
+        actionsService.updateActionFields(TENANT, 'a1', { status: 'X' })
       ).rejects.toMatchObject({ code: 'P2025' });
     });
   });

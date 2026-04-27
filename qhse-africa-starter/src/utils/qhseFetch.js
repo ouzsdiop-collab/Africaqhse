@@ -5,6 +5,8 @@ import {
   getAuthToken,
   getSessionUser,
   clearSession,
+  clearAuthSession,
+  getPasswordSetupToken,
   nativeFetch
 } from '../data/sessionUser.js';
 import { getAccessTokenForRequest, refreshAccessToken } from './auth.js';
@@ -72,21 +74,32 @@ export async function qhseFetch(path, init = {}) {
     const fromRefresh = await sharedRefreshAccessToken();
     if (fromRefresh) {
       token = fromRefresh;
+    } else {
+      /* Session locale présente mais refresh impossible → éviter l’état “semi-connecté”. */
+      clearSession();
+      return new Response(JSON.stringify({ error: 'Session expirée. Reconnectez-vous.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      });
     }
   }
 
+  const existingAuthHeader = headers.get('Authorization') || headers.get('authorization') || '';
   if (!isRefreshUrl) {
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    } else {
-      const uid = getSessionUserId();
-      if (uid) headers.set('X-User-Id', uid);
+    /* Important: en retry, l’appelant peut forcer un Bearer (nouveau token) — ne pas l’écraser. */
+    if (!existingAuthHeader) {
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      } else {
+        const uid = getSessionUserId();
+        if (uid) headers.set('X-User-Id', uid);
+      }
     }
   }
   if (fetchInit.body instanceof FormData) {
     headers.delete('Content-Type');
   }
-  const sentBearer = Boolean(token) && !isRefreshUrl;
+  const sentBearer = Boolean(existingAuthHeader || token) && !isRefreshUrl;
 
   let res = await nativeFetch(url, {
     ...fetchInit,
@@ -121,10 +134,13 @@ export async function qhseFetch(path, init = {}) {
       if (msg.includes('Profil inconnu')) {
         setSessionUser(null);
       }
-      if (typeof window !== 'undefined' && data?.code === 'MUST_CHANGE_PASSWORD') {
-        const { clearAuthSession } = await import('../data/sessionUser.js');
-        clearAuthSession();
-        window.location.hash = 'login';
+      if (data?.code === 'MUST_CHANGE_PASSWORD') {
+        const hasSetup = Boolean(getPasswordSetupToken());
+        /* On doit garder le jeton pwd_setup si présent pour permettre #first-password. */
+        clearAuthSession({ keepPasswordSetupContext: hasSetup });
+        if (typeof window !== 'undefined') {
+          window.location.hash = hasSetup ? 'first-password' : 'login';
+        }
       }
       if (typeof window !== 'undefined' && msg.includes('Contexte organisation')) {
         window.dispatchEvent(

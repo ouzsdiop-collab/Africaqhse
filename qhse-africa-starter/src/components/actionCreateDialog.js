@@ -1,4 +1,5 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
 import { appState } from '../utils/state.js';
 import { showToast } from './toast.js';
 import { mergeActionOverlay, appendActionHistory } from '../utils/actionPilotageMock.js';
@@ -206,6 +207,7 @@ export function openActionCreateDialog(opts) {
   });
 
   dialog.addEventListener('close', () => dialog.remove());
+  applyNativeDialogColorScheme(dialog);
   dialog.showModal();
   requestAnimationFrame(() => {
     const firstField = form?.querySelector?.('[name="title"]');

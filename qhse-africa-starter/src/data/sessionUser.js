@@ -2,6 +2,8 @@ import { getApiBase } from '../config.js';
 
 const STORAGE_KEY = 'qhseSessionUser';
 const TOKEN_KEY = 'qhseAuthToken';
+/** Ancienne clé (utils/auth.js) — conservée pour migration douce. */
+const LEGACY_ACCESS_TOKEN_KEY = 'qhse_access_token';
 const TENANT_KEY = 'qhseSessionTenant';
 const TENANTS_KEY = 'qhseSessionTenants';
 const PWD_SETUP_TOKEN_KEY = 'qhsePwdSetupToken';
@@ -138,18 +140,37 @@ export function getSessionUserId() {
 
 export function getAuthToken() {
   try {
-    return sessionStorage.getItem(TOKEN_KEY) || '';
+    const t = sessionStorage.getItem(TOKEN_KEY) || '';
+    if (t) return t;
+    return sessionStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || '';
   } catch {
     return '';
   }
 }
 
 export function setAuthToken(token) {
-  if (!token) {
-    sessionStorage.removeItem(TOKEN_KEY);
-    return;
+  try {
+    const t = typeof token === 'string' ? token : '';
+    if (!t) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+      return;
+    }
+    /** Source de vérité : `qhseAuthToken`. Écrit aussi l’ancienne clé pendant la transition. */
+    sessionStorage.setItem(TOKEN_KEY, t);
+    sessionStorage.setItem(LEGACY_ACCESS_TOKEN_KEY, t);
+  } catch {
+    /* ignore */
   }
-  sessionStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearStoredAccessTokens() {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -201,22 +222,24 @@ export function clearPasswordSetupContext() {
 }
 
 /** Supprime le jeton et le profil stocké (déconnexion). Le refresh httpOnly est effacé côté serveur via POST /api/auth/logout. */
-export function clearAuthSession() {
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TENANT_KEY);
-  sessionStorage.removeItem(TENANTS_KEY);
+export function clearAuthSession(opts = {}) {
+  const keepPwdSetup = Boolean(opts && opts.keepPasswordSetupContext);
+  clearStoredAccessTokens();
+  try {
+    sessionStorage.removeItem(TENANT_KEY);
+    sessionStorage.removeItem(TENANTS_KEY);
+  } catch {
+    /* ignore */
+  }
   setSessionUser(null);
-  clearPasswordSetupContext();
+  if (!keepPwdSetup) {
+    clearPasswordSetupContext();
+  }
 }
 
 /** Access / refresh (clés auth.js) + session utilisateur, puis écran de connexion. */
 export function clearSession() {
   clearAuthSession();
-  try {
-    sessionStorage.removeItem('qhse_access_token');
-  } catch {
-    /* ignore */
-  }
   if (typeof window !== 'undefined') {
     const { origin, pathname } = window.location;
     window.location.assign(`${origin}${pathname || '/'}#login`);

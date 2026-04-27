@@ -34,6 +34,11 @@ export async function createNonConformityWithAction(
   { title, detail, auditRef, siteId: inputSiteId }
 ) {
   const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const actionTitle = `NC audit ${auditRef} — ${title}`;
   const safeTitle =
     actionTitle.length > 220 ? `${actionTitle.slice(0, 217)}...` : actionTitle;
@@ -53,7 +58,7 @@ export async function createNonConformityWithAction(
 
     const nonConformity = await tx.nonConformity.create({
       data: {
-        tenantId: t || null,
+        tenantId: t,
         title,
         detail: detail ?? null,
         status: 'open',
@@ -65,7 +70,7 @@ export async function createNonConformityWithAction(
 
     const action = await tx.action.create({
       data: {
-        tenantId: t || null,
+        tenantId: t,
         title: safeTitle,
         detail: `NC issue audit ${auditRef} • ${title}`,
         status: 'À lancer',

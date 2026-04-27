@@ -1,7 +1,5 @@
 import { getApiBase } from '../config.js';
-import { setAuthToken } from '../data/sessionUser.js';
-
-const ACCESS_KEY = 'qhse_access_token';
+import { setAuthToken, getAuthToken, clearStoredAccessTokens } from '../data/sessionUser.js';
 
 /**
  * Après un login réussi : stockage explicite + synchro sessionUser (Bearer).
@@ -21,9 +19,6 @@ export function persistTokensFromLoginResponse(data) {
  */
 export function persistAuthTokensAfterLogin(accessToken) {
   try {
-    if (accessToken) {
-      sessionStorage.setItem(ACCESS_KEY, accessToken);
-    }
     if (accessToken) setAuthToken(accessToken);
   } catch {
     /* ignore */
@@ -31,11 +26,7 @@ export function persistAuthTokensAfterLogin(accessToken) {
 }
 
 export function getAccessTokenForRequest() {
-  try {
-    return sessionStorage.getItem(ACCESS_KEY) || '';
-  } catch {
-    return '';
-  }
+  return getAuthToken();
 }
 
 /**
@@ -50,18 +41,13 @@ export async function refreshAccessToken() {
       headers: { 'Content-Type': 'application/json' }
     });
     if (!res.ok) {
-      try {
-        sessionStorage.removeItem(ACCESS_KEY);
-      } catch {
-        /* ignore */
-      }
+      clearStoredAccessTokens();
       return null;
     }
     const data = await res.json();
     const access = typeof data.accessToken === 'string' ? data.accessToken : '';
     if (!access) return null;
     try {
-      sessionStorage.setItem(ACCESS_KEY, access);
       setAuthToken(access);
     } catch {
       /* ignore */

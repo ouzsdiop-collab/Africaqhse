@@ -43,10 +43,11 @@ export async function create(req, res, next) {
     if (!parsed.ok) {
       return res.status(400).json({ error: parsed.error });
     }
+    const scoreInt = Math.round(Number(parsed.value));
     const created = await auditsService.createAudit(req.qhseTenantId, {
       ref: r,
       site: si,
-      score: parsed.value,
+      score: scoreInt,
       status: st,
       checklist,
       siteId
@@ -88,6 +89,9 @@ export async function create(req, res, next) {
   } catch (err) {
     if (err.statusCode === 400) {
       return res.status(400).json({ error: err.message });
+    }
+    if (err.statusCode === 403) {
+      return res.status(403).json({ error: err.message });
     }
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Référence audit déjà utilisée' });
@@ -137,7 +141,7 @@ export async function patch(req, res, next) {
       if (!parsed.ok) {
         return res.status(400).json({ error: parsed.error });
       }
-      data.score = parsed.value;
+      data.score = Math.round(Number(parsed.value));
     }
     if (site !== undefined) data.site = String(site).trim();
     if (checklist !== undefined) data.checklist = checklist;
@@ -156,10 +160,19 @@ export async function patch(req, res, next) {
       }
     }
 
-    const updated = await prisma.audit.update({
-      where: { id: existing.id },
+    const upd = await prisma.audit.updateMany({
+      where: { id: existing.id, tenantId: req.qhseTenantId },
       data
     });
+    if (!upd?.count) {
+      return res.status(404).json({ error: 'Audit introuvable' });
+    }
+    const updated = await prisma.audit.findFirst({
+      where: { id: existing.id, tenantId: req.qhseTenantId }
+    });
+    if (!updated) {
+      return res.status(404).json({ error: 'Audit introuvable' });
+    }
 
     const delivery = await auditAutoReport.trySendFinalAuditReport(
       existing,

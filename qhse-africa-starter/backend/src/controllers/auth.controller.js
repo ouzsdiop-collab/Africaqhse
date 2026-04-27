@@ -23,14 +23,23 @@ function refreshCookieOptions() {
     .trim()
     .toLowerCase();
   const sameSite = raw === 'strict' ? 'strict' : raw === 'none' ? 'none' : 'lax';
+  const secureEnv = String(process.env.AUTH_REFRESH_COOKIE_SECURE ?? '').trim().toLowerCase();
   const secure =
-    sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
+    secureEnv === 'true' || secureEnv === '1'
+      ? true
+      : secureEnv === 'false' || secureEnv === '0'
+        ? false
+        : sameSite === 'none'
+          ? true
+          : process.env.NODE_ENV === 'production';
+  const domainRaw = String(process.env.AUTH_REFRESH_COOKIE_DOMAIN ?? '').trim();
   return {
     httpOnly: true,
     secure,
     sameSite,
     maxAge: 30 * 24 * 60 * 60 * 1000,
-    path: '/'
+    path: '/',
+    ...(domainRaw ? { domain: domainRaw } : {})
   };
 }
 
@@ -39,13 +48,22 @@ function clearRefreshCookieOptions() {
     .trim()
     .toLowerCase();
   const sameSite = raw === 'strict' ? 'strict' : raw === 'none' ? 'none' : 'lax';
+  const secureEnv = String(process.env.AUTH_REFRESH_COOKIE_SECURE ?? '').trim().toLowerCase();
   const secure =
-    sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
+    secureEnv === 'true' || secureEnv === '1'
+      ? true
+      : secureEnv === 'false' || secureEnv === '0'
+        ? false
+        : sameSite === 'none'
+          ? true
+          : process.env.NODE_ENV === 'production';
+  const domainRaw = String(process.env.AUTH_REFRESH_COOKIE_DOMAIN ?? '').trim();
   return {
     httpOnly: true,
     secure,
     sameSite,
-    path: '/'
+    path: '/',
+    ...(domainRaw ? { domain: domainRaw } : {})
   };
 }
 

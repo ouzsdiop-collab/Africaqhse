@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
-import { prismaTenantFilter } from '../lib/tenantScope.js';
+import { TENANT_CONTEXT_REQUIRED_MESSAGE } from '../lib/tenantConstants.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 /** @typedef {'analysis_only' | 'validated' | 'failed' | 'analysis_failed'} ImportHistoryStatus */
 
@@ -7,6 +8,7 @@ const LIST_LIMIT = 150;
 
 /**
  * @param {{
+ *   tenantId: string | null | undefined,
  *   fileName: string,
  *   fileType: string,
  *   detectedDocumentType?: string | null,
@@ -20,10 +22,12 @@ const LIST_LIMIT = 150;
  * }} data
  */
 export async function createAnalysisSuccessRecord(data) {
-  const tenantId =
-    data.tenantId != null && String(data.tenantId).trim() !== ''
-      ? String(data.tenantId).trim()
-      : null;
+  const tenantId = normalizeTenantId(data.tenantId);
+  if (!tenantId) {
+    const err = new Error(TENANT_CONTEXT_REQUIRED_MESSAGE);
+    err.statusCode = 403;
+    throw err;
+  }
   return prisma.importHistory.create({
     data: {
       tenantId,
@@ -54,6 +58,7 @@ export async function createAnalysisSuccessRecord(data) {
 
 /**
  * @param {{
+ *   tenantId: string | null | undefined,
  *   fileName: string,
  *   fileType: string,
  *   errorMessage: string,
@@ -62,10 +67,12 @@ export async function createAnalysisSuccessRecord(data) {
  * }} data
  */
 export async function createAnalysisFailedRecord(data) {
-  const tenantId =
-    data.tenantId != null && String(data.tenantId).trim() !== ''
-      ? String(data.tenantId).trim()
-      : null;
+  const tenantId = normalizeTenantId(data.tenantId);
+  if (!tenantId) {
+    const err = new Error(TENANT_CONTEXT_REQUIRED_MESSAGE);
+    err.statusCode = 403;
+    throw err;
+  }
   return prisma.importHistory.create({
     data: {
       tenantId,
@@ -114,8 +121,8 @@ export async function applyConfirmResult(
   if (!belongs) return null;
   try {
     if (confirmResult.success) {
-      return await prisma.importHistory.update({
-        where: { id },
+      const upd = await prisma.importHistory.updateMany({
+        where: { id, ...tf },
         data: {
           status: 'validated',
           moduleCreated: confirmResult.moduleCreated ?? null,
@@ -126,14 +133,16 @@ export async function applyConfirmResult(
             : []
         }
       });
+      if (!upd?.count) return null;
+      return await prisma.importHistory.findFirst({ where: { id, ...tf } });
     }
     const mod =
       confirmResult.moduleCreated != null &&
       String(confirmResult.moduleCreated).trim() !== ''
         ? String(confirmResult.moduleCreated).trim()
         : String(targetModuleAttempted || '').trim() || null;
-    return await prisma.importHistory.update({
-      where: { id },
+    const upd = await prisma.importHistory.updateMany({
+      where: { id, ...tf },
       data: {
         status: 'failed',
         moduleCreated: mod,
@@ -142,6 +151,8 @@ export async function applyConfirmResult(
           : []
       }
     });
+    if (!upd?.count) return null;
+    return await prisma.importHistory.findFirst({ where: { id, ...tf } });
   } catch (err) {
     if (err && err.code === 'P2025') return null;
     throw err;
@@ -152,9 +163,14 @@ export async function applyConfirmResult(
  * @param {string | null | undefined} tenantId
  */
 export async function findAllImportHistory(tenantId) {
-  const tf = prismaTenantFilter(tenantId);
+  const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   return prisma.importHistory.findMany({
-    where: Object.keys(tf).length ? tf : {},
+    where: { tenantId: t },
     orderBy: { createdAt: 'desc' },
     take: LIST_LIMIT
   });

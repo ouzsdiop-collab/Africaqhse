@@ -28,10 +28,15 @@ export async function findAllAudits(tenantId, filters = {}) {
 
 export async function createAudit(tenantId, data) {
   const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
   const scoreNum = Number(data.score);
   const row = {
-    tenantId: t || null,
+    tenantId: t,
     ref: data.ref,
     site: data.site,
     siteId,
@@ -72,8 +77,14 @@ export async function updateAuditScore(tenantId, id, score) {
     err.code = 'P2025';
     throw err;
   }
-  return prisma.audit.update({
-    where: { id: auditId },
+  const upd = await prisma.audit.updateMany({
+    where: { id: auditId, ...tf },
     data: { score: Math.round(scoreNum) }
   });
+  if (!upd?.count) {
+    const err = new Error('Audit introuvable');
+    err.code = 'P2025';
+    throw err;
+  }
+  return prisma.audit.findFirst({ where: { id: auditId, ...tf } });
 }

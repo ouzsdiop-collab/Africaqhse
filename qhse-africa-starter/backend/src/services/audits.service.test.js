@@ -6,7 +6,8 @@ const { prismaMock, assertSiteMock } = vi.hoisted(() => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
-      update: vi.fn()
+      update: vi.fn(),
+      updateMany: vi.fn()
     }
   },
   assertSiteMock: vi.fn()
@@ -106,17 +107,12 @@ describe('audits.service', () => {
   describe('updateAuditScore', () => {
     it('met à jour le score quand l’audit existe', async () => {
       prismaMock.audit.findFirst.mockResolvedValueOnce({ id: 'aud-1' });
-      prismaMock.audit.update.mockResolvedValueOnce({
-        id: 'aud-1',
-        score: 72
-      });
+      prismaMock.audit.updateMany.mockResolvedValueOnce({ count: 1 });
+      prismaMock.audit.findFirst.mockResolvedValueOnce({ id: 'aud-1', score: 72 });
 
       const out = await auditsService.updateAuditScore(TENANT, 'aud-1', 71.6);
       expect(out.score).toBe(72);
-      expect(prismaMock.audit.update).toHaveBeenCalledWith({
-        where: { id: 'aud-1' },
-        data: { score: 72 }
-      });
+      expect(prismaMock.audit.updateMany).toHaveBeenCalled();
     });
 
     it('rejette un score non numérique', async () => {
@@ -137,7 +133,15 @@ describe('audits.service', () => {
       await expect(
         auditsService.updateAuditScore(TENANT, 'nope', 50)
       ).rejects.toMatchObject({ code: 'P2025' });
-      expect(prismaMock.audit.update).not.toHaveBeenCalled();
+      expect(prismaMock.audit.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('rejette proprement si updateMany count=0 (write non effectué)', async () => {
+      prismaMock.audit.findFirst.mockResolvedValueOnce({ id: 'aud-1' });
+      prismaMock.audit.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(
+        auditsService.updateAuditScore(TENANT, 'aud-1', 50)
+      ).rejects.toMatchObject({ code: 'P2025' });
     });
   });
 });

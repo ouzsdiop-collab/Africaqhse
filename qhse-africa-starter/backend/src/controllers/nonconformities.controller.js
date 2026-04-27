@@ -39,13 +39,12 @@ export async function create(req, res, next) {
       });
     }
 
-    const result = await nonconformitiesService.createNonConformityWithAction({
+    const result = await nonconformitiesService.createNonConformityWithAction(req.qhseTenantId, {
       title: t,
       detail: d,
       auditRef: ar,
       siteId
-    }
-    );
+    });
     void writeAuditLog({
       tenantId: req.qhseTenantId,
       userId: auditUserIdFromRequest(req),

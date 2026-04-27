@@ -20,10 +20,10 @@ export async function getSummary(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
-    const siteId = await coalesceQuerySiteIdForList(null, rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const periodDays = parsePeriodDaysQuery(req);
 
-    const data = await reportingSummaryService.getReportingSummary(null, siteId, {
+    const data = await reportingSummaryService.getReportingSummary(req.qhseTenantId, siteId, {
       ...(periodDays !== undefined ? { periodDays } : {})
     });
     res.json(data);

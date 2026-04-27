@@ -10,45 +10,191 @@ import {
 } from '../utils/riskGpEvolution.js';
 import { addMockIncidentRefToRisk } from '../utils/riskMockIncidentLinks.js';
 import { showToast } from './toast.js';
+import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
 
 export { openRiskCreateDialog as openRiskDialog } from './riskFormDialog.js';
 
 const STYLE_ID = 'qhse-risk-sheet-modal-styles';
 
 const CSS = `
-.risk-sheet-modal::backdrop{background:rgba(0,0,0,.55)}
-.risk-sheet-modal{border:none;border-radius:16px;max-width:min(640px,96vw);max-height:min(90vh,840px);padding:0;background:var(--bg,#0f172a);color:var(--text);box-shadow:0 24px 48px rgba(0,0,0,.5)}
-.risk-sheet-modal__inner{padding:18px 20px 20px;overflow:auto;max-height:min(90vh,840px)}
-.risk-sheet-modal__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(148,163,184,.15)}
-.risk-sheet-modal__title{margin:0;font-size:17px;font-weight:800;line-height:1.25;max-width:42ch}
-.risk-sheet-modal__close{border:1px solid rgba(148,163,184,.25);background:rgba(0,0,0,.2);color:var(--text2);border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700}
-.risk-sheet-modal__close:hover{border-color:rgba(45,212,191,.4);color:var(--text)}
+/* Tokens (--bg n'existe pas sur :root → le fallback #0f172a forçait le dark en mode clair) */
+.risk-sheet-modal::backdrop{
+  background:rgba(15,23,42,0.42);
+  backdrop-filter:blur(4px);
+}
+html[data-theme='dark'] .risk-sheet-modal::backdrop{
+  background:rgba(0,0,0,0.55);
+  backdrop-filter:none;
+}
+.risk-sheet-modal{
+  border:none;
+  border-radius:16px;
+  max-width:min(640px,96vw);
+  max-height:min(90vh,840px);
+  padding:0;
+  background:var(--color-background-primary);
+  color:var(--color-text-primary);
+  box-shadow:var(--ds-shadow-lg);
+}
+.risk-sheet-modal__inner{
+  padding:18px 20px 20px;
+  overflow:auto;
+  max-height:min(90vh,840px);
+}
+.risk-sheet-modal__head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--color-border-tertiary);
+}
+.risk-sheet-modal__title{
+  margin:0;
+  font-size:17px;
+  font-weight:800;
+  line-height:1.25;
+  max-width:42ch;
+  color:var(--color-text-primary);
+}
+.risk-sheet-modal__close{
+  border:1px solid var(--color-border-secondary);
+  background:var(--color-background-secondary);
+  color:var(--color-text-secondary);
+  border-radius:10px;
+  padding:6px 12px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:700;
+}
+.risk-sheet-modal__close:hover{
+  border-color:var(--color-primary-border);
+  color:var(--color-text-primary);
+}
 .risk-sheet-modal__grid{display:grid;gap:12px}
-.risk-sheet-modal__section{padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.1);background:rgba(0,0,0,.15)}
-.risk-sheet-modal__section h4{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
-.risk-sheet-modal__section p,.risk-sheet-modal__section ul{margin:0;font-size:12px;line-height:1.45;color:var(--text2)}
+.risk-sheet-modal__section{
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-secondary);
+}
+.risk-sheet-modal__section h4{
+  margin:0 0 8px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--color-text-tertiary);
+}
+.risk-sheet-modal__section p,
+.risk-sheet-modal__section ul{
+  margin:0;
+  font-size:12px;
+  line-height:1.45;
+  color:var(--color-text-secondary);
+}
+.risk-sheet-modal__audit-placeholder{
+  margin:0;
+  font-size:12px;
+  line-height:1.45;
+  color:var(--color-text-secondary);
+  font-style:italic;
+}
 .risk-sheet-modal__gp-row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
-.risk-sheet-modal__gp-pill{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;padding:6px 10px;border-radius:10px;background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.25)}
-.risk-sheet-modal__gxp-hint{font-size:11px;color:var(--text3);max-width:52ch;line-height:1.4}
-.risk-sheet-modal__gxp-help{cursor:help;border-bottom:1px dashed rgba(148,163,184,.4)}
-.risk-sheet-modal__status{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:800}
-.risk-sheet-modal__status--ok{background:rgba(34,197,94,.15);color:#bbf7d0}
-.risk-sheet-modal__status--run{background:rgba(59,130,246,.18);color:#bfdbfe}
-.risk-sheet-modal__status--crit{background:rgba(239,68,68,.2);color:#fecaca}
+.risk-sheet-modal__gp-pill{
+  font-size:13px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  padding:6px 10px;
+  border-radius:10px;
+  background:var(--color-primary-bg);
+  color:var(--color-primary-text);
+  border:1px solid var(--color-primary-border);
+}
+.risk-sheet-modal__gxp-hint{
+  font-size:11px;
+  color:var(--color-text-tertiary);
+  max-width:52ch;
+  line-height:1.4;
+}
+.risk-sheet-modal__gxp-help{
+  cursor:help;
+  border-bottom:1px dashed var(--color-border-secondary);
+}
+.risk-sheet-modal__status{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+}
+.risk-sheet-modal__status--ok{
+  background:var(--surface-success);
+  color:var(--surface-success-ink);
+  border:1px solid var(--surface-success-line);
+}
+.risk-sheet-modal__status--run{
+  background:var(--color-primary-bg);
+  color:var(--color-primary-text);
+  border:1px solid var(--color-primary-border);
+}
+.risk-sheet-modal__status--crit{
+  background:var(--surface-danger);
+  color:var(--surface-danger-ink);
+  border:1px solid var(--surface-danger-line);
+}
 .risk-sheet-modal__hist{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.risk-sheet-modal__hist li{font-size:11px;padding:8px;border-radius:8px;background:rgba(0,0,0,.2);border-left:3px solid rgba(45,212,191,.35)}
-.risk-sheet-modal__hist-when{display:block;font-size:10px;color:var(--text3);margin-bottom:4px}
+.risk-sheet-modal__hist li{
+  font-size:11px;
+  padding:8px;
+  border-radius:8px;
+  background:var(--surface-neutral-muted);
+  border-left:3px solid var(--color-primary-border);
+  color:var(--color-text-secondary);
+}
+.risk-sheet-modal__hist-when{display:block;font-size:10px;color:var(--color-text-tertiary);margin-bottom:4px}
 .risk-sheet-modal__evolution-badges{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
 .risk-evolution-badge{font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:.02em}
-.risk-evolution-badge--improve{background:rgba(34,197,94,.2);color:#bbf7d0;border:1px solid rgba(34,197,94,.35)}
-.risk-evolution-badge--drift{background:rgba(245,158,11,.18);color:#fde68a;border:1px solid rgba(245,158,11,.35)}
-.risk-evolution-badge--worse{background:rgba(239,68,68,.2);color:#fecaca;border:1px solid rgba(239,68,68,.35)}
+.risk-evolution-badge--improve{
+  background:var(--surface-success);
+  color:var(--surface-success-ink);
+  border:1px solid var(--surface-success-line);
+}
+.risk-evolution-badge--drift{
+  background:var(--surface-warning);
+  color:var(--surface-warning-ink);
+  border:1px solid var(--surface-warning-line);
+}
+.risk-evolution-badge--worse{
+  background:var(--surface-danger);
+  color:var(--surface-danger-ink);
+  border:1px solid var(--surface-danger-line);
+}
 .risk-sheet-modal__gp-timeline{list-style:none;padding:0;margin:0;display:grid;gap:6px;font-size:11px}
-.risk-sheet-modal__gp-timeline li{padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.2);border-left:3px solid rgba(45,212,191,.3)}
+.risk-sheet-modal__gp-timeline li{
+  padding:6px 8px;
+  border-radius:8px;
+  background:var(--surface-neutral-muted);
+  border-left:3px solid var(--color-primary-border);
+  color:var(--color-text-secondary);
+}
 .risk-sheet-modal__inc-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.risk-sheet-modal__inc-count{font-size:11px;font-weight:700;color:var(--text3)}
-.risk-sheet-modal__gxp-long{font-size:11px;color:var(--text3);line-height:1.45;margin-top:8px;padding:8px;border-radius:8px;background:rgba(0,0,0,.15);border:1px dashed rgba(148,163,184,.2)}
-.risk-sheet-modal__gxp-long strong{color:var(--text2)}
+.risk-sheet-modal__inc-count{font-size:11px;font-weight:700;color:var(--color-text-tertiary)}
+.risk-sheet-modal__gxp-long{
+  font-size:11px;
+  color:var(--color-text-secondary);
+  line-height:1.45;
+  margin-top:8px;
+  padding:8px;
+  border-radius:8px;
+  background:var(--surface-neutral-muted);
+  border:1px dashed var(--color-border-secondary);
+}
+.risk-sheet-modal__gxp-long strong{color:var(--color-text-primary)}
 `;
 
 function ensureRiskSheetModalStyles() {
@@ -111,6 +257,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   const dialog = document.createElement('dialog');
   dialog.className = 'risk-sheet-modal';
   dialog.setAttribute('aria-labelledby', 'risk-sheet-modal-title');
+  applyNativeDialogColorScheme(dialog);
 
   const inner = document.createElement('div');
   inner.className = 'risk-sheet-modal__inner';

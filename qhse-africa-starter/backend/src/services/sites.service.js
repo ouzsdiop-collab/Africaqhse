@@ -11,9 +11,14 @@ const publicSelect = {
 };
 
 export async function findAllSites(tenantId) {
-  const tf = prismaTenantFilter(tenantId);
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   return prisma.site.findMany({
-    where: Object.keys(tf).length ? tf : {},
+    where: { tenantId: tid },
     orderBy: [{ name: 'asc' }],
     select: publicSelect,
     take: 200
@@ -83,6 +88,11 @@ export async function coalesceQuerySiteIdForList(tenantId, siteId) {
  */
 export async function createSite(tenantId, data) {
   const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   if (!name) {
     const err = new Error('Le nom du site est requis');
@@ -100,7 +110,7 @@ export async function createSite(tenantId, data) {
 
   return prisma.site.create({
     data: {
-      tenantId: tid || null,
+      tenantId: tid,
       name,
       code,
       address
