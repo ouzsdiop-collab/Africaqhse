@@ -42,6 +42,7 @@ import {
   syncTerrainIncidentQueue,
   syncTerrainRiskQueue
 } from './services/terrainOffline.service.js';
+import { pushDashboardIntent } from './utils/dashboardNavigationIntent.js';
 import { showToast } from './components/toast.js';
 import { ensureProductionDemoModeOff, isDemoMode } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
@@ -992,7 +993,17 @@ window.addEventListener('unhandledrejection', (event) => {
 
 window.addEventListener('qhse-navigate', (e) => {
   const page = e.detail?.page;
+  const intent = e.detail?.intent;
   if (!page || typeof setCurrentPage !== 'function') return;
+  if (intent && typeof intent === 'object') {
+    const cleaned = /** @type {Record<string, unknown>} */ ({ ...intent });
+    for (const k of Object.keys(cleaned)) {
+      if (cleaned[k] === undefined || cleaned[k] === '') delete cleaned[k];
+    }
+    if (Object.keys(cleaned).length > 0) {
+      pushDashboardIntent({ source: 'qhse_nav', ...cleaned });
+    }
+  }
   if (getDisplayMode() === 'expert') appState.expertMobileNavOpen = false;
   setCurrentPage(page);
   window.location.hash = page;

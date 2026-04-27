@@ -13,6 +13,9 @@ const CACHE_KEY_SEP = '\n';
 /** @type {Map<string, ConformityStatus>} */
 let conformityStatusCache = new Map();
 
+/** Augmenté après une synchro PATCH réussie pour ignorer une réponse GET conformité encore obsolète (course réseau). */
+let conformityMutationSeq = 0;
+
 /**
  * @param {string} requirementId
  * @param {string} siteId — id site ou chaîne vide = périmètre global (sans site)
@@ -38,9 +41,11 @@ export async function refreshConformityStatusCacheFromApi() {
   try {
     const res = await qhseFetch('/api/conformity');
     if (!res.ok) return;
+    const seqBeforeMerge = conformityMutationSeq;
     const rows = await res.json().catch(() => []);
     if (!Array.isArray(rows)) return;
-    const next = new Map();
+    if (seqBeforeMerge !== conformityMutationSeq) return;
+    const next = new Map(conformityStatusCache);
     for (const row of rows) {
       if (!row || typeof row.requirementId !== 'string') continue;
       const st = row.status;
@@ -320,17 +325,27 @@ export function getRequirements() {
 /**
  * @param {string} requirementId
  * @param {ConformityStatus} status
+ * @returns {Promise<boolean>} true si l’API a confirmé l’enregistrement
  */
-export function setRequirementStatus(requirementId, status) {
-  if (!isValidConformityStatus(status)) return;
+export async function setRequirementStatus(requirementId, status) {
+  if (!isValidConformityStatus(status)) return false;
   const active = appState.activeSiteId?.trim() || '';
   conformityStatusCache.set(conformityCacheKey(requirementId, active), status);
   const siteId = active || null;
-  void qhseFetch(`/api/conformity/${encodeURIComponent(requirementId)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, siteId })
-  }).catch(() => {});
+  try {
+    const res = await qhseFetch(`/api/conformity/${encodeURIComponent(requirementId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, siteId })
+    });
+    if (res.ok) {
+      conformityMutationSeq++;
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 export function getNormById(normId) {

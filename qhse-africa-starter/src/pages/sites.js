@@ -180,5 +180,7 @@ export function renderSites() {
   }
 
   refreshList();
+  const firstCard = page.querySelector('article');
+  if (firstCard) firstCard.id = 'sites-page-anchor';
   return page;
 }

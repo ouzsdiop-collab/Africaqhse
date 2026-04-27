@@ -29,6 +29,8 @@ export function deriveDashboardStatsFromLists(incidents, actions, ncs) {
     .filter((row) => isActionOverdueDashboardRow(row))
     .slice(0, 5)
     .map((row) => ({
+      id: row.id ?? row._id ?? null,
+      ref: row.ref ?? row.reference ?? null,
       title: row.title,
       detail: row.detail ?? null,
       status: row.status,

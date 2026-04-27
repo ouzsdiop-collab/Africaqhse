@@ -19,7 +19,11 @@ import {
   getCachedUsersForActionsList,
   createLinkedAction
 } from '../utils/incidentsActions.js';
-import { mapApiIncident as mapApiIncidentBase, mapRowToDisplay } from '../utils/incidentsMappers.js';
+import {
+  mapApiIncident as mapApiIncidentBase,
+  mapRowToDisplay,
+  incidentTitleFromRow
+} from '../utils/incidentsMappers.js';
 import {
   refreshIncidentsAnalytics,
   refreshIncidentsJournalDom,
@@ -30,6 +34,8 @@ import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
 /* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const LIST_SUB_DEFAULT =
   'Tri : criticité puis date. Clic ligne ou « Ouvrir » → détail à droite.';
@@ -256,12 +262,32 @@ export function renderIncidents(onAddLog) {
 
   let panelFilterStatus = 'all';
   let filterDateRange = 'all';
-  let filterSeverity = '';
   let filterStatus = '';
   let filterSite = '';
   let filterText = '';
   let incidentsTableColumnMode = readIncidentsTableColumnMode();
   const dashboardIntent = consumeDashboardIntent();
+  let filterSeverity = '';
+  if (dashboardIntent?.incidentSeverityFilter) {
+    filterSeverity = String(dashboardIntent.incidentSeverityFilter).trim();
+  }
+
+  /** @type {string | null} */
+  let pendingFocusIncidentRef =
+    dashboardIntent?.focusIncidentRef ?? dashboardIntent?.openIncidentRef ?? null;
+  /** @type {string | null} */
+  let pendingFocusIncidentId = dashboardIntent?.focusIncidentId ?? null;
+  let pendingFocusHintTitle = dashboardIntent?.focusIncidentHintTitle
+    ? String(dashboardIntent.focusIncidentHintTitle).trim()
+    : '';
+  if (pendingFocusIncidentRef != null) {
+    const s = String(pendingFocusIncidentRef).trim();
+    pendingFocusIncidentRef = s || null;
+  }
+  if (pendingFocusIncidentId != null) {
+    const s = String(pendingFocusIncidentId).trim();
+    pendingFocusIncidentId = s || null;
+  }
 
   function renderFilteredList() {
     refreshList();
@@ -395,7 +421,7 @@ export function renderIncidents(onAddLog) {
   btnDash.className = 'incidents-page-header__linkish';
   btnDash.textContent = 'Tableau de bord';
   btnDash.addEventListener('click', () => {
-    window.location.hash = 'dashboard';
+    qhseNavigate('dashboard', { scrollToId: 'dashboard-priority-now' });
   });
   quickActionsBtns.append(btnDeclare, btnTerrain, btnDash);
   quickActionsInner.append(quickActionsCopy, quickActionsBtns);
@@ -579,6 +605,7 @@ export function renderIncidents(onAddLog) {
     filterSeverity = filSevSel.value;
     renderFilteredList();
   });
+  if (filterSeverity) filSevSel.value = filterSeverity;
   filSevLab.append(filSevLabSpan, filSevSel);
 
   const filStLab = document.createElement('label');
@@ -623,6 +650,14 @@ export function renderIncidents(onAddLog) {
     filterDateRange = '30';
     dateSel.value = '30';
     showToast('Filtre auto Dashboard appliqué : incidents récents (30 jours).', 'info');
+  }
+  const periodFromNav =
+    dashboardIntent?.dashboardIncidentPeriodPreset != null
+      ? String(dashboardIntent.dashboardIncidentPeriodPreset).trim()
+      : '';
+  if (periodFromNav === '7' || periodFromNav === '30') {
+    filterDateRange = periodFromNav;
+    dateSel.value = periodFromNav;
   }
 
   const exportBtnInc = document.createElement('button');
@@ -776,6 +811,12 @@ export function renderIncidents(onAddLog) {
     const key = String(ref ?? '').trim();
     if (!key) return undefined;
     return incidentRecords.find((r) => String(r.ref ?? '').trim() === key);
+  }
+
+  function incidentById(idKey) {
+    const key = String(idKey ?? '').trim();
+    if (!key) return undefined;
+    return incidentRecords.find((r) => String(r.id ?? '').trim() === key);
   }
 
   /** Registre : délégation — composedPath + comparaison ref en string (API peut envoyer nombre). */
@@ -955,6 +996,36 @@ export function renderIncidents(onAddLog) {
         detailCol.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
+  }
+
+  function tryFocusIncidentFromIntent() {
+    const ref = pendingFocusIncidentRef ? String(pendingFocusIncidentRef).trim() : '';
+    const id = pendingFocusIncidentId ? String(pendingFocusIncidentId).trim() : '';
+    const hint = pendingFocusHintTitle ? pendingFocusHintTitle.slice(0, 120) : '';
+    if (!ref && !id && !hint) return;
+
+    pendingFocusIncidentRef = null;
+    pendingFocusIncidentId = null;
+    pendingFocusHintTitle = '';
+
+    let hit = id ? incidentById(id) : null;
+    if (!hit && ref) hit = incidentByRef(ref);
+    if (!hit && hint) {
+      const low = hint.toLowerCase();
+      hit = incidentRecords.find((r) =>
+        incidentTitleFromRow(r).toLowerCase().includes(low.slice(0, 80))
+      );
+    }
+
+    if (hit) {
+      activateIncidentRow(hit);
+      return;
+    }
+
+    showToast(
+      'Incident introuvable dans la liste affichée — vérifiez filtres ou périmètre.',
+      'warning'
+    );
   }
 
   function refreshPrioritiesStrip() {
@@ -1220,11 +1291,13 @@ export function renderIncidents(onAddLog) {
         incidentRecords = cached;
         apiLoadState = 'ok';
         refreshList();
+        tryFocusIncidentFromIntent();
         return;
       }
       incidentRecords = [];
       apiLoadState = 'error';
       refreshList();
+      tryFocusIncidentFromIntent();
       return;
     }
     offlineCacheBanner.hidden = true;
@@ -1239,6 +1312,7 @@ export function renderIncidents(onAddLog) {
       apiLoadState = 'ok';
       saveIncidentsListCache(incidentRecords);
       refreshList();
+      tryFocusIncidentFromIntent();
     } catch (err) {
       console.error('[incidents] GET /api/incidents', err);
       showToast('Erreur serveur', 'error');
@@ -1252,6 +1326,7 @@ export function renderIncidents(onAddLog) {
       apiLoadState = 'error';
       }
       refreshList();
+      tryFocusIncidentFromIntent();
     }
   })();
 
@@ -1263,14 +1338,39 @@ export function renderIncidents(onAddLog) {
       incidentRecords = [entry, ...incidentRecords.filter((r) => r.ref !== entry.ref)];
       apiLoadState = 'ok';
       refreshList();
+      activateIncidentRow(entry);
     },
     refreshList,
     refreshIncidentJournal,
+    onFocusIncidentRequest: (payload) => {
+      const hit =
+        (payload.ref && incidentByRef(payload.ref)) ||
+        (payload.id && incidentById(payload.id)) ||
+        null;
+      if (hit) {
+        activateIncidentRow(hit);
+        return;
+      }
+      qhseNavigate('incidents', {
+        skipDefaults: true,
+        focusIncidentRef: payload.ref || undefined,
+        focusIncidentId: payload.id || undefined,
+        focusIncidentHintTitle: payload.title ? payload.title.slice(0, 160) : undefined
+      });
+    },
     onAddLog
   });
   slideOver = incFlow.slideOver;
   quick = incFlow.quick;
 
   ensureUsersCached().catch(() => {});
+
+  if (dashboardIntent?.scrollToId) {
+    scheduleScrollIntoView(String(dashboardIntent.scrollToId));
+  }
+  if (dashboardIntent?.incidentSeverityFilter && filterSeverity) {
+    showToast('Filtre gravité appliqué — priorité depuis le pilotage.', 'info');
+  }
+
   return page;
 }

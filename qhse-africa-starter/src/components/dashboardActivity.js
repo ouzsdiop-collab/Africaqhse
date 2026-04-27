@@ -3,6 +3,7 @@
  */
 
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const MAX_PER_SECTION = 4;
 
@@ -52,7 +53,7 @@ function truncate(text, max) {
 
 function navigateToPage(hash) {
   const id = String(hash || '').replace(/^#/, '');
-  if (id) window.location.hash = id;
+  if (id) qhseNavigate(id);
 }
 
 function isActionClosed(a) {

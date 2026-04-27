@@ -8,6 +8,7 @@ import {
   computeQhseGlobalScore,
   qhseScorePresentation
 } from '../utils/dashboardDecisionLayer.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 function isNcOpen(row) {
   const s = String(row?.status || '').toLowerCase();
@@ -472,14 +473,14 @@ export function createDashboardCeoHero(siteName, opts = {}) {
       const id = q.getAttribute('data-ceo-nav');
       if (id) {
         e.preventDefault();
-        window.location.hash = id;
+        qhseNavigate(id);
       }
       return;
     }
     const card = e.target && /** @type {HTMLElement} */ (e.target).closest('[data-ceo-prime-chart]');
     if (card) {
       e.preventDefault();
-      window.location.hash = 'audits';
+      qhseNavigate('audits');
     }
   });
 

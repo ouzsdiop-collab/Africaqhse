@@ -2,6 +2,7 @@ import { parseRiskMatrixGp, riskCriticalityFromMeta } from '../utils/riskMatrixC
 import { openRiskDetail } from './riskDetailPanel.js';
 import { getLinksFor } from '../services/moduleLinks.service.js';
 import { riskWorkflowStatusLabelFr } from '../utils/risksRegisterModel.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 function toneClass(tone) {
   if (tone === 'red') return 'red';
@@ -53,6 +54,7 @@ export function computeRiskRowAlerts(r) {
  * @param {Array<{ ref: string, type: string, status: string, date: string }>} [opts.linkedIncidents]
  * @param {string} [opts.incidentsLinkNote]
  * @param {() => void} [opts.onRefresh]
+ * @param {(risk: object) => void} [opts.onRiskActivated]
  * @param {(riskTitle: string) => void} [opts.onCreatePreventiveAction]
  * @param {(riskTitle: string) => void} [opts.onCreatePtwFromRisk]
  * @param {(inner: HTMLElement, risk: object) => void} [opts.onSheetBodyReady]
@@ -227,7 +229,16 @@ export function createRiskRegisterRow(risk, opts = {}) {
     goAct.title = 'Ouvrir le module Plan d’actions';
     goAct.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.location.hash = 'actions';
+      /** @type {Record<string, unknown>} */
+      const nav = {
+        skipDefaults: true,
+        linkedRiskId: risk?.id ?? undefined,
+        linkedRiskTitle: String(risk.title || '')
+      };
+      if (al?.id != null && String(al.id).trim()) nav.focusActionId = String(al.id).trim();
+      const refStr = al?.ref != null ? String(al.ref).trim() : '';
+      if (refStr) nav.focusActionTitle = refStr;
+      qhseNavigate('actions', nav);
     });
     primaryAct.append(refEl, line, goAct);
   } else {
@@ -243,6 +254,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
 
   function openSheet(e) {
     if (e.target.closest('button,a,summary,details')) return;
+    if (typeof opts.onRiskActivated === 'function') opts.onRiskActivated(risk);
     openRiskDetail(risk, {
       linkedIncidents,
       incidentsLinkNote,

@@ -55,7 +55,11 @@ export function mapApiIncident(row) {
   if (!row || typeof row !== 'object' || !row.ref) return null;
   const createdAtMs = row.createdAt ? new Date(row.createdAt).getTime() : Date.now();
   const sev = normalizeSeverity(row.severity);
+  const rawId = row.id ?? row._id;
   return {
+    ...(rawId != null && String(rawId).trim()
+      ? { id: String(rawId).trim() }
+      : {}),
     ref: row.ref,
     type: row.type,
     site: row.site,

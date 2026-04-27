@@ -25,6 +25,7 @@ import {
   buildActionDefaultsFromAuditPrep,
   buildActionDefaultsFromRenewingDocument
 } from '../utils/qhseAssistantFormSuggestions.js';
+import { mapApiRiskToUi, riskTierBucket } from '../utils/risksRegisterModel.js';
 
 /**
  * @param {object} r
@@ -197,32 +198,69 @@ export async function buildAssistantSnapshot(input) {
   /** @type {object[]} */
   const recRaw = [];
 
+  const criticalRiskRawRow =
+    apiRiskRows && apiRiskRows.length
+      ? apiRiskRows.find((rw) =>
+          riskTierBucket(mapApiRiskToUi(rw && typeof rw === 'object' ? rw : {})) === 'critique'
+        )
+      : null;
+
   if (overdue > 0) {
+    const od = overdueForDialog && typeof overdueForDialog === 'object' ? overdueForDialog : null;
+    const oid = od?.id ?? od?._id;
+    const ot = od?.title != null ? String(od.title).trim().slice(0, 240) : '';
+    /** @type {Record<string, unknown>} */
+    const overdueNav = {
+      actionsColumnFilter: 'overdue',
+      scrollToId: 'qhse-actions-col-overdue',
+      source: 'dashboard_assistant'
+    };
+    if (oid != null && String(oid).trim()) {
+      overdueNav.focusActionId = String(oid).trim();
+      if (ot) overdueNav.focusActionTitle = ot;
+    } else if (ot) {
+      overdueNav.focusActionTitle = ot;
+    }
     recRaw.push({
       id: 'rec-actions-retard',
       internalScore: 60 + Math.min(overdue * 5, 30),
       title: overdue > 1 ? `${overdue} actions en retard` : 'Une action en retard',
       detail: 'Traiter ou réaffecter depuis le plan d’actions — crédibilité du SMS.',
       navigateHash: 'actions',
+      navigateIntent: overdueNav,
       dialogDefaults: overdueForDialog ? buildActionDefaultsFromOverdueItem(overdueForDialog) : null
     });
   }
 
   if (docSum.expire > 0) {
     const first = expiredDocs[0];
+    const docType = String(first?.type || '').toLowerCase();
+    const fdsLike = docType.includes('fds') || docType.includes('sds');
     recRaw.push({
       id: 'rec-docs-expire',
       internalScore: 78 + Math.min(docSum.expire * 2, 20),
       title:
         docSum.expire > 1 ? `${docSum.expire} documents expirés` : 'Document expiré — mise à jour requise',
       detail: 'Conformité documentaire : renouvellement ou révision à planifier.',
-      navigateHash: 'iso',
+      navigateHash: fdsLike ? 'products' : 'iso',
+      navigateIntent: fdsLike
+        ? { productsFdsValidity: 'expired', source: 'dashboard_assistant' }
+        : { scrollToId: 'iso-cockpit-priorities-anchor', source: 'dashboard_assistant' },
       dialogDefaults: first ? buildActionDefaultsFromExpiredDocument(first) : null
     });
   }
 
   if (criticalRisks.length > 0) {
     const r0 = criticalRisks[0];
+    /** @type {Record<string, unknown>} */
+    const riskNav = {
+      riskBannerKpi: 'critique',
+      source: 'dashboard_assistant'
+    };
+    if (criticalRiskRawRow?.id != null && String(criticalRiskRawRow.id).trim()) {
+      riskNav.focusRiskId = String(criticalRiskRawRow.id).trim();
+      riskNav.focusRiskTitle = String(criticalRiskRawRow.title || r0.title || '').slice(0, 400);
+    }
     recRaw.push({
       id: 'rec-risque-critique',
       internalScore: 70,
@@ -232,6 +270,7 @@ export async function buildAssistantSnapshot(input) {
           : `Risque critique : ${r0.title}`,
       detail: 'Renforcer mesures ou lancer action préventive ciblée.',
       navigateHash: 'risks',
+      navigateIntent: riskNav,
       dialogDefaults: buildActionDefaultsFromCriticalRisk({
         title: r0.title,
         category: r0.type,
@@ -243,18 +282,39 @@ export async function buildAssistantSnapshot(input) {
 
   if (critInc > 0) {
     const inc0 = incidents.find((i) => String(i.severity || '').toLowerCase().includes('crit')) || incidents[0];
+    /** @type {Record<string, unknown>} */
+    const incNav = {
+      incidentSeverityFilter: 'critique',
+      dashboardIncidentPeriodPreset: '30',
+      source: 'dashboard_assistant'
+    };
+    if (inc0 && typeof inc0 === 'object') {
+      const iref = inc0.ref != null ? String(inc0.ref).trim() : '';
+      const iid = inc0.id != null ? String(inc0.id).trim() : '';
+      const ihint = String(inc0.title || inc0.type || '').trim().slice(0, 240);
+      if (iref) incNav.focusIncidentRef = iref;
+      if (iid) incNav.focusIncidentId = iid;
+      if (ihint) incNav.focusIncidentHintTitle = ihint;
+    }
     recRaw.push({
       id: 'rec-incident-critique',
       internalScore: 85,
       title: critInc > 1 ? `${critInc} incidents à gravité élevée` : 'Incident à gravité élevée',
       detail: 'Sécuriser la réponse terrain et la traçabilité des décisions.',
       navigateHash: 'incidents',
+      navigateIntent: incNav,
       dialogDefaults: inc0 ? buildActionDefaultsFromIncident(inc0) : null
     });
   }
 
   if (auditsSoon > 0 && recRaw.length < 3) {
     const a0 = AUDITS_TO_SCHEDULE[0];
+    /** @type {Record<string, unknown>} */
+    const audNav = {
+      scrollToId: 'audit-cockpit-planning-block',
+      source: 'dashboard_assistant'
+    };
+    if (a0?.title) audNav.focusAuditTitle = String(a0.title).slice(0, 200);
     recRaw.push({
       id: 'rec-audits-proches',
       internalScore: 42 + Math.min(auditsSoon * 4, 20),
@@ -262,18 +322,24 @@ export async function buildAssistantSnapshot(input) {
         auditsSoon > 1 ? `${auditsSoon} audits à anticiper` : 'Audit à anticiper',
       detail: 'Consolidez preuves et plans d’actions avant la fenêtre audit.',
       navigateHash: 'audits',
+      navigateIntent: audNav,
       dialogDefaults: a0 ? buildActionDefaultsFromAuditPrep(a0) : null
     });
   }
 
   if (renewDocs.length > 0 && recRaw.length < 3) {
     const r0 = renewDocs[0];
+    const drType = String(r0?.type || '').toLowerCase();
+    const fdsRenew = drType.includes('fds') || drType.includes('sds');
     recRaw.push({
       id: 'rec-docs-renouveler',
       internalScore: 45,
       title: `${renewDocs.length} document(s) à renouveler bientôt`,
       detail: 'Anticipez la revue documentaire avant échéance.',
-      navigateHash: 'iso',
+      navigateHash: fdsRenew ? 'products' : 'iso',
+      navigateIntent: fdsRenew
+        ? { productsFdsValidity: 'review', source: 'dashboard_assistant' }
+        : { scrollToId: 'iso-cockpit-priorities-anchor', source: 'dashboard_assistant' },
       dialogDefaults: r0 ? buildActionDefaultsFromRenewingDocument(r0) : null
     });
   }
@@ -286,6 +352,7 @@ export async function buildAssistantSnapshot(input) {
         ncOpen > 5 ? `${ncOpen} NC ouvertes — arbitrage recommandé` : `${ncOpen} NC ouvertes`,
       detail: 'Prioriser par criticité et jalons de clôture ; éviter l’empilement sans plan.',
       navigateHash: 'audits',
+      navigateIntent: { scrollToId: 'audit-cockpit-tier-critical', source: 'dashboard_assistant' },
       dialogDefaults: null
     });
   }

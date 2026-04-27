@@ -15,6 +15,7 @@ import {
 } from '../../utils/dashboardMetrics.js';
 import { Chart } from 'chart.js';
 import { pushDashboardIntent } from '../../utils/dashboardNavigationIntent.js';
+import { qhseNavigate } from '../../utils/qhseNavigate.js';
 import { isActionOverdueDashboardRow } from '../../utils/actionOverdueDashboard.js';
 import { listPermits } from '../../services/ptw.service.js';
 import {
@@ -45,7 +46,7 @@ export function updateDecisionAlerts(refs, stats, data) {
     decisionChartCard,
     renderKpiFilteredModal
   } = refs;
-  const { incidents, actions, ncs, audits, docs = [] } = data;
+  const { incidents, actions, ncs, audits, docs = [], risks = [] } = data;
 
   const monthly = buildIncidentMonthlySeries(incidents);
   const crit = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
@@ -410,28 +411,28 @@ export function updateDecisionAlerts(refs, stats, data) {
     audits,
     ncs,
     permits,
-    docs
+    docs,
+    risks
   });
   const opsScopeEmpty = dashboardKpiScopeEmptyLabel();
   const opsImpact = guessImpactedSite([...(incidents || []), ...(actions || []), ...(audits || [])]);
   opsGrid.replaceChildren();
+  /** @type {Record<string, string>} */
+  const kpiDrawerKeyByPage = {
+    incidents: 'incidents',
+    actions: 'actionsLate',
+    audits: 'auditsN',
+    risks: 'risksCritique'
+  };
+
   for (const t of tiles) {
-    const kpiOpen =
-      t.page === 'incidents'
-        ? 'incidents'
-        : t.page === 'actions'
-          ? 'actionsLate'
-          : t.page === 'audits'
-            ? 'auditsN'
-            : t.page === 'risks'
-              ? 'incidentsCritical'
-              : 'actions';
+    const kpiDrawerKey = kpiDrawerKeyByPage[t.page] || '';
     const art = document.createElement('article');
     art.setAttribute('role', 'button');
     art.setAttribute('tabindex', '0');
     art.setAttribute('aria-label', `Ouvrir ${t.k}`);
     art.dataset.opsGo = t.page;
-    art.dataset.kpiOpen = kpiOpen;
+    if (kpiDrawerKey) art.dataset.kpiOpen = kpiDrawerKey;
     const kEl = document.createElement('div');
     kEl.className = 'dashboard-ops-card__k';
     kEl.textContent = t.k;
@@ -481,7 +482,16 @@ export function updateDecisionAlerts(refs, stats, data) {
         return;
       }
       const target = el.getAttribute('data-ops-go');
-      if (target) window.location.hash = target;
+      if (!target) return;
+      if (target === 'products') {
+        qhseNavigate('products', { productsFdsValidity: 'review', source: 'dashboard_ops_grid' });
+        return;
+      }
+      if (target === 'iso') {
+        qhseNavigate('iso', { scrollToId: 'iso-cockpit-priorities-anchor', source: 'dashboard_ops_grid' });
+        return;
+      }
+      qhseNavigate(target);
     };
     el.addEventListener('click', go);
     el.addEventListener('keydown', (ev) => {

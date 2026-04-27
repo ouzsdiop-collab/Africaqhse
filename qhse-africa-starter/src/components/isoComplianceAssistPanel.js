@@ -28,7 +28,7 @@ function sanitizeClassToken(value, fallback = 'neutral') {
  *   };
  *   controlledDocuments: { name: string; version?: string }[];
  *   siteId: string | null;
- *   onStatusCommitted: (requirementId: string, status: 'conforme'|'partiel'|'non_conforme', meta: { source: string }) => void;
+ *   onStatusCommitted: (requirementId: string, status: 'conforme'|'partiel'|'non_conforme', meta: { source: string }) => boolean | Promise<boolean>;
  * }} opts
  */
 export function openComplianceAssistModal(opts) {
@@ -198,8 +198,9 @@ export function openComplianceAssistModal(opts) {
 
   body.querySelector('[data-iso-ca-retry]').addEventListener('click', () => runAnalyze());
 
-  function commitStatus(status, source) {
-    opts.onStatusCommitted(req.id, status, { source });
+  async function commitStatus(status, source) {
+    const committed = await opts.onStatusCommitted(req.id, status, { source });
+    if (committed !== true) return;
     showToast(
       source === 'accepted_suggestion'
         ? 'Statut enregistré conformément à la proposition (validation humaine).'
@@ -210,11 +211,13 @@ export function openComplianceAssistModal(opts) {
   }
 
   body.querySelector('[data-iso-ca-accept]').addEventListener('click', () => {
-    if (!lastPayload?.suggestedStatus) {
-      showToast('Aucune proposition à valider.', 'warning');
-      return;
-    }
-    commitStatus(lastPayload.suggestedStatus, 'accepted_suggestion');
+    void (async () => {
+      if (!lastPayload?.suggestedStatus) {
+        showToast('Aucune proposition à valider.', 'warning');
+        return;
+      }
+      await commitStatus(lastPayload.suggestedStatus, 'accepted_suggestion');
+    })();
   });
 
   body.querySelector('[data-iso-ca-reject]').addEventListener('click', () => {
@@ -224,8 +227,10 @@ export function openComplianceAssistModal(opts) {
 
   body.querySelectorAll('[data-iso-ca-set]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const st = /** @type {'conforme'|'partiel'|'non_conforme'} */ (btn.getAttribute('data-iso-ca-set'));
-      commitStatus(st, 'human_override');
+      void (async () => {
+        const st = /** @type {'conforme'|'partiel'|'non_conforme'} */ (btn.getAttribute('data-iso-ca-set'));
+        await commitStatus(st, 'human_override');
+      })();
     });
   });
 

@@ -4,6 +4,7 @@ import { activityLogStore } from '../data/activityLog.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { linkModules } from '../services/moduleLinks.service.js';
 import { qhseFetch } from './qhseFetch.js';
+import { qhseNavigate } from './qhseNavigate.js';
 import { mergeActionOverlay, appendActionHistory } from './actionPilotageMock.js';
 import { openActionCreateDialog } from '../components/actionCreateDialog.js';
 import { buildActionDefaultsFromIncident } from './qhseAssistantFormSuggestions.js';
@@ -73,13 +74,22 @@ export async function createLinkedAction(inc) {
   ];
 
   let res = new Response(null, { status: 599 });
+  /** @type {Record<string, unknown> | null} */
+  let createdBody = null;
   for (const v of variants) {
     res = await qhseFetch('/api/actions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(buildActionBody(v))
     });
-    if (res.ok) break;
+    if (res.ok) {
+      try {
+        createdBody = await res.json();
+      } catch {
+        createdBody = null;
+      }
+      break;
+    }
   }
 
   if (!res.ok) {
@@ -92,7 +102,29 @@ export async function createLinkedAction(inc) {
     showToast('Impossible de créer l’action', 'error');
     return;
   }
-  showToast(`Action créée — liée à ${inc.ref}`, 'info');
+
+  const actionId =
+    createdBody && createdBody.id != null
+      ? String(/** @type {unknown} */ (createdBody.id)).trim()
+      : '';
+  const refStr = String(inc.ref || '').trim();
+  const actionTitle = `Suite incident ${refStr || inc.ref}`;
+  if (actionId) {
+    mergeActionOverlay(actionId, {
+      actionType: 'corrective',
+      origin: 'incident',
+      priority: 'normale',
+      progressPct: 0,
+      linkedIncident: refStr || undefined,
+      comments: [],
+      history: []
+    });
+    appendActionHistory(
+      actionId,
+      refStr ? `Action liée à l’incident ${refStr} (création directe).` : 'Action liée (création directe).'
+    );
+  }
+
   linkModules({
     fromModule: 'incidents',
     fromId: inc.ref,
@@ -106,6 +138,25 @@ export async function createLinkedAction(inc) {
     detail: `Depuis incident ${inc.ref}`,
     user: getSessionUser()?.name || 'Responsable QHSE'
   });
+
+  showToast('Action corrective créée', 'success', {
+    label: 'Ouvrir',
+    action: () => {
+      if (actionId) {
+        qhseNavigate('actions', {
+          focusActionId: actionId,
+          focusActionTitle: actionTitle,
+          linkedIncidentRef: refStr || undefined,
+          skipDefaults: true
+        });
+      } else {
+        qhseNavigate('actions', {
+          skipDefaults: true,
+          linkedIncidentRef: refStr || undefined
+        });
+      }
+    }
+  });
 }
 
 /**
@@ -116,8 +167,21 @@ export async function proposeCorrectiveActionViaAssistant(inc) {
   openActionCreateDialog({
     users: cachedUsersForActions || [],
     defaults: buildActionDefaultsFromIncident(inc),
-    onCreated: () => {
-      showToast('Action enregistrée — issue du formulaire assistant.', 'success');
+    builtInSuccessToast: false,
+    onCreated: (payload) => {
+      showToast('Action enregistrée — issue du formulaire assistant.', 'success', {
+        label: 'Ouvrir',
+        action: () => {
+          if (payload?.id) {
+            qhseNavigate('actions', {
+              focusActionId: payload.id,
+              focusActionTitle: payload.title || ''
+            });
+          } else {
+            qhseNavigate('actions', { skipDefaults: true });
+          }
+        }
+      });
       activityLogStore.add({
         module: 'incidents',
         action: 'Création action (assistant guidé)',

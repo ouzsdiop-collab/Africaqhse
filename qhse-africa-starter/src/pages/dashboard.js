@@ -1,6 +1,9 @@
 import { getSessionUser } from '../data/sessionUser.js';
 import { createDashboardTodayBlock } from '../components/dashboardTodayBlock.js';
 import { appState } from '../utils/state.js';
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { createDashboardCeoHero } from '../components/dashboardCeoHero.js';
@@ -302,9 +305,9 @@ function ensureDashboardDecisionStyles() {
 
 /**
  * Listes chargées par le dashboard — référence stable pour le drawer KPI (pas de re-fetch).
- * @type {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[]; docs: unknown[] }}
+ * @type {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[]; docs: unknown[]; risks: unknown[] }}
  */
-const kpiDashboardLists = { incidents: [], actions: [], audits: [], ncs: [], docs: [] };
+const kpiDashboardLists = { incidents: [], actions: [], audits: [], ncs: [], docs: [], risks: [] };
 /** @type {{ open: (k: string) => void; element: HTMLDialogElement } | null} */
 let kpiDetailDrawerSingleton = null;
 
@@ -498,6 +501,8 @@ export function renderDashboard() {
   ensureDashboardStyles();
   ensureDashboardDecisionStyles();
 
+  const dashboardIntent = consumeDashboardIntent();
+
   const siteName = appState.currentSite || 'Tous sites';
 
   function dashboardKpiScopeEmptyLabel() {
@@ -515,7 +520,7 @@ export function renderDashboard() {
     onExport: exportDirectionToast,
     onOpenAuditTrendPoint: ({ label, value }) => {
       showToast(`Audits ${label} · ${value}%`, 'info');
-      window.location.hash = 'audits';
+      qhseNavigate('audits');
     }
   });
 
@@ -646,7 +651,11 @@ export function renderDashboard() {
   const pilotageAssistant = createDashboardPilotageAssistant({
     onActivateRecommendation: (rec) => {
       if (rec?.navigateHash) {
-        window.location.hash = rec.navigateHash;
+        const ni = rec.navigateIntent && typeof rec.navigateIntent === 'object' ? rec.navigateIntent : {};
+        qhseNavigate(rec.navigateHash, {
+          ...ni,
+          source: typeof ni.source === 'string' && ni.source ? ni.source : 'dashboard_assistant'
+        });
       }
       if (rec?.dialogDefaults) {
         void (async () => {
@@ -658,8 +667,35 @@ export function renderDashboard() {
           openActionCreateDialog({
             users,
             defaults: rec.dialogDefaults,
-            onCreated: () => {
-              showToast('Action créée depuis l’assistant de pilotage.', 'success');
+            builtInSuccessToast: false,
+            onCreated: (payload) => {
+              const t = payload?.title ? String(payload.title).trim() : '';
+              const r = payload?.ref != null ? String(payload.ref).trim() : '';
+              showToast(
+                r
+                  ? `Action créée (${r})${t ? ` — ${t}` : ''}`
+                  : t
+                    ? `Action créée — ${t}`
+                    : 'Action créée depuis l’assistant de pilotage.',
+                'success',
+                {
+                  label: 'Ouvrir',
+                  action: () => {
+                    if (payload?.id) {
+                      qhseNavigate('actions', {
+                        focusActionId: payload.id,
+                        focusActionTitle: payload.title || ''
+                      });
+                    } else {
+                      qhseNavigate('actions', {
+                        skipDefaults: true,
+                        focusActionTitle: t || '',
+                        source: 'dashboard_assistant_postcreate'
+                      });
+                    }
+                  }
+                }
+              );
             }
           });
         })();
@@ -795,8 +831,16 @@ export function renderDashboard() {
   kpiSection.className = 'dashboard-section dashboard-section--kpi-pilotage';
   const kpiQuick = createDashboardBlockActions(
     [
-      { label: 'Détail incidents', pageId: 'incidents' },
-      { label: 'Détail actions', pageId: 'actions' }
+      {
+        label: 'Détail incidents',
+        pageId: 'incidents',
+        intent: { dashboardIncidentPeriodPreset: '30', source: 'dashboard_kpi_strip' }
+      },
+      {
+        label: 'Détail actions',
+        pageId: 'actions',
+        intent: { actionsColumnFilter: 'overdue', source: 'dashboard_kpi_strip' }
+      }
     ],
     { className: 'dashboard-block-actions dashboard-block-actions--tight' }
   );
@@ -859,8 +903,16 @@ export function renderDashboard() {
   chartsGlobalActs.className = 'dashboard-charts-global-actions';
   const chartsQuickRow = createDashboardBlockActions(
     [
-      { label: 'Voir les incidents', pageId: 'incidents' },
-      { label: 'Ouvrir le plan d’actions', pageId: 'actions' }
+      {
+        label: 'Voir les incidents',
+        pageId: 'incidents',
+        intent: { dashboardIncidentPeriodPreset: '30', source: 'dashboard_charts_strip' }
+      },
+      {
+        label: 'Ouvrir le plan d’actions',
+        pageId: 'actions',
+        intent: { actionsColumnFilter: 'overdue', source: 'dashboard_charts_strip' }
+      }
     ],
     { className: 'dashboard-block-actions dashboard-block-actions--tight' }
   );
@@ -984,7 +1036,8 @@ export function renderDashboard() {
         actions,
         ncs,
         audits,
-        docs: kpiDashboardLists.docs || []
+        docs: kpiDashboardLists.docs || [],
+        risks: kpiDashboardLists.risks || []
       }
     );
   }
@@ -1175,6 +1228,7 @@ export function renderDashboard() {
     kpiDashboardLists.audits = audits;
     kpiDashboardLists.ncs = ncs;
     kpiDashboardLists.docs = docs;
+    kpiDashboardLists.risks = Array.isArray(risksR) ? risksR : [];
 
     await refreshPermitsFromApi();
     refreshCharts(incidents, actions, audits, ncs);
@@ -1422,6 +1476,10 @@ export function renderDashboard() {
       }
     }
   })();
+
+  if (dashboardIntent?.scrollToId) {
+    scheduleScrollIntoView(String(dashboardIntent.scrollToId));
+  }
 
   return page;
 }

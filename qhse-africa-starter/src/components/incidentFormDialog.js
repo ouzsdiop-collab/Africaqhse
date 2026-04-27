@@ -10,7 +10,14 @@ import { canResource } from '../utils/permissionsUi.js';
 import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
 import { getRiskTitlesForSelect, formatRiskLinkTag } from '../utils/riskIncidentLinks.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
-import { mapApiIncident, formatIsoDateToFr, normalizeSeverity } from '../utils/incidentsMappers.js';
+import {
+  mapApiIncident,
+  formatIsoDateToFr,
+  normalizeSeverity,
+  incidentTitleFromRow
+} from '../utils/incidentsMappers.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
 
 const INCIDENT_TYPES = [
   'Quasi-accident',
@@ -41,6 +48,31 @@ function fileToDataUrl(file) {
   });
 }
 
+/**
+ * @param {Record<string, unknown>} apiRow — corps brut POST /api/incidents
+ * @param {NonNullable<ReturnType<typeof mapApiIncident>>} mappedEntry
+ * @param {string} clientRefGuess — référence envoyée dans la requête si besoin de repli
+ */
+function buildIncidentCreatedPayload(apiRow, mappedEntry, clientRefGuess) {
+  const rawId = apiRow?.id ?? apiRow?._id ?? mappedEntry?.id;
+  const id = rawId != null && String(rawId).trim() ? String(rawId).trim() : '';
+  const ref =
+    mappedEntry.ref != null && String(mappedEntry.ref).trim()
+      ? String(mappedEntry.ref).trim()
+      : String(clientRefGuess || '').trim();
+  const type = mappedEntry.type ? String(mappedEntry.type).trim() : '';
+  let title = '';
+  try {
+    title = incidentTitleFromRow(mappedEntry).trim();
+  } catch {
+    title = '';
+  }
+  if (!title && type) {
+    title = mappedEntry.site ? `${type} · ${mappedEntry.site}` : type;
+  }
+  return { id, ref, type, title };
+}
+
 function computeNextRef(list) {
   const nums = list.map((r) => {
     const m = /^INC-(\d+)$/i.exec(r.ref);
@@ -50,21 +82,26 @@ function computeNextRef(list) {
   return `INC-${max + 1}`;
 }
 
-const INCIDENTS_SLIDEOVER_STYLE_ID = 'qhse-incidents-slideover';
+/** Incrémenter si les règles CSS du panneau latéral changent (évite cache d’une balise <style> obsolète en session). */
+const INCIDENTS_SLIDEOVER_STYLE_ID = 'qhse-incidents-slideover-v2';
 
 export function ensureIncidentsSlideOverStyles() {
   if (document.getElementById(INCIDENTS_SLIDEOVER_STYLE_ID)) return;
+  document.getElementById('qhse-incidents-slideover')?.remove();
   const el = document.createElement('style');
   el.id = INCIDENTS_SLIDEOVER_STYLE_ID;
   el.textContent = `
 .inc-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.6);
+  background: rgba(15,23,42,0.42);
   z-index: 200;
   opacity: 0;
   pointer-events: none;
   transition: opacity 200ms ease;
+}
+html[data-theme='dark'] .inc-overlay {
+  background: rgba(0,0,0,.6);
 }
 .inc-overlay--open {
   opacity: 1;
@@ -77,14 +114,19 @@ export function ensureIncidentsSlideOverStyles() {
   bottom: 0;
   width: min(440px, 100vw);
   max-width: 100vw;
-  background: var(--bg, #0f172a);
-  border-left: 1px solid rgba(255,255,255,.09);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  border-left: 1px solid var(--color-border-tertiary);
+  box-shadow: -8px 0 32px rgba(15,23,42,0.12);
   z-index: 201;
   transform: translateX(100%);
   transition: transform 220ms ease;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+html[data-theme='dark'] .inc-slideover {
+  box-shadow: -12px 0 40px rgba(0,0,0,0.45);
 }
 @media (max-width: 520px) {
   .inc-slideover { width: 100vw; }
@@ -98,30 +140,32 @@ export function ensureIncidentsSlideOverStyles() {
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid rgba(255,255,255,.065);
+  border-bottom: 1px solid var(--color-border-tertiary);
   flex-shrink: 0;
+  background: var(--color-background-primary);
 }
 .inc-slideover__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text, rgba(255,255,255,.9));
+  color: var(--color-text-primary);
 }
 .inc-slideover__close {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 0.5px solid rgba(255,255,255,.1);
-  background: transparent;
-  color: var(--text2, rgba(255,255,255,.5));
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 150ms;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 .inc-slideover__close:hover {
-  background: rgba(255,255,255,.07);
-  color: var(--text, rgba(255,255,255,.88));
+  background: var(--surface-neutral-muted);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-primary);
 }
 .inc-slideover__body {
   flex: 1;
@@ -129,13 +173,27 @@ export function ensureIncidentsSlideOverStyles() {
   padding: 16px 18px 20px;
 }
 .inc-ia-section { margin-bottom: 20px; }
-.inc-ia-section__title { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text2, rgba(255,255,255,.55)); margin: 0 0 10px; }
-.inc-ia-row { padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); margin-bottom: 10px; background: rgba(255,255,255,.04); }
+.inc-ia-section__title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0 0 10px;
+}
+.inc-ia-row {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-tertiary);
+  margin-bottom: 10px;
+  background: var(--color-background-secondary);
+}
 .inc-ia-row__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
-.inc-ia-confidence { font-size: 12px; font-weight: 800; white-space: nowrap; color: var(--color-primary-text, #0f766e); }
-.inc-ia-cat { font-size: 11px; color: var(--text2, rgba(255,255,255,.5)); margin-top: 4px; }
+.inc-ia-row__head > div:first-child { color: var(--color-text-primary); }
+.inc-ia-confidence { font-size: 12px; font-weight: 800; white-space: nowrap; color: var(--color-primary-text); }
+.inc-ia-cat { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; }
 .inc-ia-actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
-.inc-ia-provider { font-size: 11px; color: var(--text2, rgba(255,255,255,.45)); margin-bottom: 12px; }
+.inc-ia-provider { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 12px; }
 dialog.qhse-inc-declare-dialog {
   position: fixed;
   inset: 0 0 0 auto;
@@ -146,15 +204,22 @@ dialog.qhse-inc-declare-dialog {
   max-width: 100vw;
   padding: 0;
   border: none;
-  border-left: 1px solid rgba(255,255,255,.09);
-  background: var(--bg, #0f172a);
-  color: var(--text, rgba(255,255,255,.9));
+  border-left: 1px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 201;
+  box-shadow: -8px 0 32px rgba(15,23,42,0.12);
+}
+html[data-theme='dark'] dialog.qhse-inc-declare-dialog {
+  box-shadow: -12px 0 40px rgba(0,0,0,0.45);
 }
 dialog.qhse-inc-declare-dialog::backdrop {
+  background: rgba(15,23,42,0.42);
+}
+html[data-theme='dark'] dialog.qhse-inc-declare-dialog::backdrop {
   background: rgba(0,0,0,.6);
 }
 @media (max-width: 520px) {
@@ -176,6 +241,10 @@ export function setupIncidentDeclareFlow(ctx) {
     onDeclared,
     onSave,
     refreshIncidentJournal,
+    refreshList,
+    onCreated,
+    /** Optionnel : remplacer le qhseNavigate par défaut du bouton « Voir la fiche » (ex. activer la ligne sur la page courante). */
+    onFocusIncidentRequest,
     onAddLog
   } = ctx;
   const declareCb = onDeclared ?? onSave;
@@ -651,6 +720,7 @@ export function setupIncidentDeclareFlow(ctx) {
 
     function open(formElement) {
       body.replaceChildren(formElement);
+      applyNativeDialogColorScheme(dlg);
       if (typeof dlg.showModal === 'function') {
         dlg.showModal();
       } else {
@@ -778,7 +848,46 @@ export function setupIncidentDeclareFlow(ctx) {
       }
       refreshIncidentJournal();
 
-      showToast(`Incident enregistré : ${ref}`, 'info');
+      const payload = buildIncidentCreatedPayload(created, entry, ref);
+      try {
+        if (typeof onCreated === 'function') {
+          onCreated(payload);
+        }
+      } catch (cbErr) {
+        console.error('[incidents] onCreated', cbErr);
+      }
+
+      const pin = !!(payload.ref || payload.id);
+      if (pin) {
+        showToast(`Incident enregistré${payload.ref ? ` · ${payload.ref}` : ''}`, 'success', {
+          label: 'Voir la fiche',
+          action: () => {
+            if (typeof onFocusIncidentRequest === 'function') {
+              try {
+                onFocusIncidentRequest(payload);
+                return;
+              } catch (focusErr) {
+                console.error('[incidents] onFocusIncidentRequest', focusErr);
+              }
+            }
+            qhseNavigate('incidents', {
+              skipDefaults: true,
+              focusIncidentRef: payload.ref || undefined,
+              focusIncidentId: payload.id || undefined,
+              focusIncidentHintTitle: payload.title ? payload.title.slice(0, 160) : undefined
+            });
+          }
+        });
+      } else {
+        showToast('Incident enregistré — mise à jour de la liste.', 'info');
+        if (typeof refreshList === 'function') {
+          try {
+            refreshList();
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       descInput.value = '';
       locInput.value = '';
       photoInput.value = '';
@@ -798,13 +907,6 @@ export function setupIncidentDeclareFlow(ctx) {
       causeChipByVal.forEach((btn) => btn.classList.remove('incidents-rapid-chip--on'));
       respDeclInput.value = '';
       setWizardStep(0);
-
-      setTimeout(() => {
-        document.getElementById('incidents-recent-list')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }, 0);
     } catch (err) {
       console.error('[incidents] POST /api/incidents', err);
       showToast('Erreur serveur', 'error');

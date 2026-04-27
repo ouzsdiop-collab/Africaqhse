@@ -3,6 +3,7 @@
  */
 
 import { asDashboardCount, isNcOpen } from './reconcileDashboardStats.js';
+import { mapApiRiskToUi, riskTierBucket } from './risksRegisterModel.js';
 
 export function toneByValue(value, warn = 1, crit = 3) {
   const n = Number(value) || 0;
@@ -50,10 +51,29 @@ export function guessImpactedSite(rows = []) {
  *   ncs: unknown[];
  *   permits: unknown[];
  *   docs: unknown[];
+ *   risks?: unknown[];
  * }} args
  */
-export function buildOperationalTiles({ stats, incidents, actions: _actions, audits, ncs, permits, docs }) {
-  const criticalInc = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
+export function buildOperationalTiles({
+  stats,
+  incidents,
+  actions: _actions,
+  audits,
+  ncs,
+  permits,
+  docs,
+  risks = []
+}) {
+  const riskList = Array.isArray(risks) ? risks : [];
+  let criticalRiskN = 0;
+  if (riskList.length) {
+    criticalRiskN = riskList.reduce((acc, raw) => {
+      const ui = mapApiRiskToUi(raw && typeof raw === 'object' ? raw : {});
+      return acc + (riskTierBucket(ui) === 'critique' ? 1 : 0);
+    }, 0);
+  } else {
+    criticalRiskN = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
+  }
   const overdueActions = safeNum(stats?.overdueActions);
   const permitsActive = Array.isArray(permits)
     ? permits.filter((p) => String(p?.status || '').toLowerCase() !== 'closed').length
@@ -89,9 +109,9 @@ export function buildOperationalTiles({ stats, incidents, actions: _actions, aud
     },
     {
       k: 'Risques critiques',
-      v: criticalInc,
-      d: 'Priorité terrain immédiate',
-      tone: toneByValue(criticalInc, 1, 3),
+      v: criticalRiskN,
+      d: 'Palier critique (matrice G×P)',
+      tone: toneByValue(criticalRiskN, 1, 3),
       page: 'risks'
     },
     {

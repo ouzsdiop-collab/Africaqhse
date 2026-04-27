@@ -23,6 +23,9 @@ import {
 import { getRiskTitlesForSelect } from '../utils/riskIncidentLinks.js';
 import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const COLUMN_META = {
   todo: { label: 'À lancer', hint: 'Non démarré — prioriser le cadrage' },
@@ -288,6 +291,7 @@ function buildKanbanBoard(actionColumns, opts = {}) {
     const meta = COLUMN_META[key];
     const column = document.createElement('section');
     column.className = `kanban-column kanban-column--pilotage kanban-column--pilotage-premium kanban-column--${key}`;
+    column.id = `qhse-actions-col-${key}`;
     column.dataset.kanbanColumn = key;
     column.addEventListener('dragover', (e) => {
       if (!onColumnDrop) return;
@@ -349,6 +353,7 @@ function buildActionsKanbanSkeletonBoard() {
     const meta = COLUMN_META[key];
     const column = document.createElement('section');
     column.className = `kanban-column kanban-column--pilotage kanban-column--pilotage-premium kanban-column--${key}`;
+    column.id = `qhse-actions-col-${key}`;
     const head = document.createElement('div');
     head.className = 'kanban-column-head';
     const h4 = document.createElement('h4');
@@ -518,6 +523,33 @@ export function renderActions() {
   ensureQhsePilotageStyles();
   ensureDashboardStyles();
 
+  const dashboardIntent = consumeDashboardIntent();
+  /** @type {string | null} */
+  let pendingActionsScrollTargetId = dashboardIntent?.scrollToId
+    ? String(dashboardIntent.scrollToId).trim()
+    : null;
+
+  /** ouverture fiche après création ou navigation (#focusActionId / openActionId) */
+  const rawFocusIntent =
+    dashboardIntent?.focusActionId ?? dashboardIntent?.openActionId ?? null;
+  /** @type {string | null} */
+  let pendingFocusActionId =
+    rawFocusIntent != null && String(rawFocusIntent).trim()
+      ? String(rawFocusIntent).trim()
+      : null;
+  let pendingFocusTitle = dashboardIntent?.focusActionTitle
+    ? String(dashboardIntent.focusActionTitle).trim()
+    : '';
+
+  const actionsNavLinkedAudit =
+    dashboardIntent?.linkedAuditTitle != null && String(dashboardIntent.linkedAuditTitle).trim()
+      ? String(dashboardIntent.linkedAuditTitle).trim().slice(0, 160)
+      : '';
+  const actionsNavLinkedNc =
+    dashboardIntent?.linkedNonConformity != null && String(dashboardIntent.linkedNonConformity).trim()
+      ? String(dashboardIntent.linkedNonConformity).trim().slice(0, 240)
+      : '';
+
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas page-stack--actions-premium';
 
@@ -598,8 +630,16 @@ export function renderActions() {
   let actionsFirstLoadPending = true;
   let usersList = [];
   const filterRefs = { view: null, status: null, priority: null, preventionBtn: null };
-  let filterView = isTerrainSessionRole(getSessionUser()?.role) ? 'mine' : 'all';
-  let filterStatus = 'all';
+  let filterView = pendingFocusActionId
+    ? 'all'
+    : isTerrainSessionRole(getSessionUser()?.role)
+      ? 'mine'
+      : 'all';
+  let filterStatus = pendingFocusActionId
+    ? 'all'
+    : dashboardIntent?.actionsColumnFilter === 'overdue'
+      ? 'overdue'
+      : 'all';
   let filterPriority = 'all';
   let onAssignHandler = async () => {};
   let canAssignActions = true;
@@ -682,7 +722,7 @@ export function renderActions() {
         risksWithoutPreventiveCount: gapCount,
         onSelectFilter: (key) => {
           if (key === 'preventive_gap') {
-            window.location.hash = 'risks';
+            qhseNavigate('risks');
             showToast(
               'Risques : ouvrez une fiche ou le bouton « Créer action préventive » du registre.',
               'info'
@@ -767,6 +807,50 @@ export function renderActions() {
     const filtered = applyClientFilters(cachedRows);
     refreshUi(
       partitionActions(filtered, usersList, onAssignHandler, canAssignActions, kanbanHooks)
+    );
+  }
+
+  function tryOpenPendingFocusAction() {
+    const fid = pendingFocusActionId;
+    if (!fid || actionsFirstLoadPending) return;
+
+    filterStatus = 'all';
+    filterPriority = 'all';
+    kpiStripFilterKey = null;
+    if (filterRefs.status) filterRefs.status.value = 'all';
+    if (filterRefs.priority) filterRefs.priority.value = 'all';
+    syncPreventionToolbar();
+    refreshWithFilters();
+
+    let row = cachedRows.find((r) => String(r.id) === String(fid));
+    if (!row && pendingFocusTitle) {
+      const t = pendingFocusTitle.toLowerCase().slice(0, 120);
+      row = cachedRows.find((s) =>
+        String(s.title || '')
+          .toLowerCase()
+          .includes(t)
+      );
+    }
+
+    if (row) {
+      pendingFocusActionId = null;
+      pendingFocusTitle = '';
+      actionDetailDialog.show(row, statusToColumnKey(row.status));
+      return;
+    }
+
+    if (filterView !== 'all') {
+      filterView = 'all';
+      if (filterRefs.view) filterRefs.view.value = 'all';
+      void loadActionsFromApi();
+      return;
+    }
+
+    pendingFocusActionId = null;
+    pendingFocusTitle = '';
+    showToast(
+      'Action créée, mais fiche introuvable dans la liste affichée.',
+      'warning'
     );
   }
 
@@ -884,6 +968,11 @@ export function renderActions() {
         }
       })
     );
+    const sid = pendingActionsScrollTargetId;
+    if (sid) {
+      pendingActionsScrollTargetId = null;
+      scheduleScrollIntoView(sid);
+    }
   }
 
   refreshWithFilters();
@@ -895,6 +984,7 @@ export function renderActions() {
       cachedRows = cached?.length ? cached : [];
       if (actionsFirstLoadPending) actionsFirstLoadPending = false;
       refreshWithFilters();
+      tryOpenPendingFocusAction();
       return;
     }
     offlineCacheBanner.hidden = true;
@@ -948,6 +1038,7 @@ export function renderActions() {
     } finally {
       if (actionsFirstLoadPending) actionsFirstLoadPending = false;
       refreshWithFilters();
+      tryOpenPendingFocusAction();
     }
   }
 
@@ -1005,7 +1096,7 @@ export function renderActions() {
     }
 
     const terrainOnly = isTerrainSessionRole(su?.role);
-    if (terrainOnly) filterView = 'mine';
+    if (terrainOnly && !pendingFocusActionId) filterView = 'mine';
 
     const toolbar = buildFilterToolbar(usersList, filterRefs, {
       terrainOnly,
@@ -1043,14 +1134,24 @@ export function renderActions() {
     if (createBtn.disabled) return;
     openActionCreateDialog({
       users: usersList,
-      onCreated: () => {
+      builtInSuccessToast: false,
+      onCreated: (payload) => {
         activityLogStore.add({
           module: 'actions',
           action: 'Création action',
           detail: 'Formulaire pilotage — liaisons risque / audit / incident',
           user: getSessionUser()?.name || 'Responsable QHSE'
         });
+        if (payload?.id) {
+          pendingFocusActionId = payload.id;
+          pendingFocusTitle = payload.title || '';
+          filterView = 'all';
+          if (filterRefs.view) filterRefs.view.value = 'all';
+        }
         void loadActionsFromApi();
+        if (!payload?.id) {
+          showToast('Action créée', 'success');
+        }
       }
     });
   });
@@ -1070,5 +1171,19 @@ export function renderActions() {
     managerHost,
     main
   );
+
+  if (actionsNavLinkedAudit || actionsNavLinkedNc) {
+    queueMicrotask(() => {
+      showToast(
+        `Contexte : audit ${actionsNavLinkedAudit || '—'}${
+          actionsNavLinkedNc
+            ? ` · ${actionsNavLinkedNc.slice(0, 120)}${actionsNavLinkedNc.length > 120 ? '…' : ''}`
+            : ''
+        }`,
+        'info'
+      );
+    });
+  }
+
   return page;
 }

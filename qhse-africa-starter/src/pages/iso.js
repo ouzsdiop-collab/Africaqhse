@@ -1,5 +1,13 @@
 import { showToast } from '../components/toast.js';
 import { ensureSensitiveAccess } from '../components/sensitiveAccessGate.js';
+import {
+  loadSensitiveAccessConfig,
+  loadSensitiveAccessPin,
+  isSensitiveActionEnabled
+} from '../data/sensitiveAccessConfig.js';
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { pageTopbarById } from '../data/navigation.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { ensureIsoPageStyles } from '../components/isoPageStyles.js';
@@ -168,8 +176,21 @@ async function openDocUpdateAction(row, onAddLog) {
       priority: row.complianceStatus === 'expire' ? 'critique' : 'haute',
       description: `Renouveler ou réviser le document « ${row.name} » (statut : ${row.complianceLabel || row.complianceStatus}). Réf. ${row.id}.`
     },
-    onCreated: () => {
-      showToast('Action enregistrée.', 'success');
+    builtInSuccessToast: false,
+    onCreated: (payload) => {
+      showToast('Action enregistrée.', 'success', {
+        label: 'Ouvrir',
+        action: () => {
+          if (payload?.id) {
+            qhseNavigate('actions', {
+              focusActionId: payload.id,
+              focusActionTitle: payload.title || ''
+            });
+          } else {
+            qhseNavigate('actions', { skipDefaults: true });
+          }
+        }
+      });
       if (typeof onAddLog === 'function') {
         onAddLog({
           module: 'iso',
@@ -1158,6 +1179,7 @@ function createComplianceCycleStrip() {
  */
 function createPrioritiesCockpitBlock(onAnalyze) {
   const root = document.createElement('article');
+  root.id = 'iso-cockpit-priorities-anchor';
   root.className = 'content-card card-soft iso-cockpit-priorities';
   root.setAttribute('aria-labelledby', 'iso-cockpit-prio-title');
 
@@ -1296,7 +1318,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
       ? AUDITS_TO_SCHEDULE.map((a) => `· ${a.title} — ${a.horizon}`).join('\n')
       : 'Aucune échéance planifiée sur le périmètre affiché.';
     appendPriorityRow('Audits à planifier', audDetail, 'Voir Audits', () => {
-      window.location.hash = 'audits';
+      qhseNavigate('audits');
       showToast('Module Audits.', 'info');
     });
 
@@ -1458,6 +1480,8 @@ export function renderIso(onAddLog) {
   ensureIsoPageStyles();
   ensureQhsePilotageStyles();
   ensureDashboardStyles();
+
+  const dashboardIntent = consumeDashboardIntent();
 
   const page = document.createElement('section');
   page.className =
@@ -1698,26 +1722,36 @@ export function renderIso(onAddLog) {
           version: r.version || '—'
         })),
         siteId: appState.activeSiteId,
-        onStatusCommitted: (requirementId, status, meta) => {
-          void (async () => {
+        onStatusCommitted: async (requirementId, status, meta) => {
+          const gateOk = await ensureSensitiveAccess('critical_validation', {
+            contextLabel: 'mise à jour du statut d’exigence (conformité)'
+          });
+          if (!gateOk) {
+            const saCfg = loadSensitiveAccessConfig();
             if (
-              !(await ensureSensitiveAccess('critical_validation', {
-                contextLabel: 'mise à jour du statut d’exigence (conformité)'
-              }))
+              saCfg.enabled &&
+              isSensitiveActionEnabled('critical_validation', saCfg) &&
+              loadSensitiveAccessPin()
             ) {
-              return;
+              showToast('Enregistrement annulé — statut inchangé.', 'info');
             }
-            setRequirementStatus(requirementId, status);
-            refreshPilotage();
-            if (typeof onAddLog === 'function') {
-              onAddLog({
-                module: 'iso',
-                action: 'Statut exigence mis à jour (validation humaine)',
-                detail: `${requirementId} → ${status} (${meta.source})`,
-                user: 'Utilisateur'
-              });
-            }
-          })();
+            return false;
+          }
+          const saved = await setRequirementStatus(requirementId, status);
+          refreshPilotage();
+          if (!saved) {
+            showToast('Synchronisation impossible — vérifiez votre connexion ou vos droits.', 'warning');
+            return false;
+          }
+          if (typeof onAddLog === 'function') {
+            onAddLog({
+              module: 'iso',
+              action: 'Statut exigence mis à jour (validation humaine)',
+              detail: `${requirementId} → ${status} (${meta.source})`,
+              user: 'Utilisateur'
+            });
+          }
+          return true;
         }
       });
     })();
@@ -1745,7 +1779,7 @@ export function renderIso(onAddLog) {
         }
       },
       onHash: (h) => {
-        window.location.hash = h;
+        qhseNavigate(h);
       }
     }).forEach((item) => {
       const btn = document.createElement('button');
@@ -2094,5 +2128,8 @@ export function renderIso(onAddLog) {
     insightsDisclosure,
     secondaryWrap
   );
+  if (dashboardIntent?.scrollToId) {
+    scheduleScrollIntoView(String(dashboardIntent.scrollToId));
+  }
   return page;
 }

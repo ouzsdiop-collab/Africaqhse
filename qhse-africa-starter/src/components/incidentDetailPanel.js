@@ -10,6 +10,7 @@ import {
   createLinkedAction,
   proposeCorrectiveActionViaAssistant
 } from '../utils/incidentsActions.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const STATUS_PRESETS = ['Nouveau', 'En cours', 'Investigation', 'Clôturé'];
 
@@ -593,7 +594,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   btnActionsPage.className = 'btn incidents-detail-foot__secondary';
   btnActionsPage.textContent = 'Ouvrir pilotage actions';
   btnActionsPage.addEventListener('click', () => {
-    window.location.hash = 'actions';
+    qhseNavigate('actions');
   });
   foot.append(btnCorrAssist, btnCorr, btnAct, btnRisk, btnActionsPage);
 

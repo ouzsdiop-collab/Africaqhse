@@ -21,6 +21,8 @@ import {
 import { escapeHtml } from '../utils/escapeHtml.js';
 /* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /** Constantes cockpit Audits (extrait illustratif — complété par l’API quand disponible). */
 const AUDITS_RETARD_COUNT = 2;
@@ -91,6 +93,79 @@ function auditCalendarDaysDiff(from, to) {
  * Notifications cockpit — dérivées des données affichées + constantes (sans appel API dédié ici).
  * @returns {{ items: { key: string; title: string; detail: string; tone: 'blue'|'amber'|'green'|'red' }[]; suggestNotifyHint: string }}
  */
+/**
+ * Action corrective préremplie depuis un constat NC (checklist audit) — frontend uniquement.
+ * @param {object} p
+ * @param {string} p.auditRef
+ * @param {string} [p.auditSite]
+ * @param {string} p.controlPoint
+ * @param {'mineur'|'majeur'} p.ncSeverity
+ * @param {string} [p.recommendedDueIso] — YYYY-MM-DD
+ */
+async function openCorrectiveActionFromAuditNc(p) {
+  const auditRef = String(p.auditRef || '').trim();
+  const site = String(p.auditSite || '').trim();
+  const controlPoint = String(p.controlPoint || '').trim();
+  const sev = p.ncSeverity === 'majeur' ? 'majeur' : 'mineur';
+  const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
+    import('../components/actionCreateDialog.js'),
+    import('../services/users.service.js')
+  ]);
+  let users = [];
+  try {
+    users = await fetchUsers();
+  } catch {
+    showToast('Utilisateurs indisponibles.', 'warning');
+  }
+  const priority = sev === 'majeur' ? 'critique' : 'haute';
+  let dueStr = '';
+  if (p.recommendedDueIso && /^\d{4}-\d{2}-\d{2}$/.test(String(p.recommendedDueIso))) {
+    dueStr = String(p.recommendedDueIso);
+  } else {
+    const due = new Date();
+    due.setDate(due.getDate() + (sev === 'majeur' ? 14 : 30));
+    dueStr = due.toISOString().slice(0, 10);
+  }
+  const title =
+    controlPoint.length > 0
+      ? `Corrective — ${controlPoint.slice(0, 100)} (${auditRef})`
+      : `Corrective — audit ${auditRef}`;
+  const description = [
+    `Source : audit ${auditRef}${site ? ` · ${site}` : ''}.`,
+    `Point de contrôle / NC : ${controlPoint || '—'}.`,
+    `Criticité constat : ${sev === 'majeur' ? 'majeure' : 'mineure'}.`
+  ].join('\n');
+
+  openActionCreateDialog({
+    users,
+    defaults: {
+      title,
+      origin: 'audit',
+      actionType: 'corrective',
+      priority,
+      description,
+      dueDate: dueStr,
+      linkedAudit: auditRef,
+      linkedRisk: '',
+      linkedIncident: ''
+    },
+    builtInSuccessToast: false,
+    onCreated: (payload) => {
+      showToast('Action corrective créée', 'success', {
+        label: 'Ouvrir',
+        action: () =>
+          qhseNavigate('actions', {
+            skipDefaults: true,
+            focusActionId: payload?.id,
+            focusActionTitle: payload?.title || '',
+            linkedAuditTitle: auditRef,
+            linkedNonConformity: controlPoint.slice(0, 240)
+          })
+      });
+    }
+  });
+}
+
 function buildAuditSmartNotifications() {
   const today = new Date();
   const items = [];
@@ -497,8 +572,9 @@ function statutBadgeClass(statut) {
  * @param {{ point: string; conforme: boolean; proofRef?: string }} item
  * @param {ReturnType<typeof getSessionUser>} [sessionUser]
  * @param {{ bumpScore?: (delta: number) => void }} [hooks]
+ * @param {{ auditRef?: string; auditSite?: string }} [auditLink] — contexte audit pour actions / liaisons
  */
-function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
+function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLink = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'audit-constat-human audit-constat-human--compact';
   if (exigenceIndex != null && Number.isFinite(Number(exigenceIndex))) {
@@ -513,6 +589,8 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   const pointEl = document.createElement('span');
   pointEl.className = 'audit-checklist-compact-point';
   pointEl.textContent = item?.point != null ? String(item.point) : '—';
+  const auditRefLink = String(auditLink?.auditRef || '').trim();
+  const auditSiteLink = String(auditLink?.auditSite || '').trim();
   const badge = document.createElement('span');
   badge.className = `badge ${ok ? 'green' : 'red'} audit-checklist-compact-badge`;
   badge.textContent = ok ? 'Conforme' : 'NC';
@@ -595,12 +673,16 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
       linkModules({
         fromModule: 'audits',
         fromId: String(item.point || 'nc'),
-        toModule: 'risks',
-        toId: `risk_from_audit_${String(item.point || 'nc')}`,
-        kind: 'audit_nc_to_risk'
+        toModule: 'actions',
+        toId: `action_link_${String(item.point || 'nc')}`,
+        kind: 'audit_constat_to_action'
       });
     })();
-    window.location.hash = 'risks';
+    qhseNavigate('actions', {
+      skipDefaults: true,
+      linkedAuditTitle: auditRefLink,
+      linkedNonConformity: String(item.point || '').trim().slice(0, 400)
+    });
     activityLogStore.add({
       module: 'audits',
       action: 'Liaison action depuis constat',
@@ -688,9 +770,24 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
   );
   strip.append(legend, statusEl, actions, traceWrap);
 
-  treatBtn.addEventListener('click', () => {
-    strip.hidden = !strip.hidden;
-    treatBtn.setAttribute('aria-expanded', strip.hidden ? 'false' : 'true');
+  if (!ok) {
+    badge.style.cursor = 'pointer';
+    badge.title = 'Afficher la zone de validation humaine';
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      strip.hidden = !strip.hidden;
+      treatBtn.setAttribute('aria-expanded', strip.hidden ? 'false' : 'true');
+    });
+  }
+
+  treatBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await openCorrectiveActionFromAuditNc({
+      auditRef: auditRefLink || LAST_AUDIT.ref,
+      auditSite: auditSiteLink,
+      controlPoint: String(item.point || ''),
+      ncSeverity: severity === 'majeur' ? 'majeur' : 'mineur'
+    });
   });
 
   wrap.append(top, exRow, strip);
@@ -702,8 +799,9 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex) {
  * @param {HTMLElement} treatmentTable
  * @param {{ nc: string; action: string; owner: string; due: string }} r
  * @param {ReturnType<typeof getSessionUser> | null} su
+ * @param {string} [auditDisplayRef] — réf. audit affichée (cockpit)
  */
-function appendTreatmentRowWithRisk(treatmentTable, r, su) {
+function appendTreatmentRowWithRisk(treatmentTable, r, su, auditDisplayRef) {
   const line = document.createElement('div');
   line.className = 'audit-iso-treatment-row';
   line.setAttribute('role', 'row');
@@ -717,8 +815,17 @@ function appendTreatmentRowWithRisk(treatmentTable, r, su) {
   riskBtn.className = 'btn btn-secondary audit-nc-risk-btn';
   riskBtn.textContent = 'Créer risque associé';
   riskBtn.addEventListener('click', () => {
-    window.location.hash = 'risks';
-    showToast('Module Risques — liaison NC ouverte.', 'info');
+    const aref = String(auditDisplayRef || LAST_AUDIT.ref).trim();
+    const desc = [
+      `Non-conformité ${r.nc} (audit ${aref}).`,
+      `Action liée : ${r.action} · ${r.owner} · échéance ${r.due}.`
+    ].join('\n');
+    qhseNavigate('risks', {
+      skipDefaults: true,
+      openRiskCreateFromIntent: true,
+      riskPrefillTitle: `Risque lié — ${r.nc} (${aref})`,
+      riskPrefillDescription: desc.slice(0, 3800)
+    });
     activityLogStore.add({
       module: 'audits',
       action: 'Créer risque associé depuis NC audit',
@@ -781,6 +888,7 @@ function createPlanningTable() {
     line.setAttribute('role', 'button');
     line.tabIndex = 0;
     line.setAttribute('aria-label', `Aller au pilotage — ${row.ref}`);
+    line.setAttribute('data-audit-plan-ref', row.ref);
     const stClass = statutBadgeClass(row.statut);
     const cRef = document.createElement('span');
     cRef.className = 'audit-plan-ref';
@@ -899,6 +1007,66 @@ export async function renderAudits() {
   const statusTone = LAST_AUDIT.conforme ? 'green' : 'red';
   const cockpitPrevScore = getCockpitPreviousAuditScore();
   const dashboardIntent = consumeDashboardIntent();
+  let pendingFocusAuditId =
+    dashboardIntent?.focusAuditId != null && String(dashboardIntent.focusAuditId).trim()
+      ? String(dashboardIntent.focusAuditId).trim()
+      : '';
+  let pendingFocusAuditRef =
+    dashboardIntent?.focusAuditRef != null && String(dashboardIntent.focusAuditRef).trim()
+      ? String(dashboardIntent.focusAuditRef).trim()
+      : '';
+  let pendingFocusAuditTitle =
+    dashboardIntent?.focusAuditTitle != null && String(dashboardIntent.focusAuditTitle).trim()
+      ? String(dashboardIntent.focusAuditTitle).trim().slice(0, 200)
+      : '';
+
+  function tryFocusAuditFromIntent() {
+    const id = pendingFocusAuditId ? String(pendingFocusAuditId).trim() : '';
+    const ref = pendingFocusAuditRef ? String(pendingFocusAuditRef).trim() : '';
+    const titleHint = pendingFocusAuditTitle ? String(pendingFocusAuditTitle).trim() : '';
+    if (!id && !ref && !titleHint) return;
+
+    pendingFocusAuditId = '';
+    pendingFocusAuditRef = '';
+    pendingFocusAuditTitle = '';
+
+    const lastRef = (LAST_AUDIT.ref || '').trim().toLowerCase();
+    const refLow = ref.trim().toLowerCase();
+    const matchesLast =
+      (refLow && refLow === lastRef) ||
+      (Boolean(titleHint) && lastRef.includes(titleHint.toLowerCase().slice(0, 36)));
+
+    if (matchesLast) {
+      scheduleScrollIntoView('audit-cockpit-tier-score');
+      queueMicrotask(() => {
+        openAuditResult(
+          { ...LAST_AUDIT },
+          {
+            onEdit: () => {
+              showToast(
+                'Édition : basculez cette page en Expert pour le pilotage complet et la checklist chantier.',
+                'info'
+              );
+            }
+          }
+        );
+      });
+      return;
+    }
+
+    const sel = (ref || titleHint.split(/\s+/).find((x) => x) || '').trim();
+    if (sel) {
+      const esc =
+        typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(sel) : sel.replace(/"/g, '\\"');
+      const planRow = document.querySelector(`[data-audit-plan-ref="${esc}"]`);
+      if (planRow) {
+        planRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+    }
+
+    showToast('Audit non présent dans la vue cockpit actuelle — vérifiez la référence.', 'warning');
+  }
 
   const page = document.createElement('section');
   page.className =
@@ -1187,7 +1355,23 @@ export async function renderAudits() {
   heroCreateAudit.className = 'btn btn-secondary';
   heroCreateAudit.textContent = 'Créer un audit';
   heroCreateAudit.addEventListener('click', () => {
-    openAuditDialog(null, { canAuditWrite, su, onSave: () => {} });
+    openAuditDialog(null, {
+      canAuditWrite,
+      su,
+      onSave: (body) => {
+        const mergedRef =
+          body && typeof body === 'object'
+            ? String(body.ref ?? body.reference ?? '').trim()
+            : '';
+        if (mergedRef) pendingFocusAuditRef = mergedRef;
+        pendingFocusAuditId =
+          body && typeof body === 'object' && body.id != null
+            ? String(body.id).trim()
+            : '';
+        pendingFocusAuditTitle = '';
+        queueMicrotask(() => tryFocusAuditFromIntent());
+      }
+    });
   });
   if (!canAuditWrite && su) heroCreateAudit.style.display = 'none';
 
@@ -1689,7 +1873,11 @@ export async function renderAudits() {
   prioToActions.className = 'btn btn-primary';
   prioToActions.textContent = 'Ouvrir le plan d’actions';
   prioToActions.addEventListener('click', () => {
-    window.location.hash = 'actions';
+    qhseNavigate('actions', {
+      skipDefaults: true,
+      linkedAuditTitle: LAST_AUDIT.ref,
+      linkedNonConformity: 'NC critiques & preuves (vue pilotage audits)'
+    });
   });
   prioFoot.append(prioToActions);
   prioCard.append(prioFoot);
@@ -1754,7 +1942,7 @@ export async function renderAudits() {
   `;
   treatmentTable.append(treatmentHead);
   AUDIT_TREATMENT_ROWS.forEach((r) => {
-    appendTreatmentRowWithRisk(treatmentTable, r, su);
+    appendTreatmentRowWithRisk(treatmentTable, r, su, LAST_AUDIT.ref);
   });
   treatmentCard.append(treatmentTable);
 
@@ -1775,7 +1963,12 @@ export async function renderAudits() {
   const checklistStack = document.createElement('div');
   checklistStack.className = 'stack audit-premium-checklist-stack';
   CHECKLIST.forEach((item, idx) =>
-    checklistStack.append(createConstatHumanRow(item, su, { bumpScore }, idx))
+    checklistStack.append(
+      createConstatHumanRow(item, su, { bumpScore }, idx, {
+        auditRef: LAST_AUDIT.ref,
+        auditSite: LAST_AUDIT.site
+      })
+    )
   );
   checklistCard.append(checklistHeatmap, checklistStack);
 
@@ -2183,6 +2376,13 @@ export async function renderAudits() {
         'info'
       );
     }
+    if (
+      dashboardIntent?.scrollToId &&
+      !(dashboardIntent.source === 'dashboard' && dashboardIntent.chart === 'qhse_score')
+    ) {
+      scheduleScrollIntoView(String(dashboardIntent.scrollToId));
+    }
+    tryFocusAuditFromIntent();
   });
 
   return page;
