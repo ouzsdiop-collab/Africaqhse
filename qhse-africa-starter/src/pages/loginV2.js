@@ -24,6 +24,8 @@ function ensureLoginV2Styles() {
   min-height: 100vh;
   display: flex;
   background: #0d1117;
+  position: relative;
+  overflow: hidden;
 }
 .lv2-left {
   width: 42%;
@@ -36,6 +38,33 @@ function ensureLoginV2Styles() {
   background: rgba(10,14,22,.98);
   border-right: 1px solid rgba(255,255,255,.06);
 }
+.lv2-left::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  opacity: .62;
+  background:
+    radial-gradient(900px 600px at 20% 25%, rgba(34,211,238,.10), transparent 60%),
+    radial-gradient(900px 600px at 80% 60%, rgba(34,197,94,.07), transparent 62%),
+    radial-gradient(700px 520px at 55% 12%, rgba(82,148,247,.08), transparent 65%);
+  transform: translate3d(-2%, -1%, 0);
+  will-change: transform, opacity;
+  animation: lv2-bg-float 14s ease-in-out infinite;
+}
+.lv2-left::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .07;
+  background-image:
+    linear-gradient(rgba(255,255,255,.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.11) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(60% 45% at 55% 40%, rgba(0,0,0,.9), transparent 70%);
+}
+.lv2-left > * { position: relative; z-index: 1; }
 .lv2-right {
   flex: 1;
   display: flex;
@@ -53,6 +82,26 @@ function ensureLoginV2Styles() {
   display: flex;
   align-items: center;
   gap: 10px;
+  isolation: isolate;
+}
+.lv2-logo svg {
+  filter: drop-shadow(0 0 14px rgba(34,211,238,.14)) drop-shadow(0 0 26px rgba(34,197,94,.08));
+}
+.lv2-logo::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: -10px;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  pointer-events: none;
+  opacity: .85;
+  background: linear-gradient(90deg, transparent, rgba(34,211,238,.40), rgba(34,197,94,.30), transparent);
+  transform: translate3d(-120%, 0, 0);
+  will-change: transform, opacity;
+  mix-blend-mode: screen;
+  animation: lv2-logo-scan 5.2s ease-in-out infinite;
 }
 .lv2-logo-name {
   font-size: 14px;
@@ -73,6 +122,28 @@ function ensureLoginV2Styles() {
   color: rgba(148,163,184,.65);
   margin: 0 0 28px;
   letter-spacing: .01em;
+}
+.lv2-ready .lv2-headline,
+.lv2-ready .lv2-tagline,
+.lv2-ready .lv2-sep,
+.lv2-ready .lv2-benefit,
+.lv2-ready .lv2-stat,
+.lv2-ready .lv2-testimonial,
+.lv2-ready .lv2-countries {
+  opacity: 1;
+  transform: translate3d(0,0,0);
+}
+.lv2-headline,
+.lv2-tagline,
+.lv2-sep,
+.lv2-benefit,
+.lv2-stat,
+.lv2-testimonial,
+.lv2-countries {
+  opacity: 0;
+  transform: translate3d(0, 10px, 0);
+  will-change: transform, opacity;
+  transition: transform 520ms cubic-bezier(.2,.8,.2,1), opacity 520ms ease;
 }
 .lv2-sep {
   height: 1px;
@@ -107,7 +178,28 @@ function ensureLoginV2Styles() {
   padding: 14px 20px;
   min-width: 80px;
   flex: 1;
+  position: relative;
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, box-shadow 220ms ease;
+  will-change: transform;
 }
+.lv2-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 0 1px rgba(34,211,238,.22),
+    0 0 22px rgba(34,211,238,.10),
+    0 0 36px rgba(34,197,94,.08);
+  transition: opacity 220ms ease;
+}
+.lv2-stat:hover {
+  transform: translate3d(0,-2px,0) scale(1.02);
+  border-color: rgba(82,148,247,.22);
+}
+.lv2-stat:hover::after { opacity: 1; }
 .lv2-stat-num {
   font-size: 22px;
   font-weight: 800;
@@ -191,6 +283,7 @@ function ensureLoginV2Styles() {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 16px;
+  position: relative;
 }
 .lv2-field-label {
   font-size: 12px;
@@ -200,6 +293,37 @@ function ensureLoginV2Styles() {
 }
 .lv2-input {
   width: 100%;
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.lv2-input:focus {
+  box-shadow:
+    0 0 0 1px rgba(34,211,238,.28),
+    0 0 0 4px rgba(34,211,238,.10),
+    0 0 20px rgba(34,197,94,.06);
+  border-color: rgba(34,211,238,.24);
+}
+.lv2-field.is-invalid .lv2-input {
+  box-shadow: 0 0 0 1px rgba(248,113,113,.35), 0 0 0 4px rgba(248,113,113,.10);
+  border-color: rgba(248,113,113,.35);
+}
+.lv2-field.is-valid .lv2-input {
+  box-shadow: 0 0 0 1px rgba(52,211,153,.26), 0 0 0 4px rgba(52,211,153,.08);
+  border-color: rgba(52,211,153,.26);
+}
+.lv2-form.is-loading .lv2-field::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 32px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(148,163,184,.25);
+  border-top-color: rgba(34,211,238,.65);
+  opacity: .9;
+  transform: translate3d(0,0,0);
+  will-change: transform, opacity;
+  animation: lv2-spin 900ms linear infinite;
 }
 .lv2-password-wrap {
   position: relative;
@@ -219,9 +343,14 @@ function ensureLoginV2Styles() {
   padding: 4px;
   display: flex;
   align-items: center;
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1), color 150ms ease, opacity 150ms ease;
 }
 .lv2-eye-btn:hover {
   color: rgba(148,163,184,.85);
+  transform: translateY(-50%) scale(1.06);
+}
+.lv2-eye-btn:active {
+  transform: translateY(-50%) scale(.96);
 }
 .lv2-forgot-btn {
   background: none;
@@ -243,6 +372,33 @@ function ensureLoginV2Styles() {
   font-size: 14px;
   font-weight: 700;
   margin-top: 20px;
+  position: relative;
+  overflow: hidden;
+  transform: translate3d(0,0,0);
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease;
+  will-change: transform;
+}
+.lv2-submit::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,.28), rgba(34,197,94,.22), rgba(34,211,238,0));
+  transform: translate3d(-60%, 0, 0);
+  will-change: transform, opacity;
+  transition: opacity 220ms ease;
+}
+.lv2-submit:hover {
+  transform: translate3d(0,-1px,0) scale(1.01);
+  box-shadow: 0 10px 30px rgba(0,0,0,.28);
+}
+.lv2-submit:hover::before {
+  opacity: .85;
+  animation: lv2-btn-sheen 2.4s ease-in-out infinite;
+}
+.lv2-submit:active {
+  transform: translate3d(0,0,0) scale(.99);
 }
 .lv2-demo-link {
   display: block;
@@ -272,6 +428,40 @@ function ensureLoginV2Styles() {
   .lv2-right { padding: 32px 24px; }
   .lv2-mobile-brand { display: flex; }
   .lv2-screen { background: #0d1117; }
+}
+
+@keyframes lv2-logo-scan {
+  0% { transform: translate3d(-140%, 0, 0); opacity: 0; }
+  18% { opacity: .85; }
+  55% { opacity: .78; }
+  100% { transform: translate3d(140%, 0, 0); opacity: 0; }
+}
+@keyframes lv2-bg-float {
+  0% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .56; }
+  50% { transform: translate3d(2%, 1.5%, 0) scale(1.01); opacity: .66; }
+  100% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .56; }
+}
+@keyframes lv2-spin {
+  from { transform: translate3d(0,0,0) rotate(0deg); }
+  to { transform: translate3d(0,0,0) rotate(360deg); }
+}
+@keyframes lv2-btn-sheen {
+  0% { transform: translate3d(-65%, 0, 0); }
+  60% { transform: translate3d(65%, 0, 0); }
+  100% { transform: translate3d(65%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lv2-left::before,
+  .lv2-logo::after,
+  .lv2-submit::before { animation: none !important; }
+  .lv2-headline,
+  .lv2-tagline,
+  .lv2-sep,
+  .lv2-benefit,
+  .lv2-stat,
+  .lv2-testimonial,
+  .lv2-countries { transition: none !important; opacity: 1 !important; transform: none !important; }
+  .lv2-form.is-loading .lv2-field::after { animation: none !important; }
 }
 `;
   document.head.append(el);
@@ -781,15 +971,15 @@ export function createLoginView({ onSuccess, onNavigate }) {
 
     <div class="lv2-stats-row">
       <div class="lv2-stat">
-        <span class="lv2-stat-num">5+</span>
+        <span class="lv2-stat-num" data-count="5" data-suffix="+">0+</span>
         <span class="lv2-stat-label">Pays couverts</span>
       </div>
       <div class="lv2-stat">
-        <span class="lv2-stat-num">100%</span>
+        <span class="lv2-stat-num" data-count="100" data-suffix="%">0%</span>
         <span class="lv2-stat-label">Hors connexion</span>
         </div>
       <div class="lv2-stat">
-        <span class="lv2-stat-num">IA</span>
+        <span class="lv2-stat-num" data-text="IA">IA</span>
         <span class="lv2-stat-label">Intégrée</span>
       </div>
     </div>
@@ -887,6 +1077,97 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const orgSelect = inner.querySelector('.lv2-org-select');
   const orgContinue = inner.querySelector('.lv2-org-continue');
 
+  const reduceMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /** @param {Element | null} fieldEl */
+  function setFieldState(fieldEl, state) {
+    if (!(fieldEl instanceof HTMLElement)) return;
+    fieldEl.classList.toggle('is-invalid', state === 'invalid');
+    fieldEl.classList.toggle('is-valid', state === 'valid');
+  }
+
+  /** @param {Element | null} fieldEl */
+  function validateRequired(fieldEl, raw) {
+    const v = String(raw || '').trim();
+    setFieldState(fieldEl, v ? 'valid' : 'invalid');
+    return !!v;
+  }
+
+  function initImmediateFeedback() {
+    const emailField = emailEl?.closest?.('.lv2-field') || null;
+    const passField = passEl?.closest?.('.lv2-field') || null;
+
+    emailEl?.addEventListener?.('blur', () => validateRequired(emailField, emailEl.value));
+    passEl?.addEventListener?.('blur', () => validateRequired(passField, passEl.value));
+
+    emailEl?.addEventListener?.('input', () => {
+      if (emailField instanceof HTMLElement && emailField.classList.contains('is-invalid')) {
+        validateRequired(emailField, emailEl.value);
+      }
+    });
+    passEl?.addEventListener?.('input', () => {
+      if (passField instanceof HTMLElement && passField.classList.contains('is-invalid')) {
+        validateRequired(passField, passEl.value);
+      }
+    });
+  }
+
+  function initStaggerEntrance() {
+    if (reduceMotion) {
+      screen.classList.add('lv2-ready');
+      return;
+    }
+    const nodes = [
+      left.querySelector('.lv2-headline'),
+      left.querySelector('.lv2-tagline'),
+      left.querySelector('.lv2-sep'),
+      ...Array.from(left.querySelectorAll('.lv2-benefit')),
+      ...Array.from(left.querySelectorAll('.lv2-stat')),
+      left.querySelector('.lv2-testimonial'),
+      left.querySelector('.lv2-countries')
+    ].filter(Boolean);
+
+    nodes.forEach((n, i) => {
+      if (!(n instanceof HTMLElement)) return;
+      n.style.transitionDelay = `${120 + i * 55}ms`;
+    });
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => screen.classList.add('lv2-ready'));
+    });
+  }
+
+  function animateKpis() {
+    if (reduceMotion) return;
+    const els = Array.from(left.querySelectorAll('.lv2-stat-num'));
+    for (const el of els) {
+      if (!(el instanceof HTMLElement)) continue;
+      const fixedText = el.getAttribute('data-text');
+      if (fixedText) {
+        el.textContent = fixedText;
+        continue;
+      }
+      const target = Number(el.getAttribute('data-count') || '0');
+      const suffix = el.getAttribute('data-suffix') || '';
+      if (!Number.isFinite(target) || target <= 0) continue;
+
+      const duration = 900 + Math.min(700, target * 6);
+      const start = performance.now();
+      const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / duration);
+        const v = Math.round(target * easeOut(p));
+        el.textContent = `${v}${suffix}`;
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      el.textContent = `0${suffix}`;
+      requestAnimationFrame(tick);
+    }
+  }
+
   function hideOrgPanel() {
     if (orgPanel) orgPanel.style.display = 'none';
     if (orgSelect) orgSelect.innerHTML = '';
@@ -912,6 +1193,8 @@ export function createLoginView({ onSuccess, onNavigate }) {
     const password = passEl?.value || '';
     if (!identifier || !password) {
       showToast('Saisissez votre identifiant et le mot de passe', 'error');
+      validateRequired(emailEl?.closest?.('.lv2-field') || null, identifier);
+      validateRequired(passEl?.closest?.('.lv2-field') || null, password);
       return;
     }
     const prevLabel = submitBtn?.textContent || '';
@@ -919,6 +1202,9 @@ export function createLoginView({ onSuccess, onNavigate }) {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Connexion…';
     }
+    form?.classList?.add('is-loading');
+    if (emailEl) emailEl.disabled = true;
+    if (passEl) passEl.disabled = true;
     hideOrgPanel();
     try {
       const payload = { identifier, password };
@@ -976,6 +1262,9 @@ export function createLoginView({ onSuccess, onNavigate }) {
         submitBtn.disabled = false;
         submitBtn.textContent = prevLabel;
       }
+      form?.classList?.remove('is-loading');
+      if (emailEl) emailEl.disabled = false;
+      if (passEl) passEl.disabled = false;
     }
   }
 
@@ -998,6 +1287,12 @@ export function createLoginView({ onSuccess, onNavigate }) {
         'aria-label',
         isHidden ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
       );
+      if (!reduceMotion && eyeHost instanceof HTMLElement) {
+        eyeHost.style.transform = 'translateY(-50%) scale(1.06)';
+        window.setTimeout(() => {
+          eyeHost.style.transform = '';
+        }, 160);
+      }
     });
   }
 
@@ -1018,6 +1313,10 @@ export function createLoginView({ onSuccess, onNavigate }) {
     e.preventDefault();
     await submitLogin('');
   });
+
+  initStaggerEntrance();
+  initImmediateFeedback();
+  animateKpis();
 
   if (import.meta.env.DEV) {
     const devHint = document.createElement('p');

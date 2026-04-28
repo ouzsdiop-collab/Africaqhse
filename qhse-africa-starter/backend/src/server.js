@@ -59,10 +59,82 @@ function bootErrLine(msg) {
   console.error(`[boot] ${msg}`);
 }
 
+function isTrueEnv(name) {
+  const v = process.env[name];
+  return v === 'true' || v === '1';
+}
+
+function isFalseEnv(name) {
+  const v = process.env[name];
+  return v === 'false' || v === '0';
+}
+
+function isProdEnv() {
+  return process.env.NODE_ENV === 'production';
+}
+
+function validateProductionEnvOrExit() {
+  if (!isProdEnv()) return;
+  if (process.env.VITEST === 'true') return;
+
+  /** @type {string[]} */
+  const problems = [];
+
+  // 1) Variables attendues explicitement pour la 1ère prod client.
+  if (process.env.NODE_ENV !== 'production') {
+    problems.push('NODE_ENV doit être "production".');
+  }
+
+  const reqAuth = process.env.REQUIRE_AUTH;
+  if (reqAuth !== 'true' && reqAuth !== '1') {
+    problems.push('REQUIRE_AUTH doit être "true" en production.');
+  }
+
+  const allowX = process.env.ALLOW_X_USER_ID;
+  if (allowX !== 'false' && allowX !== '0') {
+    problems.push('ALLOW_X_USER_ID doit être "false" en production.');
+  }
+
+  const rawOrigins = String(process.env.ALLOWED_ORIGINS || '').trim();
+  const origins = rawOrigins
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!rawOrigins || origins.length === 0) {
+    problems.push('ALLOWED_ORIGINS est obligatoire en production (liste CSV).');
+  } else if (origins.some((o) => o === '*' || o.includes('*'))) {
+    problems.push('ALLOWED_ORIGINS ne doit pas contenir de wildcard ("*") en production.');
+  }
+
+  const jwt = String(process.env.JWT_SECRET || '').trim();
+  if (!jwt) {
+    problems.push('JWT_SECRET est obligatoire en production.');
+  } else {
+    const tooShort = jwt.length < 32;
+    const looksDefault = /changez-moi|changeme|default|secret/i.test(jwt);
+    if (tooShort) problems.push('JWT_SECRET trop court en production (minimum 32 caractères).');
+    if (looksDefault) problems.push('JWT_SECRET semble être une valeur par défaut — remplacez-la.');
+  }
+
+  const db = String(process.env.DATABASE_URL || '').trim();
+  if (!db) {
+    problems.push('DATABASE_URL est obligatoire en production.');
+  }
+
+  // 2) Blocage explicite si une variable est manquante / dangereuse.
+  if (problems.length) {
+    console.error('[security] verrouillage production: variables invalides / manquantes');
+    for (const p of problems) console.error(`- ${p}`);
+    process.exit(1);
+  }
+}
+
 /* En ESM, ce code s’exécute après tous les imports ci-dessus (ordre de chargement du module). */
 bootErrLine(
   `modules importés pid=${process.pid} NODE_ENV=${process.env.NODE_ENV ?? '(absent)'} VITEST=${process.env.VITEST ?? 'absent'}`
 );
+
+validateProductionEnvOrExit();
 
 try {
   bootErrLine('registerBusinessEventListeners()…');
@@ -143,7 +215,13 @@ app.use('/api/conformity', conformityRouter);
 app.use('/api/ptw', ptwRouter);
 
 // Swagger UI — desactive en production si besoin
-if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
+// En production, Swagger/docs ne doit jamais être exposé sans ENABLE_SWAGGER=true.
+const swaggerEnabled =
+  process.env.NODE_ENV !== 'production'
+    ? process.env.ENABLE_SWAGGER === 'true' || process.env.SWAGGER_ENABLED === 'true'
+    : process.env.ENABLE_SWAGGER === 'true';
+
+if (swaggerEnabled) {
   app.use(
     '/api/docs',
     swaggerUi.serve,
