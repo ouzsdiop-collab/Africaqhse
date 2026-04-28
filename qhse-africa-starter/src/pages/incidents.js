@@ -14,6 +14,8 @@ import {
 import { openIncidentAiAnalysis as openIncidentAiAnalysisPanel } from '../components/incidentAiAnalysisPanel.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
+import { readImportDraft } from '../utils/importDraft.js';
+import { applyAiSuggestionToForm } from '../utils/aiPrefillIntent.js';
 import {
   ensureUsersCached,
   getCachedUsersForActionsList,
@@ -195,12 +197,24 @@ function attachMistralIncidentCausesButton(detailRoot, incident) {
   aiBtn.className = 'btn btn-primary btn-sm';
   aiBtn.style.marginTop = '12px';
 
+  const status = document.createElement('div');
+  status.style.cssText = 'margin-top:8px;font-size:12px;color:var(--color-text-muted);display:none';
+
   let aiLoading = false;
   aiBtn.addEventListener('click', async () => {
     if (aiLoading) return;
     aiLoading = true;
-    aiBtn.textContent = 'Analyse en cours...';
+    aiBtn.textContent = 'Analyse en cours…';
     aiBtn.disabled = true;
+    status.style.display = 'block';
+    status.innerHTML =
+      '<span style="display:inline-flex;align-items:center;gap:8px"><span style="width:14px;height:14px;border-radius:999px;border:2px solid rgba(148,163,184,.25);border-top-color:rgba(56,189,248,.95);animation:qhseAiSpin .9s linear infinite"></span>Analyse en cours</span>';
+    if (!document.getElementById('qhse-ai-mini-spin')) {
+      const s = document.createElement('style');
+      s.id = 'qhse-ai-mini-spin';
+      s.textContent = '@keyframes qhseAiSpin{to{transform:rotate(360deg)}}';
+      document.head.append(s);
+    }
     try {
       const res = await qhseFetch('/api/ai/incident-causes', {
     method: 'POST',
@@ -208,21 +222,79 @@ function attachMistralIncidentCausesButton(detailRoot, incident) {
         body: JSON.stringify(incident)
       });
       if (!res.ok) throw new Error('api');
-      const { suggestion } = await res.json();
+      const body = await res.json().catch(() => ({}));
+      const suggestion = typeof body?.suggestion === 'string' ? body.suggestion : '';
+      const structured = body?.structured && typeof body.structured === 'object' ? body.structured : null;
+      const providerMeta = body?.providerMeta && typeof body.providerMeta === 'object' ? body.providerMeta : null;
+
+      const c = Math.max(0, Math.min(1, Number(structured?.confidence) || 0.5));
+      const confLabel = c >= 0.8 ? 'Confiance élevée' : c >= 0.5 ? 'Confiance moyenne' : 'Confiance faible';
+      const confTone = c >= 0.8 ? '#10b981' : c >= 0.5 ? '#f59e0b' : '#ef4444';
+      const mode = providerMeta?.mode && providerMeta.mode !== 'openai' ? ` · fallback (${providerMeta.mode})` : '';
+      status.innerHTML = `<span style="display:inline-flex;align-items:center;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-weight:900">Suggestion IA à valider</span>
+        <span style="font-weight:900;color:${confTone}">${confLabel}</span>
+        <span style="opacity:.9">(${Math.round(c * 100)}%${mode})</span>
+      </span>
+      <div style="margin-top:6px">L’IA propose une aide à la décision. La validation finale reste humaine.</div>`;
+
       const box = document.createElement('div');
       box.style.cssText =
         'margin-top:12px;padding:16px;background:var(--surface-2,#eff6ff);border-left:3px solid var(--color-primary,#3b82f6);border-radius:8px;font-size:13px;line-height:1.6;color:var(--text-primary,#1e293b);white-space:pre-wrap';
       box.textContent = suggestion;
       aiBtn.parentNode.insertBefore(box, aiBtn.nextSibling);
       aiBtn.style.display = 'none';
+
+      // Validation humaine: proposer d'appliquer le résultat structuré au dossier (sans automatisme).
+      if (structured) {
+        const applyBtn = document.createElement('button');
+        applyBtn.type = 'button';
+        applyBtn.className = 'btn btn-secondary btn-sm';
+        applyBtn.style.marginTop = '10px';
+        applyBtn.textContent = 'Valider et appliquer au dossier';
+        applyBtn.addEventListener('click', async () => {
+          const { openAiStructuredValidationDialog } = await import('../components/aiStructuredValidationDialog.js');
+          openAiStructuredValidationDialog({
+            title: `Incident ${String(incident?.ref || '').trim() || ''} — analyse IA`,
+            ai: { structured, providerMeta, suggestionText: suggestion },
+            onValidate: async ({ summary, findings }) => {
+              // P2+: pré-remplissage d’un formulaire (assistant déclaration) plutôt qu’un patch immédiat.
+              // L’utilisateur garde le contrôle et valide au submit.
+              applyAiSuggestionToForm(
+                'incidents',
+                {
+                  structured,
+                  defaults: {
+                    type: String(incident?.type || '').trim() || undefined,
+                    site: String(incident?.site || '').trim() || undefined,
+                    description: [
+                      summary ? `Résumé: ${summary}` : '',
+                      findings?.length ? `Constats:\n- ${findings.join('\n- ')}` : ''
+                    ]
+                      .filter(Boolean)
+                      .join('\n\n')
+                      .slice(0, 2000)
+                  }
+                },
+                { skipDefaults: true }
+              );
+              showToast('Assistant incident prérempli. Vérifiez avant validation.', 'info');
+            }
+          });
+        });
+        box.parentNode?.appendChild(applyBtn);
+      }
     } catch {
-      aiBtn.textContent = 'Erreur, réessayer';
+      aiBtn.textContent = 'Relancer l’analyse';
       aiBtn.disabled = false;
       aiLoading = false;
+      status.style.display = 'block';
+      status.innerHTML =
+        'IA indisponible pour le moment. Vous pouvez relancer ou renseigner les causes manuellement.';
     }
   });
 
-  host.append(aiBtn);
+  host.append(aiBtn, status);
   detailRoot.append(host);
 }
 
@@ -1362,6 +1434,20 @@ export function renderIncidents(onAddLog) {
   });
   slideOver = incFlow.slideOver;
   quick = incFlow.quick;
+
+  // Préfill IA (sessionStorage) : si une suggestion cible "incidents", ouvre automatiquement l'assistant.
+  // Le pré-remplissage est appliqué dans `incidentFormDialog` via `readImportDraft()`.
+  const aiDraft = readImportDraft();
+  if (aiDraft?.source === 'ai_prefill' && aiDraft?.targetPageId === 'incidents') {
+    queueMicrotask(() => {
+      try {
+        btnDeclare?.click();
+        showToast('Formulaire incident prérempli par l’IA. Vérifiez avant validation.', 'info');
+      } catch {
+        /* ignore */
+      }
+    });
+  }
 
   ensureUsersCached().catch(() => {});
 

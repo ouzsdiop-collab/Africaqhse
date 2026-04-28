@@ -16,6 +16,9 @@ function ensureAuditFormDialogStyles() {
 .qhse-audit-form-dialog__inner{padding:18px 20px 20px}
 .qhse-audit-form-dialog__head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
 .qhse-audit-form-dialog__title{margin:0;font-size:17px;font-weight:800}
+.qhse-audit-form-ai{margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border, rgba(148,163,184,.18))}
+.qhse-audit-form-ai__row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.qhse-audit-form-ai__hint{margin:0;font-size:12px;color:var(--text3);max-width:58ch}
 `;
   document.head.append(el);
 }
@@ -130,7 +133,7 @@ export function createAuditImportDraftSection(prefill, canAuditWrite, su) {
  * @param {object | null} [opts.su]
  */
 export function openAuditDialog(audit = null, opts = {}) {
-  const { onSave, canAuditWrite = true, su = null } = opts;
+  const { onSave, canAuditWrite = true, su = null, defaults = null } = opts;
   if (audit != null) {
     showToast('Modification d’audit : utilisez le pilotage ou une mise à jour API dédiée.', 'info');
     return;
@@ -152,11 +155,24 @@ export function openAuditDialog(audit = null, opts = {}) {
       <label class="field"><span>Date prévue</span><input type="text" class="control-input qhse-audit-f-date" placeholder="JJ/MM/AAAA" autocomplete="off" /></label>
       <label class="field"><span>Statut</span><input type="text" class="control-input qhse-audit-f-status" value="en cours" autocomplete="off" /></label>
       <label class="field field-full"><span>Notes</span><textarea class="control-input qhse-audit-f-notes" rows="2" autocomplete="off"></textarea></label>
+      <label class="field field-full"><span>Grille IA (modifiable)</span><textarea class="control-input qhse-audit-f-ai-grid" rows="3" autocomplete="off" placeholder="Générée via le bouton IA, puis relue/éditée avant enregistrement."></textarea></label>
       <label class="field"><span>Score (0–100)</span><input type="number" min="0" max="100" class="control-input qhse-audit-f-score" value="70" /></label>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
       <button type="button" class="btn btn-primary qhse-audit-f-save">Enregistrer</button>
       <button type="button" class="btn btn-secondary qhse-audit-f-cancel">Annuler</button>
+    </div>
+    <div class="qhse-audit-form-ai">
+      <div class="qhse-audit-form-ai__row">
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-size:12px;font-weight:900">
+            <span style="width:7px;height:7px;border-radius:999px;background:#38bdf8"></span>
+            Suggestion IA à valider
+          </div>
+          <p class="qhse-audit-form-ai__hint">Optionnel : générer des questions / points de contrôle selon le type d’audit. Rien n’est créé tant que vous n’enregistrez pas.</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm qhse-audit-f-ai">Générer grille IA</button>
+      </div>
     </div>
   `;
   dlg.append(inner);
@@ -168,14 +184,29 @@ export function openAuditDialog(audit = null, opts = {}) {
   const dateIn = inner.querySelector('.qhse-audit-f-date');
   const statusIn = inner.querySelector('.qhse-audit-f-status');
   const notesIn = inner.querySelector('.qhse-audit-f-notes');
+  const aiGridIn = inner.querySelector('.qhse-audit-f-ai-grid');
   const scoreIn = inner.querySelector('.qhse-audit-f-score');
   const saveBtn = inner.querySelector('.qhse-audit-f-save');
   const cancelBtn = inner.querySelector('.qhse-audit-f-cancel');
   const closeBtn = inner.querySelector('.qhse-audit-form-close');
+  const aiBtn = inner.querySelector('.qhse-audit-f-ai');
 
   if (!canAuditWrite && su) {
     saveBtn.disabled = true;
     saveBtn.title = 'Création réservée';
+  }
+
+  // Préfill (ex: suggestion IA) — jamais d'enregistrement automatique.
+  if (defaults && typeof defaults === 'object') {
+    const d = /** @type {Record<string, unknown>} */ (defaults);
+    if (d.ref != null && String(d.ref).trim()) refIn.value = String(d.ref).trim();
+    if (d.type != null && String(d.type).trim()) typeIn.value = String(d.type).trim();
+    if (d.site != null && String(d.site).trim()) siteIn.value = String(d.site).trim();
+    if (d.plannedDate != null && String(d.plannedDate).trim()) dateIn.value = String(d.plannedDate).trim();
+    if (d.status != null && String(d.status).trim()) statusIn.value = String(d.status).trim();
+    if (d.notes != null && String(d.notes).trim()) notesIn.value = String(d.notes).trim();
+    if (d.aiGrid != null && String(d.aiGrid).trim()) aiGridIn.value = String(d.aiGrid).trim();
+    if (d.score != null && String(d.score).trim()) scoreIn.value = String(d.score).trim();
   }
 
   function shutdown() {
@@ -185,6 +216,56 @@ export function openAuditDialog(audit = null, opts = {}) {
   closeBtn.addEventListener('click', shutdown);
   cancelBtn.addEventListener('click', shutdown);
   dlg.addEventListener('close', () => dlg.remove());
+
+  aiBtn?.addEventListener('click', async () => {
+    const type = typeIn.value.trim() || 'interne';
+    aiBtn.disabled = true;
+    aiBtn.textContent = 'IA…';
+    try {
+      const res = await qhseFetch('/api/ai/audit-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auditType: type })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast('IA indisponible pour ce type. Relancez ou renseignez manuellement.', 'warning');
+        return;
+      }
+      const structured = body?.structured && typeof body.structured === 'object' ? body.structured : null;
+      const suggestion = typeof body?.suggestion === 'string' ? body.suggestion : '';
+      if (!structured && !suggestion) {
+        showToast('Réponse IA vide. Relancez ou renseignez manuellement.', 'warning');
+        return;
+      }
+      const { openAiStructuredValidationDialog } = await import('./aiStructuredValidationDialog.js');
+      openAiStructuredValidationDialog({
+        title: `Audit (${type}) — grille suggérée`,
+        ai: { structured: structured || { type: 'audit_analysis', confidence: 0.5, content: {} }, suggestionText: suggestion },
+        onValidate: async ({ summary, recommendedActionsText }) => {
+          // Validation humaine: on injecte dans "Grille IA" (édition possible avant Enregistrer).
+          const block = [
+            '---',
+            'Grille / questions IA (à valider):',
+            summary ? `Résumé: ${summary}` : '',
+            recommendedActionsText ? `Points:\n${recommendedActionsText}` : '',
+            '---'
+          ]
+            .filter(Boolean)
+            .join('\n');
+          const prev = String(aiGridIn.value || '').trim();
+          aiGridIn.value = prev ? `${prev}\n\n${block}` : block;
+          showToast('Grille IA copiée. Relisez avant enregistrement.', 'info');
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      showToast('IA indisponible. Relancez ou saisissez manuellement.', 'error');
+    } finally {
+      aiBtn.disabled = false;
+      aiBtn.textContent = 'Générer grille IA';
+    }
+  });
 
   saveBtn.addEventListener('click', async () => {
     const ref = refIn.value.trim();
@@ -198,10 +279,12 @@ export function openAuditDialog(audit = null, opts = {}) {
     const type = typeIn.value.trim();
     const plannedDate = dateIn.value.trim();
     const notes = notesIn.value.trim();
+    const aiGrid = aiGridIn.value.trim();
     const meta = {};
     if (type) meta.type = type;
     if (plannedDate) meta.plannedDate = plannedDate;
     if (notes) meta.notes = notes;
+    if (aiGrid) meta.aiGrid = aiGrid;
     const checklist = Object.keys(meta).length ? meta : undefined;
 
     saveBtn.disabled = true;

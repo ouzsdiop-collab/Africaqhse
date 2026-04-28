@@ -48,6 +48,7 @@ import {
 import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
 import { openRiskCreateDialog } from '../components/riskFormDialog.js';
 import { openRiskDetail } from '../components/riskDetailPanel.js';
+import { consumeAiPrefillForPage, buildRiskDefaultsFromStructured } from '../utils/aiPrefillIntent.js';
 
 export { openRiskCreateDialog };
 export { openRiskDialog } from '../components/riskSheetModal.js';
@@ -1447,21 +1448,38 @@ export function renderRisks() {
       const file = dialog.querySelector('#fds-upload').files[0];
       if (!file) return;
       const analyzeBtn = dialog.querySelector('#fds-analyze');
-      analyzeBtn.textContent = 'Analyse en cours...';
+      analyzeBtn.textContent = 'Analyse en cours…';
       analyzeBtn.disabled = true;
       try {
         const formData = new FormData();
         formData.append('fds', file);
         const res = await qhseFetch('/api/fds/analyze', { method: 'POST', body: formData });
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : 'analyse');
+        if (!res.ok) throw new Error('analyse');
         const parsedData = body;
+        const structured = body?.structured && typeof body.structured === 'object' ? body.structured : null;
+        const providerMeta = body?.providerMeta && typeof body.providerMeta === 'object' ? body.providerMeta : null;
         const resultZone = dialog.querySelector('#fds-result');
         resultZone.style.display = 'block';
         resultZone.style.background = 'var(--surface-2, #f8fafc)';
         resultZone.style.border = '1px solid var(--border-color, #e2e8f0)';
         resultZone.style.color = 'var(--text-primary, #1e293b)';
+        const c = Math.max(0, Math.min(1, Number(structured?.confidence) || 0.5));
+        const confLabel = c >= 0.8 ? 'Confiance élevée' : c >= 0.5 ? 'Confiance moyenne' : 'Confiance faible';
+        const confTone = c >= 0.8 ? '#10b981' : c >= 0.5 ? '#f59e0b' : '#ef4444';
+        const mode = providerMeta?.mode && providerMeta.mode !== 'openai' ? ` · fallback (${providerMeta.mode})` : '';
         resultZone.innerHTML = `
+        <div style="margin-bottom:10px">
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-size:12px;font-weight:800;color:#0f172a">
+            <span style="width:7px;height:7px;border-radius:999px;background:#38bdf8"></span>
+            Suggestion IA à valider
+          </span>
+          <span style="margin-left:8px;font-weight:900;color:${confTone};font-size:12px">${confLabel}</span>
+          <span style="margin-left:6px;color:#334155;font-size:12px">(${Math.round(c * 100)}%${mode})</span>
+        </div>
+        <div style="margin:-4px 0 12px;font-size:12px;color:#475569">
+          L’IA propose une aide à la décision. La validation finale reste humaine.
+        </div>
         <strong>${escapeHtml(parsedData.productName)}</strong>
         ${parsedData.casNumber ? `<span style="color:var(--text-muted,#64748b)">, CAS ${escapeHtml(String(parsedData.casNumber))}</span>` : ''}
         <br><br>
@@ -1487,38 +1505,76 @@ export function renderRisks() {
         <strong>Cotation automatique :</strong> P=${escapeHtml(String(parsedData.probability))} × G=${escapeHtml(String(parsedData.severity))} = GP ${escapeHtml(String(parsedData.probability * parsedData.severity))}`;
         dialog.querySelector('#fds-create').style.display = 'inline-block';
         analyzeBtn.style.display = 'none';
+
+        // Étape de validation: ouvrir un écran d'édition avant création (aucun automatisme).
+        dialog.querySelector('#fds-create').onclick = async () => {
+          const { openAiStructuredValidationDialog } = await import('../components/aiStructuredValidationDialog.js');
+          const structuredFallback = structured || {
+            type: 'fds_analysis',
+            confidence: 0.5,
+            content: {
+              summary: String(parsedData.productName || ''),
+              findings: Array.isArray(parsedData.dangerLabelsFound) ? parsedData.dangerLabelsFound : [],
+              recommendedActions: Array.isArray(parsedData.episRequired)
+                ? parsedData.episRequired.map((x) => `EPI: ${x}`)
+                : [],
+              humanValidationRequired: true,
+              disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+            }
+          };
+          openAiStructuredValidationDialog({
+            title: 'FDS — extraction & pré-remplissage',
+            ai: { structured: structuredFallback, providerMeta, suggestionText: null },
+            onValidate: async ({ summary, findings, recommendedActionsText }) => {
+              const createBtn = dialog.querySelector('#fds-create');
+              createBtn.textContent = 'Création en cours...';
+              createBtn.disabled = true;
+              try {
+                const file = dialog.querySelector('#fds-upload').files[0];
+                if (!file) return;
+                const formData = new FormData();
+                formData.append('fds', file);
+                formData.append('humanValidated', 'true');
+                // on réutilise le endpoint existant (création uniquement après validation utilisateur)
+                const res2 = await qhseFetch('/api/fds/analyze-and-create', { method: 'POST', body: formData });
+                const body2 = await res2.json().catch(() => ({}));
+                if (!res2.ok) throw new Error('create');
+                dialog.close();
+                const ctx = lastRiskFocusForProductsNav;
+                qhseNavigate('products', {
+                  skipDefaults: true,
+                  linkedRiskId:
+                    ctx?.id != null && String(ctx.id).trim() !== '' ? String(ctx.id) : undefined,
+                  linkedRiskTitle: ctx?.title ? String(ctx.title).trim().slice(0, 400) : undefined,
+                  aiSummary: summary,
+                  aiFindings: findings.join(' | '),
+                  aiActions: recommendedActionsText
+                });
+                showToast('Produit enregistré. Registre Produits & FDS.', 'success');
+              } catch {
+                const createBtn = dialog.querySelector('#fds-create');
+                createBtn.textContent = 'Erreur, réessayer';
+                createBtn.disabled = false;
+              }
+            }
+          });
+        };
       } catch {
-        analyzeBtn.textContent = 'Erreur, réessayer';
+        analyzeBtn.textContent = 'Relancer l’analyse';
         analyzeBtn.disabled = false;
+        const rz = dialog.querySelector('#fds-result');
+        rz.style.display = 'block';
+        rz.style.background = 'var(--surface-2, #f8fafc)';
+        rz.style.border = '1px solid var(--border-color, #e2e8f0)';
+        rz.style.color = 'var(--text-primary, #1e293b)';
+        rz.innerHTML = `<div style="font-size:13px;line-height:1.55">
+          <strong>IA indisponible</strong><br>
+          L’analyse n’a pas pu être effectuée. Vous pouvez relancer, ou saisir les informations manuellement.
+        </div>`;
       }
     });
 
-    dialog.querySelector('#fds-create').addEventListener('click', async () => {
-      const createBtn = dialog.querySelector('#fds-create');
-      createBtn.textContent = 'Creation en cours...';
-      createBtn.disabled = true;
-      try {
-        const file = dialog.querySelector('#fds-upload').files[0];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append('fds', file);
-        const res = await qhseFetch('/api/fds/analyze-and-create', { method: 'POST', body: formData });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : 'create');
-        dialog.close();
-        const ctx = lastRiskFocusForProductsNav;
-        qhseNavigate('products', {
-          skipDefaults: true,
-          linkedRiskId:
-            ctx?.id != null && String(ctx.id).trim() !== '' ? String(ctx.id) : undefined,
-          linkedRiskTitle: ctx?.title ? String(ctx.title).trim().slice(0, 400) : undefined
-        });
-        showToast('Produit enregistré. Registre Produits & FDS.', 'success');
-      } catch {
-        createBtn.textContent = 'Erreur, réessayer';
-        createBtn.disabled = false;
-      }
-    });
+    // Le bouton #fds-create est câblé après analyse (validation humaine).
 
     document.body.appendChild(dialog);
     dialog.showModal();
@@ -1638,6 +1694,29 @@ export function renderRisks() {
       }
     });
   });
+
+  // Préfill IA (sessionStorage) : ouvre le formulaire risque avec champs préremplis.
+  const aiPrefill = consumeAiPrefillForPage('risks');
+  if (aiPrefill) {
+    const structured =
+      aiPrefill?.structured && typeof aiPrefill.structured === 'object' ? aiPrefill.structured : aiPrefill;
+    const mapped = buildRiskDefaultsFromStructured(structured);
+    const defaults = mapped?.defaults
+      ? mapped.defaults
+      : aiPrefill?.defaults && typeof aiPrefill.defaults === 'object'
+        ? aiPrefill.defaults
+        : aiPrefill;
+    queueMicrotask(() => {
+      openRiskCreateDialog({
+        defaults,
+        onSaved: async (data) => {
+          const created = await createRiskRemote(data);
+          await afterRiskCreatedAndFocus(created);
+        }
+      });
+      showToast('Formulaire risque prérempli par l’IA. Vérifiez avant validation.', 'info');
+    });
+  }
 
   const fdsBtn = document.createElement('button');
   fdsBtn.type = 'button';

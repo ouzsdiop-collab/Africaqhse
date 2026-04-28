@@ -18,7 +18,14 @@ vi.mock('../services/aiProvider.service.js', () => ({
     rawText: null,
     error: null
   })),
-  requestJsonCompletion: vi.fn(),
+  requestJsonCompletion: vi.fn(async () => ({
+    success: false,
+    data: null,
+    rawText: null,
+    provider: 'mock',
+    model: null,
+    error: null
+  })),
   isExternalAiEnabled: vi.fn(() => false),
   resolveAiProvider: vi.fn(() => 'mock')
 }));

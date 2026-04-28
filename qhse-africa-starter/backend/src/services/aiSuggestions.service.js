@@ -1,15 +1,21 @@
 import { requestJsonCompletion } from './aiProvider.service.js';
 import { persistSuggestionDraft } from './aiSuggestion.service.js';
 
-const SYSTEM_PROMPT = `Tu es un expert QHSE specialise dans la prevention des risques professionnels en Afrique subsaharienne.
-Tu reponds toujours en francais, de facon concise et operationnelle.
-Tu bases tes reponses sur les normes ISO 45001, ISO 9001 et les reglementations du travail africaines (OHADA, Code du travail).
-Tes suggestions sont directement applicables sur le terrain.
+const SYSTEM_PROMPT = `Tu es un expert QHSE spécialisé (ISO 45001, ISO 9001, ISO 14001) orienté industrie/mines/énergie en Afrique.
+Tu réponds en français, de façon concise, opérationnelle, vérifiable.
 
-CONTRAINTE DE SORTIE:
-- Tu reponds UNIQUEMENT en JSON valide (pas de markdown, pas de texte autour).
-- Si une information manque, mets null ou une chaine vide.
-- Ne donne jamais d’affirmations factuelles non justifiées par les champs fournis.`;
+CONTRAINTE DE SORTIE (OBLIGATOIRE):
+- Tu réponds UNIQUEMENT en JSON valide (pas de markdown, pas de texte autour).
+- Le JSON doit toujours suivre le wrapper:
+  { "type": "...", "confidence": 0.0, "content": { ... } }
+- "confidence" doit être un nombre entre 0 et 1.
+- "humanValidationRequired" doit toujours être true.
+- Inclure toujours: "disclaimer": "Suggestion IA à valider par un responsable habilité."
+
+RÈGLES QHSE:
+- Pas d’affirmations factuelles non justifiées par l’entrée.
+- Pas de noms propres inventés (sites, sociétés, personnes).
+- Les actions doivent être SMART: qui/quoi/quand + preuve attendue + critère de clôture.`;
 
 function nowIso() {
   return new Date().toISOString();
@@ -22,16 +28,6 @@ function makeProviderMeta(aiRes, fallbackUsed) {
     generatedAt: nowIso(),
     fallbackUsed: Boolean(fallbackUsed)
   };
-}
-
-function safeJsonParse(rawText) {
-  if (!rawText || typeof rawText !== 'string') return { ok: false, value: null };
-  try {
-    const v = JSON.parse(rawText);
-    return { ok: true, value: v };
-  } catch {
-    return { ok: false, value: null };
-  }
 }
 
 function isNonEmptyString(x) {
@@ -340,29 +336,34 @@ Objectif:
 
   const schemaHint = JSON.stringify(
     {
-      summary: 'string',
-      priority: 'low|medium|high|critical',
-      recommendedActions: [
-        {
-          action: 'string',
-          responsibleRole: 'string',
-          dueInDays: 7,
-          evidenceExpected: ['string'],
-          closureCriteria: 'string',
-          isoReference: 'ISO 45001 ... | null',
-          confidence: 0.0
-        }
-      ],
+      type: 'incident_analysis',
       confidence: 0.0,
-      humanValidationRequired: true
+      content: {
+        summary: 'string',
+        findings: ['string'],
+        recommendedActions: [
+          {
+            action: 'string',
+            responsibleRole: 'string',
+            dueInDays: 7,
+            evidenceExpected: ['string'],
+            closureCriteria: 'string',
+            isoReference: 'ISO 45001 ... | null',
+            confidence: 0.0
+          }
+        ],
+        priority: 'low|medium|high|critical',
+        humanValidationRequired: true,
+        disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+      }
     },
     null,
     2
   );
 
   const aiRes = await requestStructuredJson({ schemaHint, userPrompt: prompt });
-  const parsed = safeJsonParse(aiRes.rawText);
-  const valid = parsed.ok ? validateSmartRecommendationPayload(parsed.value) : null;
+  const valid =
+    aiRes.success && aiRes.data?.content ? validateSmartRecommendationPayload(aiRes.data.content) : null;
   const fallbackUsed = !valid || isProbablyRawTextLeak(aiRes.rawText) || Boolean(aiRes.error);
   const providerMeta = makeProviderMeta(aiRes, fallbackUsed);
 
@@ -477,29 +478,41 @@ Objectif:
 
   const schemaHint = JSON.stringify(
     {
-      summary: 'string',
-      priority: 'low|medium|high|critical',
-      recommendedActions: [
-        {
-          action: 'string',
-          responsibleRole: 'string',
-          dueInDays: 7,
-          evidenceExpected: ['string'],
-          closureCriteria: 'string',
-          isoReference: 'ISO 45001 ... | null',
-          confidence: 0.0
-        }
-      ],
+      type: 'risk_analysis',
       confidence: 0.0,
-      humanValidationRequired: true
+      content: {
+        summary: 'string',
+        findings: ['string'],
+        recommendedActions: [
+          {
+            action: 'string',
+            responsibleRole: 'string',
+            dueInDays: 7,
+            evidenceExpected: ['string'],
+            closureCriteria: 'string',
+            isoReference: 'ISO 45001 ... | null',
+            confidence: 0.0
+          }
+        ],
+        priority: 'low|medium|high|critical',
+        // champs risques (complément)
+        danger: 'string',
+        hazardousSituation: 'string',
+        consequences: ['string'],
+        gravity: '1-5 ou texte',
+        frequency: 'faible|moyenne|élevée',
+        controls: ['string'],
+        humanValidationRequired: true,
+        disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+      }
     },
     null,
     2
   );
 
   const aiRes = await requestStructuredJson({ schemaHint, userPrompt: prompt });
-  const parsed = safeJsonParse(aiRes.rawText);
-  const valid = parsed.ok ? validateSmartRecommendationPayload(parsed.value) : null;
+  const valid =
+    aiRes.success && aiRes.data?.content ? validateSmartRecommendationPayload(aiRes.data.content) : null;
   const fallbackUsed = !valid || isProbablyRawTextLeak(aiRes.rawText) || Boolean(aiRes.error);
   const providerMeta = makeProviderMeta(aiRes, fallbackUsed);
 
@@ -601,29 +614,43 @@ Objectif:
 
   const schemaHint = JSON.stringify(
     {
-      summary: 'string',
-      priority: 'low|medium|high|critical',
-      recommendedActions: [
-        {
-          action: 'Question fermée (OUI/NON/NA) ...',
-          responsibleRole: 'string',
-          dueInDays: 0,
-          evidenceExpected: ['string'],
-          closureCriteria: 'string',
-          isoReference: 'ISO 45001 ... | null',
-          confidence: 0.0
-        }
-      ],
+      type: 'audit_analysis',
       confidence: 0.0,
-      humanValidationRequired: true
+      content: {
+        summary: 'string',
+        findings: ['string'],
+        recommendedActions: [
+          {
+            action: 'Question/constat SMART (OUI/NON/NA) ...',
+            responsibleRole: 'string',
+            dueInDays: 0,
+            evidenceExpected: ['string'],
+            closureCriteria: 'string',
+            isoReference: 'ISO 45001 ... | null',
+            confidence: 0.0
+          }
+        ],
+        priority: 'low|medium|high|critical',
+        // champs audits (complément)
+        observations: ['string'],
+        nonConformities: [
+          {
+            gap: 'string',
+            criticality: 'low|medium|high|critical',
+            expectedEvidence: ['string']
+          }
+        ],
+        humanValidationRequired: true,
+        disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+      }
     },
     null,
     2
   );
 
   const aiRes = await requestStructuredJson({ schemaHint, userPrompt: prompt });
-  const parsed = safeJsonParse(aiRes.rawText);
-  const valid = parsed.ok ? validateSmartRecommendationPayload(parsed.value) : null;
+  const valid =
+    aiRes.success && aiRes.data?.content ? validateSmartRecommendationPayload(aiRes.data.content) : null;
   const fallbackUsed = !valid || isProbablyRawTextLeak(aiRes.rawText) || Boolean(aiRes.error);
   const providerMeta = makeProviderMeta(aiRes, fallbackUsed);
   if (!valid) {
@@ -688,29 +715,34 @@ Objectif:
 
   const schemaHint = JSON.stringify(
     {
-      summary: 'string',
-      priority: 'low|medium|high|critical',
-      recommendedActions: [
-        {
-          action: 'string',
-          responsibleRole: 'string',
-          dueInDays: 7,
-          evidenceExpected: ['string'],
-          closureCriteria: 'string',
-          isoReference: 'ISO 45001 ... | null',
-          confidence: 0.0
-        }
-      ],
+      type: 'audit_analysis',
       confidence: 0.0,
-      humanValidationRequired: true
+      content: {
+        summary: 'string',
+        findings: ['string'],
+        recommendedActions: [
+          {
+            action: 'string',
+            responsibleRole: 'string',
+            dueInDays: 7,
+            evidenceExpected: ['string'],
+            closureCriteria: 'string',
+            isoReference: 'ISO 45001 ... | null',
+            confidence: 0.0
+          }
+        ],
+        priority: 'low|medium|high|critical',
+        humanValidationRequired: true,
+        disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+      }
     },
     null,
     2
   );
 
   const aiRes = await requestStructuredJson({ schemaHint, userPrompt: prompt });
-  const parsed = safeJsonParse(aiRes.rawText);
-  const valid = parsed.ok ? validateSmartRecommendationPayload(parsed.value) : null;
+  const valid =
+    aiRes.success && aiRes.data?.content ? validateSmartRecommendationPayload(aiRes.data.content) : null;
   const fallbackUsed = !valid || isProbablyRawTextLeak(aiRes.rawText) || Boolean(aiRes.error);
   const providerMeta = makeProviderMeta(aiRes, fallbackUsed);
 

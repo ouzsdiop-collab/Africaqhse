@@ -8,6 +8,7 @@ import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { readImportDraft, clearImportDraft } from '../utils/importDraft.js';
+import { buildIncidentPrefillFromStructured } from '../utils/aiPrefillIntent.js';
 import { getRiskTitlesForSelect, formatRiskLinkTag } from '../utils/riskIncidentLinks.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import {
@@ -633,7 +634,14 @@ export function setupIncidentDeclareFlow(ctx) {
     if (!draft || draft.targetPageId !== 'incidents' || !draft.prefillData) {
       return;
     }
-    const p = draft.prefillData;
+    let p = draft.prefillData;
+    // Support préfill IA structuré: { structured } ou objet structuré direct.
+    if (p && typeof p === 'object') {
+      const structured =
+        p.structured && typeof p.structured === 'object' ? p.structured : p;
+      const mapped = buildIncidentPrefillFromStructured(structured);
+      if (mapped) p = { ...p, ...mapped };
+    }
     if (p.type && INCIDENT_TYPES.includes(p.type)) {
       typeSelect.value = p.type;
       chipByType.forEach((btn, key) => {

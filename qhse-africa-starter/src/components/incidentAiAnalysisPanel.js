@@ -6,6 +6,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { openActionCreateDialog } from './actionCreateDialog.js';
 import { ensureIncidentsSlideOverStyles } from './incidentFormDialog.js';
 import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
+import { applyAiSuggestionToForm } from '../utils/aiPrefillIntent.js';
 
 const AI_SUGGEST_BASE = '/api/ai-suggestions/suggest';
 
@@ -117,7 +118,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
         let msg = `Erreur causes (${rcRes.status})`;
         try {
           const j = await rcRes.json();
-          if (j.error) msg = j.error;
+          if (j.error) msg = typeof j.error === 'string' ? j.error : (j.error?.message || msg);
         } catch {
           /* ignore */
         }
@@ -131,7 +132,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
         let msg = `Erreur actions (${actRes.status})`;
         try {
           const j = await actRes.json();
-          if (j.error) msg = j.error;
+          if (j.error) msg = typeof j.error === 'string' ? j.error : (j.error?.message || msg);
         } catch {
           /* ignore */
         }
@@ -146,7 +147,9 @@ export function openIncidentAiAnalysis(inc, ctx) {
 
       const prov = document.createElement('p');
       prov.className = 'inc-ia-provider';
-      prov.textContent = `Fournisseur : ${rc.provider || 'Non renseigné'}${rc.error ? ` · ${rc.error}` : ''}`;
+      const rcErr =
+        rc?.error && typeof rc.error === 'object' ? String(rc.error.message || '') : String(rc?.error || '');
+      prov.textContent = `Fournisseur : ${rc.provider || 'Non renseigné'}${rcErr ? ` · ${rcErr}` : ''}`;
 
       const secCauses = document.createElement('section');
       secCauses.className = 'inc-ia-section';
@@ -207,46 +210,54 @@ export function openIncidentAiAnalysis(inc, ctx) {
         const btnCreate = document.createElement('button');
         btnCreate.type = 'button';
         btnCreate.className = 'btn btn-primary';
-        btnCreate.textContent = 'Créer action depuis suggestion';
+        btnCreate.textContent = 'Appliquer au formulaire (action)';
         btnCreate.hidden = !canWriteActions;
         btnCreate.addEventListener('click', async () => {
           await ensureUsersCached();
           const users = getActionUsers() || [];
-          openActionCreateDialog({
-            users,
-            defaults: {
-              title: String(a.title || `Action : ${inc.ref}`).slice(0, 240),
-              origin: 'incident',
-              actionType: 'corrective',
-              priority: priorityFromConfidence(a.confidence),
-              description: [
-                String(a.description || '').trim(),
-                '',
-                `[Suggestion IA : confiance ~${Math.round((Number(a.confidence) || 0) * 100)} %]`,
-                `Délai indicatif : ${Number(a.delayDays) || 0} j · responsable type : ${String(a.ownerRole || 'Non renseigné')}`
-              ].join('\n'),
-              linkedIncident: inc.ref,
-              dueDate: dueDateIsoFromDelayDays(a.delayDays)
-            },
-            builtInSuccessToast: false,
-            onCreated: (payload) => {
-              showToast('Action créée depuis la suggestion IA.', 'success', {
-                label: 'Ouvrir',
-                action: () => {
-                  if (payload?.id) {
-                    qhseNavigate('actions', {
-                      focusActionId: payload.id,
-                      focusActionTitle: payload.title || ''
-                    });
-                  } else {
-                    qhseNavigate('actions', { skipDefaults: true });
-                  }
-                }
-              });
+          const { openAiStructuredValidationDialog } = await import('./aiStructuredValidationDialog.js');
+          const structured = {
+            type: 'incident_analysis',
+            confidence: Number(a.confidence) || 0.5,
+            content: {
+              summary: String(a.title || `Action : ${inc.ref}`),
+              findings: [],
+              recommendedActions: [String(a.description || '').trim()].filter(Boolean),
+              humanValidationRequired: true,
+              disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+            }
+          };
+          openAiStructuredValidationDialog({
+            title: `Incident ${escapeHtml(String(inc.ref || '').trim())} — action suggérée`,
+            ai: { structured, suggestionText: String(a.description || '').trim() },
+            primaryLabel: 'Appliquer au formulaire',
+            secondaryLabel: 'Ignorer',
+            onApply: async ({ summary, recommendedActionsText, confidence }) => {
+              const defaults = {
+                title: String(summary || a.title || `Action : ${inc.ref}`).slice(0, 240),
+                origin: 'incident',
+                actionType: 'corrective',
+                priority: priorityFromConfidence(confidence),
+                description: [
+                  String(recommendedActionsText || a.description || '').trim(),
+                  '',
+                  `[Suggestion IA à valider · confiance ~${Math.round((Number(confidence) || 0.5) * 100)} %]`,
+                  `Délai indicatif : ${Number(a.delayDays) || 0} j · rôle type : ${String(a.ownerRole || 'Non renseigné')}`
+                ]
+                  .filter(Boolean)
+                  .join('\n'),
+                linkedIncident: inc.ref,
+                dueDate: dueDateIsoFromDelayDays(a.delayDays)
+              };
+
+              // Navigation inter-pages + préfill automatique (consumer dans actions.js).
+              applyAiSuggestionToForm('actions', { defaults, users }, { skipDefaults: true });
+              showToast('Formulaire action prérempli. Vérifiez avant validation.', 'info');
+
               if (typeof onAddLog === 'function') {
                 onAddLog({
                   module: 'incidents',
-                  action: 'Action depuis IA',
+                  action: 'Préremplissage action depuis IA',
                   detail: inc.ref,
                   user: getSessionUser()?.name || 'Utilisateur'
                 });

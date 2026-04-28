@@ -120,8 +120,106 @@ async function chatOpenAiCompatible(url, apiKey, model, systemPrompt, userMessag
 
 /**
  * @param {{ system: string, user: string }} messages
- * @returns {Promise<{ provider: string, model: string | null, rawText: string | null, error?: string }>}
+ * @returns {Promise<{
+ *   success: boolean,
+ *   data: object | null,
+ *   rawText: string | null,
+ *   provider: string,
+ *   model: string | null,
+ *   error: string | null
+ * }>}
  */
 export async function requestJsonCompletion(messages) {
-  return callAiProvider(messages.system, messages.user, 1200);
+  const res = await callAiProvider(messages.system, messages.user, 1200);
+  const provider = String(res?.provider || 'mock');
+  const model = res?.model ?? null;
+  const rawText = res?.rawText != null ? String(res.rawText) : null;
+  const baseError = res?.error != null ? String(res.error) : null;
+
+  /** @type {object | null} */
+  let data = null;
+  /** @type {string | null} */
+  let error = baseError;
+
+  /**
+   * Normalise vers un contrat métier minimal:
+   * { type: string, confidence: number, content: object }
+   *
+   * - si le JSON ne respecte pas -> encapsulation dans content
+   * - si JSON.parse échoue mais rawText existe -> fallback "unknown" (success=true, confiance faible)
+   */
+  function normalizeStructuredPayload(parsedAny) {
+    let type = 'generic';
+    let confidence = 0.5;
+    /** @type {Record<string, unknown>} */
+    let content = {};
+
+    if (parsedAny && typeof parsedAny === 'object' && !Array.isArray(parsedAny)) {
+      const obj = /** @type {Record<string, unknown>} */ (parsedAny);
+
+      // type (défaut si absent)
+      const t = obj.type;
+      if (typeof t === 'string' && t.trim()) type = t.trim().slice(0, 64);
+
+      // confidence (défaut 0.5 si absent / invalide)
+      const c = obj.confidence;
+      if (typeof c === 'number' && Number.isFinite(c)) {
+        confidence = Math.max(0, Math.min(1, c));
+      }
+
+      // content (si absent, on encapsule l'objet entier)
+      const ct = obj.content;
+      if (ct && typeof ct === 'object' && !Array.isArray(ct)) {
+        content = /** @type {Record<string, unknown>} */ (ct);
+      } else {
+        content = obj;
+      }
+    } else {
+      // JSON valide mais pas un objet (array/string/number) -> encapsule
+      type = 'unknown';
+      confidence = 0.4;
+      content = { value: parsedAny };
+    }
+
+    return { type, confidence, content };
+  }
+
+  if (!error && rawText) {
+    try {
+      const parsedAny = JSON.parse(rawText);
+      data = normalizeStructuredPayload(parsedAny);
+      error = null;
+    } catch (e) {
+      // Fallback intelligent: on rend exploitable, mais faible confiance.
+      const parsedFallback = {
+        type: 'unknown',
+        confidence: 0.3,
+        content: { text: rawText }
+      };
+      data = parsedFallback;
+      error = null;
+    }
+  }
+
+  const success = Boolean(data);
+
+  if (provider !== 'mock') {
+    const t = data && typeof data === 'object' ? String(data.type || '') : '';
+    const c = data && typeof data === 'object' ? Number(data.confidence) : NaN;
+    if (!success || baseError) {
+      const excerpt = rawText ? rawText.slice(0, 400) : '';
+      console.error(
+        `[ai] requestJsonCompletion provider=${provider} model=${model || 'n/a'} success=${String(success)} type=${t || 'n/a'} confidence=${Number.isFinite(c) ? c : 'n/a'} baseError=${baseError || 'null'} rawExcerpt=${JSON.stringify(excerpt)}`
+      );
+    }
+  }
+
+  return {
+    success,
+    data,
+    rawText,
+    provider,
+    model,
+    error
+  };
 }

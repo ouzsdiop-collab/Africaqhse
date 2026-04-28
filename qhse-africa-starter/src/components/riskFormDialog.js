@@ -66,7 +66,7 @@ function levelLabel(v) {
 /**
  * @param {object} opts
  * @param {(data: { title: string, detail: string, status: string, tone: string, meta: string }) => void} opts.onSaved : liste locale (pas d’API persistance)
- * @param {{ title?: string, description?: string, category?: string }} [opts.defaults]
+ * @param {{ title?: string, description?: string, category?: string, severity?: string, probability?: string, actions?: string }} [opts.defaults]
  */
 export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
   const dialog = document.createElement('dialog');
@@ -142,6 +142,15 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
   }
   if (d.category && CATEGORY_OPTIONS.includes(d.category)) {
     form.querySelector('[name="category"]').value = d.category;
+  }
+  if (d.severity && LEVEL_OPTIONS.some((o) => o.value === d.severity)) {
+    form.querySelector('[name="severity"]').value = d.severity;
+  }
+  if (d.probability && LEVEL_OPTIONS.some((o) => o.value === d.probability)) {
+    form.querySelector('[name="probability"]').value = d.probability;
+  }
+  if (d.actions != null && String(d.actions).trim()) {
+    form.querySelector('[name="actions"]').value = String(d.actions).trim().slice(0, 4000);
   }
   const panel = inner.querySelector('#risks-ai-panel');
   const disclaimerEl = inner.querySelector('#risks-ai-disclaimer');

@@ -1,5 +1,14 @@
 import { PDFParse } from 'pdf-parse';
 
+/**
+ * FDS (fiche de données de sécurité) — stratégie actuelle:
+ * - Analyse heuristique contrôlée (parsing PDF + détection de mots-clés)
+ * - AUCUN appel LLM à ce stade (fiabilité, coût, confidentialité)
+ *
+ * Pour s’intégrer à l’écosystème IA du produit, ce service expose aussi un wrapper "structured"
+ * de type `fds_analysis` (confiance indicative) tout en conservant les champs historiques.
+ */
+
 const DANGER_KEYWORDS = {
   tres_toxique: [
     'tres toxique',
@@ -161,8 +170,12 @@ export async function parseFdsBuffer(pdfBuffer, filename) {
 
   const dangerLabelsFound = detectedDangers.map((d) => dangerLabels[d] || d);
   const probability = 2;
+  const confidence = Math.max(
+    0.35,
+    Math.min(0.85, 0.45 + Math.min(6, detectedDangers.length) * 0.06)
+  );
 
-  return {
+  const base = {
     productName,
     casNumber,
     supplier,
@@ -176,5 +189,38 @@ export async function parseFdsBuffer(pdfBuffer, filename) {
     riskDescription: `Produit : ${productName}${casNumber ? ` (CAS ${casNumber})` : ''}${supplier ? ` | Fournisseur : ${supplier}` : ''}.\nDangers identifies : ${dangerLabelsFound.join(', ') || 'Aucun danger specifique detecte'}.\nEPI requis : ${Array.from(epis).join(', ') || 'A determiner selon evaluation terrain'}.`,
     category: 'Risque chimique',
     pagesScanned: data.total ?? 0
+  };
+
+  return {
+    ...base,
+    providerMeta: { mode: 'heuristic', llmUsed: false },
+    structured: {
+      type: 'fds_analysis',
+      confidence,
+      content: {
+        summary: `Extraction FDS (heuristique) — ${productName}`,
+        findings: dangerLabelsFound.slice(0, 12),
+        recommendedActions: Array.from(epis)
+          .slice(0, 12)
+          .map((e) => `EPI: ${e}`),
+        humanValidationRequired: true,
+        disclaimer: 'Suggestion à valider par un responsable habilité.',
+        product: {
+          name: productName,
+          casNumber,
+          supplier,
+          filename: filename || 'fds.pdf',
+          pagesScanned: data.total ?? 0
+        },
+        extracted: {
+          detectedDangers,
+          dangerLabelsFound,
+          episRequired: Array.from(epis),
+          severity: maxSeverity,
+          probability
+        },
+        legacy: base
+      }
+    }
   };
 }

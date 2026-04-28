@@ -28,26 +28,29 @@ describe('/api/ai/* — réponses structurées + fallback', () => {
   });
 
   it('incident-causes: renvoie suggestion + providerMeta (LLM JSON OK)', async () => {
+    const llm = {
+      summary: 'Incident à risque — actions immédiates à valider.',
+      priority: 'critical',
+      recommendedActions: [
+        {
+          action: 'Balisage + séparation engins/piétons sur la zone.',
+          responsibleRole: 'Encadrement',
+          dueInDays: 3,
+          evidenceExpected: ['Photos', 'Briefing signé', 'Plan affiché'],
+          closureCriteria: '0 écart sur 2 rondes consécutives.',
+          isoReference: null,
+          confidence: 0.78
+        }
+      ],
+      confidence: 0.72,
+      humanValidationRequired: true
+    };
     mockRequestJsonCompletion.mockResolvedValue({
+      success: true,
+      data: { type: 'incident_causes', confidence: 0.72, content: llm },
       provider: 'mistral',
       model: 'mistral-small-latest',
-      rawText: JSON.stringify({
-        summary: 'Incident à risque — actions immédiates à valider.',
-        priority: 'critical',
-        recommendedActions: [
-          {
-            action: 'Balisage + séparation engins/piétons sur la zone.',
-            responsibleRole: 'Encadrement',
-            dueInDays: 3,
-            evidenceExpected: ['Photos', 'Briefing signé', 'Plan affiché'],
-            closureCriteria: '0 écart sur 2 rondes consécutives.',
-            isoReference: null,
-            confidence: 0.78
-          }
-        ],
-        confidence: 0.72,
-        humanValidationRequired: true
-      }),
+      rawText: JSON.stringify(llm),
       error: null
     });
 
@@ -73,6 +76,8 @@ describe('/api/ai/* — réponses structurées + fallback', () => {
 
   it('risk-mitigation: fallback heuristique si JSON invalide (pas de texte brut)', async () => {
     mockRequestJsonCompletion.mockResolvedValue({
+      success: true,
+      data: { type: 'unknown', confidence: 0.3, content: { text: 'Voici des recommandations en texte libre (format invalide).' } },
       provider: 'mistral',
       model: 'mistral-small-latest',
       rawText: 'Voici des recommandations en texte libre (format invalide).',
@@ -94,6 +99,8 @@ describe('/api/ai/* — réponses structurées + fallback', () => {
 
   it('audit-questions: fallback heuristique si provider mock (rawText null)', async () => {
     mockRequestJsonCompletion.mockResolvedValue({
+      success: false,
+      data: null,
       provider: 'mock',
       model: null,
       rawText: null,
@@ -112,26 +119,29 @@ describe('/api/ai/* — réponses structurées + fallback', () => {
   });
 
   it('dashboard-insight: renvoie insight + providerMeta (LLM JSON OK)', async () => {
+    const llm = {
+      summary: 'Retards d’actions à traiter en priorité.',
+      priority: 'critical',
+      recommendedActions: [
+        {
+          action: 'Tenir un point de pilotage retards et arbitrer 3 actions critiques.',
+          responsibleRole: 'Direction site',
+          dueInDays: 3,
+          evidenceExpected: ['CR', 'Liste arbitrages (responsable/échéance)'],
+          closureCriteria: 'Actions critiques assignées et replanifiées.',
+          isoReference: null,
+          confidence: 0.66
+        }
+      ],
+      confidence: 0.65,
+      humanValidationRequired: true
+    };
     mockRequestJsonCompletion.mockResolvedValue({
+      success: true,
+      data: { type: 'dashboard_insight', confidence: 0.65, content: llm },
       provider: 'openai',
       model: 'gpt-4o-mini',
-      rawText: JSON.stringify({
-        summary: 'Retards d’actions à traiter en priorité.',
-        priority: 'critical',
-        recommendedActions: [
-          {
-            action: 'Tenir un point de pilotage retards et arbitrer 3 actions critiques.',
-            responsibleRole: 'Direction site',
-            dueInDays: 3,
-            evidenceExpected: ['CR', 'Liste arbitrages (responsable/échéance)'],
-            closureCriteria: 'Actions critiques assignées et replanifiées.',
-            isoReference: null,
-            confidence: 0.66
-          }
-        ],
-        confidence: 0.65,
-        humanValidationRequired: true
-      }),
+      rawText: JSON.stringify(llm),
       error: null
     });
 

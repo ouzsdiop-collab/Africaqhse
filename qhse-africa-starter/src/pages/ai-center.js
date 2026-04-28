@@ -11,6 +11,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { openActionCreateDialog } from '../components/actionCreateDialog.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { applyAiSuggestionToForm } from '../utils/aiPrefillIntent.js';
 import { fetchUsers } from '../services/users.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
@@ -578,47 +579,36 @@ export function renderAiCenter(onAddLog) {
             btn.hidden = !canWriteActions;
             btn.addEventListener('click', async () => {
               await ensureUsersAi();
-              openActionCreateDialog({
-                users: cachedUsersAi || [],
-                defaults: {
-                  title: String(a.title || `Action : ${ref}`).slice(0, 240),
-                  origin: 'incident',
-                  actionType: 'corrective',
-                  priority: priorityFromConfidence(a.confidence),
-                  description: [
-                    String(a.description || ''),
-                    '',
-                    `[IA Centre · confiance ~${Math.round((Number(a.confidence) || 0) * 100)} %]`
-                  ].join('\n'),
-                  linkedIncident: ref,
-                  dueDate: dueDateIsoFromDelayDays(a.delayDays)
-                },
-                builtInSuccessToast: false,
-                onCreated: (payload) => {
-                  showToast('Action créée.', 'success', {
-                    label: 'Ouvrir',
-                    action: () => {
-                      if (payload?.id) {
-                        qhseNavigate('actions', {
-                          focusActionId: payload.id,
-                          focusActionTitle: payload.title || ''
-                        });
-                      } else {
-                        qhseNavigate('actions', { skipDefaults: true });
-                      }
-                    }
-                  });
-                  closeAc();
-                  if (typeof onAddLog === 'function') {
-                    onAddLog({
-                      module: 'ai-center',
-                      action: 'Action depuis suggestion IA',
-                      detail: ref,
-                      user: getSessionUser()?.name || 'Utilisateur'
-                    });
-                  }
-                }
-              });
+              const defaults = {
+                title: String(a.title || `Action : ${ref}`).slice(0, 240),
+                origin: 'incident',
+                actionType: 'corrective',
+                priority: priorityFromConfidence(a.confidence),
+                description: [
+                  String(a.description || ''),
+                  '',
+                  `[IA Centre · confiance ~${Math.round((Number(a.confidence) || 0) * 100)} %]`
+                ].join('\n'),
+                linkedIncident: ref,
+                dueDate: dueDateIsoFromDelayDays(a.delayDays)
+              };
+
+              applyAiSuggestionToForm(
+                'actions',
+                { defaults, users: cachedUsersAi || [] },
+                { skipDefaults: true }
+              );
+              closeAc();
+              showToast('Formulaire action prérempli. Vérifiez avant validation.', 'info');
+
+              if (typeof onAddLog === 'function') {
+                onAddLog({
+                  module: 'ai-center',
+                  action: 'Préremplissage action depuis suggestion IA',
+                  detail: ref,
+                  user: getSessionUser()?.name || 'Utilisateur'
+                });
+              }
             });
             ar.append(btn);
             rowEl.append(head, desc, meta, ar);
