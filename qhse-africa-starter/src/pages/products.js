@@ -462,6 +462,7 @@ async function uploadFdsDocument(payload) {
   fd.append('file', payload.file);
   fd.append('name', payload.name);
   fd.append('type', 'fds');
+  if (payload.productId) fd.append('productId', payload.productId);
   if (payload.siteId) fd.append('siteId', payload.siteId);
   const res = await qhseFetch('/api/controlled-documents', { method: 'POST', body: fd });
   if (!res.ok) {
@@ -1884,10 +1885,13 @@ export function renderProducts() {
       return;
     }
     try {
+      const productIdToLink =
+        hiddenFdsProductId && hiddenFdsProductId.value ? String(hiddenFdsProductId.value).trim() : '';
       const created = await uploadFdsDocument({
         file: pendingFile,
         name,
-        siteId: appState.activeSiteId || null
+        siteId: appState.activeSiteId || null,
+        productId: productIdToLink || null
       });
       apiProductsLoaded = true;
       apiProducts = [mapControlledDocumentToProduct(created), ...apiProducts];

@@ -338,7 +338,8 @@ export async function getDashboardStats(tenantId, siteId = null) {
     }),
     prisma.product.findMany({
       where: siteFilter,
-      select: { id: true, name: true, fdsFileUrl: true, expiresAt: true },
+      // Product n'a pas d'expiresAt : le suivi conformité FDS se fait via ControlledDocument.
+      select: { id: true, name: true, fdsFileUrl: true, casNumber: true, hStatements: true },
       take: 200
     }),
     prisma.controlledDocument.findMany({
@@ -351,7 +352,15 @@ export async function getDashboardStats(tenantId, siteId = null) {
           { type: { contains: 'donnees de securite', mode: 'insensitive' } }
         ]
       },
-      select: { id: true, name: true, type: true, expiresAt: true, fdsProductRef: true, siteId: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        expiresAt: true,
+        fdsProductRef: true,
+        productId: true,
+        siteId: true
+      },
       orderBy: { createdAt: 'desc' },
       take: 300
     })

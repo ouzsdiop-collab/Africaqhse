@@ -66,6 +66,34 @@ export function normalizeControlledDocumentType(t) {
   return raw.slice(0, 120);
 }
 
+function assertTenant(tenantId) {
+  const t = normalizeTenantId(tenantId);
+  if (!t) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
+  return t;
+}
+
+async function assertProductExistsOrNull(tenantId, productId) {
+  assertTenant(tenantId);
+  if (productId == null || productId === '') return null;
+  const id = String(productId).trim();
+  if (!id) return null;
+  const tf = prismaTenantFilter(tenantId);
+  const row = await prisma.product.findFirst({
+    where: { id, ...tf },
+    select: { id: true }
+  });
+  if (!row) {
+    const err = new Error('Produit introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  return id;
+}
+
 /**
  * @param {{ role: string } | null | undefined} user
  * @param {string} classification
@@ -132,6 +160,7 @@ export function toPublicControlledDocument(doc) {
  * @param {{ siteId?: string, auditId?: string, classification?: string, type?: string }} filters
  */
 export async function listControlledDocuments(tenantId, filters) {
+  assertTenant(tenantId);
   const where = { ...prismaTenantFilter(tenantId) };
   if (filters.siteId) where.siteId = filters.siteId;
   if (filters.auditId) where.auditId = filters.auditId;
@@ -150,6 +179,7 @@ export async function listControlledDocuments(tenantId, filters) {
  * @param {string} id
  */
 export async function getControlledDocumentById(tenantId, id) {
+  assertTenant(tenantId);
   const tf = prismaTenantFilter(tenantId);
   return prisma.controlledDocument.findFirst({
     where: { id, ...tf }
@@ -205,6 +235,8 @@ export async function createControlledDocument(buffer, meta) {
       ? String(meta.responsible).trim().slice(0, 200)
       : null;
 
+  const productId = await assertProductExistsOrNull(meta.tenantId, meta.productId);
+
   const row = await prisma.controlledDocument.create({
     data: {
       tenantId: tenantRowId,
@@ -217,6 +249,7 @@ export async function createControlledDocument(buffer, meta) {
       mimeType: meta.mimeType || null,
       sizeBytes,
       auditId: meta.auditId || null,
+      productId,
       fdsProductRef: meta.fdsProductRef ? String(meta.fdsProductRef).slice(0, 200) : null,
       isoRequirementRef: meta.isoRequirementRef ? String(meta.isoRequirementRef).slice(0, 200) : null,
       riskRef: meta.riskRef ? String(meta.riskRef).slice(0, 200) : null,
@@ -239,6 +272,7 @@ export async function createControlledDocument(buffer, meta) {
  * }} patch
  */
 export async function updateControlledDocumentMeta(tenantId, id, patch) {
+  assertTenant(tenantId);
   const existing = await getControlledDocumentById(tenantId, id);
   if (!existing) {
     const err = new Error('Document introuvable');
@@ -268,6 +302,9 @@ export async function updateControlledDocumentMeta(tenantId, id, patch) {
   if (patch.type != null && String(patch.type).trim()) {
     data.type = normalizeControlledDocumentType(patch.type);
   }
+  if ('productId' in patch) {
+    data.productId = await assertProductExistsOrNull(tenantId, patch.productId);
+  }
   if ('classification' in patch) {
     data.classification = normalizeClassification(patch.classification);
   }
@@ -294,6 +331,7 @@ export async function updateControlledDocumentMeta(tenantId, id, patch) {
  * @param {string} id
  */
 export async function deleteControlledDocumentRecord(tenantId, id) {
+  assertTenant(tenantId);
   const doc = await getControlledDocumentById(tenantId, id);
   if (!doc) return false;
   await deleteControlledFile(doc.path);
@@ -307,6 +345,7 @@ export async function deleteControlledDocumentRecord(tenantId, id) {
  * @param {string} id
  */
 export async function readDocumentBufferForId(tenantId, id) {
+  assertTenant(tenantId);
   const doc = await getControlledDocumentById(tenantId, id);
   if (!doc) {
     const err = new Error('Document introuvable');

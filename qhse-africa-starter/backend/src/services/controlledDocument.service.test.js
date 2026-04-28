@@ -7,6 +7,9 @@ const { prismaMock } = vi.hoisted(() => ({
       deleteMany: vi.fn(),
       updateMany: vi.fn(),
       create: vi.fn()
+    },
+    product: {
+      findFirst: vi.fn()
     }
   }
 }));
@@ -26,6 +29,7 @@ import * as svc from './controlledDocument.service.js';
 describe('controlledDocument.service tenant isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaMock.product.findFirst.mockResolvedValue(null);
   });
 
   it('deleteControlledDocumentRecord utilise deleteMany avec filtre tenantId', async () => {
@@ -109,6 +113,7 @@ describe('controlledDocument.service tenant isolation', () => {
   });
 
   it('createControlledDocument: type "FDS" est stocké en "fds"', async () => {
+    prismaMock.product.findFirst.mockResolvedValueOnce(null);
     prismaMock.controlledDocument.create.mockResolvedValueOnce({
       id: 'doc_fds',
       tenantId: 'tA',
@@ -131,6 +136,7 @@ describe('controlledDocument.service tenant isolation', () => {
   });
 
   it('createControlledDocument: "fiche de données de sécurité" est stocké en "fds"', async () => {
+    prismaMock.product.findFirst.mockResolvedValueOnce(null);
     prismaMock.controlledDocument.create.mockResolvedValueOnce({
       id: 'doc_fds2',
       tenantId: 'tA',
@@ -152,6 +158,47 @@ describe('controlledDocument.service tenant isolation', () => {
     );
   });
 
+  it('createControlledDocument accepte productId si produit existe dans le tenant', async () => {
+    prismaMock.product = {
+      findFirst: vi.fn(async () => ({ id: 'p1' }))
+    };
+    prismaMock.controlledDocument.create.mockResolvedValueOnce({
+      id: 'doc_p1',
+      tenantId: 'tA',
+      name: 'Doc',
+      type: 'fds',
+      path: 'p',
+      classification: 'normal',
+      productId: 'p1'
+    });
+    await svc.createControlledDocument(Buffer.from('x'), {
+      tenantId: 'tA',
+      name: 'Doc',
+      type: 'FDS',
+      mimeType: 'application/pdf',
+      productId: 'p1'
+    });
+    expect(prismaMock.controlledDocument.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ productId: 'p1' })
+      })
+    );
+  });
+
+  it('createControlledDocument refuse productId introuvable (404)', async () => {
+    prismaMock.product.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      svc.createControlledDocument(Buffer.from('x'), {
+        tenantId: 'tA',
+        name: 'Doc',
+        type: 'FDS',
+        mimeType: 'application/pdf',
+        productId: 'p_missing'
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.controlledDocument.create).not.toHaveBeenCalled();
+  });
+
   it('updateControlledDocumentMeta: patch type FDS normalise en "fds"', async () => {
     prismaMock.controlledDocument.findFirst.mockResolvedValueOnce({
       id: 'doc1',
@@ -160,6 +207,7 @@ describe('controlledDocument.service tenant isolation', () => {
       classification: 'normal',
       path: 'p'
     });
+    prismaMock.product.findFirst.mockResolvedValueOnce(null);
     prismaMock.controlledDocument.updateMany.mockResolvedValueOnce({ count: 1 });
     prismaMock.controlledDocument.findFirst.mockResolvedValueOnce({
       id: 'doc1',

@@ -143,5 +143,37 @@ describe('qhseIntelligence.service', () => {
     });
     expect(out.alerts.some((a) => String(a.type).startsWith('fds_'))).toBe(false);
   });
+
+  it('product nécessite FDS + aucune FDS liée → alerte fds_missing_product', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      products: [{ id: 'p1', name: 'Acétone', casNumber: '67-64-1' }],
+      fdsDocuments: []
+    });
+    expect(out.alerts.some((a) => a.type === 'fds_missing_product')).toBe(true);
+  });
+
+  it('product avec FDS liée valide → pas d’alerte fds_expired_product/fds_renew_soon_product', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      products: [{ id: 'p1', name: 'Acétone', casNumber: '67-64-1' }],
+      fdsDocuments: [
+        { id: 'doc_p1', type: 'fds', productId: 'p1', expiresAt: new Date(Date.now() + 120 * 86400000).toISOString() }
+      ]
+    });
+    expect(out.alerts.some((a) => a.type === 'fds_expired_product')).toBe(false);
+    expect(out.alerts.some((a) => a.type === 'fds_renew_soon_product')).toBe(false);
+  });
+
+  it('product avec FDS liée expirée → alerte fds_expired_product', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      products: [{ id: 'p1', name: 'Acétone', casNumber: '67-64-1' }],
+      fdsDocuments: [
+        { id: 'doc_p1', type: 'fds', productId: 'p1', expiresAt: new Date(Date.now() - 2 * 86400000).toISOString() }
+      ]
+    });
+    expect(out.alerts.some((a) => a.type === 'fds_expired_product')).toBe(true);
+  });
 });
 
