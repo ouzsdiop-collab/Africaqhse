@@ -26,6 +26,7 @@ import { isOnline } from '../utils/networkStatus.js';
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { consumeAiPrefillForPage } from '../utils/aiPrefillIntent.js';
 
 const COLUMN_META = {
   todo: { label: 'À lancer', hint: 'Non démarré. Prioriser le cadrage.' },
@@ -1127,6 +1128,23 @@ export function renderActions() {
     });
 
     await loadActionsFromApi();
+
+    // Préfill IA (sessionStorage) : ouvre le formulaire action avec champs préremplis.
+    const aiPrefill = consumeAiPrefillForPage('actions');
+    if (aiPrefill) {
+      const defaults =
+        aiPrefill?.defaults && typeof aiPrefill.defaults === 'object' ? aiPrefill.defaults : aiPrefill;
+      const users =
+        Array.isArray(aiPrefill?.users) && aiPrefill.users.length ? aiPrefill.users : usersList;
+      queueMicrotask(() => {
+        openActionCreateDialog({
+          users,
+          defaults,
+          builtInSuccessToast: false
+        });
+        showToast('Formulaire action prérempli par l’IA. Vérifiez avant validation.', 'info');
+      });
+    }
   })();
 
   if (createBtn) {

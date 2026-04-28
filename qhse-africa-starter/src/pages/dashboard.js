@@ -28,6 +28,7 @@ import { createDashboardSystemStatus } from '../components/dashboardSystemStatus
 import { createDashboardVigilancePoints } from '../components/dashboardVigilancePoints.js';
 import { createDashboardAutoAnalysis } from '../components/dashboardAutoAnalysis.js';
 import { createDashboardPriorityNow } from '../components/dashboardPriorityNow.js';
+import { applyAiSuggestionToForm } from '../utils/aiPrefillIntent.js';
 import { createDashboardPilotageAssistant } from '../components/dashboardPilotageAssistant.js';
 import {
   buildAssistantSnapshot,
@@ -625,46 +626,22 @@ function createDashboardIntelligenceWidget() {
     const description = ctxLines.join('\n');
 
     try {
-      const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
-        import('../components/actionCreateDialog.js'),
-        import('../services/users.service.js')
-      ]);
+      const { fetchUsers } = await import('../services/users.service.js');
       const users = await fetchUsers().catch(() => []);
-      openActionCreateDialog({
-        users,
-        builtInSuccessToast: false,
-        defaults: {
-          title: ttl,
-          origin,
-          actionType: 'corrective',
-          priority,
-          description,
-          ...(dueDate ? { dueDate } : {}),
-          ...(srcModule === 'risks' && srcId ? { linkedRiskId: srcId } : {})
-        },
-        onCreated: (payload) => {
-          const t = payload?.title ? String(payload.title).trim() : ttl;
-          const r = payload?.ref != null ? String(payload.ref).trim() : '';
-          showToast(
-            r ? `Action créée (${r})${t ? ` : ${t}` : ''}` : t ? `Action créée : ${t}` : 'Action créée.',
-            'success',
-            {
-              label: 'Ouvrir',
-              action: () => {
-                qhseNavigate('actions', {
-                  skipDefaults: true,
-                  ...(payload?.id ? { focusActionId: payload.id } : {}),
-                  focusActionTitle: t || '',
-                  source: 'dashboard_intelligence_postcreate'
-                });
-              }
-            }
-          );
-        }
-      });
+      const defaults = {
+        title: ttl,
+        origin,
+        actionType: 'corrective',
+        priority,
+        description,
+        ...(dueDate ? { dueDate } : {}),
+        ...(srcModule === 'risks' && srcId ? { linkedRiskId: srcId } : {})
+      };
+      applyAiSuggestionToForm('actions', { defaults, users }, { skipDefaults: true });
+      showToast('Formulaire action prérempli. Vérifiez avant validation.', 'info');
     } catch (err) {
-      console.error('[dashboard][intelligence] openActionCreateDialog', err);
-      showToast('Action à créer manuellement (dialog indisponible).', 'warning');
+      console.error('[dashboard][intelligence] openCorrectiveActionFromAlert', err);
+      showToast('Action à créer manuellement (préremplissage indisponible).', 'warning');
     }
   }
 
@@ -1352,45 +1329,14 @@ export function renderDashboard() {
       }
       if (rec?.dialogDefaults) {
         void (async () => {
-          const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
-            import('../components/actionCreateDialog.js'),
-            import('../services/users.service.js')
-          ]);
+          const { fetchUsers } = await import('../services/users.service.js');
           const users = await fetchUsers().catch(() => []);
-          openActionCreateDialog({
-            users,
-            defaults: rec.dialogDefaults,
-            builtInSuccessToast: false,
-            onCreated: (payload) => {
-              const t = payload?.title ? String(payload.title).trim() : '';
-              const r = payload?.ref != null ? String(payload.ref).trim() : '';
-              showToast(
-                r
-                  ? `Action créée (${r})${t ? ` : ${t}` : ''}`
-                  : t
-                    ? `Action créée : ${t}`
-                    : 'Action créée depuis l’assistant de pilotage.',
-                'success',
-                {
-                  label: 'Ouvrir',
-                  action: () => {
-                    if (payload?.id) {
-                      qhseNavigate('actions', {
-                        focusActionId: payload.id,
-                        focusActionTitle: payload.title || ''
-                      });
-                    } else {
-                      qhseNavigate('actions', {
-                        skipDefaults: true,
-                        focusActionTitle: t || '',
-                        source: 'dashboard_assistant_postcreate'
-                      });
-                    }
-                  }
-                }
-              );
-            }
-          });
+          applyAiSuggestionToForm(
+            'actions',
+            { defaults: rec.dialogDefaults, users },
+            { skipDefaults: true }
+          );
+          showToast('Formulaire action prérempli. Vérifiez avant validation.', 'info');
         })();
       }
     }

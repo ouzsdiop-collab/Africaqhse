@@ -23,6 +23,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { consumeAiPrefillForPage, buildAuditDefaultsFromStructured } from '../utils/aiPrefillIntent.js';
 
 /** Constantes cockpit Audits (extrait illustratif, complété par l’API quand disponible). */
 const AUDITS_RETARD_COUNT = 2;
@@ -1374,6 +1375,23 @@ export async function renderAudits() {
     });
   });
   if (!canAuditWrite && su) heroCreateAudit.style.display = 'none';
+
+  // Préfill IA (sessionStorage) : ouvre le formulaire audit avec champs préremplis.
+  const aiPrefill = consumeAiPrefillForPage('audits');
+  if (aiPrefill) {
+    const structured =
+      aiPrefill?.structured && typeof aiPrefill.structured === 'object' ? aiPrefill.structured : aiPrefill;
+    const mapped = buildAuditDefaultsFromStructured(structured);
+    const defaults = mapped?.defaults
+      ? mapped.defaults
+      : aiPrefill?.defaults && typeof aiPrefill.defaults === 'object'
+        ? aiPrefill.defaults
+        : aiPrefill;
+    queueMicrotask(() => {
+      openAuditDialog(null, { canAuditWrite, su, defaults });
+      showToast('Formulaire audit prérempli par l’IA. Vérifiez avant validation.', 'info');
+    });
+  }
 
   const scoreHost = heroCard.querySelector('.audit-premium-header__score');
   const scoreDeltaEl = document.createElement('span');

@@ -10,6 +10,7 @@ import { mergeActionOverlay, appendActionHistory } from '../utils/actionPilotage
 import { linkModules } from '../services/moduleLinks.service.js';
 import { activityLogStore } from '../data/activityLog.js';
 import { showToast } from './toast.js';
+import { applyAiSuggestionToForm } from '../utils/aiPrefillIntent.js';
 
 /**
  * @param {HTMLElement} inner
@@ -27,12 +28,25 @@ export function attachRiskMistralMitigationSection(inner, risk) {
   aiBtn.className = 'btn btn-primary btn-sm';
   aiBtn.style.marginTop = '12px';
 
+  const status = document.createElement('div');
+  status.style.cssText = 'margin-top:8px;font-size:12px;color:var(--color-text-muted);display:none';
+  host.append(status);
+
   let aiLoading = false;
   aiBtn.addEventListener('click', async () => {
     if (aiLoading) return;
     aiLoading = true;
-    aiBtn.textContent = 'Analyse en cours...';
+    aiBtn.textContent = 'Analyse en cours…';
     aiBtn.disabled = true;
+    status.style.display = 'block';
+    status.innerHTML =
+      '<span style="display:inline-flex;align-items:center;gap:8px"><span style="width:14px;height:14px;border-radius:999px;border:2px solid rgba(148,163,184,.25);border-top-color:rgba(56,189,248,.95);animation:qhseAiSpin .9s linear infinite"></span>Analyse en cours</span>';
+    if (!document.getElementById('qhse-ai-mini-spin')) {
+      const s = document.createElement('style');
+      s.id = 'qhse-ai-mini-spin';
+      s.textContent = '@keyframes qhseAiSpin{to{transform:rotate(360deg)}}';
+      document.head.append(s);
+    }
     const gp = parseRiskMatrixGp(risk.meta);
     const payload = {
       title: risk.title,
@@ -48,7 +62,22 @@ export function attachRiskMistralMitigationSection(inner, risk) {
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('api');
-      const { suggestion } = await res.json();
+      const body = await res.json().catch(() => ({}));
+      const suggestion = typeof body?.suggestion === 'string' ? body.suggestion : '';
+      const structured = body?.structured && typeof body.structured === 'object' ? body.structured : null;
+      const providerMeta = body?.providerMeta && typeof body.providerMeta === 'object' ? body.providerMeta : null;
+
+      const c = Math.max(0, Math.min(1, Number(structured?.confidence) || 0.5));
+      const confLabel = c >= 0.8 ? 'Confiance élevée' : c >= 0.5 ? 'Confiance moyenne' : 'Confiance faible';
+      const confTone = c >= 0.8 ? '#10b981' : c >= 0.5 ? '#f59e0b' : '#ef4444';
+      const mode = providerMeta?.mode && providerMeta.mode !== 'openai' ? ` · fallback (${providerMeta.mode})` : '';
+      status.innerHTML = `<span style="display:inline-flex;align-items:center;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-weight:900">Suggestion IA à valider</span>
+        <span style="font-weight:900;color:${confTone}">${confLabel}</span>
+        <span style="opacity:.9">(${Math.round(c * 100)}%${mode})</span>
+      </span>
+      <div style="margin-top:6px">L’IA propose une aide à la décision. La validation finale reste humaine.</div>`;
+
       const box = document.createElement('div');
       box.style.cssText =
         'margin-top:12px;padding:16px;background:var(--surface-2,#eff6ff);border-left:3px solid var(--color-primary,#3b82f6);border-radius:8px;font-size:13px;line-height:1.6;color:var(--text-primary,#1e293b);white-space:pre-wrap';
@@ -59,87 +88,63 @@ export function attachRiskMistralMitigationSection(inner, risk) {
       const createActionBtn = document.createElement('button');
       createActionBtn.type = 'button';
       createActionBtn.className = 'btn btn-primary btn-sm';
-      createActionBtn.textContent = 'Créer une action corrective';
+      createActionBtn.textContent = 'Appliquer au formulaire (action)';
       createActionBtn.style.marginTop = '10px';
       createActionBtn.addEventListener('click', async () => {
-        const user = getSessionUser();
-        const siteFromRisk =
-          risk.siteId != null && String(risk.siteId).trim() ? String(risk.siteId).trim() : '';
-        const siteFromState =
-          appState.activeSiteId != null && String(appState.activeSiteId).trim()
-            ? String(appState.activeSiteId).trim()
-            : '';
-        const siteId = siteFromRisk || siteFromState || undefined;
-        /** @type {Record<string, string>} */
-        const body = {
-          title: `Mitigation : ${risk.title}`,
-          detail: String(box.textContent || '').slice(0, 8000),
-          status: 'À lancer'
-        };
-        if (siteId) body.siteId = siteId;
-        if (user?.id) {
-          body.assigneeId = user.id;
-          if (user.name) body.owner = user.name;
-        } else {
-          body.owner = 'À désigner (suggestion IA risque)';
-        }
-        try {
-          const actionRes = await qhseFetch('/api/actions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          });
-          if (!actionRes.ok) throw new Error('api');
-          const created = await actionRes.json();
-          const id = created?.id != null ? String(created.id) : '';
-          const riskTitle = String(risk.title || '').trim() || 'Sans titre';
-          const gpForPrio = parseRiskMatrixGp(risk.meta);
-          const priority =
-            gpForPrio && gpForPrio.g * gpForPrio.p >= 12 ? 'haute' : 'normale';
-          if (id) {
-            mergeActionOverlay(id, {
-              actionType: 'corrective',
-              origin: 'risk',
-              priority,
-              progressPct: 0,
-              linkedRisk: riskTitle,
-              comments: [],
-              history: []
-            });
-            appendActionHistory(
-              id,
-              'Action créée depuis suggestion IA mitigation (fiche risque).'
-            );
-            linkModules({
-              fromModule: 'risks',
-              fromId: riskTitle,
-              toModule: 'actions',
-              toId: id,
-              kind: 'risk_to_action',
-              label: 'Action corrective (suggestion IA)'
-            });
+        const structuredFallback = structured || {
+          type: 'risk_analysis',
+          confidence: 0.35,
+          content: {
+            summary: String(suggestion || '').slice(0, 1200),
+            findings: [],
+            recommendedActions: [],
+            humanValidationRequired: true,
+            disclaimer: 'Suggestion IA à valider par un responsable habilité.'
           }
-          createActionBtn.textContent = '✓ Action créée';
-          createActionBtn.disabled = true;
-          showToast('Action créée. Suivi dans le plan d’actions.', 'success');
-          activityLogStore.add({
-            module: 'risks',
-            action: 'Création action depuis suggestion IA mitigation',
-            detail: riskTitle,
-            user: getSessionUser()?.name || 'Pilotage QHSE'
-          });
-        } catch {
-          createActionBtn.textContent = 'Erreur. Réessayer';
-        }
+        };
+
+        const { openAiStructuredValidationDialog } = await import('./aiStructuredValidationDialog.js');
+        openAiStructuredValidationDialog({
+          title: `Risque — mesures de maîtrise`,
+          ai: { structured: structuredFallback, providerMeta, suggestionText: suggestion },
+          primaryLabel: 'Appliquer au formulaire',
+          secondaryLabel: 'Ignorer',
+          onApply: async ({ recommendedActionsText, confidence }) => {
+            const gpForPrio = parseRiskMatrixGp(risk.meta);
+            const priority = gpForPrio && gpForPrio.g * gpForPrio.p >= 12 ? 'haute' : 'normale';
+            const riskTitle = String(risk.title || '').trim() || 'Sans titre';
+            const defaults = {
+              title: `Mitigation : ${riskTitle}`.slice(0, 240),
+              origin: 'risk',
+              actionType: 'corrective',
+              priority,
+              description: [
+                String(recommendedActionsText || '').trim() || String(suggestion || '').trim(),
+                '',
+                `[Suggestion IA à valider · confiance ~${Math.round((Number(confidence) || 0.35) * 100)} %]`,
+                `Risque lié : ${riskTitle}`
+              ]
+                .filter(Boolean)
+                .join('\n')
+                .slice(0, 8000),
+              linkedRisk: riskTitle
+            };
+            applyAiSuggestionToForm('actions', { defaults }, { skipDefaults: true });
+            showToast('Formulaire action prérempli. Vérifiez avant validation.', 'info');
+          }
+        });
       });
       box.parentNode?.appendChild(createActionBtn);
     } catch {
-      aiBtn.textContent = 'Erreur. Réessayer';
+      aiBtn.textContent = 'Relancer l’analyse';
       aiBtn.disabled = false;
       aiLoading = false;
+      status.style.display = 'block';
+      status.innerHTML =
+        'IA indisponible pour le moment. Vous pouvez relancer ou saisir manuellement les mesures.';
     }
   });
 
-  host.append(aiBtn);
+  host.prepend(aiBtn);
   inner.append(host);
 }
