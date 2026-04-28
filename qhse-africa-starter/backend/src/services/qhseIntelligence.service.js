@@ -52,6 +52,15 @@ import { isActionOverdueDashboardRow, isCriticalRisk, RISK_CRITICAL_GP_MIN } fro
  *  fdsFileUrl?: string|null,
  *  expiresAt?: Date|string|null
  * }} ProductLike
+ *
+ * @typedef {{
+ *  id?: string,
+ *  name?: string,
+ *  type?: string,
+ *  expiresAt?: Date|string|null,
+ *  fdsProductRef?: string|null,
+ *  siteId?: string|null
+ * }} FdsDocumentLike
  */
 
 function assertTenant(tenantId) {
@@ -172,6 +181,7 @@ export function detectCriticalSituations(input) {
     actions = [],
     audits = [],
     products = [],
+    fdsDocuments = [],
     now = new Date()
   } = input || {};
   assertTenant(tenantId);
@@ -318,46 +328,50 @@ export function detectCriticalSituations(input) {
     );
   }
 
-  // FDS: manquante / expirée si produits fournis
-  if (Array.isArray(products) && products.length) {
+  // FDS: conformité basée uniquement sur ControlledDocument (fiable via expiresAt).
+  // Important (prudent): pas d'alerte globale "FDS manquante" tant que le lien produit↔FDS n'est pas fiable.
+  if (Array.isArray(fdsDocuments) && fdsDocuments.length) {
     const nowMs = now.getTime();
     const expired = [];
-    const missing = [];
-    for (const p of products) {
-      const hasFds = String(p?.fdsFileUrl || '').trim().length > 0;
-      const exp = toTimeMs(p?.expiresAt);
-      if (!hasFds) missing.push(p);
-      else if (exp != null && exp < nowMs) expired.push(p);
+    const renewSoon = [];
+    for (const d of fdsDocuments) {
+      const exp = toTimeMs(d?.expiresAt);
+      if (exp == null) continue; // pas d'échéance → pas d'alerte expiration
+      const days = Math.round((exp - nowMs) / 86400000);
+      if (days < 0) expired.push(d);
+      else if (days <= 30) renewSoon.push(d);
     }
-    if (missing.length) {
+    if (expired.length) {
+      const first = expired[0] || {};
       alerts.push(
         makeAlert({
-          id: newAlertId('fds_missing', missing[0]?.id, alerts.length + 1),
-          type: 'fds_missing',
+          id: newAlertId('fds_expired', first?.id, alerts.length + 1),
+          type: 'fds_expired',
           severity: 'high',
-          title: 'FDS manquante (si produits gérés)',
-          description: `${missing.length} produit(s) sans FDS associée.`,
-          sourceModule: 'products',
-          sourceId: missing[0]?.id ?? null,
-          suggestedActionTitle: 'Collecter et associer les FDS manquantes',
-          suggestedDueInDays: 7,
-          confidence: 0.62
+          title: 'FDS expirée',
+          description: `${expired.length} document(s) FDS expiré(s) (échéance dépassée).`,
+          sourceModule: 'controlled_documents',
+          sourceId: first?.id ?? null,
+          suggestedActionTitle: 'Mettre à jour les FDS expirées',
+          suggestedDueInDays: 14,
+          confidence: first?.fdsProductRef ? 0.55 : 0.62
         })
       );
     }
-    if (expired.length) {
+    if (renewSoon.length) {
+      const first = renewSoon[0] || {};
       alerts.push(
         makeAlert({
-          id: newAlertId('fds_expired', expired[0]?.id, alerts.length + 1),
-          type: 'fds_expired',
-          severity: 'high',
-          title: 'FDS expirée (si produits gérés)',
-          description: `${expired.length} produit(s) avec FDS expirée.`,
-          sourceModule: 'products',
-          sourceId: expired[0]?.id ?? null,
-          suggestedActionTitle: 'Mettre à jour les FDS expirées',
-          suggestedDueInDays: 14,
-          confidence: 0.6
+          id: newAlertId('fds_renew_soon', first?.id, alerts.length + 1),
+          type: 'fds_renew_soon',
+          severity: 'medium',
+          title: 'FDS à renouveler',
+          description: `${renewSoon.length} document(s) FDS à renouveler (≤30 jours).`,
+          sourceModule: 'controlled_documents',
+          sourceId: first?.id ?? null,
+          suggestedActionTitle: 'Planifier le renouvellement des FDS',
+          suggestedDueInDays: 30,
+          confidence: first?.fdsProductRef ? 0.52 : 0.6
         })
       );
     }

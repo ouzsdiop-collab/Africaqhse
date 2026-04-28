@@ -8,7 +8,8 @@ const { prismaMock } = vi.hoisted(() => ({
     action: { count: vi.fn(), findMany: vi.fn() },
     audit: { groupBy: vi.fn(), findMany: vi.fn() },
     nonConformity: { findMany: vi.fn() },
-    product: { findMany: vi.fn() }
+    product: { findMany: vi.fn() },
+    controlledDocument: { findMany: vi.fn() }
   }
 }));
 
@@ -36,6 +37,7 @@ describe('dashboard.service — overdueActionItems', () => {
     prismaMock.audit.findMany.mockResolvedValue([]);
     prismaMock.nonConformity.findMany.mockResolvedValue([]);
     prismaMock.product.findMany.mockResolvedValue([]);
+    prismaMock.controlledDocument.findMany.mockResolvedValue([]);
     prismaMock.action.findMany.mockResolvedValue([
       {
         id: 'action_cuid_1',

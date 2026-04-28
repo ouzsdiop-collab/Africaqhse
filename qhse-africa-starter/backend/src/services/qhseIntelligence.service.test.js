@@ -99,11 +99,49 @@ describe('qhseIntelligence.service', () => {
       risks: [],
       actions: [],
       audits: [],
-      products: []
+      products: [],
+      fdsDocuments: []
     });
     expect(out.score).toBe(100);
     expect(out.alerts).toEqual([]);
     expect(out.anomalies).toEqual([]);
+  });
+
+  it('document FDS expiré → alerte', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      fdsDocuments: [
+        { id: 'doc1', type: 'FDS', expiresAt: new Date(Date.now() - 2 * 86400000).toISOString() }
+      ]
+    });
+    expect(out.alerts.some((a) => a.type === 'fds_expired')).toBe(true);
+  });
+
+  it('document FDS bientôt expiré (≤30j) → alerte', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      fdsDocuments: [
+        { id: 'doc2', type: 'FDS', expiresAt: new Date(Date.now() + 10 * 86400000).toISOString() }
+      ]
+    });
+    expect(out.alerts.some((a) => a.type === 'fds_renew_soon')).toBe(true);
+  });
+
+  it('document FDS sans expiresAt → pas d’alerte expiration', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      fdsDocuments: [{ id: 'doc3', type: 'FDS', expiresAt: null }]
+    });
+    expect(out.alerts.some((a) => a.type === 'fds_expired' || a.type === 'fds_renew_soon')).toBe(false);
+  });
+
+  it('product avec fdsFileUrl mais sans ControlledDocument → pas d’alerte expiration', () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      products: [{ id: 'p1', fdsFileUrl: 'fds:x.pdf' }],
+      fdsDocuments: []
+    });
+    expect(out.alerts.some((a) => String(a.type).startsWith('fds_'))).toBe(false);
   });
 });
 

@@ -245,7 +245,8 @@ export async function getDashboardStats(tenantId, siteId = null) {
     intelligenceRisks,
     intelligenceActions,
     intelligenceAudits,
-    intelligenceProducts
+    intelligenceProducts,
+    intelligenceFdsDocuments
   ] = await Promise.all([
     prisma.incident.count({ where: siteFilter }),
     prisma.incident.count({
@@ -339,6 +340,20 @@ export async function getDashboardStats(tenantId, siteId = null) {
       where: siteFilter,
       select: { id: true, name: true, fdsFileUrl: true, expiresAt: true },
       take: 200
+    }),
+    prisma.controlledDocument.findMany({
+      where: {
+        ...siteFilter,
+        OR: [
+          { type: { contains: 'fds', mode: 'insensitive' } },
+          { type: { contains: 'fiche', mode: 'insensitive' } },
+          { type: { contains: 'données de sécurité', mode: 'insensitive' } },
+          { type: { contains: 'donnees de securite', mode: 'insensitive' } }
+        ]
+      },
+      select: { id: true, name: true, type: true, expiresAt: true, fdsProductRef: true, siteId: true },
+      orderBy: { createdAt: 'desc' },
+      take: 300
     })
   ]);
 
@@ -402,7 +417,10 @@ export async function getDashboardStats(tenantId, siteId = null) {
         risks: intelligenceRisks,
         actions: intelligenceActions,
         audits: intelligenceAudits,
+        // Products: contexte chimique seulement (pas conformité FDS).
         products: intelligenceProducts,
+        // FDS: conformité uniquement via ControlledDocument.
+        fdsDocuments: intelligenceFdsDocuments,
         now
       });
     } catch {
