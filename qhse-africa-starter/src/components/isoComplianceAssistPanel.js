@@ -6,6 +6,7 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { showToast } from './toast.js';
 import { ensureIsoComplianceAssistStyles } from './isoComplianceAssistStyles.js';
+import { buildIsoRequirementHistoryTimeline } from '../utils/isoRequirementHistory.js';
 
 function sanitizeClassToken(value, fallback = 'neutral') {
   const token = String(value || '')
@@ -29,6 +30,13 @@ function sanitizeClassToken(value, fallback = 'neutral') {
  *   controlledDocuments: { name: string; version?: string }[];
  *   siteId: string | null;
  *   onStatusCommitted: (requirementId: string, status: 'conforme'|'partiel'|'non_conforme', meta: { source: string }) => boolean | Promise<boolean>;
+ *   onAiTrace?: (payload: {
+ *     aiTraceType: string;
+ *     requirementId: string;
+ *     suggestedStatus?: string;
+ *     chosenStatus?: string;
+ *     detail?: string;
+ *   }) => void;
  * }} opts
  */
 export function openComplianceAssistModal(opts) {
@@ -91,6 +99,11 @@ export function openComplianceAssistModal(opts) {
           <button type="button" class="btn btn-secondary iso-ca-ov" data-iso-ca-set="non_conforme">Non conforme</button>
         </div>
       </div>
+      <div class="iso-ca-block iso-ca-history-block">
+        <h4 class="iso-ca-h4">Historique</h4>
+        <p class="iso-ca-history-hint">Journal d’activité et preuves locales rattachées à cette exigence (ordre antichronologique).</p>
+        <div class="iso-req-history-body" data-iso-ca-history></div>
+      </div>
     </div>
     <div class="iso-ca-error" data-iso-ca-error hidden>
       <p class="iso-ca-error-msg" data-iso-ca-error-msg></p>
@@ -105,6 +118,43 @@ export function openComplianceAssistModal(opts) {
   const req = opts.requirement;
   const labelEl = head.querySelector('[data-iso-ca-req-label]');
   labelEl.textContent = `${req.normCode} · ${req.clause} : ${req.title}`;
+
+  function fillComplianceAssistHistory() {
+    const wrap = body.querySelector('[data-iso-ca-history]');
+    if (!wrap) return;
+    wrap.replaceChildren();
+    const items = buildIsoRequirementHistoryTimeline(String(req.id), req);
+    if (!items.length) {
+      const p = document.createElement('p');
+      p.className = 'iso-req-history-empty';
+      p.textContent = 'Aucun événement enregistré pour cette exigence.';
+      wrap.append(p);
+      return;
+    }
+    const ul = document.createElement('ul');
+    ul.className = 'iso-req-history-list';
+    for (const it of items.slice(0, 40)) {
+      const li = document.createElement('li');
+      li.className = 'iso-req-history-item';
+      const kind = document.createElement('span');
+      kind.className = 'iso-req-history-kind';
+      kind.textContent = it.label;
+      const meta = document.createElement('span');
+      meta.className = 'iso-req-history-meta';
+      meta.textContent = `${new Date(it.at).toLocaleString('fr-FR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      })} — ${it.user}`;
+      const det = document.createElement('span');
+      det.className = 'iso-req-history-detail';
+      det.textContent = it.detail;
+      li.append(kind, meta, det);
+      ul.append(li);
+    }
+    wrap.append(ul);
+  }
+
+  fillComplianceAssistHistory();
 
   function close() {
     overlay.remove();
@@ -187,6 +237,13 @@ export function openComplianceAssistModal(opts) {
       body.querySelector('[data-iso-ca-disclaimer]').textContent =
         j.disclaimer ||
         'Cette proposition est indicative ; seul un humain peut valider la conformité réelle.';
+
+      opts.onAiTrace?.({
+        aiTraceType: 'suggestion_generated',
+        requirementId: String(req.id),
+        suggestedStatus: j.suggestedStatus,
+        detail: `${req.normCode} ${req.clause} — ${req.title}`.trim()
+      });
     } catch (err) {
       console.warn('[iso compliance assist]', err);
       body.querySelector('[data-iso-ca-loading]').hidden = true;
@@ -201,6 +258,27 @@ export function openComplianceAssistModal(opts) {
   async function commitStatus(status, source) {
     const committed = await opts.onStatusCommitted(req.id, status, { source });
     if (committed !== true) return;
+
+    if (typeof opts.onAiTrace === 'function') {
+      if (source === 'accepted_suggestion') {
+        opts.onAiTrace({
+          aiTraceType: 'user_validated',
+          requirementId: String(req.id),
+          suggestedStatus: lastPayload?.suggestedStatus,
+          chosenStatus: status
+        });
+      } else if (source === 'human_override') {
+        const suggested = lastPayload?.suggestedStatus;
+        const modified = Boolean(suggested && suggested !== status);
+        opts.onAiTrace({
+          aiTraceType: modified ? 'user_modified' : 'user_validated',
+          requirementId: String(req.id),
+          suggestedStatus: suggested,
+          chosenStatus: status
+        });
+      }
+    }
+
     showToast(
       source === 'accepted_suggestion'
         ? 'Statut enregistré conformément à la proposition (validation humaine).'

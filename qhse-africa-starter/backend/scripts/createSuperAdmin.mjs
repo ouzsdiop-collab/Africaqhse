@@ -20,6 +20,7 @@ function asEmail(v) {
 const PLATFORM_TENANT_SLUG = 'qhse-control-platform';
 const PLATFORM_TENANT_NAME = 'QHSE Control Platform';
 const SUPER_ADMIN_ROLE = 'SUPER_ADMIN';
+const SUPER_ADMIN_HASH_ROUNDS = 10; // aligné sur users.service.js (bcryptjs)
 
 async function ensurePlatformTenant() {
   const existing = await prisma.tenant.findUnique({
@@ -40,7 +41,7 @@ async function upsertSuperAdmin({ email, password }) {
   }
 
   const tenant = await ensurePlatformTenant();
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(password, SUPER_ADMIN_HASH_ROUNDS);
 
   const user = await prisma.user.upsert({
     where: { email },
@@ -58,7 +59,7 @@ async function upsertSuperAdmin({ email, password }) {
       isActive: true,
       mustChangePassword: false
     },
-    select: { id: true, email: true, role: true, isActive: true }
+    select: { id: true, email: true, role: true, isActive: true, passwordHash: true }
   });
 
   await prisma.tenantMember.upsert({
@@ -79,9 +80,14 @@ async function main() {
   }
 
   const { tenant, user } = await upsertSuperAdmin({ email, password });
+  const hasHash = Boolean(user?.passwordHash && String(user.passwordHash).trim());
+  const passwordMatch = hasHash ? await bcrypt.compare(password, String(user.passwordHash)) : false;
   console.log('[admin:create] OK');
+  console.log(`- email_norm: ${email}`);
   console.log(`- tenant: ${tenant.slug} (${tenant.name})`);
   console.log(`- user: ${user.email} (role=${user.role}, active=${user.isActive ? 'true' : 'false'})`);
+  console.log(`- passwordHash_present: ${hasHash ? 'yes' : 'no'}`);
+  console.log(`- password_matches_now: ${passwordMatch ? 'yes' : 'no'}`);
 }
 
 main()

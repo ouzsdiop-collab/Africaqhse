@@ -10,12 +10,14 @@ import {
 } from '../data/conformityStore.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
+import { computeIsoScore } from '../utils/isoScore.js';
 
 /**
  * @typedef {'pret'|'fragile'|'non_pret'} AuditReadinessLevel
  */
 
 /**
+ * @param {Parameters<typeof computeIsoScore>[0]} [isoScoreInput]
  * @returns {{
  *   readiness: AuditReadinessLevel;
  *   pct: number;
@@ -26,7 +28,8 @@ import { isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
  *   ctaHint: string;
  * }}
  */
-export function computeAuditReadiness() {
+export function computeAuditReadiness(isoScoreInput) {
+  const score = computeIsoScore(isoScoreInput || {});
   const s = computeComplianceSummary();
   const reqs = getRequirements();
   const ncCount = reqs.filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme').length;
@@ -36,9 +39,9 @@ export function computeAuditReadiness() {
 
   /** @type {AuditReadinessLevel} */
   let readiness = 'pret';
-  if (s.nonOk > 0 || missingDocsCount > 0 || s.pct < 62) {
+  if (s.nonOk > 0 || missingDocsCount > 0 || score.pct < 62) {
     readiness = 'non_pret';
-  } else if (partialCount > 0 || s.pct < 86 || obsoleteCount > 0) {
+  } else if (partialCount > 0 || score.pct < 86 || obsoleteCount > 0) {
     readiness = 'fragile';
   }
 
@@ -56,7 +59,7 @@ export function computeAuditReadiness() {
 
   return {
     readiness,
-    pct: s.pct,
+    pct: score.pct,
     ncCount,
     partialCount,
     missingDocsCount,
@@ -89,7 +92,7 @@ export function createAuditReadinessBanner(state, hooks) {
         <div class="iso-audit-readiness-score" aria-label="Score conformité">
           <span class="iso-audit-readiness-pct">${escapeHtml(String(state.pct))}</span>
           <span class="iso-audit-readiness-pct-suffix">%</span>
-          <span class="iso-audit-readiness-score-cap">conformité</span>
+          <span class="iso-audit-readiness-score-cap">score consolidé</span>
         </div>
         <ul class="iso-audit-readiness-stats" aria-label="Synthèse">
           <li><strong>${escapeHtml(String(state.ncCount))}</strong> non-conformité(s)</li>

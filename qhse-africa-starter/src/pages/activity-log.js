@@ -22,6 +22,7 @@ import { createEmptyState } from '../utils/designSystem.js';
 const LS_SCHEDULE = 'qhse-activity-log-schedule';
 const LS_SCOPE = 'qhse-activity-log-export-scope';
 const LS_CRITICAL = 'qhse-activity-log-critical-only';
+const LS_AUDIT_MODE = 'qhse-activity-log-audit-mode';
 
 /**
  * Tableau du journal : réutilisable avec une liste filtrée / triée (futur).
@@ -37,11 +38,11 @@ export function createActivityLogTable(entries, opts = {}) {
   const head = document.createElement('div');
   head.className = 'activity-log-head';
   head.innerHTML = `
-    <span>Module</span>
-    <span>Action</span>
-    <span>Détail</span>
-    <span>Utilisateur</span>
     <span>Date / heure</span>
+    <span>Utilisateur</span>
+    <span>Action (lecture audit)</span>
+    <span>Objet</span>
+    <span>Résultat</span>
   `;
   table.append(head);
 
@@ -135,9 +136,6 @@ export function renderActivityLog(opts = {}) {
 
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas activity-log-page';
-  if (localStorage.getItem(LS_CRITICAL) === '1') {
-    page.classList.add('activity-log-page--audit-view');
-  }
 
   const su = getSessionUser();
   const canServerTab = Boolean(su && canResource(su.role, 'audit_logs', 'read'));
@@ -213,11 +211,17 @@ export function renderActivityLog(opts = {}) {
   const state = {
     period: /** @type {'24h' | '7j' | 'all'} */ ('7j'),
     kind: /** @type {'all' | 'create' | 'modify' | 'close'} */ ('all'),
+    module: /** @type {string} */ (''),
     user: '',
-    criticalOnly: localStorage.getItem(LS_CRITICAL) === '1',
+    auditMode:
+      localStorage.getItem(LS_AUDIT_MODE) === '1' || localStorage.getItem(LS_CRITICAL) === '1',
     schedule: localStorage.getItem(LS_SCHEDULE) || 'off',
     exportScope: localStorage.getItem(LS_SCOPE) || 'full'
   };
+
+  if (state.auditMode) {
+    page.classList.add('activity-log-page--audit-view', 'activity-log-page--audit-mode');
+  }
 
   const quickSection = document.createElement('div');
   quickSection.className = 'activity-log-quick';
@@ -258,27 +262,53 @@ export function renderActivityLog(opts = {}) {
       </select>
     </div>
     <label class="activity-log-prefs-check">
-      <input type="checkbox" data-pref="critical" />
-      <span>Alertes : événements critiques uniquement (réglage local)</span>
+      <input type="checkbox" data-pref="audit-mode" />
+      <span>Mode audit : événements clés uniquement (correctifs, validations, audits, changements majeurs)</span>
     </label>
     <p class="activity-log-prefs-hint">L’envoi automatique sera branché côté serveur : les choix sont mémorisés localement.</p>
   `;
 
   const filtersEl = document.createElement('div');
-  filtersEl.className = 'activity-log-filters';
+  filtersEl.className = 'activity-log-filters activity-log-filters--advanced';
   filtersEl.innerHTML = `
-    <span class="activity-log-filters-k">Filtres</span>
-    <label class="activity-log-filter-field"><span>Type</span>
-      <select class="control-select" data-filter="kind" aria-label="Filtrer par type d’événement">
-        <option value="all">Tous</option>
-        <option value="create">Création</option>
-        <option value="modify">Modification</option>
-        <option value="close">Clôture</option>
-      </select>
-    </label>
-    <label class="activity-log-filter-field"><span>Utilisateur</span>
-      <select class="control-select" data-filter="user" aria-label="Filtrer par utilisateur"><option value="">Tous</option></select>
-    </label>
+    <div class="activity-log-filters-head">
+      <span class="activity-log-filters-k">Filtres avancés</span>
+      <span class="activity-log-filters-hint">Combinables · même logique que le tableau et les exports</span>
+    </div>
+    <div class="activity-log-filter-dropdowns" role="group" aria-label="Filtres du journal">
+      <label class="activity-log-filter-field"><span>Module</span>
+        <select class="control-select" data-filter="module" aria-label="Filtrer par module">
+          <option value="">Tous les modules</option>
+          <option value="incidents">Incidents</option>
+          <option value="actions">Actions</option>
+          <option value="audits">Audits</option>
+          <option value="iso">Conformité ISO (incl. trace IA)</option>
+          <option value="risks">Risques</option>
+          <option value="products">Produits / FDS</option>
+          <option value="context">Contexte site</option>
+          <option value="system">Système</option>
+          <option value="ai-center">Centre IA</option>
+        </select>
+      </label>
+      <label class="activity-log-filter-field"><span>Période</span>
+        <select class="control-select" data-filter="period" aria-label="Filtrer par période">
+          <option value="24h">24 heures</option>
+          <option value="7j">7 jours</option>
+          <option value="all">Tout l’historique affiché</option>
+        </select>
+      </label>
+      <label class="activity-log-filter-field"><span>Type d’action</span>
+        <select class="control-select" data-filter="kind" aria-label="Filtrer par type d’événement">
+          <option value="all">Tous les types</option>
+          <option value="create">Création</option>
+          <option value="modify">Modification</option>
+          <option value="close">Clôture</option>
+        </select>
+      </label>
+      <label class="activity-log-filter-field"><span>Utilisateur</span>
+        <select class="control-select" data-filter="user" aria-label="Filtrer par utilisateur"><option value="">Tous les utilisateurs</option></select>
+      </label>
+    </div>
   `;
 
   const exportRow = document.createElement('div');
@@ -324,8 +354,8 @@ export function renderActivityLog(opts = {}) {
       <span>Journal filtré</span>
       <span class="activity-log-toolbar-note">Tri antichronologique · ligne cliquable vers le module · export = vue courante</span>
     </div>
-    <button type="button" class="btn btn-secondary activity-log-audit-view-btn" aria-pressed="false" title="Afficher uniquement les événements critiques">
-      Vue audit
+    <button type="button" class="btn btn-secondary activity-log-audit-view-btn" aria-pressed="false" title="Afficher uniquement les événements clés pour audit">
+      Mode audit
     </button>
   `;
 
@@ -379,9 +409,12 @@ export function renderActivityLog(opts = {}) {
 
   const userSel = filtersEl.querySelector('[data-filter="user"]');
   const kindSel = filtersEl.querySelector('[data-filter="kind"]');
+  const moduleSel = filtersEl.querySelector('[data-filter="module"]');
+  const periodSel = filtersEl.querySelector('[data-filter="period"]');
   const scheduleSel = prefsEl.querySelector('[data-pref="schedule"]');
   const scopeSel = prefsEl.querySelector('[data-pref="scope"]');
-  const critCb = prefsEl.querySelector('[data-pref="critical"]');
+  const auditModeCb = prefsEl.querySelector('[data-pref="audit-mode"]');
+  const toolbarNoteEl = toolbar.querySelector('.activity-log-toolbar-note');
 
   uniqueActivityUsers(activityLogStore.all()).forEach((u) => {
     const o = document.createElement('option');
@@ -390,9 +423,11 @@ export function renderActivityLog(opts = {}) {
     userSel.append(o);
   });
 
+  if (periodSel) periodSel.value = state.period;
+
   scheduleSel.value = state.schedule;
   scopeSel.value = state.exportScope;
-  critCb.checked = state.criticalOnly;
+  if (auditModeCb) auditModeCb.checked = state.auditMode;
 
   function syncPeriodChips() {
     quickSection.querySelectorAll('.activity-log-chip[data-period]').forEach((b) => {
@@ -404,12 +439,28 @@ export function renderActivityLog(opts = {}) {
   const analysisListEl = analysisSection.querySelector('.activity-log-analysis-list');
   const auditBtn = toolbar.querySelector('.activity-log-audit-view-btn');
 
-  function syncAuditUi() {
-    page.classList.toggle('activity-log-page--audit-view', state.criticalOnly);
-    if (auditBtn) {
-      auditBtn.textContent = state.criticalOnly ? 'Vue complète' : 'Vue audit';
-      auditBtn.setAttribute('aria-pressed', state.criticalOnly ? 'true' : 'false');
+  function persistAuditMode() {
+    localStorage.setItem(LS_AUDIT_MODE, state.auditMode ? '1' : '0');
+    try {
+      localStorage.removeItem(LS_CRITICAL);
+    } catch {
+      /* ignore */
     }
+  }
+
+  function syncAuditUi() {
+    page.classList.toggle('activity-log-page--audit-view', state.auditMode);
+    page.classList.toggle('activity-log-page--audit-mode', state.auditMode);
+    if (toolbarNoteEl) {
+      toolbarNoteEl.textContent = state.auditMode
+        ? 'Mode audit : liste réduite aux actions correctives, validations, audits et changements majeurs. Filtres et exports restent combinables.'
+        : 'Tri antichronologique · ligne cliquable vers le module · export = vue courante';
+    }
+    if (auditBtn) {
+      auditBtn.textContent = state.auditMode ? 'Quitter le mode audit' : 'Mode audit';
+      auditBtn.setAttribute('aria-pressed', state.auditMode ? 'true' : 'false');
+    }
+    if (auditModeCb) auditModeCb.checked = state.auditMode;
   }
 
   function refresh() {
@@ -417,8 +468,9 @@ export function renderActivityLog(opts = {}) {
     const filtered = filterActivityLogEntries(all, {
       period: state.period,
       kind: state.kind,
+      module: state.module,
       user: state.user,
-      criticalOnly: state.criticalOnly
+      auditMode: state.auditMode
     });
     const quick = computeActivityQuickCounts(all, state.period);
     quickSection.querySelector('[data-quick="inc"]').textContent = String(quick.incCreated);
@@ -430,8 +482,9 @@ export function renderActivityLog(opts = {}) {
     const periodBase = filterActivityLogEntries(all, {
       period: state.period,
       kind: 'all',
+      module: state.module,
       user: '',
-      criticalOnly: false
+      auditMode: state.auditMode
     });
     const spotlight = pickCriticalSpotlightEntries(periodBase, 3);
     if (criticalMountEl) {
@@ -453,8 +506,9 @@ export function renderActivityLog(opts = {}) {
     const periodForAnalysis = filterActivityLogEntries(all, {
       period: state.period,
       kind: state.kind,
+      module: state.module,
       user: state.user,
-      criticalOnly: false
+      auditMode: state.auditMode
     });
     if (analysisListEl) {
       analysisListEl.replaceChildren();
@@ -477,12 +531,14 @@ export function renderActivityLog(opts = {}) {
           ? () => {
               state.kind = 'all';
               state.user = '';
-              state.criticalOnly = false;
+              state.module = '';
+              state.auditMode = false;
               state.period = 'all';
-              critCb.checked = false;
-              localStorage.setItem(LS_CRITICAL, '0');
+              persistAuditMode();
               kindSel.value = 'all';
               userSel.value = '';
+              if (moduleSel) moduleSel.value = '';
+              if (periodSel) periodSel.value = 'all';
               quickSection.querySelectorAll('.activity-log-chip[data-period]').forEach((b) => {
                 b.classList.toggle(
                   'activity-log-chip--on',
@@ -495,6 +551,8 @@ export function renderActivityLog(opts = {}) {
       })
     );
     syncPeriodChips();
+    if (periodSel) periodSel.value = state.period;
+    if (moduleSel) moduleSel.value = state.module;
     syncAuditUi();
   }
 
@@ -503,6 +561,16 @@ export function renderActivityLog(opts = {}) {
       state.period = /** @type {'24h' | '7j' | 'all'} */ (btn.getAttribute('data-period'));
       refresh();
     });
+  });
+
+  periodSel?.addEventListener('change', () => {
+    state.period = /** @type {'24h' | '7j' | 'all'} */ (periodSel.value || '7j');
+    refresh();
+  });
+
+  moduleSel?.addEventListener('change', () => {
+    state.module = moduleSel.value || '';
+    refresh();
   });
 
   kindSel.addEventListener('change', () => {
@@ -525,16 +593,15 @@ export function renderActivityLog(opts = {}) {
     localStorage.setItem(LS_SCOPE, state.exportScope);
   });
 
-  critCb.addEventListener('change', () => {
-    state.criticalOnly = critCb.checked;
-    localStorage.setItem(LS_CRITICAL, state.criticalOnly ? '1' : '0');
+  auditModeCb?.addEventListener('change', () => {
+    state.auditMode = auditModeCb.checked;
+    persistAuditMode();
     refresh();
   });
 
   auditBtn?.addEventListener('click', () => {
-    state.criticalOnly = !state.criticalOnly;
-    critCb.checked = state.criticalOnly;
-    localStorage.setItem(LS_CRITICAL, state.criticalOnly ? '1' : '0');
+    state.auditMode = !state.auditMode;
+    persistAuditMode();
     refresh();
   });
 
@@ -553,8 +620,9 @@ export function renderActivityLog(opts = {}) {
     const filtered = filterActivityLogEntries(all, {
       period: state.period,
       kind: state.kind,
+      module: state.module,
       user: state.user,
-      criticalOnly: state.criticalOnly
+      auditMode: state.auditMode
     });
     downloadActivityCsv(rowsForExport(filtered));
   });
@@ -564,8 +632,9 @@ export function renderActivityLog(opts = {}) {
     const filtered = filterActivityLogEntries(all, {
       period: state.period,
       kind: state.kind,
+      module: state.module,
       user: state.user,
-      criticalOnly: state.criticalOnly
+      auditMode: state.auditMode
     });
     openActivityLogPdf(rowsForExport(filtered));
   });

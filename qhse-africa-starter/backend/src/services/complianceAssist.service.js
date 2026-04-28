@@ -6,6 +6,7 @@
 import { prisma } from '../db.js';
 import { findAllImportHistory } from './importHistory.service.js';
 import { resolveClauseHints } from '../data/isoClauseHints.js';
+import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 const STOPWORDS = new Set([
   'les',
@@ -125,6 +126,94 @@ async function loadAppSignals(opt) {
   const openNc = ncs.filter((r) => isNcOpenStatus(r.status)).length;
 
   return { overdueActions, openNc, openActionsSample: Math.min(actions.length, 50) };
+}
+
+/**
+ * Aperçu risques / incidents textuellement liés à la clause (sans appel IA externe).
+ * @param {{ tenantId: string | null; siteId?: string | null; clause: string; normId?: string }} opt
+ */
+async function loadIsoTerrainLinks(opt) {
+  const t = normalizeTenantId(opt.tenantId);
+  const clause = String(opt.clause || '').trim();
+  if (!t) {
+    return {
+      risks: [],
+      incidents: [],
+      summary:
+        'Risques et incidents : connectez-vous avec un contexte organisation pour afficher les liens terrain.'
+    };
+  }
+  const tf = prismaTenantFilter(t);
+  const siteId =
+    opt.siteId != null && String(opt.siteId).trim() !== '' ? String(opt.siteId).trim() : null;
+  const siteFrag = siteId ? { siteId } : {};
+
+  const [riskRows, incidentRows] = await Promise.all([
+    prisma.risk.findMany({
+      where: { ...tf, ...siteFrag },
+      take: 100,
+      orderBy: { updatedAt: 'desc' },
+      select: { ref: true, title: true, status: true, description: true }
+    }),
+    prisma.incident.findMany({
+      where: { ...tf, ...siteFrag },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      select: { ref: true, type: true, description: true, severity: true }
+    })
+  ]);
+
+  const needles = [
+    clause,
+    ...clause.split(/[._]/).filter((x) => x.length >= 2),
+    String(opt.normId || '')
+  ].filter(Boolean);
+
+  function textHasLink(text) {
+    const u = String(text || '').toLowerCase();
+    if (!u) return false;
+    if (clause) {
+      const flex = clause
+        .toLowerCase()
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\\\./g, '[._-]');
+      try {
+        if (new RegExp(`\\b${flex}\\b`, 'i').test(u)) return true;
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const n of needles) {
+      const n0 = String(n).toLowerCase();
+      if (n0.length >= 2 && u.includes(n0)) return true;
+    }
+    return false;
+  }
+
+  const risks = riskRows
+    .filter((r) => textHasLink(r.title) || textHasLink(r.description))
+    .slice(0, 5)
+    .map((r) => ({
+      ref: r.ref || '',
+      title: r.title,
+      status: r.status || ''
+    }));
+
+  const incidents = incidentRows
+    .filter((i) => textHasLink(i.description) || textHasLink(i.type))
+    .slice(0, 5)
+    .map((i) => ({
+      ref: i.ref,
+      type: i.type,
+      severity: i.severity || ''
+    }));
+
+  const summary =
+    risks.length || incidents.length
+      ? `${risks.length} risque(s) et ${incidents.length} incident(s) repérés par mots-clés pour la clause ${clause || 'n/c'} (vérification humaine requise).`
+      : `Aucun risque/incident évident sur les extraits récents pour la clause ${clause || 'n/c'} — contrôler manuellement le registre.`;
+
+  return { risks, incidents, summary };
 }
 
 /**
@@ -318,6 +407,86 @@ export async function analyzeComplianceAssist(input) {
     recommendedActions.push('Revoir les NC ouvertes susceptibles d’impacter cette exigence.');
   }
 
+  const terrainLinks = await loadIsoTerrainLinks({
+    tenantId,
+    siteId: input.siteId,
+    clause: req.clause,
+    normId: req.normId
+  });
+
+  /** @type {string[]} */
+  const missingEvidence = [];
+  if (!controlled.length) {
+    missingEvidence.push(
+      'Aucun document maîtrisé transmis dans la requête : fournir les titres de procédures / enregistrements pour affiner la preuve.'
+    );
+  }
+  if (maxJ < 0.05) {
+    missingEvidence.push(
+      'Faible recoupement textuel avec les documents disponibles : la preuve attendue pour cette clause est probablement absente ou mal référencée.'
+    );
+  }
+  if (countStrong === 0 && maxJ < 0.08) {
+    missingEvidence.push(
+      'Pas de correspondance documentaire solide : prévoir pièce(s) terrain (enregistrement, relevé, rapport) ou lien explicite dans le SMS.'
+    );
+  }
+  if (suggested !== 'conforme') {
+    missingEvidence.push(
+      'Consolider ou valider la preuve avant de conclure à la conformité pour cette exigence.'
+    );
+  }
+
+  /** @type {'high' | 'medium' | 'low'} */
+  let priority = 'low';
+  if (
+    suggested === 'non_conforme' ||
+    appSignals.overdueActions >= 6 ||
+    appSignals.openNc >= 5
+  ) {
+    priority = 'high';
+  } else if (
+    suggested === 'partiel' ||
+    appSignals.overdueActions >= 2 ||
+    appSignals.openNc >= 2 ||
+    maxJ < 0.06 ||
+    (terrainLinks.risks.length > 0 && suggested !== 'conforme')
+  ) {
+    priority = 'medium';
+  }
+
+  let confidence =
+    0.26 +
+    Math.min(0.52, maxJ * 2.35) +
+    Math.min(0.22, countStrong * 0.065) -
+    penalty * 0.07;
+  confidence = Math.max(0.14, Math.min(0.93, Math.round(confidence * 100) / 100));
+
+  const currentSt = req.currentStatus ? String(req.currentStatus) : '';
+  const statusAnalysis = [
+    currentSt ? `Statut enregistré dans le registre : ${currentSt}.` : '',
+    `Lecture moteur : ${statusLabels[suggested]} (croisement documents maîtrisés, imports récents, NC & actions ouvertes, liens risques/incidents).`,
+    parts.length > 1 ? parts[1] : parts[0]
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const isoAnalysis = {
+    type: 'iso_analysis',
+    confidence,
+    content: {
+      statusAnalysis,
+      missingEvidence,
+      recommendedActions: [...recommendedActions],
+      priority,
+      terrainLinks: {
+        risks: terrainLinks.risks,
+        incidents: terrainLinks.incidents,
+        summary: terrainLinks.summary
+      }
+    }
+  };
+
   return {
     suggestedStatus: suggested,
     statusLabel: statusLabels[suggested],
@@ -331,9 +500,10 @@ export async function analyzeComplianceAssist(input) {
       openNonConformities: appSignals.openNc,
       overdueActions: appSignals.overdueActions
     },
+    isoAnalysis,
     method: 'rules-local',
     humanValidationRequired: true,
     disclaimer:
-      'Suggestion générée par des règles internes (sans modèle d’IA externe). Elle ne remplace ni l’audit ni le jugement professionnel. Vous devez valider ou rejeter explicitement.'
+      'Analyse structurée (champ isoAnalysis, JSON) produite par des règles internes et données applicatives — pas de LLM externe. Elle ne remplace ni l’audit ni le jugement professionnel ; validez ou rejetez explicitement.'
   };
 }

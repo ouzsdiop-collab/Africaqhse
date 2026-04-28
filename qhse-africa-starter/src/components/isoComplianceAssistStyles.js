@@ -58,6 +58,17 @@ const CSS = `
 .iso-ca-override-label{margin:0 0 8px;font-size:11px;font-weight:700;color:var(--text3)}
 .iso-ca-override-row{display:flex;flex-wrap:wrap;gap:8px}
 .iso-ca-error-msg{margin:0 0 12px;font-size:13px;color:var(--color-text-danger);line-height:1.45}
+.iso-ca-history-block{margin-top:16px;padding-top:14px;border-top:1px solid rgba(148,163,184,.12)}
+.iso-ca-history-hint{margin:0 0 10px;font-size:11px;line-height:1.45;color:var(--text3)}
+.iso-req-history-body .iso-req-history-list{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.iso-req-history-body .iso-req-history-item{
+  display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;border-radius:10px;
+  border:1px solid rgba(148,163,184,.12);background:rgba(0,0,0,.08);font-size:12px;line-height:1.4;
+}
+.iso-req-history-kind{font-weight:800;color:var(--accent,#2dd4bf);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.iso-req-history-meta{font-size:11px;font-weight:600;color:var(--text3)}
+.iso-req-history-detail{font-size:12px;color:var(--text2);word-break:break-word}
+.iso-req-history-empty{margin:0;font-size:12px;color:var(--text3);line-height:1.45}
 `;
 
 export function ensureIsoComplianceAssistStyles() {

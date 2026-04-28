@@ -7,6 +7,8 @@ export const MODULE_META = {
   actions: { label: 'Actions', short: 'ACT', className: 'mod-actions' },
   audits: { label: 'Audits', short: 'AUD', className: 'mod-audits' },
   iso: { label: 'Conformité ISO', short: 'ISO', className: 'mod-iso' },
+  'iso-ai': { label: 'ISO · trace IA', short: 'IA', className: 'mod-iso-ai' },
+  risks: { label: 'Risques', short: 'RSK', className: 'mod-risks' },
   products: { label: 'Produits / FDS', short: 'PRD', className: 'mod-products' },
   context: { label: 'Contexte site', short: 'CTX', className: 'mod-context' },
   system: { label: 'Système', short: 'SYS', className: 'mod-system' },
@@ -15,6 +17,28 @@ export const MODULE_META = {
 
 export function moduleMeta(moduleId) {
   return MODULE_META[moduleId] || { label: moduleId || 'Non renseigné', short: 'N/A', className: 'mod-default' };
+}
+
+/**
+ * Libellés affichables pour les entrées `entityType === ai_suggestion`.
+ * @param {{ entityType?: string; aiTraceType?: string; userActionLabel?: string }} entry
+ * @returns {{ typeIa: string; userAction: string } | null}
+ */
+export function aiSuggestionJournalDisplay(entry) {
+  if (!entry || entry.entityType !== 'ai_suggestion') return null;
+  const t = String(entry.aiTraceType || '');
+  const typeIa =
+    t === 'suggestion_generated'
+      ? 'IA · suggestion'
+      : t === 'user_validated'
+        ? 'IA · validation'
+        : t === 'user_modified'
+          ? 'IA · ajustement'
+          : t === 'audit_report_generated'
+            ? 'IA · rapport audit'
+            : 'IA';
+  const userAction = String(entry.userActionLabel || '—').trim() || '—';
+  return { typeIa, userAction };
 }
 
 /**
@@ -94,6 +118,20 @@ export function classifyEntryKind(action) {
 }
 
 /**
+ * Classification filtre journal : prend en charge `entityType === ai_suggestion`.
+ * @param {{ action?: string; entityType?: string; aiTraceType?: string }} entry
+ */
+export function classifyEntryKindExtended(entry) {
+  if (entry?.entityType === 'ai_suggestion') {
+    const t = String(entry.aiTraceType || '');
+    if (t === 'suggestion_generated' || t === 'audit_report_generated') return 'create';
+    if (t === 'user_modified') return 'modify';
+    if (t === 'user_validated') return 'close';
+  }
+  return classifyEntryKind(entry?.action);
+}
+
+/**
  * @param {{ action?: string, module?: string, detail?: string }} entry
  */
 export function isActivityEntryCritical(entry) {
@@ -115,7 +153,7 @@ export function computeActivityQuickCounts(entries, period) {
   let crit = 0;
   let actLate = 0;
   slice.forEach((e) => {
-    const k = classifyEntryKind(e.action);
+    const k = classifyEntryKindExtended(e);
     if (e.module === 'incidents' && (k === 'create' || /créé|création|enregistré/i.test(e.action || ''))) {
       incCreated += 1;
     }
@@ -183,15 +221,27 @@ export function uniqueActivityUsers(entries) {
  *   period: ActivityLogPeriod;
  *   kind: 'all' | 'create' | 'modify' | 'close';
  *   user: string;
- *   criticalOnly: boolean;
+ *   module?: string;
+ *   auditMode?: boolean;
  * }} opts
  */
 export function filterActivityLogEntries(entries, opts) {
+  const moduleKey =
+    opts.module === undefined || opts.module === null
+      ? ''
+      : String(opts.module).trim();
   return entries.filter((e) => {
     if (!matchesActivityPeriod(e, opts.period)) return false;
-    if (opts.kind !== 'all' && classifyEntryKind(e.action) !== opts.kind) return false;
+    if (opts.kind !== 'all' && classifyEntryKindExtended(e) !== opts.kind) return false;
     if (opts.user && String(e.user || '').trim() !== opts.user) return false;
-    if (opts.criticalOnly && !isActivityEntryCritical(e)) return false;
+    if (moduleKey && moduleKey !== 'all') {
+      if (moduleKey === 'iso') {
+        if (e.module !== 'iso' && e.module !== 'iso-ai') return false;
+      } else if (e.module !== moduleKey) {
+        return false;
+      }
+    }
+    if (opts.auditMode && !isActivityEntryAuditMode(e)) return false;
     return true;
   });
 }
@@ -206,6 +256,8 @@ export function activityModuleHash(moduleId) {
     actions: 'actions',
     audits: 'audits',
     iso: 'iso',
+    'iso-ai': 'iso',
+    risks: 'risks',
     products: 'products',
     context: 'settings',
     system: 'settings',
@@ -231,6 +283,56 @@ export function isActivityLateActionMention(entry) {
 export function isActivityNcMention(entry) {
   const blob = `${entry.action || ''} ${entry.detail || ''}`.toLowerCase();
   return /non[- ]?conform|nc ouverte|non-conformité|non conformité/i.test(blob);
+}
+
+/**
+ * Mode audit : événements exploitables (correctifs, validations, audits, changements majeurs).
+ * @param {{ module?: string; action?: string; detail?: string; entityType?: string; aiTraceType?: string; requirementId?: string }} entry
+ */
+export function isActivityEntryAuditMode(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+
+  if (isActivityEntryCritical(entry)) return true;
+  if (isActivityNcMention(entry) || isActivityLateActionMention(entry)) return true;
+
+  if (entry.module === 'audits') return true;
+  if (entry.module === 'actions') return true;
+
+  if (entry.entityType === 'ai_suggestion') {
+    const t = String(entry.aiTraceType || '');
+    if (t === 'suggestion_generated') return false;
+    return true;
+  }
+
+  const blob = `${entry.action || ''} ${entry.detail || ''}`.toLowerCase();
+
+  if (entry.module === 'iso' || entry.module === 'iso-ai') {
+    if (entry.entityType === 'iso_requirement') return true;
+    if (
+      /statut|validation|exigence|conformité|export|pdf|rapport|preuve|assistant|mise à jour.*exigence/i.test(
+        blob
+      )
+    ) {
+      return true;
+    }
+  }
+
+  const k = classifyEntryKindExtended(entry);
+
+  if (entry.module === 'incidents') {
+    if (k === 'create' || k === 'close') return true;
+    if (k === 'modify') {
+      if (classifyActionImportance(entry.action) === 'high') return true;
+      if (/gravité|critique|majeur|sévérité|élevé/i.test(blob)) return true;
+      return false;
+    }
+  }
+
+  if (entry.module === 'risks' && (k === 'create' || k === 'modify' || k === 'close')) return true;
+
+  if (entry.module === 'products' && (k === 'modify' || k === 'close')) return true;
+
+  return false;
 }
 
 /**

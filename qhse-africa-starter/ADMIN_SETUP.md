@@ -50,6 +50,12 @@ Depuis `backend/`:
 npm run admin:create
 ```
 
+Vérification (diagnostic sécurisé, n’affiche pas le mot de passe ni le hash):
+
+```bash
+npm run admin:check
+```
+
 Comportement du script:
 - lit `SUPER_ADMIN_EMAIL` et `SUPER_ADMIN_PASSWORD`
 - crée **ou met à jour** l’utilisateur (idempotent)

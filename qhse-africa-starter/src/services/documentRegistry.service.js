@@ -60,6 +60,7 @@ export function mergeControlledDocumentRows(apiRows) {
         version: r.version ?? 'Non renseigné',
         type: r.type || 'other',
         classification: r.classification ?? null,
+        isoRequirementRef: r.isoRequirementRef ?? null,
         pendingValidation: Boolean(r.pendingValidation),
         rejected: Boolean(r.rejected),
         createdAt: r.createdAt ?? null,

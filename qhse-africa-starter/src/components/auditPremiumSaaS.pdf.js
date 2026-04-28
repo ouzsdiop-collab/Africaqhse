@@ -286,3 +286,91 @@ export function buildIsoConformityPdfHtml(data) {
   </section>
 </div>`;
 }
+
+/**
+ * Rapport « audit IA » : synthèse multi-blocs (même pipeline PDF que la conformité ISO).
+ * @param {ReturnType<typeof import('../services/isoAuditReport.service.js').buildIsoAuditReport>} report
+ */
+export function buildIsoAuditReportPdfHtml(report) {
+  const esc = (s) =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const cap = (arr, n) => (Array.isArray(arr) ? arr.slice(0, n) : []);
+
+  const ul = (items, fmt, max = 30) => {
+    const rows = cap(items, max);
+    if (!rows.length) return '<p class="qhse-pdf-muted">Aucun élément.</p>';
+    return `<ul class="qhse-pdf-ul">${rows.map((it) => `<li>${fmt(it)}</li>`).join('')}</ul>`;
+  };
+
+  const conform = ul(report.conformingPoints || [], (x) => `<strong>${esc(x.clause)}</strong> (${esc(x.normCode)}) — ${esc(x.title)}. <span class="qhse-pdf-muted">${esc(x.detail)}</span>`, 35);
+  const nc = ul(report.nonConformities || [], (x) => `<strong>${esc(x.clause)}</strong> — ${esc(x.title)}. ${esc(x.detail)}`, 35);
+  const partial = ul(report.partialGaps || [], (x) => `<strong>${esc(x.clause)}</strong> — ${esc(x.title)}. ${esc(x.detail)}`, 25);
+  const miss = ul(report.missingEvidence || [], (x) => `<strong>${esc(x.clause)}</strong> — ${esc(x.title)} : ${esc(x.detail)}`, 35);
+  const acts = ul(
+    report.priorityActions || [],
+    (x) =>
+      `${esc(x.title)} <span class="qhse-pdf-muted">(${esc(x.status)})</span>${x.overdue ? ' <strong>· retard</strong>' : ''}`,
+    30
+  );
+  const risks = ul(
+    report.criticalRisks || [],
+    (x) => `${esc(x.ref || '—')} — ${esc(x.title)} <span class="qhse-pdf-muted">(${esc(x.label)})</span>`,
+    25
+  );
+
+  const genAt = report.generatedAt ? new Date(report.generatedAt).toLocaleString('fr-FR') : esc(new Date().toLocaleString('fr-FR'));
+
+  return `
+<style>
+  .qhse-pdf-root { box-sizing: border-box; font-family: inherit; font-size: 10.5pt; color: #1a1a1a; background: #fff; line-height: 1.5; margin: 0; padding: 0; width: 100%; overflow: visible; position: relative; left: 0; }
+  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: 0 0 16px 0; }
+  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 0; box-sizing: border-box; overflow: visible; }
+  .qhse-pdf-page:last-child { page-break-after: auto; }
+  .qhse-pdf-title { font-size: 20pt; font-weight: 800; text-align: center; margin: 0 0 8px; }
+  .qhse-pdf-h2 { font-size: 12pt; color: #0f172a; border-bottom: 2px solid ${PDF_BRAND}; padding-bottom: 4px; margin: 16px 0 8px; }
+  .qhse-pdf-muted { color: #64748b; font-size: 9.5pt; }
+  .qhse-pdf-ul { margin: 6px 0 0; padding-left: 1.2rem; }
+  .qhse-pdf-ul li { margin-bottom: 6px; }
+  .qhse-pdf-brand { color: ${PDF_BRAND}; font-weight: 800; font-size: 10pt; margin-top: 16px; text-align: center; }
+  .qhse-pdf-footer { margin-top: 16px; font-size: 9pt; color: #64748b; text-align: center; }
+</style>
+<div class="qhse-pdf-root">
+  <section class="qhse-pdf-page">
+    <div class="qhse-pdf-band"></div>
+    <h1 class="qhse-pdf-title">RAPPORT AUDIT IA · PRÉPARATION CERTIFICATION</h1>
+    <p class="qhse-pdf-muted" style="text-align:center;margin:0 0 14px">Synthèse indicative (agrégation registre, preuves, terrain) · QHSE Control Africa</p>
+    <p><strong>Généré le :</strong> ${genAt}</p>
+    <p><strong>Scores :</strong> consolidé ${esc(String(report.score?.pct ?? '—'))} % · statuts ${esc(String(report.score?.legacyPct ?? '—'))} % · terrain ~${esc(String(report.score?.operationalPct ?? '—'))} %</p>
+    <h2 class="qhse-pdf-h2">Résumé</h2>
+    <p>${esc(report.summary || '')}</p>
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
+    <p class="qhse-pdf-brand">QHSE Control Africa</p>
+  </section>
+  <section class="qhse-pdf-page">
+    <div class="qhse-pdf-band"></div>
+    <h2 class="qhse-pdf-h2">Points conformes</h2>
+    ${conform}
+    <h2 class="qhse-pdf-h2">Non-conformités</h2>
+    ${nc}
+    <h2 class="qhse-pdf-h2">Écarts partiels</h2>
+    ${partial}
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
+    <p class="qhse-pdf-brand">QHSE Control Africa</p>
+  </section>
+  <section class="qhse-pdf-page">
+    <div class="qhse-pdf-band"></div>
+    <h2 class="qhse-pdf-h2">Preuves à renforcer</h2>
+    ${miss}
+    <h2 class="qhse-pdf-h2">Actions prioritaires (ouvertes)</h2>
+    ${acts}
+    <h2 class="qhse-pdf-h2">Risques critiques / très élevés</h2>
+    ${risks}
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel · À valider par l’auditeur / la direction</p>
+    <p class="qhse-pdf-brand">QHSE Control Africa</p>
+  </section>
+</div>`;
+}

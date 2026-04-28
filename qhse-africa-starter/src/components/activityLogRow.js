@@ -1,27 +1,27 @@
 import {
-  moduleMeta,
   classifyActionImportance,
-  classifyEntryKind,
-  activityModuleHash
+  classifyEntryKindExtended,
+  activityModuleHash,
+  aiSuggestionJournalDisplay
 } from './activityLogHelpers.js';
+import { getAuditReadableJournalParts } from './activityLogReadable.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /**
- * Une ligne du journal : DOM uniquement, prête pour surcouche filtre / tri (entrée déjà filtrée en amont).
+ * Ligne du journal : présentation « lecture audit » (date, qui, action, objet, résultat).
  */
 export function createActivityLogRow(entry) {
-  const meta = moduleMeta(entry.module);
+  const parts = getAuditReadableJournalParts(entry);
   const importance = classifyActionImportance(entry.action);
-  const kind = classifyEntryKind(entry.action);
+  const aiDisp = aiSuggestionJournalDisplay(entry);
+  const kind = classifyEntryKindExtended(entry);
 
   const row = document.createElement('article');
-  row.className = 'activity-log-row activity-log-row--clickable';
+  row.className = 'activity-log-row activity-log-row--clickable activity-log-row--audit-read';
   row.tabIndex = 0;
   row.setAttribute('role', 'link');
-  row.setAttribute(
-    'aria-label',
-    `Ouvrir le module ${meta.label} : ${entry.action || 'entrée'}`
-  );
+  row.setAttribute('aria-label', parts.narrative);
+
   if (importance === 'high') {
     row.classList.add('activity-log-row--emphasis');
   }
@@ -37,63 +37,81 @@ export function createActivityLogRow(entry) {
     }
   });
 
-  const cMod = document.createElement('div');
-  cMod.className = 'activity-log-cell activity-log-cell--module';
-  const badge = document.createElement('span');
-  badge.className = `activity-log-module-badge ${meta.className}`;
-  badge.title = meta.label;
-  const short = document.createElement('span');
-  short.className = 'activity-log-module-short';
-  short.textContent = meta.short;
-  const full = document.createElement('span');
-  full.className = 'activity-log-module-full';
-  full.textContent = meta.label;
-  badge.append(short, full);
-  cMod.append(badge);
+  const cDate = document.createElement('div');
+  cDate.className = 'activity-log-cell activity-log-cell--audit-date';
+  const time = document.createElement('span');
+  time.className = 'activity-log-audit-date-main';
+  time.textContent = parts.dateDisplay;
+  const modChip = document.createElement('span');
+  modChip.className = `activity-log-audit-mod-pill ${parts.moduleClass}`;
+  modChip.textContent = parts.moduleShort;
+  modChip.title = 'Périmètre fonctionnel (raccourci)';
+  cDate.append(time, modChip);
 
-  const cAct = document.createElement('div');
-  cAct.className = 'activity-log-cell activity-log-cell--action';
+  const cUser = document.createElement('div');
+  cUser.className = 'activity-log-cell activity-log-cell--audit-user';
+  const user = document.createElement('span');
+  user.className = 'activity-log-audit-user-name';
+  user.textContent = parts.userDisplay;
+  cUser.append(user);
+
+  const cAction = document.createElement('div');
+  cAction.className = 'activity-log-cell activity-log-cell--audit-action';
   const actWrap = document.createElement('div');
   actWrap.className = 'activity-log-action-wrap';
   const kindBadge = document.createElement('span');
-  kindBadge.className = `activity-log-kind-badge activity-log-kind-badge--${kind}`;
-  kindBadge.textContent =
-    kind === 'create' ? 'Créé' : kind === 'modify' ? 'Modifié' : kind === 'close' ? 'Clôturé' : 'Autre';
-  kindBadge.title = 'Type d’événement (classification locale pour lecture ISO)';
-  const strong = document.createElement('span');
-  strong.className = 'activity-log-strong';
-  strong.textContent = entry.action || 'Non renseigné';
-  actWrap.append(kindBadge, strong);
+  kindBadge.className = aiDisp
+    ? `activity-log-kind-badge activity-log-kind-badge--ai activity-log-kind-badge--ai-${String(entry.aiTraceType || 'other').replace(/[^a-z0-9_-]/gi, '')}`
+    : `activity-log-kind-badge activity-log-kind-badge--${kind}`;
+  kindBadge.textContent = aiDisp
+    ? aiDisp.userAction
+    : kind === 'create'
+      ? 'Création'
+      : kind === 'modify'
+        ? 'Modification'
+        : kind === 'close'
+          ? 'Clôture'
+          : 'Autre';
+  kindBadge.title = 'Nature de l’événement';
+  const actionText = document.createElement('p');
+  actionText.className = 'activity-log-audit-action-text';
+  actionText.textContent = parts.actionClear;
+  actWrap.append(kindBadge, actionText);
+  if (aiDisp) {
+    const iaHint = document.createElement('span');
+    iaHint.className = 'activity-log-ia-inline-hint';
+    iaHint.textContent = aiDisp.typeIa;
+    actWrap.append(iaHint);
+  }
   if (importance === 'high') {
     const mark = document.createElement('span');
     mark.className = 'activity-log-importance';
     mark.textContent = 'À suivre';
-    mark.title = 'Action ou événement sensible : conservé pour la traçabilité';
+    mark.title = 'Événement sensible pour la traçabilité';
     actWrap.append(mark);
   }
-  cAct.append(actWrap);
+  cAction.append(actWrap);
 
-  const cDet = document.createElement('div');
-  cDet.className = 'activity-log-cell activity-log-cell--detail';
-  const det = document.createElement('span');
-  det.className = 'activity-log-detail-text';
-  det.textContent = entry.detail || '';
-  cDet.append(det);
+  const cObj = document.createElement('div');
+  cObj.className = 'activity-log-cell activity-log-cell--audit-object';
+  const objK = document.createElement('span');
+  objK.className = 'activity-log-audit-field-k';
+  objK.textContent = 'Objet';
+  const objV = document.createElement('span');
+  objV.className = 'activity-log-audit-field-v';
+  objV.textContent = parts.objectText;
+  cObj.append(objK, objV);
 
-  const cUser = document.createElement('div');
-  cUser.className = 'activity-log-cell activity-log-cell--user';
-  const user = document.createElement('span');
-  user.className = 'activity-log-meta';
-  user.textContent = entry.user || 'Non renseigné';
-  cUser.append(user);
+  const cRes = document.createElement('div');
+  cRes.className = 'activity-log-cell activity-log-cell--audit-result';
+  const resK = document.createElement('span');
+  resK.className = 'activity-log-audit-field-k';
+  resK.textContent = 'Résultat';
+  const resV = document.createElement('span');
+  resV.className = 'activity-log-audit-field-v';
+  resV.textContent = parts.resultText;
+  cRes.append(resK, resV);
 
-  const cTime = document.createElement('div');
-  cTime.className = 'activity-log-cell activity-log-cell--time';
-  const time = document.createElement('span');
-  time.className = 'activity-log-time';
-  time.textContent = entry.timestamp || 'Non disponible';
-  cTime.append(time);
-
-  row.append(cMod, cAct, cDet, cUser, cTime);
+  row.append(cDate, cUser, cAction, cObj, cRes);
   return row;
 }

@@ -15,13 +15,27 @@ import { ensureQhsePilotageStyles } from '../components/qhsePilotageStyles.js';
 import { openComplianceAssistModal } from '../components/isoComplianceAssistPanel.js';
 import { appState } from '../utils/state.js';
 import { getSessionUser } from '../data/sessionUser.js';
-import { activityLogStore } from '../data/activityLog.js';
+import {
+  activityLogStore,
+  ENTITY_ISO_REQUIREMENT,
+  AI_TRACE_TYPE,
+  AI_TRACE_ACTOR_IA,
+  buildAiSuggestionJournalEntry
+} from '../data/activityLog.js';
+import { buildIsoRequirementHistoryTimeline } from '../utils/isoRequirementHistory.js';
 import {
   fetchControlledDocumentsFromApi,
   mergeControlledDocumentRows,
   computeDocumentRegistrySummary,
   refreshDocComplianceNotifications
 } from '../services/documentRegistry.service.js';
+import { buildIsoAuditReport } from '../services/isoAuditReport.service.js';
+import { openIsoAuditReportModal } from '../components/isoAuditReportPanel.js';
+import {
+  getIsoTerrainSnapshot,
+  invalidateIsoTerrainSnapshotCache,
+  computeTerrainLinksForRequirement
+} from '../services/isoTerrainLinks.service.js';
 import {
   getRequirements,
   getNormById,
@@ -48,6 +62,7 @@ import { withSiteQuery } from '../utils/siteFilter.js';
 import { readIsoReqColumnMode, LS_ISO_REQ_TABLE_COLS } from '../utils/isoTablePreferences.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { ISO_REQ_STATUS_EN_FR, isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
+import { computeIsoScore } from '../utils/isoScore.js';
 
 function buildIsoNormScoresForPdf() {
   const reqs = getRequirements();
@@ -167,6 +182,10 @@ async function openDocUpdateAction(row, onAddLog) {
     import('../services/users.service.js')
   ]);
   const users = await fetchUsers().catch(() => []);
+  const isoReqRef =
+    row.isoRequirementRef != null && String(row.isoRequirementRef).trim()
+      ? String(row.isoRequirementRef).trim()
+      : '';
   openActionCreateDialog({
     users,
     defaults: {
@@ -174,7 +193,7 @@ async function openDocUpdateAction(row, onAddLog) {
       origin: 'other',
       actionType: 'corrective',
       priority: row.complianceStatus === 'expire' ? 'critique' : 'haute',
-      description: `Renouveler ou réviser le document « ${row.name} » (statut : ${row.complianceLabel || row.complianceStatus}). Réf. ${row.id}.`
+      description: `Renouveler ou réviser le document « ${row.name} » (statut : ${row.complianceLabel || row.complianceStatus}). Réf. document ${row.id}.${isoReqRef ? ` Exigence ISO : ${isoReqRef}.` : ''}`
     },
     builtInSuccessToast: false,
     onCreated: (payload) => {
@@ -195,8 +214,15 @@ async function openDocUpdateAction(row, onAddLog) {
         onAddLog({
           module: 'iso',
           action: 'Action créée depuis document maîtrisé',
-          detail: row.name,
-          user: getSessionUser()?.name || 'Utilisateur'
+          detail: isoReqRef ? `${row.name} → ${isoReqRef}` : row.name,
+          user: getSessionUser()?.name || 'Utilisateur',
+          ...(isoReqRef
+            ? {
+                entityType: ENTITY_ISO_REQUIREMENT,
+                requirementId: isoReqRef,
+                isoHistoryKind: 'action_linked'
+              }
+            : {})
         });
       }
     }
@@ -636,22 +662,27 @@ function formatEvidenceWithImports(baseEvidence, requirementId) {
 }
 
 /**
- * @param {ReturnType<typeof computeComplianceSummary>} s
+ * @param {ReturnType<typeof computeIsoScore>} s
  */
 function createGlobalSnapshot(s) {
   const wrap = document.createElement('div');
   wrap.className = `iso-global-snapshot iso-global-snapshot--${s.globalTone}`;
   wrap.innerHTML = `
     <div class="iso-global-snapshot-inner">
-      <div class="iso-global-score" aria-label="Score de conformité">
+      <div class="iso-global-score" aria-label="Score ISO consolidé">
         <span class="iso-global-pct">${s.pct}</span>
         <span class="iso-global-pct-suffix">%</span>
-        <div class="iso-global-score-caption">conformité (exigences)</div>
+        <div class="iso-global-score-caption">score ISO consolidé</div>
+        <div class="iso-global-score-legacy" aria-label="Référence statuts seuls"></div>
       </div>
       <div class="iso-global-copy">
         <div class="iso-global-label">${escapeHtml(s.globalLabel)}</div>
         <p class="iso-global-message">${escapeHtml(s.message)}</p>
         <div class="iso-global-meta" aria-hidden="true"></div>
+        <details class="iso-global-score-details">
+          <summary class="iso-global-score-details-sum">Pourquoi ce score ?</summary>
+          <ul class="iso-global-score-breakdown" aria-label="Détail du calcul"></ul>
+        </details>
       </div>
     </div>
   `;
@@ -659,12 +690,26 @@ function createGlobalSnapshot(s) {
   if (meta) {
     meta.textContent = `${s.ok} conforme(s) · ${s.partial} partiel(le)(s) · ${s.nonOk} non conforme(s)`;
   }
+  const leg = wrap.querySelector('.iso-global-score-legacy');
+  if (leg) {
+    leg.textContent = `Réf. statuts seuls : ${s.legacyPct} % · volet terrain ~${s.operationalPct} %`;
+  }
+  const ul = wrap.querySelector('.iso-global-score-breakdown');
+  if (ul) {
+    ul.replaceChildren();
+    for (const b of s.breakdown) {
+      const li = document.createElement('li');
+      const pctLabel = b.pct != null ? `${b.pct} %` : '—';
+      li.innerHTML = `<strong>${escapeHtml(b.label)}</strong> <span class="iso-global-score-br-pct">${escapeHtml(pctLabel)}</span><span class="iso-global-score-br-detail">${escapeHtml(b.detail)}</span>`;
+      ul.append(li);
+    }
+  }
   return wrap;
 }
 
 /**
  * @param {HTMLElement} el
- * @param {ReturnType<typeof computeComplianceSummary>} s
+ * @param {ReturnType<typeof computeIsoScore>} s
  */
 function updateGlobalSnapshot(el, s) {
   el.className = `iso-global-snapshot iso-global-snapshot--${s.globalTone}`;
@@ -672,10 +717,24 @@ function updateGlobalSnapshot(el, s) {
   const label = el.querySelector('.iso-global-label');
   const message = el.querySelector('.iso-global-message');
   const meta = el.querySelector('.iso-global-meta');
+  const leg = el.querySelector('.iso-global-score-legacy');
   if (pct) pct.textContent = String(s.pct);
   if (label) label.textContent = s.globalLabel;
   if (message) message.textContent = s.message;
   if (meta) meta.textContent = `${s.ok} conforme(s) · ${s.partial} partiel(le)(s) · ${s.nonOk} non conforme(s)`;
+  if (leg) {
+    leg.textContent = `Réf. statuts seuls : ${s.legacyPct} % · volet terrain ~${s.operationalPct} %`;
+  }
+  const ul = el.querySelector('.iso-global-score-breakdown');
+  if (ul) {
+    ul.replaceChildren();
+    for (const b of s.breakdown) {
+      const li = document.createElement('li');
+      const pctLabel = b.pct != null ? `${b.pct} %` : '—';
+      li.innerHTML = `<strong>${escapeHtml(b.label)}</strong> <span class="iso-global-score-br-pct">${escapeHtml(pctLabel)}</span><span class="iso-global-score-br-detail">${escapeHtml(b.detail)}</span>`;
+      ul.append(li);
+    }
+  }
 }
 
 /**
@@ -785,9 +844,335 @@ function createNormCardLite(norm) {
 }
 
 /**
+ * @param {HTMLElement} host
+ * @param {{ id: string; clause?: string; title?: string }} row
+ */
+function paintIsoRequirementHistory(host, row) {
+  host.replaceChildren();
+  const items = buildIsoRequirementHistoryTimeline(String(row.id), row);
+  if (!items.length) {
+    const p = document.createElement('p');
+    p.className = 'iso-req-history-empty';
+    p.textContent = 'Aucun événement enregistré pour cette exigence.';
+    host.append(p);
+    return;
+  }
+  const ul = document.createElement('ul');
+  ul.className = 'iso-req-history-list';
+  for (const it of items.slice(0, 24)) {
+    const li = document.createElement('li');
+    li.className = 'iso-req-history-item';
+    const kind = document.createElement('span');
+    kind.className = 'iso-req-history-kind';
+    kind.textContent = it.label;
+    const meta = document.createElement('span');
+    meta.className = 'iso-req-history-meta';
+    meta.textContent = `${new Date(it.at).toLocaleString('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    })} — ${it.user}`;
+    const det = document.createElement('span');
+    det.className = 'iso-req-history-detail';
+    det.textContent = it.detail;
+    li.append(kind, meta, det);
+    ul.append(li);
+  }
+  host.append(ul);
+}
+
+/**
+ * @param {Record<string, unknown>} data — réponse brute POST /api/compliance/analyze-assist
+ */
+function fallbackIsoAnalysisPayload(data) {
+  const st = /** @type {string} */ (data?.suggestedStatus || 'partiel');
+  const pri = st === 'non_conforme' ? 'high' : st === 'partiel' ? 'medium' : 'low';
+  return {
+    type: 'iso_analysis',
+    confidence: 0.42,
+    content: {
+      statusAnalysis: String(
+        data?.explanation || 'Réponse sans champ isoAnalysis — serveur à mettre à jour ou mode dégradé.'
+      ),
+      missingEvidence: [],
+      recommendedActions: Array.isArray(data?.recommendedActions) ? [...data.recommendedActions] : [],
+      priority: pri,
+      terrainLinks: {
+        risks: [],
+        incidents: [],
+        summary: 'Liens risques/incidents non fournis dans cette réponse.'
+      }
+    }
+  };
+}
+
+/**
+ * Bloc « Analyse IA » par ligne (appel moteur interne + JSON structuré isoAnalysis).
+ * @param {HTMLElement} exigenceHost
+ * @param {Record<string, unknown>} row
+ * @param {string} normCode
+ * @param {{
+ *   getDocumentRows?: () => object[];
+ *   onAddLog?: (e: object) => void;
+ *   afterComplianceApply?: () => void;
+ * }} ctx
+ */
+function mountIsoRowAiAnalysis(exigenceHost, row, normCode, ctx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'iso-req-ai';
+  const head = document.createElement('div');
+  head.className = 'iso-req-ai-head';
+  const title = document.createElement('span');
+  title.className = 'iso-req-ai-title';
+  title.textContent = 'Analyse IA';
+  const runBtn = document.createElement('button');
+  runBtn.type = 'button';
+  runBtn.className = 'btn btn-secondary btn-sm iso-req-ai-run';
+  runBtn.textContent = 'Lancer l’analyse';
+  head.append(title, runBtn);
+  const panel = document.createElement('div');
+  panel.className = 'iso-req-ai-panel';
+  panel.hidden = true;
+  panel.setAttribute('aria-live', 'polite');
+  wrap.append(head, panel);
+  exigenceHost.append(wrap);
+
+  function priorityLabel(p) {
+    if (p === 'high') return 'Priorité élevée';
+    if (p === 'medium') return 'Priorité moyenne';
+    return 'Priorité faible';
+  }
+
+  function paintAnalysis(panelEl, iso, rawApi) {
+    panelEl.replaceChildren();
+    const content = iso?.content || {};
+    const conf =
+      typeof iso?.confidence === 'number' && Number.isFinite(iso.confidence)
+        ? Math.round(iso.confidence * 100)
+        : null;
+    const pri = /** @type {'high'|'medium'|'low'} */ (content.priority || 'low');
+
+    const meta = document.createElement('div');
+    meta.className = 'iso-req-ai-meta';
+    const badge = document.createElement('span');
+    badge.className = `iso-req-ai-prio iso-req-ai-prio--${pri}`;
+    badge.textContent = priorityLabel(pri);
+    meta.append(badge);
+    if (conf != null) {
+      const cspan = document.createElement('span');
+      cspan.className = 'iso-req-ai-conf';
+      cspan.textContent = `Confiance moteur ${conf} %`;
+      meta.append(cspan);
+    }
+    panelEl.append(meta);
+
+    if (content.statusAnalysis) {
+      const p = document.createElement('p');
+      p.className = 'iso-req-ai-status';
+      p.textContent = String(content.statusAnalysis);
+      panelEl.append(p);
+    }
+
+    const miss = Array.isArray(content.missingEvidence) ? content.missingEvidence : [];
+    if (miss.length) {
+      const h = document.createElement('p');
+      h.className = 'iso-req-ai-subh';
+      h.textContent = 'Preuves / écarts signalés';
+      const ul = document.createElement('ul');
+      ul.className = 'iso-req-ai-list';
+      miss.forEach((t) => {
+        const li = document.createElement('li');
+        li.textContent = String(t);
+        ul.append(li);
+      });
+      panelEl.append(h, ul);
+    }
+
+    const acts = Array.isArray(content.recommendedActions) ? content.recommendedActions : [];
+    if (acts.length) {
+      const h = document.createElement('p');
+      h.className = 'iso-req-ai-subh';
+      h.textContent = 'Actions recommandées';
+      const ul = document.createElement('ul');
+      ul.className = 'iso-req-ai-list';
+      acts.forEach((t) => {
+        const li = document.createElement('li');
+        li.textContent = String(t);
+        ul.append(li);
+      });
+      panelEl.append(h, ul);
+    }
+
+    const tl = content.terrainLinks && typeof content.terrainLinks === 'object' ? content.terrainLinks : {};
+    const risks = Array.isArray(tl.risks) ? tl.risks : [];
+    const incs = Array.isArray(tl.incidents) ? tl.incidents : [];
+    if (tl.summary || risks.length || incs.length) {
+      const h = document.createElement('p');
+      h.className = 'iso-req-ai-subh';
+      h.textContent = 'Risques & incidents (aperçu)';
+      panelEl.append(h);
+      if (tl.summary) {
+        const sum = document.createElement('p');
+        sum.className = 'iso-req-ai-terrain-sum';
+        sum.textContent = String(tl.summary);
+        panelEl.append(sum);
+      }
+      const rowLinks = document.createElement('div');
+      rowLinks.className = 'iso-req-ai-terrain-actions';
+      risks.slice(0, 3).forEach((r) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary btn-sm';
+        b.textContent = `Risque : ${r.title ? String(r.title).slice(0, 42) : r.ref || '…'}`;
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          qhseNavigate('risks', {
+            skipDefaults: true,
+            scrollToId: 'risks-register-anchor',
+            focusRiskTitle: r.title || String(row.clause),
+            source: 'iso_row_ai'
+          });
+        });
+        rowLinks.append(b);
+      });
+      incs.slice(0, 3).forEach((i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary btn-sm';
+        b.textContent = `Incident ${i.ref || ''}`.trim();
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          qhseNavigate('incidents', {
+            skipDefaults: true,
+            scrollToId: 'incidents-recent-list',
+            ...(i.ref ? { focusIncidentRef: String(i.ref) } : { focusIncidentHintTitle: String(row.clause) }),
+            source: 'iso_row_ai'
+          });
+        });
+        rowLinks.append(b);
+      });
+      if (rowLinks.childElementCount) panelEl.append(rowLinks);
+    }
+
+    const foot = document.createElement('p');
+    foot.className = 'iso-req-ai-foot';
+    foot.textContent = String(
+      rawApi?.disclaimer ||
+        'Suggestion indicative : validation humaine obligatoire avant toute décision de conformité.'
+    );
+    panelEl.append(foot);
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'iso-req-ai-apply-row';
+    const suggested = rawApi?.suggestedStatus;
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.className = 'btn btn-primary btn-sm iso-req-ai-apply';
+    applyBtn.textContent = 'Appliquer';
+    const canApply =
+      suggested === 'conforme' || suggested === 'partiel' || suggested === 'non_conforme';
+    const unchanged = suggested === row.status;
+    applyBtn.disabled = !canApply || unchanged;
+    applyBtn.title = unchanged
+      ? 'Le statut suggéré est déjà celui du registre.'
+      : `Enregistrer le statut suggéré : ${conformityLabel(isoRequirementStatusNormKey(/** @type {'conforme'|'partiel'|'non_conforme'} */ (suggested)))}`;
+
+    applyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void (async () => {
+        if (!canApply || suggested === row.status) return;
+        const gateOk = await ensureSensitiveAccess('critical_validation', {
+          contextLabel: 'application du statut suggéré par l’analyse ISO (ligne registre)'
+        });
+        if (!gateOk) {
+          showToast('Application annulée.', 'info');
+          return;
+        }
+        const saved = await setRequirementStatus(String(row.id), /** @type {'conforme'|'partiel'|'non_conforme'} */ (suggested));
+        if (!saved) {
+          showToast('Synchronisation impossible. Statut inchangé.', 'warning');
+          return;
+        }
+        showToast(`Statut appliqué : ${conformityLabel(isoRequirementStatusNormKey(/** @type {'conforme'|'partiel'|'non_conforme'} */ (suggested)))}.`, 'success');
+        if (typeof ctx.onAddLog === 'function') {
+          ctx.onAddLog({
+            module: 'iso',
+            action: 'Statut exigence appliqué depuis analyse IA (ligne)',
+            detail: `${row.id} → ${suggested}`,
+            user: getSessionUser()?.name || 'Utilisateur',
+            entityType: ENTITY_ISO_REQUIREMENT,
+            requirementId: String(row.id),
+            isoHistoryKind: 'status_changed'
+          });
+        }
+        ctx.afterComplianceApply?.();
+        applyBtn.disabled = true;
+      })();
+    });
+    actionsRow.append(applyBtn);
+    panelEl.append(actionsRow);
+  }
+
+  runBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    void (async () => {
+      runBtn.disabled = true;
+      panel.hidden = false;
+      panel.textContent = 'Analyse en cours…';
+      try {
+        const docs = typeof ctx.getDocumentRows === 'function' ? ctx.getDocumentRows() : [];
+        const res = await qhseFetch('/api/compliance/analyze-assist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requirement: {
+              id: row.id,
+              normId: row.normId,
+              normCode,
+              clause: row.clause,
+              title: row.title,
+              summary: row.summary,
+              evidence: row.evidence,
+              currentStatus: row.status
+            },
+            controlledDocuments: docs.map((d) => ({
+              name: d.name,
+              version: d.version || 'Non renseigné'
+            })),
+            siteId: appState.activeSiteId ?? null
+          })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          panel.replaceChildren();
+          const err = document.createElement('p');
+          err.className = 'iso-req-ai-error';
+          err.textContent = String(data?.error || `Erreur ${res.status}`);
+          panel.append(err);
+          return;
+        }
+        const iso = data?.isoAnalysis && data.isoAnalysis.type === 'iso_analysis' ? data.isoAnalysis : fallbackIsoAnalysisPayload(data);
+        paintAnalysis(panel, iso, data);
+      } catch {
+        panel.replaceChildren();
+        const err = document.createElement('p');
+        err.className = 'iso-req-ai-error';
+        err.textContent = 'Réseau indisponible.';
+        panel.append(err);
+      } finally {
+        runBtn.disabled = false;
+      }
+    })();
+  });
+}
+
+/**
  * @param {{
  *   onAnalyze: (row: Record<string, unknown> & { normCode: string }) => void;
  *   refreshTable: () => void;
+ *   getDocumentRows?: () => object[];
+ *   reloadTerrainLinks?: () => void;
+ *   onAddLog?: (e: object) => void;
+ *   afterComplianceApply?: () => void;
  * }} ctx
  * @param {{ root: HTMLElement; update: (s: ReturnType<typeof computeDocumentRegistrySummary>) => void }} registryDocImpact
  */
@@ -868,7 +1253,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
   const isoToolbarMeta = document.createElement('span');
   isoToolbarMeta.className = 'qhse-table-toolbar__meta';
   isoToolbarMeta.textContent =
-    'Par défaut : exigence, statut, action. Responsable et preuve dans « Colonnes complètes » ou au détail.';
+    'Par défaut : exigence, statut, action. Sous chaque exigence : liens terrain, historique, bloc Analyse IA (JSON structuré côté API). Responsable et preuve dans « Colonnes complètes » ou au détail.';
   const isoColBtn = document.createElement('button');
   isoColBtn.type = 'button';
   isoColBtn.className = 'btn btn-secondary btn-sm';
@@ -888,6 +1273,123 @@ function createRequirementsTable(ctx, registryDocImpact) {
       (isoReqColMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
   });
   isoToolbar.append(isoToolbarMeta, isoColBtn);
+
+  /** @type {Awaited<ReturnType<typeof getIsoTerrainSnapshot>> | null} */
+  let terrainSnap = null;
+  let terrainLoadGen = 0;
+
+  function getDocRowsForTerrain() {
+    return typeof ctx.getDocumentRows === 'function' ? ctx.getDocumentRows() : [];
+  }
+
+  function paintTerrainRow(line, row, snap) {
+    const host = line.querySelector('[data-iso-terrain]');
+    if (!host) return;
+    host.replaceChildren();
+    const hint = document.createElement('span');
+    hint.className = 'iso-terrain-links-hint';
+    hint.textContent = 'Terrain (indicatif) · liaison texte / réf. ISO';
+    host.append(hint);
+
+    const docs = getDocRowsForTerrain();
+    const info = computeTerrainLinksForRequirement(row, snap, docs);
+    const { navHints } = info;
+
+    const mkBadge = (label, count, onNavigate, opts = {}) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className =
+        'iso-terrain-badge' + (count > 0 && onNavigate ? '' : ' iso-terrain-badge--muted');
+      b.textContent = `${label} ${count}`;
+      if (count > 0 && onNavigate) {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onNavigate();
+        });
+      } else {
+        b.disabled = true;
+      }
+      if (opts.title) b.title = opts.title;
+      return b;
+    };
+
+    const badges = document.createElement('div');
+    badges.className = 'iso-terrain-badges';
+
+    badges.append(
+      mkBadge('Risques', info.riskCount, () =>
+        qhseNavigate('risks', {
+          skipDefaults: true,
+          scrollToId: 'risks-register-anchor',
+          focusRiskTitle: navHints.riskTitle || `${row.clause} ${row.title}`,
+          source: 'iso_terrain_links'
+        })
+      ),
+      mkBadge('Incidents', info.incidentCount, () =>
+        qhseNavigate('incidents', {
+          skipDefaults: true,
+          scrollToId: 'incidents-recent-list',
+          ...(navHints.incidentRef
+            ? { focusIncidentRef: navHints.incidentRef }
+            : { focusIncidentHintTitle: `${row.clause} ${row.title}` }),
+          source: 'iso_terrain_links'
+        })
+      ),
+      mkBadge('Actions ouv.', info.openActionCount, () =>
+        qhseNavigate('actions', {
+          skipDefaults: true,
+          scrollToId: 'qhse-actions-col-overdue',
+          ...(navHints.actionId
+            ? { focusActionId: navHints.actionId }
+            : { focusActionTitle: `${row.clause} ${row.title}` }),
+          source: 'iso_terrain_links'
+        })
+      ),
+      mkBadge('Audits', info.auditCount, () =>
+        qhseNavigate('audits', {
+          skipDefaults: true,
+          scrollToId: 'audit-cockpit-tier-score',
+          ...(navHints.auditRef ? { focusAuditRef: navHints.auditRef } : {}),
+          source: 'iso_terrain_links'
+        }),
+        {
+          title:
+            info.recentAudits.length > 0
+              ? info.recentAudits.map((a) => a.ref).join(', ')
+              : 'Aucun audit lié par texte'
+        }
+      ),
+      mkBadge(
+        'Docs',
+        info.documentCount,
+        info.documentCount > 0
+          ? () => {
+              ensureIsoDocsPanelOpen();
+              window.requestAnimationFrame(() => {
+                document.getElementById('iso-docs-priority-anchor')?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'start'
+                });
+              });
+            }
+          : null
+      )
+    );
+
+    host.append(badges);
+
+    if (info.recentAudits.length > 0) {
+      const audLine = document.createElement('div');
+      audLine.className = 'iso-terrain-audit-mini';
+      const refs = info.recentAudits
+        .map((a) => a.ref)
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(' · ');
+      audLine.textContent = `Audits récents : ${refs}`;
+      host.append(audLine);
+    }
+  }
 
   function renderRows() {
     table.querySelectorAll('.iso-table-row').forEach((el) => el.remove());
@@ -920,7 +1422,21 @@ function createRequirementsTable(ctx, registryDocImpact) {
       const normSmall = document.createElement('span');
       normSmall.className = 'iso-cell-muted iso-cell-small';
       normSmall.textContent = normCode;
-      exigence.append(normSmall);
+      const terrainHost = document.createElement('div');
+      terrainHost.className = 'iso-terrain-links';
+      terrainHost.setAttribute('data-iso-terrain', String(row.id));
+      const historyDetails = document.createElement('details');
+      historyDetails.className = 'iso-req-history';
+      const historySum = document.createElement('summary');
+      historySum.className = 'iso-req-history-summary';
+      historySum.textContent = 'Historique';
+      const historyBody = document.createElement('div');
+      historyBody.className = 'iso-req-history-body';
+      historyDetails.append(historySum, historyBody);
+      exigence.append(normSmall, terrainHost, historyDetails);
+      paintTerrainRow(line, row, terrainSnap);
+      paintIsoRequirementHistory(historyBody, row);
+      mountIsoRowAiAnalysis(exigence, row, normCode, ctx);
 
       const statCell = document.createElement('span');
       statCell.className = 'iso-req-status-cell';
@@ -944,10 +1460,14 @@ function createRequirementsTable(ctx, registryDocImpact) {
       const openRow = () => ctx.onAnalyze({ ...row, normCode });
       line.addEventListener('click', (e) => {
         if (e.target.closest('button')) return;
+        if (e.target.closest('.iso-req-history')) return;
+        if (e.target.closest('.iso-req-ai')) return;
         openRow();
       });
       line.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
+          if (e.target.closest('.iso-req-history')) return;
+          if (e.target.closest('.iso-req-ai')) return;
           e.preventDefault();
           openRow();
         }
@@ -967,8 +1487,32 @@ function createRequirementsTable(ctx, registryDocImpact) {
     });
   }
 
+  async function loadTerrainIfNeeded() {
+    const g = ++terrainLoadGen;
+    try {
+      const snap = await getIsoTerrainSnapshot();
+      if (g !== terrainLoadGen) return;
+      terrainSnap = snap;
+    } catch {
+      if (g !== terrainLoadGen) return;
+      terrainSnap = null;
+    }
+    renderRows();
+  }
+
   renderRows();
-  ctx.refreshTable = renderRows;
+  void loadTerrainIfNeeded();
+
+  ctx.refreshTable = () => {
+    renderRows();
+  };
+
+  ctx.reloadTerrainLinks = () => {
+    invalidateIsoTerrainSnapshotCache();
+    terrainSnap = null;
+    renderRows();
+    void loadTerrainIfNeeded();
+  };
   wrap.append(registryDocImpact.root, filterHost, isoToolbar, table);
   return wrap;
 }
@@ -982,6 +1526,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
  */
 function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) {
   const root = document.createElement('div');
+  root.id = 'iso-docs-priority-anchor';
   root.className = 'iso-docs-priority';
 
   const importBar = document.createElement('div');
@@ -1040,11 +1585,20 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
             });
             showToast('Document rattaché à l’exigence. Preuve enregistrée localement.', 'success');
             if (typeof onAddLog === 'function') {
+              const actor = validatedBy || getSessionUser()?.name || 'Utilisateur';
+              const validated = Boolean(String(validatedBy || '').trim());
               onAddLog({
                 module: 'iso',
-                action: 'Import document validé (preuve)',
+                action:
+                  proofStatus === 'present' && validated
+                    ? 'Preuve validée (import)'
+                    : 'Preuve ajoutée (import)',
                 detail: `${file.name} → ${requirementId} (${proofStatus})`,
-                user: 'Utilisateur'
+                user: actor,
+                entityType: ENTITY_ISO_REQUIREMENT,
+                requirementId,
+                isoHistoryKind:
+                  proofStatus === 'present' && validated ? 'proof_validated' : 'proof_added'
               });
             }
             if (typeof pilotageCtx.refreshPilotage === 'function') pilotageCtx.refreshPilotage();
@@ -1180,7 +1734,8 @@ function createComplianceCycleStrip() {
 /**
  * @param {(row: Record<string, unknown> & { normCode: string }) => void} onAnalyze
  */
-function createPrioritiesCockpitBlock(onAnalyze) {
+/** @param {(row: object) => void} onAnalyze @param {() => object} [getIsoScoreInput] */
+function createPrioritiesCockpitBlock(onAnalyze, getIsoScoreInput) {
   const root = document.createElement('article');
   root.id = 'iso-cockpit-priorities-anchor';
   root.className = 'content-card card-soft iso-cockpit-priorities';
@@ -1227,7 +1782,9 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     list.replaceChildren();
     const reqsNc = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) === 'non_conforme');
     const reqsOpen = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme');
-    const ar = computeAuditReadiness();
+    const ar = computeAuditReadiness(
+      typeof getIsoScoreInput === 'function' ? getIsoScoreInput() : {}
+    );
     const firstNc = reqsNc[0];
     const hero = document.createElement('div');
     hero.className = 'iso-priority-hero';
@@ -1503,27 +2060,6 @@ export function renderIso(onAddLog) {
   const isoNav = pageTopbarById.iso;
 
   const auditApiMeta = { auditsCount: 0, lastAuditDate: '' };
-  const buildReadinessState = () => {
-    const base = computeAuditReadiness();
-    if (!auditApiMeta.auditsCount) return base;
-    const suffix = auditApiMeta.lastAuditDate
-      ? ` · ${auditApiMeta.auditsCount} audit(s) chargés (dernier: ${auditApiMeta.lastAuditDate}).`
-      : ` · ${auditApiMeta.auditsCount} audit(s) chargés.`;
-    return {
-      ...base,
-      message: `${base.message}${suffix}`
-    };
-  };
-
-  const auditReadinessEl = createAuditReadinessBanner(buildReadinessState(), {
-    onTreat: () => {
-      document.querySelector('.iso-page .iso-cockpit-priorities')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-      showToast('Traiter les priorités : écarts, preuves et audits.', 'info');
-    }
-  });
 
   const heroCard = document.createElement('article');
   heroCard.className = 'content-card card-soft iso-header-card iso-hub-intro iso-cockpit-hero';
@@ -1546,6 +2082,7 @@ export function renderIso(onAddLog) {
         <button type="button" class="btn btn-secondary iso-hero-scroll-prio">Voir les priorités</button>
         <button type="button" class="btn btn-secondary iso-auditor-view-btn" title="Focus écarts, preuves et statuts">Vue auditeur</button>
         <button type="button" class="btn btn-secondary iso-export-conformity-pdf" title="Rapport PDF multi-pages (vue cockpit)">Exporter PDF conformité</button>
+        <button type="button" class="btn btn-secondary iso-generate-audit-report" title="Synthèse globale : conformités, écarts, preuves, actions, risques">Générer rapport audit</button>
         <button type="button" class="btn btn-primary btn--pilotage-cta iso-prep-audit">Préparer l’audit</button>
       </div>
     </div>
@@ -1553,7 +2090,7 @@ export function renderIso(onAddLog) {
       <div class="iso-cockpit-hero-kpis iso-cockpit-hero-kpis--dual" aria-label="Synthèse express">
         <div class="iso-hero-kpi">
           <span class="iso-hero-kpi-value iso-hero-stat-pct">Non disponible</span>
-          <span class="iso-hero-kpi-label">Score global</span>
+          <span class="iso-hero-kpi-label">Score ISO consolidé</span>
         </div>
         <div class="iso-hero-kpi">
           <span class="iso-hero-kpi-value iso-hero-stat-gaps">Non disponible</span>
@@ -1635,13 +2172,77 @@ export function renderIso(onAddLog) {
     <div class="iso-ai-suggestion-grid" role="group" aria-label="Assistant conformité : actions suggérées"></div>
   `;
 
-  const summary0 = computeComplianceSummary();
+  /** @type {{ rows: object[] }} */
+  const isoMergedDocsRef = { rows: mergeControlledDocumentRows([]) };
+  const getIsoDocRows = () => isoMergedDocsRef.rows;
+  /** @type {{ actions: object[] | null; audits: object[] | null }} */
+  const isoScoreDataRef = { actions: null, audits: null };
+
+  heroCard.querySelector('.iso-generate-audit-report')?.addEventListener('click', async () => {
+    showToast('Préparation du rapport audit…', 'info');
+    let snap = null;
+    try {
+      snap = await getIsoTerrainSnapshot();
+    } catch (e) {
+      console.warn(e);
+    }
+    const report = buildIsoAuditReport({
+      docRows: isoMergedDocsRef.rows,
+      actions: snap?.actions ?? [],
+      risks: snap?.risks ?? [],
+      incidents: snap?.incidents ?? [],
+      audits: snap?.audits ?? isoScoreDataRef.audits ?? []
+    });
+    openIsoAuditReportModal(report);
+    if (typeof onAddLog === 'function') {
+      onAddLog(
+        buildAiSuggestionJournalEntry({
+          aiTraceType: AI_TRACE_TYPE.AUDIT_REPORT_GENERATED,
+          module: 'iso-ai',
+          detail: `Synthèse cockpit (conformités, NC, preuves, actions, risques) · score ${report.score?.pct ?? '—'} %`,
+          user: AI_TRACE_ACTOR_IA
+        })
+      );
+    }
+  });
+
+  function getIsoScoreInput() {
+    return {
+      docRows: isoMergedDocsRef.rows,
+      actions: isoScoreDataRef.actions,
+      audits: isoScoreDataRef.audits
+    };
+  }
+
+  const buildReadinessState = () => {
+    const base = computeAuditReadiness(getIsoScoreInput());
+    if (!auditApiMeta.auditsCount) return base;
+    const suffix = auditApiMeta.lastAuditDate
+      ? ` · ${auditApiMeta.auditsCount} audit(s) chargés (dernier: ${auditApiMeta.lastAuditDate}).`
+      : ` · ${auditApiMeta.auditsCount} audit(s) chargés.`;
+    return {
+      ...base,
+      message: `${base.message}${suffix}`
+    };
+  };
+
+  const auditReadinessEl = createAuditReadinessBanner(buildReadinessState(), {
+    onTreat: () => {
+      document.querySelector('.iso-page .iso-cockpit-priorities')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+      showToast('Traiter les priorités : écarts, preuves et audits.', 'info');
+    }
+  });
+
+  const summary0 = computeIsoScore(getIsoScoreInput());
   const globalSnapshotEl = createGlobalSnapshot(summary0);
   const snapHost = heroCard.querySelector('.iso-cockpit-hero-snapshot-host');
   if (snapHost) snapHost.append(globalSnapshotEl);
 
   function updateHeroQuickStats() {
-    const s = computeComplianceSummary();
+    const s = computeIsoScore(getIsoScoreInput());
     const gapsOpen = getRequirements().filter((r) => isoRequirementStatusNormKey(r.status) !== 'conforme').length;
     const pctEl = heroCard.querySelector('.iso-hero-stat-pct');
     const gapEl = heroCard.querySelector('.iso-hero-stat-gaps');
@@ -1649,10 +2250,6 @@ export function renderIso(onAddLog) {
     if (gapEl) gapEl.textContent = String(gapsOpen);
   }
   updateHeroQuickStats();
-
-  /** @type {{ rows: object[] }} */
-  const isoMergedDocsRef = { rows: mergeControlledDocumentRows([]) };
-  const getIsoDocRows = () => isoMergedDocsRef.rows;
 
   const registryDocImpact = createIsoRegistryComplianceBanner();
   const docStateSummary = createDocumentStateSummaryBlock();
@@ -1664,10 +2261,13 @@ export function renderIso(onAddLog) {
     onAddLog
   });
 
-  /** @type {{ refreshTable: () => void; onAnalyze: (row: unknown) => void }} */
+  /** @type {{ refreshTable: () => void; onAnalyze: (row: unknown) => void; getDocumentRows: () => object[]; reloadTerrainLinks?: () => void; onAddLog?: (e: object) => void; afterComplianceApply?: () => void }} */
   const tableCtx = {
     refreshTable: () => {},
-    onAnalyze: () => {}
+    onAnalyze: () => {},
+    getDocumentRows: getIsoDocRows,
+    onAddLog,
+    afterComplianceApply: () => {}
   };
 
   tableCtx.onAnalyze = (row) => {
@@ -1689,11 +2289,13 @@ export function renderIso(onAddLog) {
           body: JSON.stringify({
             requirement: {
               id: row.id || row.clause,
+              normId: row.normId,
               clause: row.clause,
               title: row.title,
               summary: row.summary,
               evidence: row.evidence,
-              normCode: row.normCode
+              normCode: row.normCode,
+              currentStatus: row.status
             },
             controlledDocuments: [],
             siteId: appState.activeSiteId ?? null
@@ -1751,10 +2353,31 @@ export function renderIso(onAddLog) {
               module: 'iso',
               action: 'Statut exigence mis à jour (validation humaine)',
               detail: `${requirementId} → ${status} (${meta.source})`,
-              user: 'Utilisateur'
+              user: getSessionUser()?.name || 'Utilisateur',
+              entityType: ENTITY_ISO_REQUIREMENT,
+              requirementId,
+              isoHistoryKind: 'status_changed'
             });
           }
           return true;
+        },
+        onAiTrace: (payload) => {
+          if (typeof onAddLog !== 'function') return;
+          const user =
+            payload.aiTraceType === AI_TRACE_TYPE.SUGGESTION_GENERATED
+              ? AI_TRACE_ACTOR_IA
+              : getSessionUser()?.name || 'Utilisateur';
+          onAddLog(
+            buildAiSuggestionJournalEntry({
+              aiTraceType: payload.aiTraceType,
+              module: 'iso-ai',
+              requirementId: payload.requirementId,
+              detail: payload.detail,
+              user,
+              suggestedStatus: payload.suggestedStatus,
+              chosenStatus: payload.chosenStatus
+            })
+          );
         }
       });
     })();
@@ -1808,6 +2431,7 @@ export function renderIso(onAddLog) {
       registryDocImpact.update(sum);
       docTableSection.refresh();
       proofStripBundle.refresh();
+      tableCtx.reloadTerrainLinks?.();
       void refreshDocComplianceNotifications();
     } catch {
       showToast('Documents API indisponibles, affichage local conservé.', 'warning');
@@ -1915,8 +2539,9 @@ export function renderIso(onAddLog) {
   renderNormsGrid();
   normsCard.append(normsHead, normsCycle, normsGrid);
 
-  const { root: prioritiesCockpit, refresh: refreshPrioritiesCockpit } = createPrioritiesCockpitBlock((row) =>
-    tableCtx.onAnalyze(row)
+  const { root: prioritiesCockpit, refresh: refreshPrioritiesCockpit } = createPrioritiesCockpitBlock(
+    (row) => tableCtx.onAnalyze(row),
+    getIsoScoreInput
   );
 
   async function paintIsoMixCharts() {
@@ -1947,9 +2572,18 @@ export function renderIso(onAddLog) {
     }
     isRefreshingPilotage = true;
     try {
-      updateGlobalSnapshot(globalSnapshotEl, computeComplianceSummary());
+      updateGlobalSnapshot(globalSnapshotEl, computeIsoScore(getIsoScoreInput()));
       updateHeroQuickStats();
       updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
+      void getIsoTerrainSnapshot()
+        .then((snap) => {
+          isoScoreDataRef.actions = snap.actions;
+          isoScoreDataRef.audits = snap.audits;
+          updateGlobalSnapshot(globalSnapshotEl, computeIsoScore(getIsoScoreInput()));
+          updateHeroQuickStats();
+          updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
+        })
+        .catch(() => {});
       renderNormsGrid();
       refreshPrioritiesCockpit();
       refreshCopilot();
@@ -1970,6 +2604,7 @@ export function renderIso(onAddLog) {
   }
 
   pilotageCtx.refreshPilotage = refreshPilotage;
+  tableCtx.afterComplianceApply = refreshPilotage;
 
   void refreshConformityStatusCacheFromApi().then(() => refreshPilotage());
 
