@@ -1,5 +1,6 @@
 import { analyzeRiskDescriptionAsync } from '../services/riskAnalyze.service.js';
 import * as risksService from '../services/risks.service.js';
+import { getRiskStats } from '../services/risks.stats.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
 import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
 import { clampTrimString, FIELD_LIMITS, parseListLimit } from '../lib/validation.js';
@@ -70,7 +71,7 @@ export async function getStats(req, res, next) {
       req.query.category != null && String(req.query.category).trim()
         ? String(req.query.category).trim()
         : null;
-    const stats = await risksService.getRiskStats(req.qhseTenantId, { siteId, status, category });
+    const stats = await getRiskStats(req.qhseTenantId, { siteId, status, category });
     res.json(stats);
   } catch (err) {
     next(err);

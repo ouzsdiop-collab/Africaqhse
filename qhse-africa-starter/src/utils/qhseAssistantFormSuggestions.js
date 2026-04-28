@@ -58,12 +58,22 @@ export function buildActionDefaultsFromOverdueItem(item) {
   const due = item?.dueDate != null ? String(item.dueDate) : '';
   const own = item?.owner != null ? String(item.owner) : '';
   const det = item?.detail != null ? String(item.detail).trim().slice(0, 500) : '';
+  const suggestedDue = (() => {
+    try {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      return d.toISOString().slice(0, 10);
+    } catch {
+      return '';
+    }
+  })();
   return {
     title: `Relance — ${title}`.slice(0, 240),
     origin: 'other',
     actionType: 'corrective',
     priority: 'haute',
     description: [
+      '[Module plan d’actions · Assistant dashboard]',
       '[Assistant] Action signalée en retard — arbitrer : mise à jour d’échéance, réaffectation ou clôture avec preuve.',
       due ? `Échéance enregistrée : ${due}.` : '',
       own ? `Responsable connu : ${own}.` : '',
@@ -76,7 +86,7 @@ export function buildActionDefaultsFromOverdueItem(item) {
     ]
       .filter(Boolean)
       .join('\n'),
-    dueDate: ''
+    dueDate: suggestedDue
   };
 }
 

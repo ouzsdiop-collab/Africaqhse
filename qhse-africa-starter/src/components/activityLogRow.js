@@ -4,6 +4,7 @@ import {
   classifyEntryKind,
   activityModuleHash
 } from './activityLogHelpers.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /**
  * Une ligne du journal — DOM uniquement, prête pour surcouche filtre / tri (entrée déjà filtrée en amont).
@@ -26,7 +27,7 @@ export function createActivityLogRow(entry) {
   }
 
   const go = () => {
-    window.location.hash = activityModuleHash(entry.module);
+    qhseNavigate(activityModuleHash(entry.module));
   };
   row.addEventListener('click', go);
   row.addEventListener('keydown', (ev) => {

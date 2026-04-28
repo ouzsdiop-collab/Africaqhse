@@ -4,6 +4,9 @@
  * Backend futur : injecter getData depuis un service / fetch paginé sans changer la structure UI.
  */
 
+import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { mapApiRiskToUi, riskTierBucket } from '../utils/risksRegisterModel.js';
+
 const DATE_PRESETS = [
   { id: 'all', label: 'Toutes dates' },
   { id: '7', label: '7 jours' },
@@ -11,7 +14,47 @@ const DATE_PRESETS = [
   { id: '90', label: '90 jours' }
 ];
 
-/** @typedef {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[] }} DashboardLists */
+/** @typedef {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[]; risks?: unknown[] }} DashboardLists */
+
+/**
+ * Intent fusionné lors du clic « Nouvelle … / Vers module » depuis le drawer KPI (cohérent avec filtres listes cibles).
+ * @param {string} kpiKey
+ * @returns {Record<string, unknown>}
+ */
+export function moduleExtrasForKpiNavigate(kpiKey) {
+  const k = String(kpiKey || '').trim();
+  const base = { source: 'dashboard_kpi_drawer' };
+  switch (k) {
+    case 'actionsLate':
+      return {
+        ...base,
+        actionsColumnFilter: 'overdue',
+        scrollToId: 'qhse-actions-col-overdue'
+      };
+    case 'incidentsCritical':
+      return {
+        ...base,
+        incidentSeverityFilter: 'critique',
+        dashboardIncidentPeriodPreset: '7'
+      };
+    case 'incidents':
+      return { ...base, scrollToId: 'incidents-recent-list' };
+    case 'risksCritique':
+      return { ...base, riskBannerKpi: 'critique' };
+    case 'auditScore':
+    case 'auditsN':
+      return { ...base, scrollToId: 'audit-cockpit-tier-score' };
+    case 'ncOpen':
+    case 'ncTreated':
+      return { ...base, scrollToId: 'audit-cockpit-tier-critical' };
+    case 'conformity':
+      return { ...base };
+    case 'actionsOnTrack':
+      return { ...base, skipDefaults: true, scrollToId: 'qhse-actions-col-doing' };
+    default:
+      return base;
+  }
+}
 
 /** @param {unknown} row @param {string} k */
 function field(row, k) {
@@ -101,7 +144,7 @@ function isIncidentCriticalOpen(row) {
 }
 
 function parseCreatedMs(row) {
-  const c = field(row, 'createdAt') || field(row, 'dueDate');
+  const c = field(row, 'createdAt') || field(row, 'dueDate') || field(row, 'updatedAt');
   if (!c) return 0;
   const t = new Date(c).getTime();
   return Number.isNaN(t) ? 0 : t;
@@ -160,7 +203,7 @@ function uniqMixedSites(rows) {
 /**
  * @param {unknown[]} rows
  * @param {{ q: string; datePreset: string; severity: string; site: string; status: string; service: string; sort: string }} f
- * @param {'incident'|'nc'|'action'|'audit'|'mixed'} kind
+ * @param {'incident'|'nc'|'action'|'audit'|'mixed'|'risk'} kind
  */
 function filterAndSort(rows, f, kind) {
   let out = rows.slice();
@@ -173,6 +216,8 @@ function filterAndSort(rows, f, kind) {
   if (f.site && f.site !== 'all') {
     if (kind === 'action') {
       out = out.filter((r) => field(r, 'owner') === f.site);
+    } else if (kind === 'risk') {
+      out = out.filter((r) => field(r, 'responsible') === f.site);
     } else if (kind === 'mixed') {
       out = out.filter((r) => {
         const mix = /** @type {Record<string, unknown>} */ (r)._mix;
@@ -209,7 +254,6 @@ function filterAndSort(rows, f, kind) {
       return field(r, 'severity').toLowerCase().includes(f.severity.toLowerCase());
     });
   }
-
   const dir = f.sort.endsWith('asc') ? 1 : -1;
   if (f.sort.startsWith('date')) {
     out.sort((a, b) => (parseCreatedMs(a) - parseCreatedMs(b)) * (f.sort === 'date-asc' ? 1 : -1));
@@ -306,6 +350,19 @@ function resolveKpiDataset(kpiKey, ctx) {
         newHash: 'incidents',
         newLabel: '➕ Nouveau incident'
       };
+    case 'risksCritique': {
+      const rawR = Array.isArray(ctx.risks) ? ctx.risks : [];
+      const rows = rawR
+        .map((row) => mapApiRiskToUi(row && typeof row === 'object' ? row : {}))
+        .filter((r) => riskTierBucket(r) === 'critique');
+      return {
+        kind: /** @type {'risk'} */ ('risk'),
+        rows,
+        title: 'Risques critiques (matrice G×P)',
+        newHash: 'risks',
+        newLabel: '➕ Nouveau risque'
+      };
+    }
     case 'actionsOnTrack':
       return {
         kind: 'action',
@@ -439,9 +496,11 @@ function buildTable(kind, rows) {
       ? ['Réf.', 'Type', 'Gravité', 'Statut', 'Site / service', 'Date']
       : kind === 'nc'
         ? ['Titre', 'Statut', 'Réf. audit', 'Date']
-        : kind === 'action'
-          ? ['Titre', 'Priorité', 'Statut', 'Responsable', 'Échéance', 'Créé le']
-          : ['Réf.', 'Site / service', 'Score', 'Statut', 'Date'];
+        : kind === 'risk'
+          ? ['Réf.', 'Libellé', 'Famille', 'Matrice', 'Palier', 'Resp.', 'Màj']
+          : kind === 'action'
+            ? ['Titre', 'Priorité', 'Statut', 'Responsable', 'Échéance', 'Créé le']
+            : ['Réf.', 'Site / service', 'Score', 'Statut', 'Date'];
 
   headers.forEach((h) => {
     const th = document.createElement('th');
@@ -472,6 +531,23 @@ function buildTable(kind, rows) {
         cellNode(badgeStatus(field(r, 'status'))),
         cellText(field(r, 'auditRef')),
         cellText(fmtDate(field(r, 'createdAt')))
+      );
+    } else if (kind === 'risk') {
+      const tierBucket = riskTierBucket(r);
+      const tierLbl =
+        tierBucket === 'critique'
+          ? makeBadge('Critique', 'red')
+          : tierBucket === 'eleve'
+            ? makeBadge('Élevé', 'amber')
+            : makeBadge(String(tierBucket || '—'), 'info');
+      tr.append(
+        cellText(field(r, 'ref') || field(r, 'id') || '—'),
+        cellText(field(r, 'title') || '—'),
+        cellText(field(r, 'type') || '—'),
+        cellText(field(r, 'meta') || '—'),
+        cellNode(tierLbl),
+        cellText(field(r, 'responsible') || '—'),
+        cellText(fmtDate(field(r, 'updatedAt')))
       );
     } else if (kind === 'action') {
       const pr = inferActionPriority(r);
@@ -657,12 +733,21 @@ export function createKpiDetailDrawer(opts) {
     o0.textContent =
       kind === 'action'
         ? 'Tous responsables'
-        : kind === 'mixed'
-          ? 'Tous sites / responsables'
-          : 'Tous sites / services';
+        : kind === 'risk'
+          ? 'Tous responsables'
+          : kind === 'mixed'
+            ? 'Tous sites / responsables'
+            : 'Tous sites / services';
     siteSel.append(o0);
     if (kind === 'action') {
       uniqStatus(baseRows, 'owner').forEach((s) => {
+        const o = document.createElement('option');
+        o.value = s;
+        o.textContent = s;
+        siteSel.append(o);
+      });
+    } else if (kind === 'risk') {
+      uniqSites(baseRows, 'responsible').forEach((s) => {
         const o = document.createElement('option');
         o.value = s;
         o.textContent = s;
@@ -807,6 +892,15 @@ export function createKpiDetailDrawer(opts) {
       });
     }
 
+    if (kpiKey === 'incidentsCritical') {
+      sevSel.value = 'critique';
+      dateSel.value = '7';
+      Object.assign(state, {
+        severity: 'critique',
+        datePreset: '7'
+      });
+    }
+
     render();
     if (typeof dialog.showModal === 'function') {
       dialog.showModal();
@@ -825,7 +919,7 @@ export function createKpiDetailDrawer(opts) {
     const h = current.newHash;
     dialog.close();
     if (h && h !== 'dashboard') {
-      window.location.hash = h;
+      qhseNavigate(h, moduleExtrasForKpiNavigate(activeKpiKey));
     }
   });
 

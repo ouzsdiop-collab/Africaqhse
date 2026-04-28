@@ -596,10 +596,16 @@ const CSS = `
   border:1px solid rgba(148,163,184,.11);background:rgba(0,0,0,.1);
 }
 @media (max-width:720px){
-  .audit-checklist-compact-top{grid-template-columns:1fr auto;grid-template-rows:auto auto}
-  .audit-checklist-compact-point{grid-column:1/-1}
-  .audit-checklist-compact-badge{grid-column:1}
-  .audit-checklist-compact-proof{grid-column:1/-1}
+  /* Lignes explicites : sinon « preuve » en 1/-1 se superpose au badge / bouton Traiter et bloque les clics */
+  .audit-checklist-compact-top{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-rows:auto auto auto;
+    align-items:center;
+  }
+  .audit-checklist-compact-point{grid-column:1/-1;grid-row:1}
+  .audit-checklist-compact-badge{grid-column:1;grid-row:2;justify-self:start}
+  .audit-checklist-treat{grid-column:2;grid-row:2;justify-self:end;position:relative;z-index:1}
+  .audit-checklist-compact-proof{grid-column:1/-1;grid-row:3}
 }
 .audit-checklist-compact-proof{
   font-size:11px;color:var(--text2);line-height:1.4;

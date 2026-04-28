@@ -1,3 +1,4 @@
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { notificationsStore } from '../data/notifications.js';
 import {
   deriveTierFromItem,
@@ -175,7 +176,7 @@ export function createNotificationRow(item, options = {}) {
       if (typeof onOpenLink === 'function') {
         onOpenLink(payload);
       } else {
-        window.location.hash = payload.page;
+        qhseNavigate(payload.page);
       }
     });
     actions.append(btn);

@@ -1,9 +1,11 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { showToast } from './toast.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { openActionCreateDialog } from './actionCreateDialog.js';
 import { ensureIncidentsSlideOverStyles } from './incidentFormDialog.js';
+import { applyNativeDialogColorScheme } from '../utils/nativeDialogTheme.js';
 
 const AI_SUGGEST_BASE = '/api/ai-suggestions/suggest';
 
@@ -78,6 +80,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
   document.addEventListener('keydown', onEscIa);
 
   panel.append(header, body);
+  applyNativeDialogColorScheme(panel);
   document.body.append(overlay, panel);
   requestAnimationFrame(() => {
     overlay.classList.add('inc-overlay--open');
@@ -194,7 +197,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
         desc.style.margin = '6px 0 0';
         desc.style.fontSize = '13px';
         desc.style.lineHeight = '1.45';
-        desc.style.color = 'var(--text2, rgba(255,255,255,.65))';
+        desc.style.color = 'var(--color-text-secondary)';
         desc.textContent = String(a.description || '');
         const meta = document.createElement('div');
         meta.className = 'inc-ia-cat';
@@ -225,8 +228,21 @@ export function openIncidentAiAnalysis(inc, ctx) {
               linkedIncident: inc.ref,
               dueDate: dueDateIsoFromDelayDays(a.delayDays)
             },
-            onCreated: () => {
-              showToast('Action créée depuis la suggestion IA.', 'success');
+            builtInSuccessToast: false,
+            onCreated: (payload) => {
+              showToast('Action créée depuis la suggestion IA.', 'success', {
+                label: 'Ouvrir',
+                action: () => {
+                  if (payload?.id) {
+                    qhseNavigate('actions', {
+                      focusActionId: payload.id,
+                      focusActionTitle: payload.title || ''
+                    });
+                  } else {
+                    qhseNavigate('actions', { skipDefaults: true });
+                  }
+                }
+              });
               if (typeof onAddLog === 'function') {
                 onAddLog({
                   module: 'incidents',

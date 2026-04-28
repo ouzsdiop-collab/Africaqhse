@@ -10,6 +10,7 @@ import { withSiteQuery } from '../utils/siteFilter.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { openActionCreateDialog } from '../components/actionCreateDialog.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { fetchUsers } from '../services/users.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
@@ -592,8 +593,21 @@ export function renderAiCenter(onAddLog) {
                   linkedIncident: ref,
                   dueDate: dueDateIsoFromDelayDays(a.delayDays)
                 },
-                onCreated: () => {
-                  showToast('Action créée.', 'success');
+                builtInSuccessToast: false,
+                onCreated: (payload) => {
+                  showToast('Action créée.', 'success', {
+                    label: 'Ouvrir',
+                    action: () => {
+                      if (payload?.id) {
+                        qhseNavigate('actions', {
+                          focusActionId: payload.id,
+                          focusActionTitle: payload.title || ''
+                        });
+                      } else {
+                        qhseNavigate('actions', { skipDefaults: true });
+                      }
+                    }
+                  });
                   closeAc();
                   if (typeof onAddLog === 'function') {
                     onAddLog({

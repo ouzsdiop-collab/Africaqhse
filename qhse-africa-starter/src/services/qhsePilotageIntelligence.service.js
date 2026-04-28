@@ -25,6 +25,13 @@ import {
   buildActionDefaultsFromAuditPrep,
   buildActionDefaultsFromRenewingDocument
 } from '../utils/qhseAssistantFormSuggestions.js';
+import { mapApiRiskToUi, riskTierBucket } from '../utils/risksRegisterModel.js';
+import {
+  compactTimeseriesForAiPayload,
+  computeRisksCriticalForPayload
+} from '../utils/dashboardMetrics.js';
+import { isDemoMode } from './demoMode.service.js';
+import { asDashboardCount } from '../utils/reconcileDashboardStats.js';
 
 /**
  * @param {object} r
@@ -150,12 +157,28 @@ export async function buildAssistantSnapshot(input) {
     (overdue > 0 ? pickFirstOverdueFromActions(actions) : null);
 
   const apiRiskRows = Array.isArray(input.risks) ? input.risks : null;
-  const risksForAssistant =
-    apiRiskRows && apiRiskRows.length > 0
-      ? apiRiskRows.map(mapApiRiskRowForAssistant)
-      : seedRisks;
+  /** Liste API (y compris vide) : pas de seed. Hors chargement + pas démo → pas de fantôme démo. */
+  let risksForAssistant;
+  /** @type {'api' | 'api_empty' | 'demo' | 'unavailable'} */
+  let risksSourceMeta;
+  if (Array.isArray(input.risks)) {
+    risksForAssistant = input.risks.length ? input.risks.map(mapApiRiskRowForAssistant) : [];
+    risksSourceMeta = input.risks.length ? 'api' : 'api_empty';
+  } else if (isDemoMode()) {
+    risksForAssistant = seedRisks;
+    risksSourceMeta = 'demo';
+  } else {
+    risksForAssistant = [];
+    risksSourceMeta = 'unavailable';
+  }
   const criticalRisks = risksForAssistant.filter(riskIsCritique);
   const risksSansAction = risksForAssistant.filter((r) => !r.actionLinked).length;
+  const risksCriticalKpi =
+    stats.stats?.risks != null && typeof stats.stats.risks === 'object'
+      ? Number(/** @type {{ critical?: unknown }} */ (stats.stats.risks).critical)
+      : NaN;
+  const hasKpiRiskCritical =
+    Number.isFinite(risksCriticalKpi) && risksCriticalKpi > 0;
 
   const auditsSoon = AUDITS_TO_SCHEDULE.length;
 
@@ -181,7 +204,7 @@ export async function buildAssistantSnapshot(input) {
       message: 'Aucune action en état « clôturé » malgré un plan chargé — risque de dérive de suivi.'
     });
   }
-  if (risksSansAction >= 2) {
+  if (risksSourceMeta === 'api' && risksSansAction >= 2) {
     anomalies.push({
       level: 'warn',
       message: `${risksSansAction} risque(s) sans action liée — rattachez des actions dans le registre.`
@@ -197,34 +220,77 @@ export async function buildAssistantSnapshot(input) {
   /** @type {object[]} */
   const recRaw = [];
 
+  const criticalRiskRawRow =
+    apiRiskRows && apiRiskRows.length
+      ? apiRiskRows.find((rw) =>
+          riskTierBucket(mapApiRiskToUi(rw && typeof rw === 'object' ? rw : {})) === 'critique'
+        )
+      : null;
+
   if (overdue > 0) {
+    const od = overdueForDialog && typeof overdueForDialog === 'object' ? overdueForDialog : null;
+    const oid = od?.id ?? od?._id;
+    const ot = od?.title != null ? String(od.title).trim().slice(0, 240) : '';
+    /** @type {Record<string, unknown>} */
+    const overdueNav = {
+      actionsColumnFilter: 'overdue',
+      scrollToId: 'qhse-actions-col-overdue',
+      source: 'dashboard_assistant'
+    };
+    if (oid != null && String(oid).trim()) {
+      overdueNav.focusActionId = String(oid).trim();
+      if (ot) overdueNav.focusActionTitle = ot;
+    } else if (ot) {
+      overdueNav.focusActionTitle = ot;
+    }
+    /** @type {'api_stats' | 'api_list'} */
+    const odSrc =
+      Array.isArray(overduePreview) && overduePreview.length > 0 ? 'api_stats' : 'api_list';
     recRaw.push({
       id: 'rec-actions-retard',
+      dataSource: odSrc,
       internalScore: 60 + Math.min(overdue * 5, 30),
       title: overdue > 1 ? `${overdue} actions en retard` : 'Une action en retard',
       detail: 'Traiter ou réaffecter depuis le plan d’actions — crédibilité du SMS.',
       navigateHash: 'actions',
+      navigateIntent: overdueNav,
       dialogDefaults: overdueForDialog ? buildActionDefaultsFromOverdueItem(overdueForDialog) : null
     });
   }
 
   if (docSum.expire > 0) {
     const first = expiredDocs[0];
+    const docType = String(first?.type || '').toLowerCase();
+    const fdsLike = docType.includes('fds') || docType.includes('sds');
     recRaw.push({
       id: 'rec-docs-expire',
+      dataSource: 'api_list',
       internalScore: 78 + Math.min(docSum.expire * 2, 20),
       title:
         docSum.expire > 1 ? `${docSum.expire} documents expirés` : 'Document expiré — mise à jour requise',
       detail: 'Conformité documentaire : renouvellement ou révision à planifier.',
-      navigateHash: 'iso',
+      navigateHash: fdsLike ? 'products' : 'iso',
+      navigateIntent: fdsLike
+        ? { productsFdsValidity: 'expired', source: 'dashboard_assistant' }
+        : { scrollToId: 'iso-cockpit-priorities-anchor', source: 'dashboard_assistant' },
       dialogDefaults: first ? buildActionDefaultsFromExpiredDocument(first) : null
     });
   }
 
   if (criticalRisks.length > 0) {
     const r0 = criticalRisks[0];
+    /** @type {Record<string, unknown>} */
+    const riskNav = {
+      riskBannerKpi: 'critique',
+      source: 'dashboard_assistant'
+    };
+    if (criticalRiskRawRow?.id != null && String(criticalRiskRawRow.id).trim()) {
+      riskNav.focusRiskId = String(criticalRiskRawRow.id).trim();
+      riskNav.focusRiskTitle = String(criticalRiskRawRow.title || r0.title || '').slice(0, 400);
+    }
     recRaw.push({
       id: 'rec-risque-critique',
+      dataSource: risksSourceMeta === 'demo' ? 'demo' : 'api_list',
       internalScore: 70,
       title:
         criticalRisks.length > 1
@@ -232,6 +298,7 @@ export async function buildAssistantSnapshot(input) {
           : `Risque critique : ${r0.title}`,
       detail: 'Renforcer mesures ou lancer action préventive ciblée.',
       navigateHash: 'risks',
+      navigateIntent: riskNav,
       dialogDefaults: buildActionDefaultsFromCriticalRisk({
         title: r0.title,
         category: r0.type,
@@ -241,39 +308,91 @@ export async function buildAssistantSnapshot(input) {
     });
   }
 
+  if (
+    criticalRisks.length === 0 &&
+    hasKpiRiskCritical &&
+    apiRiskRows &&
+    apiRiskRows.length === 0
+  ) {
+    recRaw.push({
+      id: 'rec-risque-critique-kpi',
+      dataSource: 'api_stats',
+      internalScore: 68,
+      title:
+        risksCriticalKpi > 1
+          ? `${risksCriticalKpi} risques critiques (synthèse serveur)`
+          : 'Risque critique (synthèse serveur)',
+      detail:
+        'Le registre chargé ne contient pas de fiche sur ce périmètre — ouvrez le module risques pour le détail des fiches critiques.',
+      navigateHash: 'risks',
+      navigateIntent: { riskBannerKpi: 'critique', source: 'dashboard_assistant' },
+      dialogDefaults: null
+    });
+  }
+
   if (critInc > 0) {
     const inc0 = incidents.find((i) => String(i.severity || '').toLowerCase().includes('crit')) || incidents[0];
+    /** @type {Record<string, unknown>} */
+    const incNav = {
+      incidentSeverityFilter: 'critique',
+      dashboardIncidentPeriodPreset: '30',
+      source: 'dashboard_assistant'
+    };
+    if (inc0 && typeof inc0 === 'object') {
+      const iref = inc0.ref != null ? String(inc0.ref).trim() : '';
+      const iid = inc0.id != null ? String(inc0.id).trim() : '';
+      const ihint = String(inc0.title || inc0.type || '').trim().slice(0, 240);
+      if (iref) incNav.focusIncidentRef = iref;
+      if (iid) incNav.focusIncidentId = iid;
+      if (ihint) incNav.focusIncidentHintTitle = ihint;
+    }
     recRaw.push({
       id: 'rec-incident-critique',
+      dataSource: 'api_stats',
       internalScore: 85,
       title: critInc > 1 ? `${critInc} incidents à gravité élevée` : 'Incident à gravité élevée',
       detail: 'Sécuriser la réponse terrain et la traçabilité des décisions.',
       navigateHash: 'incidents',
+      navigateIntent: incNav,
       dialogDefaults: inc0 ? buildActionDefaultsFromIncident(inc0) : null
     });
   }
 
   if (auditsSoon > 0 && recRaw.length < 3) {
     const a0 = AUDITS_TO_SCHEDULE[0];
+    /** @type {Record<string, unknown>} */
+    const audNav = {
+      scrollToId: 'audit-cockpit-planning-block',
+      source: 'dashboard_assistant'
+    };
+    if (a0?.title) audNav.focusAuditTitle = String(a0.title).slice(0, 200);
     recRaw.push({
       id: 'rec-audits-proches',
+      dataSource: isDemoMode() ? 'demo' : 'heuristic',
       internalScore: 42 + Math.min(auditsSoon * 4, 20),
       title:
         auditsSoon > 1 ? `${auditsSoon} audits à anticiper` : 'Audit à anticiper',
       detail: 'Consolidez preuves et plans d’actions avant la fenêtre audit.',
       navigateHash: 'audits',
+      navigateIntent: audNav,
       dialogDefaults: a0 ? buildActionDefaultsFromAuditPrep(a0) : null
     });
   }
 
   if (renewDocs.length > 0 && recRaw.length < 3) {
     const r0 = renewDocs[0];
+    const drType = String(r0?.type || '').toLowerCase();
+    const fdsRenew = drType.includes('fds') || drType.includes('sds');
     recRaw.push({
       id: 'rec-docs-renouveler',
+      dataSource: 'api_list',
       internalScore: 45,
       title: `${renewDocs.length} document(s) à renouveler bientôt`,
       detail: 'Anticipez la revue documentaire avant échéance.',
-      navigateHash: 'iso',
+      navigateHash: fdsRenew ? 'products' : 'iso',
+      navigateIntent: fdsRenew
+        ? { productsFdsValidity: 'review', source: 'dashboard_assistant' }
+        : { scrollToId: 'iso-cockpit-priorities-anchor', source: 'dashboard_assistant' },
       dialogDefaults: r0 ? buildActionDefaultsFromRenewingDocument(r0) : null
     });
   }
@@ -281,11 +400,13 @@ export async function buildAssistantSnapshot(input) {
   if (ncOpen >= 3 && recRaw.length < 4) {
     recRaw.push({
       id: 'rec-nc-stock',
+      dataSource: 'api_list',
       internalScore: 52 + Math.min(ncOpen * 2, 18),
       title:
         ncOpen > 5 ? `${ncOpen} NC ouvertes — arbitrage recommandé` : `${ncOpen} NC ouvertes`,
       detail: 'Prioriser par criticité et jalons de clôture ; éviter l’empilement sans plan.',
       navigateHash: 'audits',
+      navigateIntent: { scrollToId: 'audit-cockpit-tier-critical', source: 'dashboard_assistant' },
       dialogDefaults: null
     });
   }
@@ -318,7 +439,7 @@ export async function buildAssistantSnapshot(input) {
   } else {
     synthesisParts.push(`Situation relativement maîtrisée sur ${site} — maintenir le suivi des plans.`);
   }
-  if (apiRiskRows && apiRiskRows.length > 0 && risksSansAction >= 2) {
+  if (risksSourceMeta === 'api' && apiRiskRows && apiRiskRows.length > 0 && risksSansAction >= 2) {
     synthesisParts.push(
       `${risksSansAction} fiche(s) risque sans action liée — renforcer le lien registre risques / plan d’actions.`
     );
@@ -340,19 +461,54 @@ export async function buildAssistantSnapshot(input) {
       criticalIncidents: critInc,
       auditsSoon,
       criticalRisksCount: criticalRisks.length,
-      risksSource: apiRiskRows && apiRiskRows.length > 0 ? 'api' : 'demo'
+      risksSource: risksSourceMeta,
+      risksCriticalKpi: Number.isFinite(risksCriticalKpi) ? risksCriticalKpi : null,
+      timeseriesPresent: Boolean(input.stats?.timeseries && typeof input.stats.timeseries === 'object')
     }
   };
 }
 
 /**
- * Contexte compact pour l’IA pilotage (Mistral / mock via backend).
- * @param {{ stats?: object; incidents?: object[]; actions?: object[]; siteLabel?: string }} input
+ * Contexte compact pour l’IA pilotage (Mistral / fallback heuristique via backend).
+ * @param {{
+ *   stats?: object;
+ *   incidents?: object[];
+ *   actions?: object[];
+ *   siteLabel?: string;
+ *   risks?: object[] | null;
+ *   allowGenericPilotageMocks?: boolean;
+ *   isDemoContext?: boolean;
+ * }} input
  */
 export function buildDashboardPilotageAiContext(input) {
   const stats = input.stats || {};
   const incidents = Array.isArray(input.incidents) ? input.incidents : [];
   const actions = Array.isArray(input.actions) ? input.actions : [];
+  const risksList = Array.isArray(input.risks) ? input.risks : null;
+
+  const nested = stats.stats && typeof stats.stats === 'object' ? stats.stats : null;
+  const incidentsTotal = Math.max(0, asDashboardCount(stats.incidents));
+  const actionsOverdue = Math.max(0, asDashboardCount(stats.overdueActions));
+  const nonConformities = Math.max(0, asDashboardCount(stats.nonConformities));
+  const risksCriticalResolved = computeRisksCriticalForPayload(
+    stats,
+    risksList !== null ? risksList : undefined
+  );
+  const auditsSummary =
+    nested?.audits && typeof nested.audits === 'object'
+      ? {
+          total: asDashboardCount(/** @type {{ total?: unknown }} */ (nested.audits).total),
+          planned: asDashboardCount(/** @type {{ planned?: unknown }} */ (nested.audits).planned),
+          done: asDashboardCount(/** @type {{ done?: unknown }} */ (nested.audits).done)
+        }
+      : null;
+
+  const timeseries = compactTimeseriesForAiPayload(
+    stats.timeseries && typeof stats.timeseries === 'object' && !Array.isArray(stats.timeseries)
+      ? /** @type {Record<string, unknown>} */ (stats.timeseries)
+      : null,
+    6
+  );
 
   let criticalPreview = [];
   const critArr = stats.criticalIncidents;
@@ -403,14 +559,49 @@ export function buildDashboardPilotageAiContext(input) {
     }
   }
 
-  return {
-    siteLabel: input.siteLabel && String(input.siteLabel).trim() ? String(input.siteLabel).trim() : '',
-    incidentsTotal: Number(stats.incidents) || incidents.length || 0,
-    actionsOverdue: Number(stats.overdueActions) || 0,
-    nonConformities: Number(stats.nonConformities) || 0,
+  const siteRaw = input.siteLabel && String(input.siteLabel).trim() ? String(input.siteLabel).trim() : '';
+  const site = siteRaw.length > 120 ? `${siteRaw.slice(0, 117)}…` : siteRaw;
+
+  const signalSources = {
+    incidentsTotal: 'api_stats',
+    actionsOverdue: 'api_stats',
+    nonConformities: 'api_stats',
+    risksCritical:
+      nested?.risks?.critical != null && Number.isFinite(Number(nested.risks.critical))
+        ? 'api_stats'
+        : Array.isArray(risksList) && risksList.length > 0
+          ? 'api_list'
+          : 'unavailable',
+    auditsSummary: auditsSummary ? 'api_stats' : 'unavailable',
+    timeseries: timeseries ? 'api_timeseries' : 'unavailable',
+    criticalIncidentsPreview:
+      Array.isArray(critArr) && critArr.length ? 'api_stats' : criticalPreview.length ? 'api_list' : 'unavailable',
+    overdueActionsPreview:
+      Array.isArray(stats.overdueActionItems) && stats.overdueActionItems.length
+        ? 'api_stats'
+        : overduePreview.length
+          ? 'api_list'
+          : 'unavailable'
+  };
+
+  /** @type {Record<string, unknown>} */
+  const ctxOut = {
+    siteLabel: site,
+    incidentsTotal,
+    actionsOverdue,
+    nonConformities,
+    auditsSummary,
+    timeseries,
+    signalSources,
+    allowGenericPilotageMocks: input.allowGenericPilotageMocks === true,
+    isDemoContext: input.isDemoContext === true,
     criticalIncidentsPreview: criticalPreview,
     overdueActionsPreview: overduePreview
   };
+  if (typeof risksCriticalResolved === 'number') {
+    ctxOut.risksCritical = risksCriticalResolved;
+  }
+  return ctxOut;
 }
 
 /**

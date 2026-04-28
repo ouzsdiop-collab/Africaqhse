@@ -10,6 +10,7 @@ import {
   getRequirements
 } from '../data/conformityStore.js';
 import { showToast } from './toast.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /**
  * @typedef {'scroll-docs' | 'filter-nc' | 'filter-partial' | 'filter-gap' | 'scroll-priorities' | 'open-audits' | 'scroll-register'} CopilotAction
@@ -154,7 +155,7 @@ function runCopilotAction(action, isoRoot = document) {
       scrollTo('.iso-req-hub-card');
       break;
     case 'open-audits':
-      window.location.hash = 'audits';
+      qhseNavigate('audits');
       showToast('Module Audits', 'info');
       break;
     default:

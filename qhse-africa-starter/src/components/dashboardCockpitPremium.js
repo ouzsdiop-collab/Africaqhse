@@ -6,6 +6,7 @@ import { appState } from '../utils/state.js';
 import { buildIncidentMonthlySeries } from './dashboardCharts.js';
 import { ensureDashboardCockpitPremiumStyles } from './dashboardCockpitPremiumStyles.js';
 import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 function safeArr(v) {
   return Array.isArray(v) ? v : [];
@@ -472,21 +473,30 @@ export function createDashboardCockpitPremium(opts = {}) {
     b1.className = 'dcp-btn dcp-btn--primary';
     b1.textContent = '+ Déclarer un incident';
     b1.addEventListener('click', () => {
-      window.location.hash = 'incidents';
+      qhseNavigate('incidents', {
+        dashboardIncidentPeriodPreset: '30',
+        source: 'dashboard_cockpit_premium'
+      });
     });
     const b2 = document.createElement('button');
     b2.type = 'button';
     b2.className = 'dcp-btn';
     b2.textContent = "Plan d'actions";
     b2.addEventListener('click', () => {
-      window.location.hash = 'actions';
+      qhseNavigate('actions', {
+        actionsColumnFilter: 'overdue',
+        source: 'dashboard_cockpit_premium'
+      });
     });
     const b3 = document.createElement('button');
     b3.type = 'button';
     b3.className = 'dcp-btn';
     b3.textContent = 'Voir les audits';
     b3.addEventListener('click', () => {
-      window.location.hash = 'audits';
+      qhseNavigate('audits', {
+        scrollToId: 'audit-cockpit-tier-score',
+        source: 'dashboard_cockpit_premium'
+      });
     });
     btns.append(b1, b2, b3);
     const sync = document.createElement('p');

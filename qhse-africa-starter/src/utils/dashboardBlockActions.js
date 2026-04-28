@@ -4,15 +4,15 @@
 
 import { getSessionUser } from '../data/sessionUser.js';
 import { canAccessNavPage } from './permissionsUi.js';
+import { qhseNavigate } from './qhseNavigate.js';
 
 export function goDashboardPage(pageId) {
-  const id = String(pageId || '').replace(/^#/, '');
-  if (id) window.location.hash = id;
+  qhseNavigate(pageId);
 }
 
 /**
  * Barre d’actions texte (max recommandé : 2 liens).
- * @param {{ label: string; pageId: string }[]} links
+ * @param {{ label: string; pageId: string; intent?: Record<string, unknown> }[]} links
  * @param {{ role?: string | null; className?: string }} [opts]
  * @returns {HTMLDivElement | null}
  */
@@ -38,7 +38,10 @@ export function createDashboardBlockActions(links, opts = {}) {
     b.type = 'button';
     b.className = 'dashboard-block-link';
     b.textContent = item.label;
-    b.addEventListener('click', () => goDashboardPage(item.pageId));
+    b.addEventListener('click', () => {
+      const ex = item.intent && typeof item.intent === 'object' ? item.intent : {};
+      qhseNavigate(item.pageId, ex);
+    });
     wrap.append(b);
   });
 

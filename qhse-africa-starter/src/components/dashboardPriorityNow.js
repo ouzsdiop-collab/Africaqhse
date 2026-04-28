@@ -2,6 +2,8 @@
  * Bloc « À faire maintenant » — relances opérationnelles (mêmes sources que les alertes).
  */
 
+import { qhseNavigate } from '../utils/qhseNavigate.js';
+
 function formatShortDate(iso) {
   if (!iso) return '—';
   try {
@@ -22,9 +24,18 @@ function isNcOpen(row) {
   return true;
 }
 
-function go(hash) {
-  const id = String(hash || '').replace(/^#/, '');
-  if (id) window.location.hash = id;
+/**
+ * @param {Record<string, unknown> & { page: string }} nav
+ */
+function navigateDeep(nav) {
+  if (!nav || typeof nav !== 'object') return;
+  const page = String(nav.page || '').trim();
+  if (!page) return;
+  const { page: _omit, ...payload } = nav;
+  qhseNavigate(page, {
+    ...payload,
+    source: 'dashboard_priority_now'
+  });
 }
 
 const MAX_ITEMS = 7;
@@ -46,20 +57,31 @@ function computeRawPriorityCount(stats, ncs, audits) {
 }
 
 /**
- * @returns {{ kind: 'urgent'|'delay'|'nc'; title: string; meta: string; hash: string }[]}
+ * @returns {{ kind: 'urgent'|'delay'|'nc'; title: string; meta: string; navigate: { page: string; scrollToId?: string; incidentSeverityFilter?: string; actionsColumnFilter?: string } }[]}
  */
 function buildPriorityItems(stats, ncs, audits) {
-  /** @type {{ kind: 'urgent'|'delay'|'nc'; title: string; meta: string; hash: string }[]} */
+  /** @type {{ kind: 'urgent'|'delay'|'nc'; title: string; meta: string; navigate: { page: string; scrollToId?: string; incidentSeverityFilter?: string; actionsColumnFilter?: string } }[]} */
   const out = [];
 
   const crit = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents : [];
   crit.forEach((row) => {
     if (out.length >= MAX_ITEMS) return;
+    const hint = String(row.title || row.type || '').trim().slice(0, 240);
     out.push({
       kind: 'urgent',
       title: `${row.ref || 'Incident'} — ${row.type || 'gravité élevée'}`,
       meta: [row.site, formatShortDate(row.createdAt)].filter(Boolean).join(' · ') || 'À traiter sans délai',
-      hash: 'incidents'
+      navigate: {
+        page: 'incidents',
+        scrollToId: 'incidents-recent-list',
+        incidentSeverityFilter: 'critique',
+        dashboardIncidentPeriodPreset: '7',
+        ...(row.ref != null && String(row.ref).trim()
+          ? { focusIncidentRef: String(row.ref).trim() }
+          : {}),
+        ...(row.id != null && String(row.id).trim() ? { focusIncidentId: String(row.id).trim() } : {}),
+        ...(hint ? { focusIncidentHintTitle: hint } : {})
+      }
     });
   });
 
@@ -73,18 +95,32 @@ function buildPriorityItems(stats, ncs, audits) {
       kind: 'delay',
       title: row.title || 'Action en retard',
       meta: metaParts.length ? metaParts.join(' · ') : 'Plan d’actions',
-      hash: 'actions'
+      navigate: {
+        page: 'actions',
+        scrollToId: 'qhse-actions-col-overdue',
+        actionsColumnFilter: 'overdue',
+        ...(row.id != null && String(row.id).trim() ? { focusActionId: String(row.id).trim() } : {}),
+        ...(row.title ? { focusActionTitle: String(row.title).trim().slice(0, 240) } : {})
+      }
     });
   });
 
   const ncList = Array.isArray(ncs) ? ncs.filter(isNcOpen) : [];
   ncList.forEach((nc) => {
     if (out.length >= MAX_ITEMS) return;
+    const nct = String(nc.title || '').trim().slice(0, 120);
     out.push({
       kind: 'nc',
       title: nc.title || 'Non-conformité ouverte',
       meta: nc.auditRef ? `Lien audit ${nc.auditRef}` : formatShortDate(nc.createdAt),
-      hash: 'audits'
+      navigate: {
+        page: 'audits',
+        scrollToId: 'audit-cockpit-tier-critical',
+        ...(nc.auditRef != null && String(nc.auditRef).trim()
+          ? { focusAuditRef: String(nc.auditRef).trim() }
+          : {}),
+        ...(nct ? { linkedNonConformity: nct } : {})
+      }
     });
   });
 
@@ -92,11 +128,16 @@ function buildPriorityItems(stats, ncs, audits) {
   const lateAudits = audList.filter(isLateAudit);
   lateAudits.forEach((a) => {
     if (out.length >= MAX_ITEMS) return;
+    const ar = a.ref != null ? String(a.ref).trim() : '';
     out.push({
       kind: 'urgent',
       title: a.ref ? `Audit ${a.ref} — à cadrer` : 'Audit à finaliser',
       meta: [a.site, a.status].filter(Boolean).join(' · ').slice(0, 72) || 'Module Audits',
-      hash: 'audits'
+      navigate: {
+        page: 'audits',
+        scrollToId: 'audit-cockpit-planning-block',
+        ...(ar ? { focusAuditRef: ar, focusAuditTitle: ar } : {})
+      }
     });
   });
 
@@ -105,6 +146,7 @@ function buildPriorityItems(stats, ncs, audits) {
 
 export function createDashboardPriorityNow() {
   const root = document.createElement('article');
+  root.id = 'dashboard-priority-now';
   root.className = 'content-card card-soft dashboard-priority-now';
   root.setAttribute('aria-labelledby', 'dashboard-priority-now-title');
 
@@ -132,7 +174,13 @@ export function createDashboardPriorityNow() {
   cta.type = 'button';
   cta.className = 'btn btn-primary dashboard-priority-now__cta';
   cta.textContent = 'Voir les actions prioritaires';
-  cta.addEventListener('click', () => go('actions'));
+  cta.addEventListener('click', () =>
+    navigateDeep({
+      page: 'actions',
+      scrollToId: 'qhse-actions-col-overdue',
+      actionsColumnFilter: 'overdue'
+    })
+  );
   footer.append(cta);
 
   root.append(head, summary, host, footer);
@@ -215,7 +263,7 @@ export function createDashboardPriorityNow() {
       goLbl.textContent = 'Ouvrir →';
 
       btn.append(chip, main, goLbl);
-      btn.addEventListener('click', () => go(it.hash));
+      btn.addEventListener('click', () => navigateDeep(it.navigate));
       host.append(btn);
     });
   }

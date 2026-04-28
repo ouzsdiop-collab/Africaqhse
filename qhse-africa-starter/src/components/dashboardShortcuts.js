@@ -1,9 +1,10 @@
 import { getSessionUser } from '../data/sessionUser.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
-function goPage(pageId) {
+function goPage(pageId, intent = {}) {
   if (!pageId) return;
-  window.location.hash = pageId;
+  qhseNavigate(pageId, intent);
 }
 
 /**
@@ -126,7 +127,21 @@ export function createDashboardShortcutsSection(opts = {}) {
     if (def.key === 'export') {
       btn.addEventListener('click', () => onExport());
     } else if (def.page) {
-      btn.addEventListener('click', () => goPage(def.page));
+      if (def.key === 'nc') {
+        btn.addEventListener('click', () =>
+          goPage('audits', { scrollToId: 'audit-cockpit-tier-critical' })
+        );
+      } else if (def.key === 'audit') {
+        btn.addEventListener('click', () =>
+          goPage('audits', { scrollToId: 'audit-cockpit-planning-block' })
+        );
+      } else if (def.key === 'action') {
+        btn.addEventListener('click', () =>
+          goPage('actions', { actionsColumnFilter: 'overdue', source: 'dashboard_shortcuts' })
+        );
+      } else {
+        btn.addEventListener('click', () => goPage(def.page));
+      }
     }
 
     grid.append(btn);

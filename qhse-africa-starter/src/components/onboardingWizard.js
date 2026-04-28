@@ -1,3 +1,4 @@
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
@@ -382,7 +383,7 @@ export function createOnboardingWizard(opts) {
           setError(e instanceof Error ? e.message : String(e));
           return;
         }
-        window.location.hash = 'incidents';
+        qhseNavigate('incidents');
         onClose();
       });
       const bRisk = el('button', 'btn btn-primary', 'Enregistrer un risque');
@@ -395,7 +396,7 @@ export function createOnboardingWizard(opts) {
           setError(e instanceof Error ? e.message : String(e));
           return;
         }
-        window.location.hash = 'risks';
+        qhseNavigate('risks');
         onClose();
       });
       row.append(bInc, bRisk);

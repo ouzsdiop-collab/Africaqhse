@@ -3,6 +3,7 @@ import {
   mergeControlledDocumentRows,
   computeDocumentRegistrySummary
 } from '../services/documentRegistry.service.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /**
  * Bandeau audits : lien documents expirés / renouvellement et impact conformité.
@@ -21,7 +22,7 @@ export function createAuditDocumentComplianceStrip() {
   const textEl = el.querySelector('.audit-doc-compliance-strip__text');
   const btn = el.querySelector('.audit-doc-compliance-strip__btn');
   btn?.addEventListener('click', () => {
-    window.location.hash = 'iso';
+    qhseNavigate('iso');
   });
 
   void (async () => {

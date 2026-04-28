@@ -4,6 +4,7 @@
  */
 
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const MAX_ROWS = 5;
 
@@ -33,19 +34,27 @@ function isAuditLate(row) {
   return /retard|late|overdue|dépass|reprogram|échéance|à planifier|non réalis/i.test(s);
 }
 
-function go(hash) {
-  const id = String(hash || '').replace(/^#/, '');
-  if (id) window.location.hash = id;
-}
 
 function buildRows(stats, ncs, audits) {
-  /** @type {{ tier: 'urgent' | 'watch'; title: string; badge: string; badgeTone: string; meta: string; hash: string; icon: string }[]} */
+  /** @type {{ tier: 'urgent' | 'watch'; title: string; badge: string; badgeTone: string; meta: string; hash: string; icon: string; navExtras?: Record<string, unknown> }[]} */
   const urgent = [];
-  /** @type {{ tier: 'urgent' | 'watch'; title: string; badge: string; badgeTone: string; meta: string; hash: string; icon: string }[]} */
+  /** @type {{ tier: 'urgent' | 'watch'; title: string; badge: string; badgeTone: string; meta: string; hash: string; icon: string; navExtras?: Record<string, unknown> }[]} */
   const watch = [];
 
   const crit = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents : [];
   crit.forEach((row) => {
+    const ref = row.ref != null ? String(row.ref).trim() : '';
+    const iid = row.id != null ? String(row.id).trim() : '';
+    const hintTitle = String(row.title || row.type || '').trim().slice(0, 240);
+    /** @type {Record<string, unknown>} */
+    const navExtras = {
+      incidentSeverityFilter: 'critique',
+      dashboardIncidentPeriodPreset: '30',
+      source: 'dashboard_alerts_prio'
+    };
+    if (ref) navExtras.focusIncidentRef = ref;
+    if (iid) navExtras.focusIncidentId = iid;
+    if (hintTitle) navExtras.focusIncidentHintTitle = hintTitle;
     urgent.push({
       tier: 'urgent',
       title: `${row.ref || '—'} — ${row.type || 'Incident'}`,
@@ -53,7 +62,8 @@ function buildRows(stats, ncs, audits) {
       badgeTone: 'red',
       meta: [row.site, formatShortDate(row.createdAt)].filter(Boolean).join(' · '),
       hash: 'incidents',
-      icon: '⚡'
+      icon: '⚡',
+      navExtras
     });
   });
 
@@ -62,6 +72,16 @@ function buildRows(stats, ncs, audits) {
     const metaParts = [];
     if (row.dueDate) metaParts.push(`Échéance ${formatShortDate(row.dueDate)}`);
     if (row.owner) metaParts.push(`Resp. ${row.owner}`);
+    const aid = row.id != null ? String(row.id).trim() : '';
+    const ttl = String(row.title || '').trim().slice(0, 240);
+    /** @type {Record<string, unknown>} */
+    const navExtras = {
+      actionsColumnFilter: 'overdue',
+      scrollToId: 'qhse-actions-col-overdue',
+      source: 'dashboard_alerts_prio'
+    };
+    if (aid) navExtras.focusActionId = aid;
+    if (ttl) navExtras.focusActionTitle = ttl;
     urgent.push({
       tier: 'urgent',
       title: row.title || 'Action en retard',
@@ -69,12 +89,15 @@ function buildRows(stats, ncs, audits) {
       badgeTone: 'amber',
       meta: metaParts.length ? metaParts.join(' · ') : 'À traiter',
       hash: 'actions',
-      icon: '⏱'
+      icon: '⏱',
+      navExtras
     });
   });
 
   const ncList = Array.isArray(ncs) ? ncs.filter(isNcOpen) : [];
   ncList.forEach((nc) => {
+    const nct = String(nc.title || '').trim().slice(0, 120);
+    const aref = nc.auditRef != null ? String(nc.auditRef).trim() : '';
     watch.push({
       tier: 'watch',
       title: nc.title || 'Non-conformité',
@@ -82,12 +105,19 @@ function buildRows(stats, ncs, audits) {
       badgeTone: 'amber',
       meta: nc.auditRef ? `Audit ${nc.auditRef}` : formatShortDate(nc.createdAt),
       hash: 'audits',
-      icon: '◎'
+      icon: '◎',
+      navExtras: {
+        scrollToId: 'audit-cockpit-tier-critical',
+        source: 'dashboard_alerts_prio',
+        ...(aref ? { focusAuditRef: aref } : {}),
+        ...(nct ? { linkedNonConformity: nct } : {})
+      }
     });
   });
 
   const audList = Array.isArray(audits) ? audits.filter(isAuditLate) : [];
   audList.forEach((a) => {
+    const ar = a.ref != null ? String(a.ref).trim() : '';
     watch.push({
       tier: 'watch',
       title: a.ref ? `Audit ${a.ref}` : 'Audit',
@@ -95,7 +125,12 @@ function buildRows(stats, ncs, audits) {
       badgeTone: 'blue',
       meta: [a.site, a.status].filter(Boolean).join(' · ').slice(0, 80),
       hash: 'audits',
-      icon: '◉'
+      icon: '◉',
+      navExtras: {
+        scrollToId: 'audit-cockpit-planning-block',
+        source: 'dashboard_alerts_prio',
+        ...(ar ? { focusAuditRef: ar, focusAuditTitle: ar } : {})
+      }
     });
   });
 
@@ -104,7 +139,7 @@ function buildRows(stats, ncs, audits) {
 }
 
 /**
- * @param {{ tier: 'urgent' | 'watch'; title: string; badge: string; badgeTone: string; meta: string; hash: string; icon: string }} item
+ * @param {{ tier: 'urgent' | 'watch'; title: string; badge: string; badgeTone: string; meta: string; hash: string; icon: string; navExtras?: Record<string, unknown> }} item
  */
 function renderAlertRow(item) {
   const row = document.createElement('button');
@@ -140,7 +175,9 @@ function renderAlertRow(item) {
   badge.textContent = item.badge;
 
   row.append(ic, tier, main, badge);
-  row.addEventListener('click', () => go(item.hash));
+  row.addEventListener('click', () =>
+    qhseNavigate(item.hash, item.navExtras ? { ...item.navExtras } : {})
+  );
   return row;
 }
 
@@ -220,8 +257,16 @@ export function createDashboardAlertsPriorites() {
 
       const acts = createDashboardBlockActions(
         [
-          { label: 'Voir les actions', pageId: 'actions' },
-          { label: 'Voir les incidents', pageId: 'incidents' }
+          {
+            label: 'Voir les actions',
+            pageId: 'actions',
+            intent: { actionsColumnFilter: 'overdue', source: 'dashboard_alerts_prio' }
+          },
+          {
+            label: 'Voir les incidents',
+            pageId: 'incidents',
+            intent: { dashboardIncidentPeriodPreset: '30', source: 'dashboard_alerts_prio' }
+          }
         ],
         { className: 'dashboard-block-actions dashboard-block-actions--tight' }
       );
@@ -232,7 +277,9 @@ export function createDashboardAlertsPriorites() {
         b1.type = 'button';
         b1.className = 'dashboard-block-link';
         b1.textContent = 'Voir les actions';
-        b1.addEventListener('click', () => go('actions'));
+        b1.addEventListener('click', () =>
+          qhseNavigate('actions', { actionsColumnFilter: 'overdue', source: 'dashboard_alerts_prio' })
+        );
         const sep = document.createElement('span');
         sep.className = 'dashboard-block-actions-sep';
         sep.setAttribute('aria-hidden', 'true');
@@ -241,7 +288,9 @@ export function createDashboardAlertsPriorites() {
         b2.type = 'button';
         b2.className = 'dashboard-block-link';
         b2.textContent = 'Voir les incidents';
-        b2.addEventListener('click', () => go('incidents'));
+        b2.addEventListener('click', () =>
+          qhseNavigate('incidents', { dashboardIncidentPeriodPreset: '30', source: 'dashboard_alerts_prio' })
+        );
         fallback.append(b1, sep, b2);
         wrap.append(strip, main, watchRow, micro, fallback);
       } else {

@@ -4,6 +4,7 @@
 
 import { MS_DAY, computeIncidentWeekMetrics } from '../utils/dashboardIncidentMetrics.js';
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const MAX_ITEMS = 5;
 
@@ -26,13 +27,8 @@ function isActionDone(a) {
   return /termin|clos|ferm|clôtur|realis|réalis|effectu|complete|complété|fait/.test(s);
 }
 
-function go(hash) {
-  const id = String(hash || '').replace(/^#/, '');
-  if (id) window.location.hash = id;
-}
-
 /**
- * @typedef {{ variant: 'trend' | 'anomaly' | 'drift'; headline: string; detail: string; hash: string }} VigilanceItem
+ * @typedef {{ variant: 'trend' | 'anomaly' | 'drift'; headline: string; detail: string; hash: string; navExtras?: Record<string, string> }} VigilanceItem
  */
 
 /**
@@ -64,7 +60,8 @@ export function computeVigilanceItems(input) {
       headline: 'Les incidents accélèrent sur 7 jours',
       detail:
         'La fenêtre récente dépasse la période précédente : vérifier les causes récurrentes et le terrain.',
-      hash: 'incidents'
+      hash: 'incidents',
+      navExtras: { incidentSeverityFilter: 'critique' }
     });
   }
 
@@ -86,14 +83,16 @@ export function computeVigilanceItems(input) {
       variant: 'anomaly',
       headline: 'NC ouvertes concentrées sur un même site',
       detail: 'Le volume par site sort du schéma habituel : prioriser une revue locale et le plan d’actions.',
-      hash: 'audits'
+      hash: 'audits',
+      navExtras: { scrollToId: 'audit-cockpit-tier-critical' }
     });
   } else if (maxAuditRef >= 2) {
     out.push({
       variant: 'anomaly',
       headline: 'Même filière d’audit : NC qui se répètent',
       detail: 'Plusieurs ouvertures sur un même contexte : creuser la cause système, pas seulement le symptôme.',
-      hash: 'audits'
+      hash: 'audits',
+      navExtras: { scrollToId: 'audit-cockpit-tier-critical' }
     });
   }
 
@@ -137,7 +136,8 @@ export function computeVigilanceItems(input) {
           ? 'Audits en retard sur plusieurs sites'
           : 'Plusieurs audits à finaliser ou à replanifier',
       detail: 'Le calendrier audit s’écarte : sécuriser les dates ou ajuster les ressources.',
-      hash: 'audits'
+      hash: 'audits',
+      navExtras: { scrollToId: 'audit-cockpit-planning-block' }
     });
   }
 
@@ -231,7 +231,9 @@ export function createDashboardVigilancePoints() {
         btn.type = 'button';
         btn.className = 'dashboard-vigilance-investigate';
         btn.textContent = 'Investiguer';
-        btn.addEventListener('click', () => go(it.hash));
+        btn.addEventListener('click', () =>
+          qhseNavigate(it.hash, it.navExtras ? { ...it.navExtras } : {})
+        );
         const hint = document.createElement('span');
         hint.className = 'dashboard-vigilance-rich-hint';
         hint.textContent = 'Voir le détail dans le module';

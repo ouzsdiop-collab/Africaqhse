@@ -2,6 +2,13 @@ import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
+/**
+ * Réexport — la règle « risque critique » est implémentée une seule fois dans `kpiCore.service.js`
+ * (`isCriticalRisk`, `RISK_CRITICAL_GP_MIN`, `RISK_CRITICAL_SEVERITY_NUM_MIN`) : le dashboard
+ * utilise `countRisksCriticalForKpi` et `getRiskStats` filtre avec la même fonction.
+ */
+export { isCriticalRisk } from './kpiCore.service.js';
+
 function normalizeInt(value, fallback = 1, min = 1, max = 5) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -208,22 +215,11 @@ export async function deleteRiskById(tenantId, id) {
   return { deleted: true, id: row.id };
 }
 
+/**
+ * @deprecated Préférer `getRiskStats` depuis `risks.stats.service.js` (même règle KPI que le dashboard).
+ * Conservé pour compatibilité imports tiers éventuels.
+ */
 export async function getRiskStats(tenantId, filters = {}) {
-  const rows = await findAllRisks(tenantId, { ...filters, limit: 5000 });
-  const byStatus = {};
-  const byCategory = {};
-  let critical = 0;
-  rows.forEach((r) => {
-    const status = String(r.status || 'unknown');
-    const category = String(r.category || 'Autre');
-    byStatus[status] = (byStatus[status] || 0) + 1;
-    byCategory[category] = (byCategory[category] || 0) + 1;
-    if (Number(r.gp) >= 15) critical += 1;
-  });
-  return {
-    total: rows.length,
-    critical,
-    byStatus,
-    byCategory
-  };
+  const { getRiskStats: aligned } = await import('./risks.stats.service.js');
+  return aligned(tenantId, filters);
 }

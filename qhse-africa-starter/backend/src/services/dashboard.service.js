@@ -1,12 +1,181 @@
 import { prisma } from '../db.js';
+import { normalizeTenantId } from '../lib/tenantScope.js';
 import {
   countNonConformitiesOpenHeuristic,
+  countRisksCriticalForKpi,
   isActionOverdueDashboardRow,
   prismaTenantSiteWhere
 } from './kpiCore.service.js';
 import { isFinalAuditStatus } from './auditAutoReport.service.js';
 
 const LIST_MAX = 5;
+const DASHBOARD_TIMESERIES_MONTHS = 6;
+
+/**
+ * Aligné sur `ncTextIsMajor` (dashboardCharts.js) — heuristique texte titre+détail.
+ * @param {{ title?: string | null; detail?: string | null }} nc
+ */
+function ncTextIsMajorForTimeseries(nc) {
+  const t = `${nc?.title || ''} ${nc?.detail || ''}`.toLowerCase();
+  if (
+    /criticité\s*:\s*mineure|criticité\s*:\s*mineur|\bmineure\b|\bmineur\b|\bfaible\b|\bminor\b/.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  if (
+    /criticité\s*:\s*majeure|criticité\s*:\s*majeur|\bmajeure\b|\bmajeur\b|\bcritique\b|\bmajor\b|\bgrave\b/.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function frShortMonthLabel(d) {
+  return d.toLocaleDateString('fr-FR', { month: 'short' });
+}
+
+/**
+ * @param {number} monthCount
+ * @param {Date} now
+ */
+function buildMonthSlots(monthCount, now) {
+  const n = Math.max(1, Math.min(24, Math.floor(Number(monthCount)) || DASHBOARD_TIMESERIES_MONTHS));
+  /** @type {{ key: string; label: string; year: number; monthIndex: number }[]} */
+  const slots = [];
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    slots.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: frShortMonthLabel(d),
+      year: d.getFullYear(),
+      monthIndex: d.getMonth()
+    });
+  }
+  return slots;
+}
+
+/**
+ * Même priorité que `getAuditTimestampMs` côté front (schéma Audit : pas de updatedAt → createdAt).
+ * @param {{ createdAt?: Date; updatedAt?: Date }} a
+ * @returns {number | null}
+ */
+function getAuditTimestampMsForTimeseries(a) {
+  if (!a || typeof a !== 'object') return null;
+  const candidates = [a.updatedAt, a.createdAt];
+  for (const c of candidates) {
+    if (c == null || c === '') continue;
+    const t = new Date(c).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return null;
+}
+
+function normalizeAuditScoreValue(raw) {
+  if (raw == null || raw === '') return NaN;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const n = Number(String(raw).trim().replace(',', '.'));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/**
+ * Agrégations mensuelles pilotage graphiques — **uniquement** avec `tenantId` non vide.
+ * @param {string} tenantId
+ * @param {string | null} [siteId]
+ * @param {number} [monthCount]
+ */
+export async function buildDashboardTimeseries(tenantId, siteId = null, monthCount = DASHBOARD_TIMESERIES_MONTHS) {
+  const tid = normalizeTenantId(tenantId);
+  const now = new Date();
+  const slots = buildMonthSlots(monthCount, now);
+  if (!tid) {
+    return {
+      monthCount: slots.length,
+      labels: slots.map((s) => s.label),
+      incidentsByMonth: slots.map((s) => ({ label: s.label, value: 0 })),
+      auditsScoreByMonth: slots.map((s) => ({ label: s.label, value: 0, count: 0 })),
+      nonConformitiesByMonth: {
+        labels: slots.map((s) => s.label),
+        major: slots.map(() => 0),
+        minor: slots.map(() => 0)
+      }
+    };
+  }
+
+  const siteFilter = prismaTenantSiteWhere(tenantId, siteId);
+  const startDate = new Date(slots[0].year, slots[0].monthIndex, 1);
+
+  const [incidents, audits, ncs] = await Promise.all([
+    prisma.incident.findMany({
+      where: { ...siteFilter, createdAt: { gte: startDate } },
+      select: { createdAt: true }
+    }),
+    prisma.audit.findMany({
+      where: { ...siteFilter, createdAt: { gte: startDate } },
+      select: { createdAt: true, score: true }
+    }),
+    prisma.nonConformity.findMany({
+      where: { ...siteFilter, createdAt: { gte: startDate } },
+      select: { createdAt: true, title: true, detail: true }
+    })
+  ]);
+
+  const incByIdx = slots.map(() => 0);
+  for (const row of incidents) {
+    const dt = new Date(row.createdAt);
+    if (Number.isNaN(dt.getTime())) continue;
+    const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+    const idx = slots.findIndex((s) => s.key === key);
+    if (idx >= 0) incByIdx[idx] += 1;
+  }
+
+  const sumByIdx = slots.map(() => 0);
+  const cntByIdx = slots.map(() => 0);
+  for (const a of audits) {
+    const sc = normalizeAuditScoreValue(a?.score);
+    if (!Number.isFinite(sc)) continue;
+    const tms = getAuditTimestampMsForTimeseries(a);
+    if (tms == null) continue;
+    const dt = new Date(tms);
+    if (Number.isNaN(dt.getTime())) continue;
+    const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+    const idx = slots.findIndex((s) => s.key === key);
+    if (idx < 0) continue;
+    sumByIdx[idx] += sc;
+    cntByIdx[idx] += 1;
+  }
+
+  const majorByIdx = slots.map(() => 0);
+  const minorByIdx = slots.map(() => 0);
+  for (const nc of ncs) {
+    const dt = new Date(nc.createdAt);
+    if (Number.isNaN(dt.getTime())) continue;
+    const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+    const idx = slots.findIndex((s) => s.key === key);
+    if (idx < 0) continue;
+    if (ncTextIsMajorForTimeseries(nc)) majorByIdx[idx] += 1;
+    else minorByIdx[idx] += 1;
+  }
+
+  return {
+    monthCount: slots.length,
+    labels: slots.map((s) => s.label),
+    incidentsByMonth: slots.map((s, i) => ({ label: s.label, value: incByIdx[i] })),
+    auditsScoreByMonth: slots.map((s, i) => ({
+      label: s.label,
+      value: cntByIdx[i] > 0 ? Math.round((sumByIdx[i] / cntByIdx[i]) * 10) / 10 : 0,
+      count: cntByIdx[i]
+    })),
+    nonConformitiesByMonth: {
+      labels: slots.map((s) => s.label),
+      major: majorByIdx,
+      minor: minorByIdx
+    }
+  };
+}
 
 /** Statuts action considérés comme clos (aligné kpiCore / overdue). */
 function prismaActionNotClosedWhere() {
@@ -63,7 +232,8 @@ export async function getDashboardStats(tenantId, siteId = null) {
     nonConformities,
     auditGroups,
     criticalIncidentRows,
-    overdueActionCandidates
+    overdueActionCandidates,
+    timeseries
   ] = await Promise.all([
     prisma.incident.count({ where: siteFilter }),
     prisma.incident.count({
@@ -79,12 +249,7 @@ export async function getDashboardStats(tenantId, siteId = null) {
       }
     }),
     prisma.risk.count({ where: siteFilter }),
-    prisma.risk.count({
-      where: {
-        ...siteFilter,
-        OR: [{ gp: { gte: 16 } }, { severity: { gte: 4 } }]
-      }
-    }),
+    countRisksCriticalForKpi(tenantId, siteId),
     prisma.action.count({ where: siteFilter }),
     prisma.action.count({ where: overdueWhere }),
     countNonConformitiesOpenHeuristic(tenantId, siteId),
@@ -111,16 +276,19 @@ export async function getDashboardStats(tenantId, siteId = null) {
     prisma.action.findMany({
       where: overdueWhere,
       select: {
+        id: true,
         title: true,
         detail: true,
         status: true,
         owner: true,
         dueDate: true,
-        createdAt: true
+        createdAt: true,
+        siteId: true
       },
       orderBy: { dueDate: 'asc' },
       take: LIST_MAX
-    })
+    }),
+    buildDashboardTimeseries(tenantId, siteId)
   ]);
 
   let auditsTotal = 0;
@@ -136,9 +304,20 @@ export async function getDashboardStats(tenantId, siteId = null) {
     ({ severity: _s, ...rest }) => rest
   );
 
-  const overdueActionItems = overdueActionCandidates.filter((row) =>
-    isActionOverdueDashboardRow(row)
-  );
+  const overdueActionItems = overdueActionCandidates
+    .filter((row) => isActionOverdueDashboardRow(row))
+    .map((row) => ({
+      id: row.id,
+      ref: row.ref ?? null,
+      title: row.title,
+      detail: row.detail ?? null,
+      status: row.status,
+      dueDate: row.dueDate ?? null,
+      priority: row.priority ?? null,
+      owner: row.owner ?? null,
+      siteId: row.siteId ?? null,
+      createdAt: row.createdAt ?? null
+    }));
 
   const stats = {
     incidents: {
@@ -169,6 +348,7 @@ export async function getDashboardStats(tenantId, siteId = null) {
     criticalIncidents,
     overdueActionItems,
     siteId: siteFilter?.siteId ?? null,
-    stats
+    stats,
+    timeseries
   };
 }

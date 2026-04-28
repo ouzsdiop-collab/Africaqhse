@@ -140,14 +140,14 @@ function syncRequirementStatusFromProofs(registryRequirementId) {
   if (!rid || !touchedReqs.has(rid)) return;
   const docs = getDocumentsByExigence(rid);
   if (docs.length === 0) {
-    setRequirementStatus(rid, 'non_conforme');
+    void setRequirementStatus(rid, 'non_conforme');
     return;
   }
   const hasVal = docs.some((d) => d.status === 'validated');
   const hasVer = docs.some((d) => d.status === 'verify');
-  if (hasVal) setRequirementStatus(rid, 'conforme');
-  else if (hasVer) setRequirementStatus(rid, 'partiel');
-  else setRequirementStatus(rid, 'non_conforme');
+  if (hasVal) void setRequirementStatus(rid, 'conforme');
+  else if (hasVer) void setRequirementStatus(rid, 'partiel');
+  else void setRequirementStatus(rid, 'non_conforme');
 }
 
 /**

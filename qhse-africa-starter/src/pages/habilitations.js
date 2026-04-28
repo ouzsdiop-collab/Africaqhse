@@ -253,6 +253,7 @@ export function renderHabilitations() {
 
   /** A / B / C regroupés dans un seul « cockpit » visuel (niveau premium) */
   const riskBand = document.createElement('section');
+  riskBand.id = 'habilitations-cockpit-anchor';
   riskBand.className = 'hab-cockpit__block hab-cockpit__block--risk';
   riskBand.setAttribute('aria-labelledby', 'hab-cockpit-risk-title');
 

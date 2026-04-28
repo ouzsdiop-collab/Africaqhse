@@ -257,8 +257,10 @@ export function mapApiRiskToUi(row) {
   const meta = `G${g} × P${p}`;
   const tier = riskTierFromGp(g, p);
   const statusLabel = row?.status ? String(row.status) : riskLevelLabelFromTier(tier);
+  const refRaw = row?.ref != null ? String(row.ref).trim() : '';
   return {
     id: row?.id || null,
+    ref: refRaw || undefined,
     title: String(row?.title || 'Sans titre'),
     type: String(row?.category || ''),
     detail: String(row?.description || ''),

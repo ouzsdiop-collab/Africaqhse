@@ -745,36 +745,36 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const left = document.createElement('div');
   left.className = 'lv2-left';
   left.innerHTML = `
-  <div class="lv2-logo">
+    <div class="lv2-logo">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
          stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    </svg>
-    <span class="lv2-logo-name">QHSE Control</span>
-  </div>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span class="lv2-logo-name">QHSE Control</span>
+    </div>
 
-  <div class="lv2-left-main">
+    <div class="lv2-left-main">
     <h1 class="lv2-headline">Pilotez votre QHSE.<br>Depuis le terrain.</h1>
     <p class="lv2-tagline">
       La plateforme digitale conçue pour les entreprises africaines.
     </p>
-    <div class="lv2-sep" aria-hidden="true"></div>
+      <div class="lv2-sep" aria-hidden="true"></div>
 
-    <div class="lv2-benefits">
-      <div class="lv2-benefit">
-        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+      <div class="lv2-benefits">
+        <div class="lv2-benefit">
+          <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
         <span>Déclaration terrain en <strong>moins de 2 minutes</strong>, même sans connexion</span>
       </div>
       <div class="lv2-benefit">
         <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
         <span>Conformité <strong>ISO 45001 · ISO 14001 · ISO 9001</strong> intégrée</span>
-      </div>
-      <div class="lv2-benefit">
-        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+        </div>
+        <div class="lv2-benefit">
+          <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
         <span>Rapports PDF et alertes <strong>automatisés</strong> par email</span>
-      </div>
-      <div class="lv2-benefit">
-        <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
+        </div>
+        <div class="lv2-benefit">
+          <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
         <span>Analyse des risques chimiques par <strong>IA</strong> (FDS en 1 clic)</span>
       </div>
     </div>
@@ -787,7 +787,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
       <div class="lv2-stat">
         <span class="lv2-stat-num">100%</span>
         <span class="lv2-stat-label">Hors connexion</span>
-      </div>
+        </div>
       <div class="lv2-stat">
         <span class="lv2-stat-num">IA</span>
         <span class="lv2-stat-label">Intégrée</span>
@@ -814,7 +814,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
   </div>
 
   <p class="lv2-gdpr">Sécurité des accès · Journal d'audit · Multi-organisations</p>
-`;
+  `;
 
   const leftMain = left.querySelector('.lv2-left-main');
   if (leftMain) {

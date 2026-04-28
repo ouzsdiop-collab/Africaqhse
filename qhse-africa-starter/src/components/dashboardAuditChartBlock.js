@@ -5,11 +5,16 @@
 import {
   buildMonthlyAuditScoreAvgSeries,
   buildNcMajorMinorMonthlySeries,
-  interpretAuditScoreSeries
+  interpretAuditScoreSeries,
+  DASHBOARD_TREND_EMPTY_MSG
 } from './dashboardCharts.js';
 import { getDemoAuditChartData } from '../data/dashboardAuditDemoDataset.js';
 
 const MONTH_COUNT = 6;
+const EMPTY_TITLE_DEFAULT = 'Aucune donnée disponible';
+const EMPTY_SUB_DEFAULT = 'Le module graphique n’a pas pu s’afficher.';
+const EMPTY_TITLE_NODATA = 'Tendance indisponible';
+const EMPTY_SUB_NODATA = DASHBOARD_TREND_EMPTY_MSG;
 
 const CHART_TEXT = '#cbd5e1';
 const CHART_GRID = 'rgba(148, 163, 184, 0.14)';
@@ -17,8 +22,74 @@ const CHART_GRID = 'rgba(148, 163, 184, 0.14)';
 /**
  * @param {object[] | null | undefined} audits
  * @param {object[] | null | undefined} ncs
+ * @param {object | null | undefined} timeseries — réponse `GET /api/dashboard/stats` (optionnel)
+ * @param {boolean} allowDemoChartFallback — ex. `isDemoMode()` (exploration locale)
  */
-function prepareModel(audits, ncs) {
+function prepareModel(audits, ncs, timeseries, allowDemoChartFallback) {
+  const hasTs = timeseries && typeof timeseries === 'object' && !Array.isArray(timeseries);
+
+  if (hasTs) {
+    if (
+      Array.isArray(timeseries.auditsScoreByMonth) &&
+      timeseries.auditsScoreByMonth.length > 0
+    ) {
+      const scoreRows = timeseries.auditsScoreByMonth;
+      const ncBlock = timeseries.nonConformitiesByMonth;
+      const majorArr = Array.isArray(ncBlock?.major) ? ncBlock.major : [];
+      const minorArr = Array.isArray(ncBlock?.minor) ? ncBlock.minor : [];
+      const labelsFromTs =
+        Array.isArray(timeseries.labels) && timeseries.labels.length
+          ? timeseries.labels.map((l) => String(l))
+          : scoreRows.map((b) => String(/** @type {{ label?: unknown }} */ (b).label ?? '—'));
+      const m = Math.min(labelsFromTs.length, scoreRows.length, majorArr.length, minorArr.length);
+      if (m > 0) {
+        const labels = labelsFromTs.slice(0, m);
+        const scores = scoreRows
+          .slice(0, m)
+          .map((b) => Math.max(0, Math.min(100, Number(/** @type {{ value?: unknown }} */ (b).value) || 0)));
+        const major = majorArr.slice(0, m).map((n) => Math.max(0, Number(n) || 0));
+        const minor = minorArr.slice(0, m).map((n) => Math.max(0, Number(n) || 0));
+        const seriesForInterpret = labels.map((label, i) => ({
+          label,
+          value: Number(scores[i]) || 0
+        }));
+        return {
+          isEmpty: false,
+          labels,
+          scores,
+          major,
+          minor,
+          usingDemoScore: false,
+          usingDemoNc: false,
+          interpret: interpretAuditScoreSeries(seriesForInterpret)
+        };
+      }
+    }
+    return {
+      isEmpty: true,
+      labels: [],
+      scores: [],
+      major: [],
+      minor: [],
+      usingDemoScore: false,
+      usingDemoNc: false,
+      interpret: DASHBOARD_TREND_EMPTY_MSG
+    };
+  }
+
+  if (!allowDemoChartFallback) {
+    return {
+      isEmpty: true,
+      labels: [],
+      scores: [],
+      major: [],
+      minor: [],
+      usingDemoScore: false,
+      usingDemoNc: false,
+      interpret: DASHBOARD_TREND_EMPTY_MSG
+    };
+  }
+
   const scoreBuckets = buildMonthlyAuditScoreAvgSeries(audits, MONTH_COUNT);
   const labels = scoreBuckets.map((b) => b.label);
   const scoreHits = scoreBuckets.reduce((a, b) => a + (b.count || 0), 0);
@@ -49,6 +120,7 @@ function prepareModel(audits, ncs) {
   }));
 
   return {
+    isEmpty: false,
     labels,
     scores,
     major,
@@ -60,7 +132,7 @@ function prepareModel(audits, ncs) {
 }
 
 /**
- * @returns {{ root: HTMLElement; update: (input: { audits?: object[]; ncs?: object[] }) => void }}
+ * @returns {{ root: HTMLElement; update: (input: { audits?: object[]; ncs?: object[]; timeseries?: object | null; allowDemoChartFallback?: boolean }) => void }}
  */
 export function createDashboardAuditChartBlock() {
   const root = document.createElement('div');
@@ -149,20 +221,44 @@ export function createDashboardAuditChartBlock() {
   }
 
   /**
-   * @param {{ audits?: object[]; ncs?: object[] }} input
+   * @param {{ audits?: object[]; ncs?: object[]; timeseries?: object | null; allowDemoChartFallback?: boolean }} input
    */
   function update(input = {}) {
     const audits = input.audits || [];
     const ncs = input.ncs || [];
-    const model = prepareModel(audits, ncs);
+    const timeseries = input.timeseries;
+    const allowDemo = input.allowDemoChartFallback === true;
+    const model = prepareModel(audits, ncs, timeseries, allowDemo);
+
+    if (model.isEmpty) {
+      destroyCharts();
+      const t1 = emptyEl.querySelector('.dashboard-audit-charts-block__empty-title');
+      const t2 = emptyEl.querySelector('.dashboard-audit-charts-block__empty-sub');
+      if (t1) t1.textContent = EMPTY_TITLE_NODATA;
+      if (t2) t2.textContent = EMPTY_SUB_NODATA;
+      interpret.textContent = model.interpret || '';
+      foot.textContent = '';
+      setVisible(skeleton, false);
+      setVisible(chartsHost, false);
+      setVisible(emptyEl, true);
+      return;
+    }
+
+    const t1 = emptyEl.querySelector('.dashboard-audit-charts-block__empty-title');
+    const t2 = emptyEl.querySelector('.dashboard-audit-charts-block__empty-sub');
+    if (t1) t1.textContent = EMPTY_TITLE_DEFAULT;
+    if (t2) t2.textContent = EMPTY_SUB_DEFAULT;
 
     interpret.textContent = model.interpret || '';
     const footBits = [];
     if (model.usingDemoScore) footBits.push('courbe score : série illustrative en l’absence d’historique suffisant');
     if (model.usingDemoNc) footBits.push('NC majeures / mineures : série illustrative en l’absence d’historique suffisant');
-    foot.textContent = footBits.length
-      ? `Note — ${footBits.join(' · ')}. Les chiffres réels s’affichent dès que les audits et NC couvrent la période.`
-      : 'Données issues des audits et NC chargés pour les six derniers mois.';
+    const fromApiTs = timeseries && typeof timeseries === 'object';
+    foot.textContent = fromApiTs
+      ? 'Agrégations mensuelles côté serveur (même périmètre que le tableau de bord).'
+      : footBits.length
+        ? `Note — ${footBits.join(' · ')}. Les chiffres réels s’affichent dès que les audits et NC couvrent la période.`
+        : 'Données issues des audits et NC chargés pour les six derniers mois.';
 
     setVisible(skeleton, true);
     setVisible(chartsHost, false);

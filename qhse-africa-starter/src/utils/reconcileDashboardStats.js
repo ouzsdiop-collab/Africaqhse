@@ -29,6 +29,8 @@ export function deriveDashboardStatsFromLists(incidents, actions, ncs) {
     .filter((row) => isActionOverdueDashboardRow(row))
     .slice(0, 5)
     .map((row) => ({
+      id: row.id ?? row._id ?? null,
+      ref: row.ref ?? row.reference ?? null,
       title: row.title,
       detail: row.detail ?? null,
       status: row.status,
@@ -97,7 +99,7 @@ export function reconcileDashboardStatsWithLists(apiStats, incidents, actions, n
 
   if (!serverLooksAuthoritative && apiScalarsDead && listsSignal) {
     const d = deriveDashboardStatsFromLists(incidents, actions, ncs);
-    return { ...fromApi, ...d, stats: fromApi.stats };
+    return { ...fromApi, ...d, stats: fromApi.stats, timeseries: fromApi.timeseries };
   }
 
   return fromApi;

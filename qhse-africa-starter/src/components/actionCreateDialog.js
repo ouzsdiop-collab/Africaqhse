@@ -6,13 +6,42 @@ import { mergeActionOverlay, appendActionHistory } from '../utils/actionPilotage
 import { applyAssistantActionFormSuggestion } from '../utils/qhseAssistantFormSuggestions.js';
 
 /**
+ * @typedef {{ action?: object | null; id?: string; ref?: string | null; title?: string }} ActionCreatedPayload
+ */
+
+/**
+ * Construit le payload passé à `onCreated` à partir de la réponse API et du formulaire.
+ * @param {unknown} created — corps JSON POST /api/actions
+ * @param {{ title: string }} formFallback
+ * @returns {ActionCreatedPayload}
+ */
+function buildActionCreatedPayload(created, formFallback) {
+  const action =
+    created != null && typeof created === 'object' ? /** @type {Record<string, unknown>} */ (created) : null;
+  const rawId = action?.id ?? action?._id;
+  const id = rawId != null && String(rawId).trim() ? String(rawId).trim() : '';
+  const rawRef = action?.ref ?? action?.reference ?? action?.actionRef ?? action?.code;
+  const ref =
+    rawRef != null && String(rawRef).trim() ? String(rawRef).trim() : null;
+  const rawTitle = action?.title ?? formFallback.title;
+  const title = rawTitle != null ? String(rawTitle).trim() : '';
+  return {
+    action: action || undefined,
+    id,
+    ref,
+    title
+  };
+}
+
+/**
  * @param {object} opts
- * @param {() => void} opts.onCreated
+ * @param {(payload?: ActionCreatedPayload) => void} [opts.onCreated]
+ * @param {boolean} [opts.builtInSuccessToast=true] — toast « Action créée » si succès (mettre false si le parent gère tout le feedback).
  * @param {Array<{ id: string, name: string, role: string }>} opts.users
  * @param {Partial<{ title: string, origin: string, actionType: string, priority: string, description: string, dueDate: string, assigneeId: string, linkedRisk: string, linkedAudit: string, linkedIncident: string, status: string }>} [opts.defaults]
  */
 export function openActionCreateDialog(opts) {
-  const { onCreated, users = [], defaults = {} } = opts;
+  const { onCreated, users = [], defaults = {}, builtInSuccessToast = true } = opts;
 
   const dialog = document.createElement('dialog');
   dialog.className = 'action-create-dialog';
@@ -182,7 +211,8 @@ export function openActionCreateDialog(opts) {
         return;
       }
       const created = await res.json();
-      const id = created?.id;
+      const payload = buildActionCreatedPayload(created, { title });
+      const id = payload.id;
       if (id) {
         mergeActionOverlay(id, {
           actionType,
@@ -197,9 +227,17 @@ export function openActionCreateDialog(opts) {
         });
         appendActionHistory(id, 'Action créée depuis le plan d’actions (pilotage).');
       }
-      showToast('Action créée', 'success');
       dialog.close();
-      onCreated?.();
+      try {
+        if (typeof onCreated === 'function') {
+          onCreated(payload);
+        }
+      } catch (cbErr) {
+        console.error('[actionCreateDialog] onCreated', cbErr);
+      }
+      if (builtInSuccessToast) {
+        showToast('Action créée', 'success');
+      }
     } catch (err) {
       console.error('[actions] create', err);
       showToast('Erreur serveur', 'error');

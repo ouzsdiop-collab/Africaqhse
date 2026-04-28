@@ -8,6 +8,7 @@ import { canResource } from '../utils/permissionsUi.js';
 import { saveImportDraft } from '../utils/importDraft.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 function labelImportStatus(status) {
   switch (status) {
@@ -373,7 +374,7 @@ export function renderImports() {
               missingFields: body.missingFields,
               detectedDocumentType: body.detectedDocumentType
             });
-            window.location.hash = 'incidents';
+            qhseNavigate('incidents');
           });
           actions.append(b);
         }
@@ -389,7 +390,7 @@ export function renderImports() {
               missingFields: body.missingFields,
               detectedDocumentType: body.detectedDocumentType
             });
-            window.location.hash = 'audits';
+            qhseNavigate('audits');
           });
           actions.append(b);
         }
@@ -456,7 +457,7 @@ export function renderImports() {
                 if (Array.isArray(json.warnings) && json.warnings.length) {
                   showToast(json.warnings[0], 'warning');
                 }
-                window.location.hash = pid;
+                qhseNavigate(pid);
                 refreshHistory();
                 return;
               }

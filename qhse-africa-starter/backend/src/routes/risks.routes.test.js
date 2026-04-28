@@ -59,17 +59,6 @@ vi.mock('../services/tenantAuth.service.js', () => ({
 vi.mock('../services/risks.service.js', () => ({
   findAllRisks: vi.fn(async (_tenantId, filters = {}) => applyFilters(store, filters)),
   findRiskById: vi.fn(async (_tenantId, id) => store.find((x) => x.id === id) || null),
-  getRiskStats: vi.fn(async (_tenantId, _filters = {}) => {
-    const byStatus = {};
-    const byCategory = {};
-    let critical = 0;
-    store.forEach((x) => {
-      byStatus[x.status] = (byStatus[x.status] || 0) + 1;
-      byCategory[x.category || 'Autre'] = (byCategory[x.category || 'Autre'] || 0) + 1;
-      if (Number(x.gp || 0) >= 15) critical += 1;
-    });
-    return { total: store.length, critical, byStatus, byCategory };
-  }),
   createRisk: vi.fn(async (_tenantId, data) => {
     const row = {
       id: `risk_${store.length + 1}`,
@@ -225,8 +214,17 @@ describe('risks routes', () => {
 
   it('GET /api/risks/stats retourne une synthese coherente', async () => {
     store.push(
-      { id: 'c1', title: 'c1', status: 'open', category: 'Sécurité', gravity: 5, probability: 3, gp: 15 },
-      { id: 'c2', title: 'c2', status: 'open', category: 'Qualité', gravity: 2, probability: 2, gp: 4 }
+      {
+        id: 'c1',
+        title: 'c1',
+        status: 'open',
+        category: 'Sécurité',
+        gravity: 5,
+        probability: 3,
+        severity: 5,
+        gp: 15
+      },
+      { id: 'c2', title: 'c2', status: 'open', category: 'Qualité', gravity: 2, probability: 2, severity: 2, gp: 4 }
     );
     const res = await apiReq().get('/api/risks/stats');
     expect(res.status).toBe(200);

@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 function includesCritique(severity) {
   return String(severity || '')
@@ -17,10 +18,24 @@ function isNcOpen(row) {
   return true;
 }
 
-function navigate(hash) {
+function navigate(hash, intent) {
   const id = String(hash || '').replace(/^#/, '');
-  if (id) window.location.hash = id;
+  if (!id) return;
+  qhseNavigate(id, intent && typeof intent === 'object' ? intent : {});
 }
+
+const DC_NAV = {
+  overdue: { actionsColumnFilter: 'overdue', scrollToId: 'qhse-actions-col-overdue', source: 'dashboard_cockpit' },
+  ncCrit: { scrollToId: 'audit-cockpit-tier-critical', source: 'dashboard_cockpit' },
+  incCrit: {
+    incidentSeverityFilter: 'critique',
+    dashboardIncidentPeriodPreset: '30',
+    source: 'dashboard_cockpit'
+  },
+  risksCrit: { riskBannerKpi: 'critique', source: 'dashboard_cockpit' },
+  auditsScore: { scrollToId: 'audit-cockpit-tier-score', source: 'dashboard_cockpit' },
+  analytics: { source: 'dashboard_cockpit' }
+};
 
 function computeDynamicIntro(ctx) {
   const { riskVal, openNc, actN, audN, od, actCount } = ctx;
@@ -134,30 +149,34 @@ function computeMicroAction(ctx) {
 
 function buildWatchItems(ctx) {
   const { riskVal, openNc, od, avgScore, hasScores, audN } = ctx;
-  /** @type {{ text: string; hash: string }[]} */
+  /** @type {{ text: string; hash: string; intent?: Record<string, unknown> }[]} */
   const items = [];
   if (riskVal > 0) {
     items.push({
       text: `${riskVal} incident(s) critique(s)`,
-      hash: 'incidents'
+      hash: 'incidents',
+      intent: DC_NAV.incCrit
     });
   }
   if (openNc > 0) {
     items.push({
       text: `${openNc} NC ouverte(s) sans clôture`,
-      hash: 'audits'
+      hash: 'audits',
+      intent: DC_NAV.ncCrit
     });
   }
   if (od > 0) {
     items.push({
       text: `${od} action(s) en retard`,
-      hash: 'actions'
+      hash: 'actions',
+      intent: DC_NAV.overdue
     });
   }
   if (hasScores && audN > 0 && avgScore < 65) {
     items.push({
       text: `Résultats audits à renforcer (${avgScore} %)`,
-      hash: 'analytics'
+      hash: 'audits',
+      intent: DC_NAV.auditsScore
     });
   }
   return items.slice(0, 4);
@@ -169,13 +188,16 @@ function getSituationActionSpecs(ctx) {
   const primary = {
     label: riskVal > 0 ? 'Voir les incidents' : 'Ouvrir le registre risques',
     hash: riskVal > 0 ? 'incidents' : 'risks',
-    emph: false
+    emph: false,
+    intent: riskVal > 0 ? DC_NAV.incCrit : DC_NAV.risksCrit
   };
   const secondary = {
     label:
       od > 0 ? 'Traiter les retards' : openNc > 0 ? 'Voir les NC' : 'Ouvrir le plan d’actions',
     hash: od > 0 ? 'actions' : openNc > 0 ? 'audits' : 'actions',
-    emph: false
+    emph: false,
+    intent:
+      od > 0 ? DC_NAV.overdue : openNc > 0 ? DC_NAV.ncCrit : { skipDefaults: true, source: 'dashboard_cockpit' }
   };
   if (od > 0) secondary.emph = true;
   else if (openNc > 0) secondary.emph = true;
@@ -189,19 +211,19 @@ function getChartActionSpec(values, maxV) {
   const nc = values.nc;
   const a = values.actions;
   if (a === maxV && a > Math.max(nc, r)) {
-    return { label: 'Aller au plan d’actions', hash: 'actions' };
+    return { label: 'Aller au plan d’actions', hash: 'actions', intent: DC_NAV.overdue };
   }
   if (nc === maxV && nc > 0) {
-    return { label: 'Aller aux audits', hash: 'audits' };
+    return { label: 'Aller aux audits', hash: 'audits', intent: DC_NAV.ncCrit };
   }
   if (r === maxV && r > 0) {
-    return { label: 'Aller aux incidents', hash: 'incidents' };
+    return { label: 'Aller aux incidents', hash: 'incidents', intent: DC_NAV.incCrit };
   }
-  return { label: 'Voir les analyses', hash: 'analytics' };
+  return { label: 'Voir les analyses', hash: 'analytics', intent: DC_NAV.analytics };
 }
 
 function computePrimaryAlert(openNc, riskIndicator, overdue) {
-  /** @type {{ variant: string; kicker: string; message: string; cta: string; hash: string; secondary?: { label: string; hash: string } }} */
+  /** @type {{ variant: string; kicker: string; message: string; cta: string; hash: string; intent?: Record<string, unknown>; secondary?: { label: string; hash: string; intent?: Record<string, unknown> } }} */
   if (overdue > 0 && overdue >= Math.max(openNc, riskIndicator)) {
     return {
       variant: 'warn',
@@ -209,9 +231,10 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
       message: `${overdue} action(s) en retard — prioriser l’exécution.`,
       cta: 'Voir le plan d’actions →',
       hash: 'actions',
+      intent: DC_NAV.overdue,
       secondary:
         openNc > 0
-          ? { label: 'Voir aussi les NC', hash: 'audits' }
+          ? { label: 'Voir aussi les NC', hash: 'audits', intent: DC_NAV.ncCrit }
           : undefined
     };
   }
@@ -222,9 +245,10 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
       message: `${openNc} NC ouvertes — traiter ou calendrier avant la revue.`,
       cta: 'Voir les audits →',
       hash: 'audits',
+      intent: DC_NAV.ncCrit,
       secondary:
         overdue > 0
-          ? { label: 'Voir les retards', hash: 'actions' }
+          ? { label: 'Voir les retards', hash: 'actions', intent: DC_NAV.overdue }
           : undefined
     };
   }
@@ -235,7 +259,8 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
       message: `${openNc} NC et ${overdue} retard(s) — arbitrer les deux sujets.`,
       cta: 'Voir les actions →',
       hash: 'actions',
-      secondary: { label: 'Voir les NC', hash: 'audits' }
+      intent: DC_NAV.overdue,
+      secondary: { label: 'Voir les NC', hash: 'audits', intent: DC_NAV.ncCrit }
     };
   }
   if (riskIndicator > 0) {
@@ -245,11 +270,12 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
       message: `${riskIndicator} incident(s) critique(s) — sécuriser le terrain.`,
       cta: 'Voir les incidents →',
       hash: 'incidents',
+      intent: DC_NAV.incCrit,
       secondary:
         overdue > 0
-          ? { label: 'Voir les retards', hash: 'actions' }
+          ? { label: 'Voir les retards', hash: 'actions', intent: DC_NAV.overdue }
           : openNc > 0
-            ? { label: 'Voir les NC', hash: 'audits' }
+            ? { label: 'Voir les NC', hash: 'audits', intent: DC_NAV.ncCrit }
             : undefined
     };
   }
@@ -260,9 +286,10 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
       message: `${openNc} NC ouverte(s) — suivre les plans d’action.`,
       cta: 'Voir les audits →',
       hash: 'audits',
+      intent: DC_NAV.ncCrit,
       secondary:
         overdue > 0
-          ? { label: 'Voir les retards', hash: 'actions' }
+          ? { label: 'Voir les retards', hash: 'actions', intent: DC_NAV.overdue }
           : undefined
     };
   }
@@ -271,7 +298,8 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
     kicker: 'Synthèse',
     message: 'Aucun retard, NC ouverte ni incident critique sur cette vue.',
     cta: 'Approfondir les analyses →',
-    hash: 'analytics'
+    hash: 'analytics',
+    intent: DC_NAV.analytics
   };
 }
 
@@ -388,7 +416,7 @@ export function createDashboardCockpit() {
       btn.className = 'dashboard-cockpit__pill';
       if (spec.emph) btn.classList.add('dashboard-cockpit__pill--emph');
       btn.textContent = spec.label;
-      btn.addEventListener('click', () => navigate(spec.hash));
+      btn.addEventListener('click', () => navigate(spec.hash, spec.intent || {}));
       situationActsHost.append(btn);
     });
   }
@@ -400,14 +428,17 @@ export function createDashboardCockpit() {
     btn.type = 'button';
     btn.className = 'dashboard-cockpit__textlink';
     btn.textContent = `${spec.label} →`;
-    btn.addEventListener('click', () => navigate(spec.hash));
+    btn.addEventListener('click', () => navigate(spec.hash, spec.intent || {}));
     chartActsHost.append(btn);
   }
 
   let alertNavigate = '';
+  /** @type {Record<string, unknown>} */
+  let alertNavigateIntent = {};
 
   function setAlert(payload) {
     alertNavigate = payload.hash || '';
+    alertNavigateIntent = payload.intent && typeof payload.intent === 'object' ? payload.intent : {};
     alertEl.className = `dashboard-cockpit__alert dashboard-cockpit__alert--${payload.variant}`;
     alertEl.replaceChildren();
     const body = document.createElement('div');
@@ -433,7 +464,7 @@ export function createDashboardCockpit() {
       link.textContent = payload.secondary.label;
       link.addEventListener('click', (e) => {
         e.stopPropagation();
-        navigate(payload.secondary.hash);
+        navigate(payload.secondary.hash, payload.secondary.intent || {});
       });
       sec.append(link);
       alertEl.append(sec);
@@ -445,12 +476,12 @@ export function createDashboardCockpit() {
   alertEl.addEventListener('click', (e) => {
     const t = /** @type {HTMLElement} */ (e.target);
     if (t.closest('.dashboard-cockpit__alert-link')) return;
-    if (alertNavigate) navigate(alertNavigate);
+    if (alertNavigate) navigate(alertNavigate, alertNavigateIntent);
   });
   alertEl.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === ' ') && alertNavigate) {
       e.preventDefault();
-      navigate(alertNavigate);
+      navigate(alertNavigate, alertNavigateIntent);
     }
   });
 
@@ -472,7 +503,7 @@ export function createDashboardCockpit() {
       btn.className = 'dashboard-cockpit__watch-item';
       btn.textContent = it.text;
       btn.title = `Aller à ${it.hash}`;
-      btn.addEventListener('click', () => navigate(it.hash));
+      btn.addEventListener('click', () => navigate(it.hash, it.intent || {}));
       li.append(btn);
       ul.append(li);
     });

@@ -30,12 +30,12 @@ export function isExternalAiEnabled() {
  * @param {string} systemPrompt
  * @param {string} userMessage
  * @param {number} [maxTokens=500]
- * @returns {Promise<{ provider: string, rawText: string | null, error?: string | null }>}
+ * @returns {Promise<{ provider: string, model: string | null, rawText: string | null, error?: string | null }>}
  */
 export async function callAiProvider(systemPrompt, userMessage, maxTokens = 500) {
   const mode = resolveAiProvider();
   if (mode === 'mock') {
-    return { provider: 'mock', rawText: null, error: null };
+    return { provider: 'mock', model: null, rawText: null, error: null };
   }
   if (mode === 'openai') {
     return chatOpenAiCompatible(
@@ -98,20 +98,21 @@ async function chatOpenAiCompatible(url, apiKey, model, systemPrompt, userMessag
         if (res.status === 400 && body.response_format) {
           continue;
         }
-        return { provider, rawText: null, error: lastErr };
+        return { provider, model, rawText: null, error: lastErr };
       }
       const data = await res.json();
       const rawText =
         data?.choices?.[0]?.message?.content != null
           ? String(data.choices[0].message.content)
           : null;
-      return { provider, rawText, error: null };
+      return { provider, model, rawText, error: null };
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
     }
   }
   return {
     provider: isOpenAi ? 'openai' : 'mistral',
+    model,
     rawText: null,
     error: lastErr
   };
@@ -119,7 +120,7 @@ async function chatOpenAiCompatible(url, apiKey, model, systemPrompt, userMessag
 
 /**
  * @param {{ system: string, user: string }} messages
- * @returns {Promise<{ provider: string, rawText: string | null, error?: string }>}
+ * @returns {Promise<{ provider: string, model: string | null, rawText: string | null, error?: string }>}
  */
 export async function requestJsonCompletion(messages) {
   return callAiProvider(messages.system, messages.user, 1200);

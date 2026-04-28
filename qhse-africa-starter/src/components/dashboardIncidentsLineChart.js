@@ -7,6 +7,7 @@ import {
   computeIncidentSeriesNarrative,
   buildIncidentExecutiveInterpret
 } from '../utils/dashboardIncidentSeriesNarrative.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /**
  * @param {number} i
@@ -100,7 +101,7 @@ export function createIncidentsMonthlyLineChartChartJs(safe, options = {}) {
     b.className = 'btn btn-secondary dashboard-incidents-chartjs-cta__btn';
     b.textContent = label;
     b.addEventListener('click', () => {
-      window.location.hash = hash;
+      qhseNavigate(hash);
     });
     return b;
   };

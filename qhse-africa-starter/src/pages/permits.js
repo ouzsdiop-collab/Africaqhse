@@ -14,6 +14,7 @@ import {
 import { getLinksFor, linkModules } from '../services/moduleLinks.service.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const PTW_TYPES = [
   'travail en hauteur',
@@ -235,6 +236,7 @@ export function renderPermits() {
 
   const cols = document.createElement('div');
   cols.className = 'ptw-columns';
+  cols.id = 'permits-lists-anchor';
   const inProgressCard = document.createElement('article');
   inProgressCard.className = 'content-card card-soft ptw-card';
   const closedCard = document.createElement('article');
@@ -734,7 +736,7 @@ export function renderPermits() {
         toId: `action_from_${it.id}`,
         kind: 'ptw_to_action'
       });
-      window.location.hash = 'actions';
+      qhseNavigate('actions');
     });
     const toIncident = document.createElement('button');
     toIncident.type = 'button';
@@ -748,7 +750,7 @@ export function renderPermits() {
         toId: `incident_from_${it.id}`,
         kind: 'ptw_to_incident'
       });
-      window.location.hash = 'incidents';
+      qhseNavigate('incidents');
     });
     const toRisk = document.createElement('button');
     toRisk.type = 'button';
@@ -762,7 +764,7 @@ export function renderPermits() {
         toId: `risk_from_${it.id}`,
         kind: 'ptw_to_risk'
       });
-      window.location.hash = 'risks';
+      qhseNavigate('risks');
     });
     const signAny = document.createElement('button');
     signAny.type = 'button';

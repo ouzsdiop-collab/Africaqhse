@@ -7,6 +7,8 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import { appState } from '../utils/state.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
 /** Registre produits / FDS — jeu d’exemple (peut être complété par import). */
 const PRODUCT_REGISTRY = [
@@ -1085,13 +1087,13 @@ function renderProductDetail(product, host) {
     });
   }
   art.querySelector('.products-goto-incidents')?.addEventListener('click', () => {
-    window.location.hash = 'incidents';
+    qhseNavigate('incidents');
   });
   art.querySelector('.products-goto-risks')?.addEventListener('click', () => {
-    window.location.hash = 'risks';
+    qhseNavigate('risks');
   });
   art.querySelector('.products-goto-actions')?.addEventListener('click', () => {
-    window.location.hash = 'actions';
+    qhseNavigate('actions');
   });
   host.append(art);
 }
@@ -1339,6 +1341,25 @@ function buildTerrainStrip(products, onOpenDetail, onGoImport) {
 
 export function renderProducts() {
   ensureAuditProductsStyles();
+
+  const productNavIntent = consumeDashboardIntent();
+  const linkedRiskTitleHint =
+    productNavIntent?.linkedRiskTitle != null && String(productNavIntent.linkedRiskTitle).trim()
+      ? String(productNavIntent.linkedRiskTitle).trim().slice(0, 200)
+      : '';
+  const linkedRiskIdHint =
+    productNavIntent?.linkedRiskId != null && String(productNavIntent.linkedRiskId).trim()
+      ? String(productNavIntent.linkedRiskId).trim()
+      : '';
+  let fdsValidityNav = '';
+  {
+    const v = productNavIntent?.productsFdsValidity;
+    if (v != null) {
+      const k = String(v).trim().toLowerCase();
+      if (k === 'expired' || k === 'missing' || k === 'review') fdsValidityNav = k;
+    }
+  }
+  let fdsValidityNavToastDone = false;
 
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas audit-products-page products-page--premium';
@@ -1912,7 +1933,22 @@ export function renderProducts() {
     const q = (input.value || '').trim().toLowerCase();
     listHost.replaceChildren();
     const all = getAllProducts();
-    const filtered = all.filter((p) => matchesFilter(p, q));
+    let filtered = all.filter((p) => matchesFilter(p, q));
+    if (fdsValidityNav) {
+      filtered = filtered.filter((p) => {
+        if (fdsValidityNav === 'expired') return isFdsExpired(p);
+        if (fdsValidityNav === 'missing') return !String(p.fdsValidUntil || '').trim();
+        if (fdsValidityNav === 'review') {
+          const ms = parseValidUntilMs(p.fdsValidUntil);
+          return (
+            !String(p.fdsValidUntil || '').trim() ||
+            ms == null ||
+            ms < Date.now() + 30 * 86400000
+          );
+        }
+        return true;
+      });
+    }
     filtered.forEach((p) =>
       listHost.append(
         createProductRow(p, {
@@ -1992,7 +2028,31 @@ export function renderProducts() {
       showToast('Chargement FDS API impossible — mode local.', 'warning');
     } finally {
       refreshKpi();
+      if (linkedRiskTitleHint && input) {
+        input.value = linkedRiskTitleHint;
+      }
       refreshList();
+      if (fdsValidityNav && !fdsValidityNavToastDone) {
+        fdsValidityNavToastDone = true;
+        const map = {
+          expired: 'FDS expirées (date de validité passée).',
+          missing: 'FDS sans date de validité enregistrée.',
+          review: 'FDS à réviser (échéance dans 30 j. ou date manquante).'
+        };
+        showToast(`Vue Produits filtrée depuis le tableau de bord : ${map[fdsValidityNav] || 'Filtre FDS.'}`, 'info');
+      }
+      if (linkedRiskTitleHint || linkedRiskIdHint) {
+        showToast(
+          linkedRiskTitleHint
+            ? `Contexte risque — recherche préremplie (« ${
+                linkedRiskTitleHint.length > 72
+                  ? `${linkedRiskTitleHint.slice(0, 72)}…`
+                  : linkedRiskTitleHint
+              } »).`
+            : 'Registre produits — contexte risque transmis ; recherche à affiner si besoin.',
+          'info'
+        );
+      }
     }
   })();
   return page;

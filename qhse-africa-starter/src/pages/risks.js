@@ -24,6 +24,8 @@ import { isOnline } from '../utils/networkStatus.js';
 
 /* Extraction : intent dashboard + modèle registre risques (API, cache, analyses) + bloc IA Mistral — évite ~350 lignes dupliquées. */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
+import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
+import { qhseNavigate } from '../utils/qhseNavigate.js';
 import {
   incidentsLinkedToRiskFromRows,
   buildEvolutionSeriesFromRisks,
@@ -45,10 +47,11 @@ import {
 } from '../utils/risksRegisterModel.js';
 import { attachRiskMistralMitigationSection } from '../components/riskMistralMitigationBlock.js';
 import { openRiskCreateDialog } from '../components/riskFormDialog.js';
+import { openRiskDetail } from '../components/riskDetailPanel.js';
 
 export { openRiskCreateDialog };
 export { openRiskDialog } from '../components/riskSheetModal.js';
-export { openRiskDetail } from '../components/riskDetailPanel.js';
+export { openRiskDetail };
 
 export function renderRisks() {
   ensureQhsePilotageStyles();
@@ -84,6 +87,30 @@ export function renderRisks() {
 
   let localRisks = [];
   let risksLoading = true;
+
+  const dashboardIntentNav = consumeDashboardIntent();
+  /** @type {string | null} */
+  let pendingFocusRiskId =
+    dashboardIntentNav?.focusRiskId != null && String(dashboardIntentNav.focusRiskId).trim()
+      ? String(dashboardIntentNav.focusRiskId).trim()
+      : null;
+  /** @type {string} */
+  let pendingFocusRiskTitle =
+    dashboardIntentNav?.focusRiskTitle != null && String(dashboardIntentNav.focusRiskTitle).trim()
+      ? String(dashboardIntentNav.focusRiskTitle).trim().slice(0, 400)
+      : '';
+  const hasRiskFocusIntent = Boolean(pendingFocusRiskId || pendingFocusRiskTitle);
+
+  const openRiskCreateFromNav = Boolean(dashboardIntentNav?.openRiskCreateFromIntent);
+  const riskPrefillTitleNav = String(dashboardIntentNav?.riskPrefillTitle || '')
+    .trim()
+    .slice(0, 200);
+  const riskPrefillDescNav = String(dashboardIntentNav?.riskPrefillDescription || '')
+    .trim()
+    .slice(0, 3800);
+
+  /** Dernier risque ouvert depuis le tableau — contexte optionnel pour navigation Produits / FDS. */
+  let lastRiskFocusForProductsNav = /** @type {{ id: unknown, title: string } | null} */ (null);
 
   /** @type {Array<{ description?: string, ref?: string, type?: string, status?: string, createdAt?: string }>} */
   let incidentRowsRaw = [];
@@ -156,7 +183,8 @@ export function renderRisks() {
     openActionCreateDialog({
       users,
       defaults,
-      onCreated: () => {
+      builtInSuccessToast: false,
+      onCreated: (payload) => {
         linkModules({
           fromModule: 'risks',
           fromId: t,
@@ -165,7 +193,19 @@ export function renderRisks() {
           kind: 'risk_to_action',
           label: 'Action préventive'
         });
-        showToast('Action préventive créée — suivi dans Plan d’actions.', 'success');
+        showToast('Action préventive créée', 'success', {
+          label: 'Ouvrir',
+          action: () => {
+            const nav = {
+              skipDefaults: true,
+              focusActionId: payload?.id,
+              focusActionTitle: payload?.title || '',
+              linkedRiskTitle: t,
+              linkedRiskId: riskRow?.id
+            };
+            qhseNavigate('actions', nav);
+          }
+        });
         activityLogStore.add({
           module: 'risks',
           action: 'Création action préventive',
@@ -212,7 +252,7 @@ export function renderRisks() {
       detail: t,
       user: 'Pilotage QHSE'
     });
-    window.location.hash = 'permits';
+    qhseNavigate('permits');
   }
 
   async function createRiskRemote(data) {
@@ -257,6 +297,8 @@ export function renderRisks() {
       throw new Error(body?.error || `Erreur mise à jour (${res.status})`);
     }
     showToast('Statut risque mis à jour.', 'success');
+    pendingFocusRiskId = risk?.id != null ? String(risk.id) : null;
+    pendingFocusRiskTitle = String(risk.title || '').trim().slice(0, 400);
     await refreshAll();
   }
 
@@ -287,8 +329,10 @@ export function renderRisks() {
   let tierFilter = null;
   /** @type {'critique'|'eleve'|'maitrise'|'sans_action'|null} — filtres cartes KPI */
   let bannerKpiFilter = null;
+  if (String(dashboardIntentNav?.riskBannerKpi || '').toLowerCase() === 'critique') {
+    bannerKpiFilter = 'critique';
+  }
   let dashboardKeywordFilter = '';
-  const dashboardIntent = consumeDashboardIntent();
 
   function deriveApiFilters() {
     let status = null;
@@ -598,8 +642,8 @@ export function renderRisks() {
         sl.className = 'risks-proofs-item__label';
         sl.textContent = d.label;
         li.append(sk, sl);
-        ul.append(li);
-      });
+      ul.append(li);
+    });
     }
     art.append(h, ul);
     proofsHost.append(art);
@@ -1108,6 +1152,12 @@ export function renderRisks() {
       const frag = createRiskRegisterRow(r, {
         linkedIncidents: incidentsLinkedToRiskFromRows(incidentRowsRaw, String(r.title || '')),
         incidentsLinkNote,
+        onRiskActivated: (riskRow) => {
+          lastRiskFocusForProductsNav = {
+            id: riskRow?.id ?? null,
+            title: String(riskRow?.title || '').trim()
+          };
+        },
         onRefresh: () => void refreshAll(),
         onCreatePreventiveAction: (title) => {
           void openPreventiveActionFromRisks(title);
@@ -1214,6 +1264,7 @@ export function renderRisks() {
       updateActiveFiltersBar();
       matrixPanel.setRisks(localRisks);
       renderList();
+      tryFocusRiskFromIntent();
       return;
     }
     offlineCacheBanner.hidden = true;
@@ -1232,7 +1283,7 @@ export function renderRisks() {
         localRisks = [];
         const em = err instanceof Error ? err.message : '';
         if (em !== '401' && em !== '403') {
-          showToast(
+      showToast(
             em && !/^HTTP \d+$/.test(em)
               ? em
               : 'Impossible de charger le registre des risques depuis le serveur.',
@@ -1256,13 +1307,112 @@ export function renderRisks() {
     updateActiveFiltersBar();
     matrixPanel.setRisks(localRisks);
     renderList();
+    tryFocusRiskFromIntent();
   }
 
-  if (dashboardIntent?.source === 'dashboard' && dashboardIntent?.chart === 'risk_distribution') {
-    dashboardKeywordFilter = String(dashboardIntent?.riskType || '').trim();
+  async function afterRiskCreatedAndFocus(created) {
+    pendingFocusRiskId = created?.id != null ? String(created.id) : null;
+    pendingFocusRiskTitle = String(created?.title || '').trim().slice(0, 400);
+    bannerKpiFilter = null;
+    tierFilter = null;
+    matrixFilter = null;
+    dashboardKeywordFilter = '';
+    matrixPanel.clearFilter();
+    await refreshAll();
+    showToast('Risque créé et synchronisé avec le backend.', 'success');
+  }
+
+  function incidentsLinkNoteForRisk() {
+    return appState.activeSiteId
+      ? 'Périmètre : site sélectionné dans la barre principale — aligné sur la liste du module Incidents.'
+      : 'Périmètre : tous les sites visibles par l’API sur cette requête.';
+  }
+
+  function openRiskSheetFromHit(hit) {
+    lastRiskFocusForProductsNav = {
+      id: hit?.id ?? null,
+      title: String(hit?.title || '').trim()
+    };
+    openRiskDetail(hit, {
+      linkedIncidents: incidentsLinkedToRiskFromRows(incidentRowsRaw, String(hit.title || '')),
+      incidentsLinkNote: incidentsLinkNoteForRisk(),
+      onRefresh: () => void refreshAll(),
+      onCreatePreventiveAction: (title) => {
+        void openPreventiveActionFromRisks(title);
+      },
+      onCreatePtwFromRisk: (title) => void createPtwFromRisk(title),
+      onSheetBodyReady: (innerEl, riskRow) => attachRiskMistralMitigationSection(innerEl, riskRow)
+    });
+  }
+
+  function scrollRiskRowIntoViewHit(hit) {
+    const title = String(hit.title || '').trim();
+    if (!title) return false;
+    const rows = listStack.querySelectorAll('tr.risk-register-table-row[data-risk-title]');
+    for (const tr of rows) {
+      if (String(tr.getAttribute('data-risk-title') || '').trim() === title) {
+        tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        try {
+          tr.focus({ preventScroll: true });
+        } catch {
+          tr.focus();
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function tryFocusRiskFromIntent() {
+    const id = pendingFocusRiskId ? String(pendingFocusRiskId).trim() : '';
+    const titleHint = pendingFocusRiskTitle ? String(pendingFocusRiskTitle).trim().slice(0, 400) : '';
+    if (!id && !titleHint) return;
+
+    pendingFocusRiskId = null;
+    pendingFocusRiskTitle = '';
+
+    bannerKpiFilter = null;
+    tierFilter = null;
+    matrixFilter = null;
+    dashboardKeywordFilter = '';
+    matrixPanel.clearFilter();
+    syncTierPills();
+    updateMatrixStatusLine();
+    updateActiveFiltersBar();
+    renderList();
+
+    let hit =
+      (id && localRisks.find((x) => String(x?.id ?? '') === id)) ||
+      (titleHint && localRisks.find((x) => String(x.title || '').trim() === titleHint)) ||
+      null;
+    if (!hit && titleHint) {
+      const low = titleHint.toLowerCase();
+      const sub = low.slice(0, 80);
+      hit =
+        localRisks.find((x) => {
+          const t = String(x.title || '').toLowerCase();
+          return t === low || t.includes(sub) || sub.length > 4 && t.includes(sub);
+        }) || null;
+    }
+    if (hit) {
+      requestAnimationFrame(() => {
+        scrollRiskRowIntoViewHit(hit);
+        openRiskSheetFromHit(hit);
+      });
+      return;
+    }
+    showToast('Risque introuvable dans la liste chargée.', 'warning');
+  }
+
+  if (!hasRiskFocusIntent && dashboardIntentNav?.source === 'dashboard' && dashboardIntentNav?.chart === 'risk_distribution') {
+    dashboardKeywordFilter = String(dashboardIntentNav?.riskType || '').trim();
     if (dashboardKeywordFilter) {
       showToast(`Filtre auto (tableau de bord) appliqué : risque « ${dashboardKeywordFilter} ».`, 'info');
     }
+  }
+
+  if (dashboardIntentNav?.scrollToId) {
+    scheduleScrollIntoView(String(dashboardIntentNav.scrollToId));
   }
 
   void refreshAll();
@@ -1353,7 +1503,14 @@ export function renderRisks() {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : 'create');
         dialog.close();
-        window.location.reload();
+        const ctx = lastRiskFocusForProductsNav;
+        qhseNavigate('products', {
+          skipDefaults: true,
+          linkedRiskId:
+            ctx?.id != null && String(ctx.id).trim() !== '' ? String(ctx.id) : undefined,
+          linkedRiskTitle: ctx?.title ? String(ctx.title).trim().slice(0, 400) : undefined
+        });
+        showToast('Produit enregistré — registre Produits & FDS.', 'success');
       } catch {
         createBtn.textContent = 'Erreur — Reessayer';
         createBtn.disabled = false;
@@ -1390,6 +1547,7 @@ export function renderRisks() {
   const listRegion = register.querySelector('.risks-page__list-region');
 
   const table = document.createElement('table');
+  table.id = 'risks-register-anchor';
   table.className =
     'risks-register-premium-table qhse-data-table' +
     (risksTableColumnMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
@@ -1473,10 +1631,7 @@ export function renderRisks() {
     openRiskCreateDialog({
       onSaved: async (data) => {
         const created = await createRiskRemote(data);
-        localRisks.unshift(created);
-        matrixPanel.clearFilter();
-        await refreshAll();
-        showToast('Risque créé et synchronisé avec le backend.', 'success');
+        await afterRiskCreatedAndFocus(created);
       }
     });
   });
@@ -1552,9 +1707,9 @@ export function renderRisks() {
   iaHost.classList.add('qhse-page-advanced-only');
 
   const risksModeGuide = createSimpleModeGuide({
-    title: 'Risques — prioriser avant la matrice',
-    hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
-    nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
+      title: 'Risques — prioriser avant la matrice',
+      hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
+      nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
   });
   risksModeGuide.classList.add('qhse-page-advanced-only');
 
@@ -1572,5 +1727,23 @@ export function renderRisks() {
     secondaryDetails,
     iaHost
   );
+
+  if (openRiskCreateFromNav && riskPrefillTitleNav) {
+    queueMicrotask(() => {
+      openRiskCreateDialog({
+        defaults: {
+          title: riskPrefillTitleNav,
+          description:
+            riskPrefillDescNav || 'Risque lié à un constat audit / NC — complétez la fiche.',
+          category: 'Sécurité'
+        },
+        onSaved: async (data) => {
+          const created = await createRiskRemote(data);
+          await afterRiskCreatedAndFocus(created);
+        }
+      });
+    });
+  }
+
   return page;
 }
