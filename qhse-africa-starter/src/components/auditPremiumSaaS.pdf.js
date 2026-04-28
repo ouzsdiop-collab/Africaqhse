@@ -4,7 +4,7 @@
  * `qhsePdfChrome` est importé dynamiquement à l’export pour ne pas lier ce chunk lourd au parse du module.
  */
 
-const PDF_BRAND = '#1D9E75';
+import { generatePremiumPdf } from '../utils/pdfPremiumTemplate.js';
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
   const { downloadQhseChromePdf } = await import('../utils/qhsePdfChrome.js');
@@ -49,9 +49,9 @@ export function buildAuditIsoPdfHtml(data) {
   }
 
   const itemStatus = (c) => {
-    if (c.partial) return { t: '⚠ Partiel', bg: '#fef9c3', fg: '#854d0e' };
-    if (c.conforme) return { t: '✓ Conforme', bg: '#dcfce7', fg: '#166534' };
-    return { t: '✗ Non conforme', bg: '#fee2e2', fg: '#991b1b' };
+    if (c.partial) return { t: 'Partiel', bg: '#fef9c3', fg: '#854d0e' };
+    if (c.conforme) return { t: 'Conforme', bg: '#dcfce7', fg: '#166534' };
+    return { t: 'Non conforme', bg: '#fee2e2', fg: '#991b1b' };
   };
 
   const bySection = new Map();
@@ -65,24 +65,24 @@ export function buildAuditIsoPdfHtml(data) {
   let checklistHtml = '';
   let idx = 0;
   for (const sec of sections) {
-    checklistHtml += `<h3 class="qhse-pdf-h3">${esc(sec)}</h3>`;
+    checklistHtml += `<h3 class="qhse-premium-h3">${esc(sec)}</h3>`;
     for (const c of bySection.get(sec) || []) {
       idx += 1;
       const st = itemStatus(c);
       const proof = c.proofRef ? esc(c.proofRef) : 'Non disponible';
-      const obs = c.comment ? `<p class="qhse-pdf-obs"><strong>Observation :</strong> ${esc(c.comment)}</p>` : '';
+      const obs = c.comment ? `<p class="qhse-premium-obs"><strong>Observation :</strong> ${esc(c.comment)}</p>` : '';
       const photo =
         c.photo && /^data:image\//i.test(String(c.photo))
-          ? `<div class="qhse-pdf-photo"><img src="${esc(c.photo)}" alt="" /></div>`
+          ? `<div class="qhse-premium-photo"><img src="${esc(c.photo)}" alt="" /></div>`
           : '';
       checklistHtml += `
-        <div class="qhse-pdf-check-item">
-          <div class="qhse-pdf-check-head">
-            <span class="qhse-pdf-check-no">${idx}.</span>
-            <span class="qhse-pdf-check-title">${esc(c.point)}</span>
-            <span class="qhse-pdf-badge" style="background:${st.bg};color:${st.fg}">${esc(st.t)}</span>
+        <div class="qhse-premium-check-item">
+          <div class="qhse-premium-check-head">
+            <span class="qhse-premium-check-no">${idx}.</span>
+            <span class="qhse-premium-check-title">${esc(c.point)}</span>
+            <span class="qhse-premium-badge" style="background:${st.bg};color:${st.fg}">${esc(st.t)}</span>
           </div>
-          <p class="qhse-pdf-preuve"><strong>Preuve / réf. :</strong> ${proof}</p>
+          <p class="qhse-premium-preuve"><strong>Preuves associées :</strong> ${proof}</p>
           ${obs}
           ${photo}
         </div>`;
@@ -93,14 +93,14 @@ export function buildAuditIsoPdfHtml(data) {
   const weak = (data.checklist || []).filter((c) => !c.conforme || c.partial).slice(0, 5);
 
   const strengthsRows = strengths
-    .map((c, i) => `<tr><td class="qhse-pdf-td-n">${i + 1}</td><td>${esc(c.point)}</td></tr>`)
+    .map((c, i) => `<tr><td class="qhse-premium-td-n">${i + 1}</td><td>${esc(c.point)}</td></tr>`)
     .join('');
   const weakRows = weak
-    .map((c, i) => `<tr><td class="qhse-pdf-td-n">${i + 1}</td><td>${esc(c.point)}</td></tr>`)
+    .map((c, i) => `<tr><td class="qhse-premium-td-n">${i + 1}</td><td>${esc(c.point)}</td></tr>`)
     .join('');
 
   const proofs = (data.proofs || [])
-    .map((p) => `<li>${esc(p.name)} : <span class="qhse-pdf-muted">${esc(p.status)}</span></li>`)
+    .map((p) => `<li>${esc(p.name)} : <span class="qhse-premium-muted">${esc(p.status)}</span></li>`)
     .join('');
   const ncs = (data.treatmentRows || [])
     .map(
@@ -120,107 +120,62 @@ export function buildAuditIsoPdfHtml(data) {
       `<tr><td>${esc(n.norm)}</td><td style="font-weight:700">${esc(Math.round(Number(n.score) || 0))} / 100</td></tr>`
   );
 
-  const gaugePct = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
-
-  return `
-<style>
-  .qhse-pdf-root { box-sizing: border-box; font-family: inherit; font-size: 10.5pt; color: #1a1a1a; background: #fff; line-height: 1.5; margin: 0; padding: 0; width: 100%; overflow: visible; position: relative; left: 0; }
-  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: 0 0 16px 0; }
-  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 0; box-sizing: border-box; overflow: visible; }
-  .qhse-pdf-page:last-child { page-break-after: auto; }
-  .qhse-pdf-title { font-size: 22pt; font-weight: 800; text-align: center; margin: 0 0 8px; letter-spacing: 0.02em; }
-  .qhse-pdf-sub { text-align: center; color: #475569; font-size: 10pt; margin: 0 0 20px; }
-  .qhse-pdf-meta p { margin: 4px 0; font-size: 10.5pt; }
-  .qhse-pdf-gauge-wrap { margin: 16px 0; }
-  .qhse-pdf-gauge-label { font-size: 10pt; font-weight: 700; margin-bottom: 6px; }
-  .qhse-pdf-gauge-track { height: 18px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; overflow: hidden; max-width: 320px; display: inline-block; vertical-align: middle; width: 72%; }
-  .qhse-pdf-gauge-fill { height: 100%; background: ${PDF_BRAND}; border-radius: 3px; width: ${gaugePct}%; }
-  .qhse-pdf-gauge-val { font-weight: 800; margin-left: 12px; font-size: 12pt; }
-  .qhse-pdf-h2 { font-size: 13pt; color: #0f172a; border-bottom: 2px solid ${PDF_BRAND}; padding-bottom: 4px; margin: 18px 0 10px; }
-  .qhse-pdf-h3 { font-size: 11pt; color: ${PDF_BRAND}; margin: 14px 0 8px; font-weight: 800; }
-  .qhse-pdf-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 8px; }
-  .qhse-pdf-table th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 6px; text-align: left; }
-  .qhse-pdf-table td { border: 1px solid #e2e8f0; padding: 8px 6px; vertical-align: top; }
-  .qhse-pdf-td-n { width: 28px; text-align: center; font-weight: 700; background: #f8fafc; }
-  .qhse-pdf-muted { color: #64748b; }
-  .qhse-pdf-check-item { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 10px 8px; margin-bottom: 10px; page-break-inside: avoid; }
-  .qhse-pdf-check-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-  .qhse-pdf-check-no { font-weight: 800; min-width: 22px; }
-  .qhse-pdf-check-title { flex: 1; font-weight: 700; }
-  .qhse-pdf-badge { font-size: 8pt; font-weight: 800; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
-  .qhse-pdf-preuve, .qhse-pdf-obs { margin: 4px 0; font-size: 9.5pt; color: #334155; }
-  .qhse-pdf-photo img { max-width: 160px; max-height: 120px; border-radius: 4px; border: 1px solid #e2e8f0; margin-top: 6px; }
-  .qhse-pdf-footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #64748b; text-align: center; }
-  .qhse-pdf-brand { color: ${PDF_BRAND}; font-weight: 800; font-size: 10pt; margin-top: 8px; text-align: center; }
-</style>
-<div class="qhse-pdf-root">
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h1 class="qhse-pdf-title">RAPPORT D'AUDIT QHSE</h1>
-    <p class="qhse-pdf-sub">Synthèse ISO : export terrain</p>
-    <div class="qhse-pdf-meta">
-      <p><strong>Référence :</strong> ${esc(data.auditRef)}</p>
-      <p><strong>Site audité :</strong> ${esc(data.site)}</p>
-      <p><strong>Date :</strong> ${esc(data.date)}</p>
-      <p><strong>Auditeur responsable :</strong> ${esc(data.auditeur)}</p>
-    </div>
-    <div class="qhse-pdf-gauge-wrap">
-      <div class="qhse-pdf-gauge-label">Score de conformité</div>
-      <div class="qhse-pdf-gauge-track"><div class="qhse-pdf-gauge-fill"></div></div>
-      <span class="qhse-pdf-gauge-val">${esc(scoreLabel)}</span>
-    </div>
-    <p class="qhse-pdf-brand">QHSE Control Africa</p>
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel · document généré localement le ${esc(new Date().toLocaleString('fr-FR'))}</p>
-  </section>
-
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h2 class="qhse-pdf-h2">Résumé exécutif</h2>
+  const summaryHtml = `
+    <p><strong>Référence :</strong> ${esc(data.auditRef)}</p>
+    <p><strong>Site audité :</strong> ${esc(data.site)}</p>
+    <p><strong>Auditeur responsable :</strong> ${esc(data.auditeur)}</p>
+    <p><strong>Score brut :</strong> ${esc(scoreLabel)}</p>
     <p><strong>Lecture du score :</strong> ${esc(interp)}</p>
-    <p class="qhse-pdf-muted">Points forts et écarts ci-dessous sont dérivés de la checklist affichée dans le module Audits.</p>
+    <p class="qhse-premium-muted">Extraits issus de la checklist du module Audits.</p>
     <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:12px">
       <div style="flex:1;min-width:200px">
-        <h3 class="qhse-pdf-h3">Points forts</h3>
-        <table class="qhse-pdf-table">${strengthsRows || '<tr><td class="qhse-pdf-td-n">Non disponible</td><td class="qhse-pdf-muted">Aucun extrait</td></tr>'}</table>
+        <h3 class="qhse-premium-h3">Points forts</h3>
+        <table class="qhse-premium-table">${strengthsRows || '<tr><td class="qhse-premium-td-n">-</td><td class="qhse-premium-muted">Aucun extrait</td></tr>'}</table>
       </div>
       <div style="flex:1;min-width:200px">
-        <h3 class="qhse-pdf-h3">Points faibles / écarts</h3>
-        <table class="qhse-pdf-table">${weakRows || '<tr><td class="qhse-pdf-td-n">Non disponible</td><td class="qhse-pdf-muted">Aucun extrait</td></tr>'}</table>
+        <h3 class="qhse-premium-h3">Points de vigilance</h3>
+        <table class="qhse-premium-table">${weakRows || '<tr><td class="qhse-premium-td-n">-</td><td class="qhse-premium-muted">Aucun extrait</td></tr>'}</table>
       </div>
-    </div>
-    ${
-      norms.length
-        ? `<h2 class="qhse-pdf-h2">Scores par norme (indicatif)</h2>
-    <table class="qhse-pdf-table"><tr><th>Norme</th><th>Score</th></tr>${norms.join('')}</table>`
-        : ''
-    }
-    <h2 class="qhse-pdf-h2">Preuves documentaires</h2>
-    <ul style="margin:0;padding-left:20px;font-size:10pt">${proofs || '<li class="qhse-pdf-muted">Non disponible</li>'}</ul>
-  </section>
+    </div>`;
 
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h2 class="qhse-pdf-h2">Détail de la checklist</h2>
-    ${checklistHtml || '<p class="qhse-pdf-muted">Aucun point.</p>'}
-  </section>
+  const normsSection =
+    norms.length > 0
+      ? `<table class="qhse-premium-table"><tr><th>Norme</th><th>Score</th></tr>${norms.join('')}</table>`
+      : '<p class="qhse-premium-muted">Aucune norme agrégée pour cet export.</p>';
 
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h2 class="qhse-pdf-h2">Plan d'actions &amp; NC</h2>
-    <table class="qhse-pdf-table">
+  const proofsSection = `<ul class="qhse-premium-ul" style="margin-top:0">${proofs || '<li class="qhse-premium-muted">Non disponible</li>'}</ul>`;
+
+  const ncActions = `<table class="qhse-premium-table">
       <tr><th>NC</th><th>Action</th><th>Responsable</th><th>Échéance</th><th>Priorité</th></tr>
-      ${ncs || '<tr><td colspan="5" class="qhse-pdf-muted">Non disponible</td></tr>'}
-    </table>
-    <h2 class="qhse-pdf-h2">Traçabilité</h2>
-    <table class="qhse-pdf-table">
-      <tr><th>Qui</th><th>Quand</th><th>Action</th><th>Commentaire</th></tr>
-      ${traces || '<tr><td colspan="4" class="qhse-pdf-muted">Non disponible</td></tr>'}
-    </table>
-    <p style="margin-top:24px;font-size:10pt"><strong>Signature / visa :</strong> ${esc(data.signerName || 'À compléter (responsable audit)')}</p>
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
-    <p class="qhse-pdf-brand">QHSE Control Africa</p>
-  </section>
-</div>`;
+      ${ncs || '<tr><td colspan="5" class="qhse-premium-muted">Non disponible</td></tr>'}
+    </table>`;
+
+  const traceSection = `<table class="qhse-premium-table">
+      <tr><th>Intervenant</th><th>Date / heure</th><th>Action</th><th>Commentaire</th></tr>
+      ${traces || '<tr><td colspan="4" class="qhse-premium-muted">Non disponible</td></tr>'}
+    </table>`;
+
+  const conclusionHtml = `<p><strong>Signature / visa :</strong> ${esc(data.signerName || 'À compléter par le responsable audit')}</p>
+    <p class="qhse-premium-muted">Le présent document reflète l'état des données à la date d'édition indiquée en couverture.</p>`;
+
+  return generatePremiumPdf({
+    title: "Rapport d'audit QHSE",
+    company: String(data.site || ''),
+    date: String(data.date || ''),
+    subtitle: 'Synthèse terrain et exigences ISO',
+    summary: summaryHtml,
+    narrative: null,
+    compliancePct: Number.isFinite(score) ? score : null,
+    sections: [
+      { title: 'Scores par norme (indicatif)', html: normsSection },
+      { title: 'Preuves associées', html: proofsSection },
+      { title: 'Constats et checklist', html: checklistHtml || '<p class="qhse-premium-muted">Aucun point.</p>' }
+    ],
+    actions: ncActions,
+    traceability: traceSection,
+    conclusion: conclusionHtml,
+    footer: `QHSE Control Africa. Confidentiel. Généré le ${esc(new Date().toLocaleString('fr-FR'))}.`
+  });
 }
 
 /**
@@ -245,53 +200,46 @@ export function buildIsoConformityPdfHtml(data) {
     (r) =>
       `<tr><td>${esc(r.clause)}</td><td>${esc(r.title)}</td><td>${esc(r.status)}</td></tr>`
   );
-  return `
-<style>
-  .qhse-pdf-root { box-sizing: border-box; font-family: inherit; font-size: 10.5pt; color: #1a1a1a; background: #fff; line-height: 1.5; margin: 0; padding: 0; width: 100%; overflow: visible; position: relative; left: 0; }
-  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: 0 0 16px 0; }
-  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 0; box-sizing: border-box; overflow: visible; }
-  .qhse-pdf-page:last-child { page-break-after: auto; }
-  .qhse-pdf-title { font-size: 22pt; font-weight: 800; text-align: center; margin: 0 0 8px; }
-  .qhse-pdf-h2 { font-size: 13pt; color: #0f172a; border-bottom: 2px solid ${PDF_BRAND}; padding-bottom: 4px; margin: 18px 0 10px; }
-  .qhse-pdf-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 8px; }
-  .qhse-pdf-table th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 6px; text-align: left; }
-  .qhse-pdf-table td { border: 1px solid #e2e8f0; padding: 8px 6px; vertical-align: top; }
-  .qhse-pdf-muted { color: #64748b; }
-  .qhse-pdf-brand { color: ${PDF_BRAND}; font-weight: 800; font-size: 10pt; margin-top: 16px; text-align: center; }
-  .qhse-pdf-footer { margin-top: 20px; font-size: 9pt; color: #64748b; text-align: center; }
-</style>
-<div class="qhse-pdf-root">
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h1 class="qhse-pdf-title">RAPPORT DE CONFORMITÉ ISO</h1>
-    <p class="qhse-pdf-muted" style="text-align:center;margin:0 0 20px">Vue pilotage · QHSE Control Africa</p>
-    <p><strong>Score global (écran) :</strong> ${esc(data.globalScoreLabel || 'Non disponible')}</p>
-    <p><strong>Exigences en écart (écran) :</strong> ${esc(data.gapsLabel || 'Non disponible')}</p>
-    <h2 class="qhse-pdf-h2">Scores par norme</h2>
-    <table class="qhse-pdf-table"><tr><th>Référentiel</th><th>Score indicatif</th></tr>${
-      norms.length ? norms.join('') : '<tr><td colspan="2" class="qhse-pdf-muted">Non disponible</td></tr>'
-    }</table>
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel · ${esc(new Date().toLocaleString('fr-FR'))}</p>
-    <p class="qhse-pdf-brand">QHSE Control Africa</p>
-  </section>
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h2 class="qhse-pdf-h2">Registre des exigences (extrait)</h2>
-    <p class="qhse-pdf-muted">Jusqu'à 40 lignes issues du tableau affiché sur la page ISO lors de l'export.</p>
-    <table class="qhse-pdf-table">
+  const summaryHtml = `
+    <p><strong>Score global (vue application) :</strong> ${esc(data.globalScoreLabel || 'Non disponible')}</p>
+    <p><strong>Exigences en écart (vue application) :</strong> ${esc(data.gapsLabel || 'Non disponible')}</p>`;
+
+  const normsSection = `<table class="qhse-premium-table"><tr><th>Référentiel</th><th>Score indicatif</th></tr>${
+    norms.length ? norms.join('') : '<tr><td colspan="2" class="qhse-premium-muted">Non disponible</td></tr>'
+  }</table>`;
+
+  const regSection = `<p class="qhse-premium-muted">Jusqu'à 40 lignes issues du tableau affiché sur la page ISO au moment de l'export.</p>
+    <table class="qhse-premium-table">
       <tr><th>Clause</th><th>Exigence</th><th>Statut</th></tr>
-      ${reqs.length ? reqs.join('') : '<tr><td colspan="3" class="qhse-pdf-muted">Ouvrez le registre sur la page ISO puis relancez l’export pour alimenter ce tableau.</td></tr>'}
-    </table>
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
-  </section>
-</div>`;
+      ${reqs.length ? reqs.join('') : '<tr><td colspan="3" class="qhse-premium-muted">Ouvrez le registre sur la page ISO puis relancez l\'export pour alimenter ce tableau.</td></tr>'}
+    </table>`;
+
+  const pctMatch = String(data.globalScoreLabel || '').match(/(\d+(?:[.,]\d+)?)/);
+  const compliancePct = pctMatch ? Math.round(Number(pctMatch[1].replace(',', '.'))) : null;
+
+  return generatePremiumPdf({
+    title: 'Rapport de conformité ISO',
+    date: new Date().toLocaleString('fr-FR'),
+    subtitle: 'Vue pilotage registre et scores',
+    summary: summaryHtml,
+    narrative: null,
+    compliancePct: Number.isFinite(compliancePct) ? compliancePct : null,
+    sections: [
+      { title: 'Scores par référentiel', html: normsSection },
+      { title: 'Registre des exigences (extrait)', html: regSection }
+    ],
+    conclusion:
+      '<p class="qhse-premium-muted" style="margin:0">Les indicateurs correspondent à la vue application à la date d\'édition.</p>',
+    footer: `QHSE Control Africa. Confidentiel. ${esc(new Date().toLocaleString('fr-FR'))}.`
+  });
 }
 
 /**
  * Rapport « audit IA » : synthèse multi-blocs (même pipeline PDF que la conformité ISO).
  * @param {ReturnType<typeof import('../services/isoAuditReport.service.js').buildIsoAuditReport>} report
+ * @param {{ narrative?: { summary?: string; strengths?: string[]; weaknesses?: string[]; priorityActions?: string[]; confidence?: number } | null; narrativeSource?: 'ai' | 'fallback' | '' }} [opts]
  */
-export function buildIsoAuditReportPdfHtml(report) {
+export function buildIsoAuditReportPdfHtml(report, opts = {}) {
   const esc = (s) =>
     String(s ?? '')
       .replace(/&/g, '&amp;')
@@ -302,75 +250,68 @@ export function buildIsoAuditReportPdfHtml(report) {
 
   const ul = (items, fmt, max = 30) => {
     const rows = cap(items, max);
-    if (!rows.length) return '<p class="qhse-pdf-muted">Aucun élément.</p>';
-    return `<ul class="qhse-pdf-ul">${rows.map((it) => `<li>${fmt(it)}</li>`).join('')}</ul>`;
+    if (!rows.length) return '<p class="qhse-premium-muted">Aucun élément.</p>';
+    return `<ul class="qhse-premium-ul">${rows.map((it) => `<li>${fmt(it)}</li>`).join('')}</ul>`;
   };
 
-  const conform = ul(report.conformingPoints || [], (x) => `<strong>${esc(x.clause)}</strong> (${esc(x.normCode)}) — ${esc(x.title)}. <span class="qhse-pdf-muted">${esc(x.detail)}</span>`, 35);
-  const nc = ul(report.nonConformities || [], (x) => `<strong>${esc(x.clause)}</strong> — ${esc(x.title)}. ${esc(x.detail)}`, 35);
-  const partial = ul(report.partialGaps || [], (x) => `<strong>${esc(x.clause)}</strong> — ${esc(x.title)}. ${esc(x.detail)}`, 25);
-  const miss = ul(report.missingEvidence || [], (x) => `<strong>${esc(x.clause)}</strong> — ${esc(x.title)} : ${esc(x.detail)}`, 35);
+  const conform = ul(
+    report.conformingPoints || [],
+    (x) =>
+      `<strong>${esc(x.clause)}</strong> (${esc(x.normCode)}) - ${esc(x.title)}. <span class="qhse-premium-muted">${esc(x.detail)}</span>`,
+    35
+  );
+  const nc = ul(report.nonConformities || [], (x) => `<strong>${esc(x.clause)}</strong> - ${esc(x.title)}. ${esc(x.detail)}`, 35);
+  const partial = ul(report.partialGaps || [], (x) => `<strong>${esc(x.clause)}</strong> - ${esc(x.title)}. ${esc(x.detail)}`, 25);
+  const miss = ul(
+    report.missingEvidence || [],
+    (x) => `<strong>${esc(x.clause)}</strong> - ${esc(x.title)} : ${esc(x.detail)}`,
+    35
+  );
   const acts = ul(
     report.priorityActions || [],
     (x) =>
-      `${esc(x.title)} <span class="qhse-pdf-muted">(${esc(x.status)})</span>${x.overdue ? ' <strong>· retard</strong>' : ''}`,
+      `${esc(x.title)} <span class="qhse-premium-muted">(${esc(x.status)})</span>${x.overdue ? ' <strong>(retard)</strong>' : ''}`,
     30
   );
   const risks = ul(
     report.criticalRisks || [],
-    (x) => `${esc(x.ref || '—')} — ${esc(x.title)} <span class="qhse-pdf-muted">(${esc(x.label)})</span>`,
+    (x) => `${esc(x.ref || 'N/A')} - ${esc(x.title)} <span class="qhse-premium-muted">(${esc(x.label)})</span>`,
     25
   );
 
-  const genAt = report.generatedAt ? new Date(report.generatedAt).toLocaleString('fr-FR') : esc(new Date().toLocaleString('fr-FR'));
+  const genAt = report.generatedAt
+    ? new Date(report.generatedAt).toLocaleString('fr-FR')
+    : new Date().toLocaleString('fr-FR');
 
-  return `
-<style>
-  .qhse-pdf-root { box-sizing: border-box; font-family: inherit; font-size: 10.5pt; color: #1a1a1a; background: #fff; line-height: 1.5; margin: 0; padding: 0; width: 100%; overflow: visible; position: relative; left: 0; }
-  .qhse-pdf-band { height: 10px; background: ${PDF_BRAND}; margin: 0 0 16px 0; }
-  .qhse-pdf-page { page-break-after: always; padding: 8px 12px 24px; min-height: 0; box-sizing: border-box; overflow: visible; }
-  .qhse-pdf-page:last-child { page-break-after: auto; }
-  .qhse-pdf-title { font-size: 20pt; font-weight: 800; text-align: center; margin: 0 0 8px; }
-  .qhse-pdf-h2 { font-size: 12pt; color: #0f172a; border-bottom: 2px solid ${PDF_BRAND}; padding-bottom: 4px; margin: 16px 0 8px; }
-  .qhse-pdf-muted { color: #64748b; font-size: 9.5pt; }
-  .qhse-pdf-ul { margin: 6px 0 0; padding-left: 1.2rem; }
-  .qhse-pdf-ul li { margin-bottom: 6px; }
-  .qhse-pdf-brand { color: ${PDF_BRAND}; font-weight: 800; font-size: 10pt; margin-top: 16px; text-align: center; }
-  .qhse-pdf-footer { margin-top: 16px; font-size: 9pt; color: #64748b; text-align: center; }
-</style>
-<div class="qhse-pdf-root">
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h1 class="qhse-pdf-title">RAPPORT AUDIT IA · PRÉPARATION CERTIFICATION</h1>
-    <p class="qhse-pdf-muted" style="text-align:center;margin:0 0 14px">Synthèse indicative (agrégation registre, preuves, terrain) · QHSE Control Africa</p>
-    <p><strong>Généré le :</strong> ${genAt}</p>
-    <p><strong>Scores :</strong> consolidé ${esc(String(report.score?.pct ?? '—'))} % · statuts ${esc(String(report.score?.legacyPct ?? '—'))} % · terrain ~${esc(String(report.score?.operationalPct ?? '—'))} %</p>
-    <h2 class="qhse-pdf-h2">Résumé</h2>
-    <p>${esc(report.summary || '')}</p>
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
-    <p class="qhse-pdf-brand">QHSE Control Africa</p>
-  </section>
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h2 class="qhse-pdf-h2">Points conformes</h2>
-    ${conform}
-    <h2 class="qhse-pdf-h2">Non-conformités</h2>
-    ${nc}
-    <h2 class="qhse-pdf-h2">Écarts partiels</h2>
-    ${partial}
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
-    <p class="qhse-pdf-brand">QHSE Control Africa</p>
-  </section>
-  <section class="qhse-pdf-page">
-    <div class="qhse-pdf-band"></div>
-    <h2 class="qhse-pdf-h2">Preuves à renforcer</h2>
-    ${miss}
-    <h2 class="qhse-pdf-h2">Actions prioritaires (ouvertes)</h2>
-    ${acts}
-    <h2 class="qhse-pdf-h2">Risques critiques / très élevés</h2>
-    ${risks}
-    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel · À valider par l’auditeur / la direction</p>
-    <p class="qhse-pdf-brand">QHSE Control Africa</p>
-  </section>
-</div>`;
+  const narSrc =
+    opts.narrativeSource === 'ai' ? 'ai' : opts.narrativeSource === 'fallback' ? 'fallback' : '';
+
+  const summaryHtml = `
+    <p><strong>Date de production :</strong> ${esc(genAt)}</p>
+    <p><strong>Indicateurs :</strong> consolidé ${esc(String(report.score?.pct ?? 'N/A'))} %, statuts ${esc(String(report.score?.legacyPct ?? 'N/A'))} %, terrain ${esc(String(report.score?.operationalPct ?? 'N/A'))} %.</p>
+    <p style="margin-top:10px">${esc(report.summary || '')}</p>`;
+
+  const pct = report.score?.pct;
+  const compliancePct = typeof pct === 'number' && Number.isFinite(pct) ? pct : null;
+
+  return generatePremiumPdf({
+    title: "Rapport d'audit (préparation certification)",
+    date: genAt,
+    subtitle: 'Synthèse registre, preuves et indicateurs terrain',
+    summary: summaryHtml,
+    narrative: opts.narrative ?? null,
+    narrativeSource: narSrc,
+    compliancePct,
+    sections: [
+      { title: 'Points conformes', html: conform },
+      { title: 'Non-conformités', html: nc },
+      { title: 'Écarts partiels', html: partial },
+      { title: 'Preuves à renforcer', html: miss },
+      { title: 'Risques critiques et très élevés', html: risks }
+    ],
+    actions: acts,
+    conclusion:
+      '<p class="qhse-premium-muted" style="margin:0">Document de travail. À valider par l\'auditeur ou la direction avant toute décision.</p>',
+    footer: 'QHSE Control Africa. Confidentiel. Usage interne.'
+  });
 }

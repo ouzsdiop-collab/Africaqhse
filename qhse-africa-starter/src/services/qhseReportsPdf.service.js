@@ -6,11 +6,12 @@
 
 import { escapeHtml } from '../utils/escapeHtml.js';
 import {
-  assembleQhsePdfDocument,
   chunkRowsForPdf,
   downloadQhseChromePdf,
+  formatQhsePdfGenerationDate,
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
+import { assemblePremiumPdfDocument } from '../utils/pdfPremiumTemplate.js';
 import {
   parseRiskMatrixGp,
   riskCriticalityFromMeta,
@@ -77,25 +78,27 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   const list = Array.isArray(risks) ? [...risks] : [];
   const sorted = sortRisksByPriority(list);
   const counts = countRiskTiersPdf(list);
-  const docTitle = 'Registre des risques';
+  const docTitle = 'Registre des risques QHSE';
   const siteNote = opts.siteLabel
-    ? `<p class="qhse-chrome-muted"><strong>Périmètre :</strong> ${escapeHtml(opts.siteLabel)}</p>`
+    ? `<p class="qhse-premium-muted"><strong>Périmètre :</strong> ${escapeHtml(opts.siteLabel)}</p>`
     : '';
 
   const summary = `
-    <h1 class="qhse-chrome-h1">REGISTRE DES RISQUES</h1>
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted">Vue agrégée du registre des risques pour le périmètre exporté.</p>
     ${siteNote}
-    <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#991b1b">${counts.critique}</div><div class="qhse-chrome-kpi-lbl">Critiques</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#c2410c">${counts.eleve}</div><div class="qhse-chrome-kpi-lbl">Élevés</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#ca8a04">${counts.moyen}</div><div class="qhse-chrome-kpi-lbl">Moyens</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#166534">${counts.faible}</div><div class="qhse-chrome-kpi-lbl">Faibles</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${counts.sans}</div><div class="qhse-chrome-kpi-lbl">Sans G×P</div></div>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#991b1b">${counts.critique}</div><div class="qhse-premium-kpi-lbl">Critiques</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#c2410c">${counts.eleve}</div><div class="qhse-premium-kpi-lbl">Élevés</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#a16207">${counts.moyen}</div><div class="qhse-premium-kpi-lbl">Moyens</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#166534">${counts.faible}</div><div class="qhse-premium-kpi-lbl">Faibles</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${counts.sans}</div><div class="qhse-premium-kpi-lbl">Sans G×P</div></div>
     </div>
   `;
 
   const grid = buildRiskMatrixCounts(list);
-  let matrixHtml = '<table class="qhse-chrome-table qhse-matrix-table"><thead><tr><th>G \\ P</th>';
+  let matrixHtml = '<table class="qhse-premium-table qhse-premium-matrix-table"><thead><tr><th>G \\ P</th>';
   for (let p = 1; p <= 5; p += 1) {
     matrixHtml += `<th>P${p}</th>`;
   }
@@ -112,9 +115,11 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   matrixHtml += '</tbody></table>';
 
   const matrixSection = `
-    <h2 class="qhse-chrome-h2">Matrice G × P (effectifs par case)</h2>
-    <p class="qhse-chrome-muted">Nombre de risques positionnés par gravité (G) et probabilité (P).</p>
+    <h2 class="qhse-premium-h2">Analyse (matrice G × P)</h2>
+    <p class="qhse-premium-muted">Effectifs par case gravité (G) et probabilité (P).</p>
     ${matrixHtml}
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Le détail des fiches figure aux pages suivantes. Les identifiants sont ceux du registre applicatif.</p>
   `;
 
   function rowHtml(r) {
@@ -140,7 +145,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
       <td style="text-align:center">${escapeHtml(String(g))}</td>
       <td style="text-align:center">${escapeHtml(String(p))}</td>
       <td style="text-align:center">${prod != null ? escapeHtml(String(prod)) : 'Non disponible'}</td>
-      <td><span class="qhse-chrome-badge" style="background:${badgeBg};color:${badgeFg}">${escapeHtml(st)}</span></td>
+      <td><span class="qhse-premium-badge" style="background:${badgeBg};color:${badgeFg}">${escapeHtml(st)}</span></td>
       <td>${escapeHtml(String(r?.responsible || 'Non renseigné'))}</td>
     </tr>`;
   }
@@ -150,23 +155,28 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   chunks.forEach((chunk, idx) => {
     if (idx === 0) {
       pages.push(
-        `${summary}${matrixSection}<h2 class="qhse-chrome-h2">Détail du registre</h2>${
+        `${summary}${matrixSection}<h2 class="qhse-premium-h2">Détail du registre</h2>${
           chunk.length
-            ? `<table class="qhse-chrome-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
-            : `<p class="qhse-chrome-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`
+            ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
+            : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`
         }`
       );
     } else {
       pages.push(
-        `<h2 class="qhse-chrome-h2">Détail du registre (suite)</h2><table class="qhse-chrome-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
+        `<h2 class="qhse-premium-h2">Traçabilité et détail (suite)</h2><table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
       );
     }
   });
   if (!pages.length) {
-    pages.push(`${summary}${matrixSection}<p class="qhse-chrome-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
+    pages.push(`${summary}${matrixSection}<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
   }
 
-  const html = assembleQhsePdfDocument(docTitle, pages);
+  const html = assemblePremiumPdfDocument(docTitle, pages, {
+    company: opts.siteLabel || '',
+    siteLabel: opts.siteLabel || '',
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Export registre risques'
+  });
   await downloadQhseChromePdf(html, 'registre-risques.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
@@ -179,22 +189,26 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
  */
 export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   const list = Array.isArray(incidents) ? incidents : [];
-  const docTitle = 'Registre des incidents';
+  const docTitle = 'Registre des incidents QHSE';
   const fil = opts.filtersSummary
-    ? `<p class="qhse-chrome-muted"><strong>Filtres :</strong> ${escapeHtml(opts.filtersSummary)}</p>`
+    ? `<p class="qhse-premium-muted"><strong>Filtres :</strong> ${escapeHtml(opts.filtersSummary)}</p>`
     : '';
 
   const crit = list.filter((i) => String(i?.severity || '').toLowerCase().includes('crit')).length;
   const open = list.filter((i) => !/cl[oô]tur|clos|ferm/i.test(String(i?.status || ''))).length;
 
   const summary = `
-    <h1 class="qhse-chrome-h1">REGISTRE DES INCIDENTS</h1>
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted">Synthèse du registre des incidents pour les filtres appliqués.</p>
     ${fil}
-    <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${list.length}</div><div class="qhse-chrome-kpi-lbl">Fiches (vue)</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#991b1b">${crit}</div><div class="qhse-chrome-kpi-lbl">Gravité critique</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#c2410c">${open}</div><div class="qhse-chrome-kpi-lbl">Non clôturés</div></div>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${list.length}</div><div class="qhse-premium-kpi-lbl">Fiches (vue)</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#991b1b">${crit}</div><div class="qhse-premium-kpi-lbl">Gravité critique</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#c2410c">${open}</div><div class="qhse-premium-kpi-lbl">Non clôturés</div></div>
     </div>
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Le tableau détaillé reprend les fiches visibles. Références internes au module incidents.</p>
   `;
 
   function rowHtml(inc) {
@@ -220,13 +234,16 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   const pages = [];
   chunks.forEach((chunk, idx) => {
     const table = chunk.length
-      ? `<table class="qhse-chrome-table"><thead><tr><th>Réf.</th><th>Type</th><th>Statut</th><th>Gravité</th><th>Site</th><th>Date</th><th>Description</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
-      : `<p class="qhse-chrome-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-    pages.push(idx === 0 ? `${summary}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${table}` : `<h2 class="qhse-chrome-h2">Tableau détaillé (suite)</h2>${table}`);
+      ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Type</th><th>Statut</th><th>Gravité</th><th>Site</th><th>Date</th><th>Description</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
+      : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+    pages.push(idx === 0 ? `${summary}<h2 class="qhse-premium-h2">Constats et détail</h2>${table}` : `<h2 class="qhse-premium-h2">Constats et détail (suite)</h2>${table}`);
   });
-  if (!pages.length) pages.push(`${summary}<p class="qhse-chrome-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
+  if (!pages.length) pages.push(`${summary}<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
 
-  const html = assembleQhsePdfDocument(docTitle, pages);
+  const html = assemblePremiumPdfDocument(docTitle, pages, {
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Export registre incidents'
+  });
   await downloadQhseChromePdf(html, 'registre-incidents.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
@@ -246,7 +263,7 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
  */
 export async function downloadPerformanceQhsePdf(ctx) {
   const docTitle = 'Rapport de performance QHSE';
-  const period = `Derniers ${ctx.periodMonths} mois (graphique audits) · ${escapeHtml(ctx.siteLabel || 'Périmètre')}`;
+  const period = `Derniers ${ctx.periodMonths} mois (audits) · ${escapeHtml(ctx.siteLabel || 'Périmètre')}`;
 
   const kpiRows = (ctx.goalRows || [])
     .map(
@@ -263,40 +280,50 @@ export async function downloadPerformanceQhsePdf(ctx) {
   const kpis = ctx.kpis || {};
 
   const page1 = `
-    <h1 class="qhse-chrome-h1">RAPPORT DE PERFORMANCE QHSE</h1>
-    <p class="qhse-chrome-muted"><strong>Période couverte :</strong> ${period}</p>
-    <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(ctx.conformity ?? '0'))}%</div><div class="qhse-chrome-kpi-lbl">Conformité (indice)</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'Non disponible'))}</div><div class="qhse-chrome-kpi-lbl">Score audit moy.</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">Actions en retard</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">NC ouvertes</div></div>
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted">Synthèse des indicateurs de performance pour la période couverte.</p>
+    <p class="qhse-premium-muted"><strong>Période :</strong> ${period}</p>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(ctx.conformity ?? '0'))}%</div><div class="qhse-premium-kpi-lbl">Niveau de conformité (indice)</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'N/A'))}</div><div class="qhse-premium-kpi-lbl">Score audit moyen</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-premium-kpi-lbl">Actions en retard</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-premium-kpi-lbl">NC ouvertes</div></div>
     </div>
-    <h2 class="qhse-chrome-h2">Indicateurs vs objectifs</h2>
-    <table class="qhse-chrome-table">
+    <h2 class="qhse-premium-h2">Indicateurs et objectifs</h2>
+    <table class="qhse-premium-table">
       <thead><tr><th>Indicateur</th><th>Valeur</th><th>Objectif</th></tr></thead>
-      <tbody>${kpiRows || `<tr><td colspan="3" class="qhse-chrome-muted">Non disponible</td></tr>`}</tbody>
+      <tbody>${kpiRows || `<tr><td colspan="3" class="qhse-premium-muted">Non disponible</td></tr>`}</tbody>
     </table>
-    <p class="qhse-chrome-muted" style="margin-top:10px">Les graphiques interactifs de l’écran ne sont pas vectorisés ici ; tendance score audit synthétisée ci-dessous.</p>
+    <p class="qhse-premium-muted" style="margin-top:10px">Les graphiques de l'écran ne sont pas reproduits ici. La tendance du score audit est donnée en tableau page suivante.</p>
   `;
 
   const page2 = `
-    <h2 class="qhse-chrome-h2">Tendance score audit (série mensuelle)</h2>
-    <table class="qhse-chrome-table">
-      <thead><tr><th>Mois</th><th>Score moy. %</th></tr></thead>
-      <tbody>${trendRows || `<tr><td colspan="2" class="qhse-chrome-muted">Aucune donnée sérielle.</td></tr>`}</tbody>
+    <h2 class="qhse-premium-h2">Analyse</h2>
+    <h3 class="qhse-premium-h3">Tendance du score audit (série mensuelle)</h3>
+    <table class="qhse-premium-table">
+      <thead><tr><th>Mois</th><th>Score moyen %</th></tr></thead>
+      <tbody>${trendRows || `<tr><td colspan="2" class="qhse-premium-muted">Aucune donnée sérielle.</td></tr>`}</tbody>
     </table>
-    <h2 class="qhse-chrome-h2">Volumes bruts (extraits API)</h2>
-    <table class="qhse-chrome-table">
+    <h3 class="qhse-premium-h3">Volumes (extraits système)</h3>
+    <table class="qhse-premium-table">
       <tbody>
         <tr><td>Incidents (échantillon chargé)</td><td>${escapeHtml(String(counts.incidentsTotal ?? '0'))}</td></tr>
         <tr><td>Actions</td><td>${escapeHtml(String(counts.actionsTotal ?? '0'))}</td></tr>
         <tr><td>Audits</td><td>${escapeHtml(String(counts.auditsTotal ?? '0'))}</td></tr>
-        <tr><td>Incidents 30 j</td><td>${escapeHtml(String(counts.incidentsLast30Days ?? '0'))}</td></tr>
+        <tr><td>Incidents 30 jours</td><td>${escapeHtml(String(counts.incidentsLast30Days ?? '0'))}</td></tr>
       </tbody>
     </table>
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Document d'appui à la revue de direction. Données figées à l'export.</p>
   `;
 
-  const html = assembleQhsePdfDocument(docTitle, [`${page1}${page2}`]);
+  const html = assemblePremiumPdfDocument(docTitle, [page1, page2], {
+    company: ctx.siteLabel || '',
+    siteLabel: ctx.siteLabel || '',
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Pilotage performance'
+  });
   await downloadQhseChromePdf(html, 'rapport-performance-qhse.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -314,15 +341,15 @@ export async function downloadAnalyticsSummaryPdf(data) {
   const counts = data?.counts || {};
   const kpis = data?.kpis || {};
 
-  const kpiGrid = `
-    <h1 class="qhse-chrome-h1">RAPPORT DE PERFORMANCE QHSE</h1>
-    <p class="qhse-chrome-muted"><strong>Synthèse API</strong> : généré ${escapeHtml(gen)}</p>
-    <h2 class="qhse-chrome-h2">KPIs principaux</h2>
-    <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'Non disponible'))}</div><div class="qhse-chrome-kpi-lbl">Score audit moy.</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">Actions en retard</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">NC ouvertes</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.incidentsLast30Days ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">Incidents 30 j</div></div>
+  const page1 = `
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted">Agrégation issue de l'API synthèse. Horodatage : ${escapeHtml(gen)}.</p>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'N/A'))}</div><div class="qhse-premium-kpi-lbl">Score audit moyen</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-premium-kpi-lbl">Actions en retard</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-premium-kpi-lbl">NC ouvertes</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.incidentsLast30Days ?? '0'))}</div><div class="qhse-premium-kpi-lbl">Incidents 30 jours</div></div>
     </div>
   `;
 
@@ -331,18 +358,24 @@ export async function downloadAnalyticsSummaryPdf(data) {
     ? alerts
         .map(
           (a) =>
-            `<tr><td>${escapeHtml(String(a.code || 'Non disponible'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
+            `<tr><td>${escapeHtml(String(a.code || 'N/A'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
         )
         .join('')
-    : `<tr><td colspan="3" class="qhse-chrome-muted">Aucune alerte.</td></tr>`;
+    : `<tr><td colspan="3" class="qhse-premium-muted">Aucune alerte.</td></tr>`;
 
   const page2 = `
-    <h2 class="qhse-chrome-h2">Alertes prioritaires</h2>
-    <table class="qhse-chrome-table"><thead><tr><th>Code</th><th>Message</th><th>Niveau</th></tr></thead><tbody>${alertRows}</tbody></table>
-    <p class="qhse-chrome-muted" style="margin-top:12px">Les graphiques du cockpit en ligne ne sont pas inclus ; exportez depuis Performance pour la série audits si besoin.</p>
+    <h2 class="qhse-premium-h2">Analyse</h2>
+    <h3 class="qhse-premium-h3">Points de vigilance (alertes)</h3>
+    <table class="qhse-premium-table"><thead><tr><th>Code</th><th>Message</th><th>Niveau</th></tr></thead><tbody>${alertRows}</tbody></table>
+    <p class="qhse-premium-muted" style="margin-top:12px">Les graphiques du cockpit ne sont pas inclus. Pour la série audits, utiliser l'export Performance.</p>
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Vue instantanée à la génération. Usage interne.</p>
   `;
 
-  const html = assembleQhsePdfDocument(docTitle, [`${kpiGrid}${page2}`]);
+  const html = assemblePremiumPdfDocument(docTitle, [page1, page2], {
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Cockpit analytique'
+  });
   await downloadQhseChromePdf(html, 'analytics-synthese-qhse.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -367,7 +400,7 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
             `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(summary[k] ?? 'Non disponible'))}</td></tr>`
         )
         .join('')
-    : `<tr><td colspan="2" class="qhse-chrome-muted">Résumé vide.</td></tr>`;
+    : `<tr><td colspan="2" class="qhse-premium-muted">Résumé vide.</td></tr>`;
 
   const alerts = Array.isArray(data?.alerts) ? data.alerts : [];
   const alertRows = alerts.length
@@ -378,21 +411,27 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
             `<tr><td>${escapeHtml(String(a.code || 'Non disponible'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
         )
         .join('')
-    : `<tr><td colspan="3" class="qhse-chrome-muted">Aucune alerte.</td></tr>`;
+    : `<tr><td colspan="3" class="qhse-premium-muted">Aucune alerte.</td></tr>`;
 
   const page1 = `
-    <h1 class="qhse-chrome-h1">RAPPORT DE PERFORMANCE QHSE</h1>
-    <p class="qhse-chrome-muted"><strong>Période :</strong> ${escapeHtml(start)} → ${escapeHtml(end)}</p>
-    <h2 class="qhse-chrome-h2">Indicateurs agrégés</h2>
-    <table class="qhse-chrome-table"><thead><tr><th>Indicateur</th><th>Valeur</th></tr></thead><tbody>${sumRows}</tbody></table>
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted"><strong>Période :</strong> ${escapeHtml(start)} à ${escapeHtml(end)}</p>
+    <h2 class="qhse-premium-h2">Indicateurs agrégés</h2>
+    <table class="qhse-premium-table"><thead><tr><th>Indicateur</th><th>Valeur</th></tr></thead><tbody>${sumRows}</tbody></table>
   `;
 
   const page2 = `
-    <h2 class="qhse-chrome-h2">Alertes (période)</h2>
-    <table class="qhse-chrome-table"><thead><tr><th>Code</th><th>Message</th><th>Niveau</th></tr></thead><tbody>${alertRows}</tbody></table>
+    <h2 class="qhse-premium-h2">Analyse</h2>
+    <h3 class="qhse-premium-h3">Alertes sur la période</h3>
+    <table class="qhse-premium-table"><thead><tr><th>Code</th><th>Message</th><th>Niveau</th></tr></thead><tbody>${alertRows}</tbody></table>
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Synthèse périodique. Données limitées au périmètre interrogé.</p>
   `;
 
-  const html = assembleQhsePdfDocument(docTitle, [`${page1}${page2}`]);
+  const html = assemblePremiumPdfDocument(docTitle, [page1, page2], {
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Reporting périodique'
+  });
   await downloadQhseChromePdf(html, 'reporting-periodique-qhse.pdf', {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }

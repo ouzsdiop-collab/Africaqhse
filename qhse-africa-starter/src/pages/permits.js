@@ -788,14 +788,16 @@ export function renderPermits() {
     pdfBtn.textContent = 'Export PDF';
     pdfBtn.addEventListener('click', async () => {
       try {
-        const { assembleQhsePdfDocument, downloadQhseChromePdf } = await import('../utils/qhsePdfChrome.js');
+        const { downloadQhseChromePdf, formatQhsePdfGenerationDate } = await import('../utils/qhsePdfChrome.js');
+        const { assemblePremiumPdfDocument } = await import('../utils/pdfPremiumTemplate.js');
         const sigText = signatures.length
           ? signatures.map((s) => `${s.name} (${signatureRoleLabel(s.role)})`).join(', ')
           : 'Aucune';
         const body = `
-          <h1 class="qhse-chrome-h1">PERMIS DE TRAVAIL</h1>
-          <p class="qhse-chrome-muted"><strong>Réf.</strong> ${escapeHtml(String(it.id))}</p>
-          <table class="qhse-chrome-table" style="margin-top:12px">
+          <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+          <p class="qhse-premium-muted"><strong>Réf. :</strong> ${escapeHtml(String(it.id))}</p>
+          <h2 class="qhse-premium-h2">Constats</h2>
+          <table class="qhse-premium-table" style="margin-top:12px">
             <tbody>
               <tr><td style="font-weight:700;width:32%">Type</td><td>${escapeHtml(String(it.type || 'Non renseigné'))}</td></tr>
               <tr><td style="font-weight:700">Zone</td><td>${escapeHtml(String(it.zone || 'Non renseigné'))}</td></tr>
@@ -807,8 +809,13 @@ export function renderPermits() {
               <tr><td style="font-weight:700">Signatures</td><td>${escapeHtml(sigText)}</td></tr>
             </tbody>
           </table>
+          <h2 class="qhse-premium-h2">Traçabilité</h2>
+          <p class="qhse-premium-muted">Document généré depuis la fiche permis. Conserver les preuves de validation selon la procédure interne.</p>
         `;
-        const html = assembleQhsePdfDocument('Permis de travail', [body]);
+        const html = assemblePremiumPdfDocument('Permis de travail', [body], {
+          reportDate: formatQhsePdfGenerationDate(),
+          coverSubtitle: 'Sécurité des interventions'
+        });
         await downloadQhseChromePdf(html, `permis-${it.id}.pdf`, {
           margin: [12, 10, 16, 10],
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }

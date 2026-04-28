@@ -5,6 +5,8 @@
 
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { HABILITATIONS_STATUS_LABEL, habDaysUntil } from '../data/habilitationsDemo.js';
+import { assemblePremiumPdfDocument } from '../utils/pdfPremiumTemplate.js';
+import { formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
 
 /** @returns {Promise<typeof import('../utils/qhsePdfChrome.js')>} */
 function loadQhsePdfChrome() {
@@ -163,7 +165,7 @@ function buildRegistreTableHtml(rows, emptyMessage) {
     <th>Collaborateur</th><th>Poste</th><th>Type</th><th>Site</th><th>Expiration</th><th>Statut</th>
   </tr>`;
   if (!rows.length) {
-    return `<p class="qhse-chrome-muted">${escapeHtml(emptyMessage)}</p>`;
+    return `<p class="qhse-premium-muted">${escapeHtml(emptyMessage)}</p>`;
   }
   const body = rows
     .map((r) => {
@@ -174,17 +176,17 @@ function buildRegistreTableHtml(rows, emptyMessage) {
         <td>${escapeHtml(String(r.type ?? ''))}</td>
         <td>${escapeHtml(String(r.site ?? ''))}</td>
         <td>${escapeHtml(String(r.expiration ?? ''))}</td>
-        <td><span class="qhse-chrome-badge" style="background:${b.bg};color:${b.fg}">${escapeHtml(b.label)}</span></td>
+        <td><span class="qhse-premium-badge" style="background:${b.bg};color:${b.fg}">${escapeHtml(b.label)}</span></td>
       </tr>`;
     })
     .join('');
-  return `<table class="qhse-chrome-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  return `<table class="qhse-premium-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
 }
 
 function buildAlertsSectionHtml(rows) {
   const crit = criticalAlertRows(rows).slice(0, 25);
   if (!crit.length) {
-    return `<h2 class="qhse-chrome-h2">Alertes expiration</h2><p class="qhse-chrome-muted">Aucune alerte critique dans ce périmètre.</p>`;
+    return `<h2 class="qhse-premium-h2">Points de vigilance (échéances)</h2><p class="qhse-premium-muted">Aucune alerte critique dans ce périmètre.</p>`;
   }
   const lines = crit
     .map((r) => {
@@ -193,7 +195,7 @@ function buildAlertsSectionHtml(rows) {
         r.statut === 'expiree' || d < 0
           ? 'Expirée'
           : d <= 7
-            ? `Échéance ≤ 7 j (${d} j)`
+            ? `Échéance &lt;= 7 j (${d} j)`
             : !r.justificatif
               ? 'Justificatif manquant'
               : r.statut === 'suspendue'
@@ -207,9 +209,9 @@ function buildAlertsSectionHtml(rows) {
       </tr>`;
     })
     .join('');
-  return `<h2 class="qhse-chrome-h2">Alertes expiration</h2>
-    <p class="qhse-chrome-muted">Priorisez ces fiches (extrait ${crit.length} max.).</p>
-    <table class="qhse-chrome-table">
+  return `<h2 class="qhse-premium-h2">Points de vigilance (échéances)</h2>
+    <p class="qhse-premium-muted">Fiches à traiter en priorité (extrait ${crit.length} max.).</p>
+    <table class="qhse-premium-table">
       <thead><tr><th>Collaborateur</th><th>Type</th><th>Expiration</th><th>Motif</th></tr></thead>
       <tbody>${lines}</tbody>
     </table>`;
@@ -225,7 +227,7 @@ function buildAlertsSectionHtml(rows) {
  * @param {typeof import('../utils/qhsePdfChrome.js')} pdf
  */
 async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, rows }, pdf) {
-  const { chunkRowsForPdf, assembleQhsePdfDocument, QHSE_PDF_EMPTY_MESSAGE } = pdf;
+  const { chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE } = pdf;
   const summary = computeHabilitationsSummary(rows);
   const h1 = title.toLowerCase().includes('alerte')
     ? 'RAPPORT ALERTES HABILITATIONS'
@@ -241,15 +243,18 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
         : 'Registre des Habilitations';
 
   const summaryHtml = `
-    <h1 class="qhse-chrome-h1">${escapeHtml(h1)}</h1>
-    ${subtitle ? `<p class="qhse-chrome-muted">${escapeHtml(subtitle)}</p>` : ''}
-    <p class="qhse-chrome-muted"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
-    <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${summary.total}</div><div class="qhse-chrome-kpi-lbl">Total</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#991b1b">${summary.expired}</div><div class="qhse-chrome-kpi-lbl">Expirées</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val" style="color:#c2410c">${summary.renew30}</div><div class="qhse-chrome-kpi-lbl">À renouveler ≤ 30 j</div></div>
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    ${subtitle ? `<p class="qhse-premium-muted">${escapeHtml(subtitle)}</p>` : ''}
+    <p class="qhse-premium-muted"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${summary.total}</div><div class="qhse-premium-kpi-lbl">Total</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#991b1b">${summary.expired}</div><div class="qhse-premium-kpi-lbl">Expirées</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#c2410c">${summary.renew30}</div><div class="qhse-premium-kpi-lbl">À renouveler &lt;= 30 j</div></div>
     </div>
     ${buildAlertsSectionHtml(rows)}
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Export des fiches visibles. Traçabilité : collaborateurs et dates d'expiration du registre.</p>
   `;
 
   const chunks = chunkRowsForPdf(rows, 18);
@@ -257,22 +262,25 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
   chunks.forEach((chunk, idx) => {
     if (idx === 0) {
       pageBodies.push(
-        `${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
+        `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
       );
     } else {
       pageBodies.push(
-        `<h2 class="qhse-chrome-h2">Tableau détaillé (suite)</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
+        `<h2 class="qhse-premium-h2">Traçabilité et détail (suite)</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
       );
     }
   });
 
   if (pageBodies.length === 0) {
     pageBodies.push(
-      `${summaryHtml}<h2 class="qhse-chrome-h2">Tableau détaillé</h2>${buildRegistreTableHtml([], QHSE_PDF_EMPTY_MESSAGE)}`
+      `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml([], QHSE_PDF_EMPTY_MESSAGE)}`
     );
   }
 
-  return assembleQhsePdfDocument(docTitle, pageBodies);
+  return assemblePremiumPdfDocument(docTitle, pageBodies, {
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Registre habilitations'
+  });
 }
 
 /**
@@ -301,26 +309,25 @@ export async function downloadHabilitationsPdf(opts) {
  *   bySite: { site: string; score: number; total: number; nonConf: number }[];
  *   rows?: Record<string, unknown>[];
  * }} opts
- * @param {typeof import('../utils/qhsePdfChrome.js')} pdf
  */
-async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, pdf) {
-  const { assembleQhsePdfDocument } = pdf;
+function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }) {
   const docTitle = 'Rapport de conformité Habilitations';
   const taux = Math.round(Number(kpis.taux) || 0);
   const byType = computeByType(rows);
   const ncList = nonConformiteRows(rows).slice(0, 40);
 
   const gauge = `
-    <h1 class="qhse-chrome-h1">RAPPORT DE CONFORMITÉ HABILITATIONS</h1>
-    <p class="qhse-chrome-muted"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
-    <h2 class="qhse-chrome-h2">Taux de conformité global</h2>
-    <p><span class="qhse-chrome-gauge-track"><span class="qhse-chrome-gauge-fill" style="width:${Math.min(100, Math.max(0, taux))}%"></span></span>
-    <strong style="margin-left:10px;font-size:14pt">${taux} %</strong></p>
-    <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.actifs ?? 0}</div><div class="qhse-chrome-kpi-lbl">Actives</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.expirees ?? 0}</div><div class="qhse-chrome-kpi-lbl">Expirées</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.exp30 ?? 0}</div><div class="qhse-chrome-kpi-lbl">&lt; 30 j</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${kpis.nonConformes ?? 0}</div><div class="qhse-chrome-kpi-lbl">Non conformes</div></div>
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted"><strong>Filtres :</strong> ${escapeHtml(filtersText)}</p>
+    <h2 class="qhse-premium-h2">Niveau de conformité</h2>
+    <p><strong>${taux} %</strong></p>
+    <div class="qhse-premium-gauge-track" style="max-width:280px;margin-top:8px"><div class="qhse-premium-gauge-fill" style="width:${Math.min(100, Math.max(0, taux))}%"></div></div>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${kpis.actifs ?? 0}</div><div class="qhse-premium-kpi-lbl">Actives</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${kpis.expirees ?? 0}</div><div class="qhse-premium-kpi-lbl">Expirées</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${kpis.exp30 ?? 0}</div><div class="qhse-premium-kpi-lbl">&lt; 30 j</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${kpis.nonConformes ?? 0}</div><div class="qhse-premium-kpi-lbl">Non conformes</div></div>
     </div>
   `;
 
@@ -331,11 +338,11 @@ async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, 
             `<tr><td>${escapeHtml(t.type)}</td><td>${t.total}</td><td>${t.nonConf}</td><td><strong>${t.score} %</strong></td></tr>`
         )
         .join('')
-    : `<tr><td colspan="4" class="qhse-chrome-muted">Non disponible</td></tr>`;
+    : `<tr><td colspan="4" class="qhse-premium-muted">Non disponible</td></tr>`;
 
   const typeTable = `
-    <h2 class="qhse-chrome-h2">Taux par type d’habilitation</h2>
-    <table class="qhse-chrome-table">
+    <h2 class="qhse-premium-h2">Analyse par type</h2>
+    <table class="qhse-premium-table">
       <thead><tr><th>Type</th><th>Total</th><th>Non conformes</th><th>Taux</th></tr></thead>
       <tbody>${typeRows}</tbody>
     </table>
@@ -348,11 +355,11 @@ async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, 
             `<tr><td>${escapeHtml(b.site)}</td><td>${b.score}%</td><td>${b.total}</td><td>${b.nonConf}</td></tr>`
         )
         .join('')
-    : `<tr><td colspan="4" class="qhse-chrome-muted">Non disponible</td></tr>`;
+    : `<tr><td colspan="4" class="qhse-premium-muted">Non disponible</td></tr>`;
 
   const siteTable = `
-    <h2 class="qhse-chrome-h2">Synthèse par site</h2>
-    <table class="qhse-chrome-table">
+    <h2 class="qhse-premium-h2">Synthèse par site</h2>
+    <table class="qhse-premium-table">
       <thead><tr><th>Site</th><th>Score</th><th>Total</th><th>Non conformes</th></tr></thead>
       <tbody>${siteRows}</tbody>
     </table>
@@ -365,19 +372,22 @@ async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, 
             `<tr><td>${escapeHtml(String(r.collaborateur ?? ''))}</td><td>${escapeHtml(String(r.type ?? ''))}</td><td>${escapeHtml(String(HABILITATIONS_STATUS_LABEL[r.statut] || r.statut || ''))}</td><td>${escapeHtml(String(r.expiration ?? ''))}</td></tr>`
         )
         .join('')
-    : `<tr><td colspan="4" class="qhse-chrome-muted">Aucune non-conformité structurée dans ce périmètre.</td></tr>`;
+    : `<tr><td colspan="4" class="qhse-premium-muted">Aucune non-conformité structurée dans ce périmètre.</td></tr>`;
 
   const ncSection = `
-    <h2 class="qhse-chrome-h2">Liste des non-conformités</h2>
-    <table class="qhse-chrome-table">
+    <h2 class="qhse-premium-h2">Actions prioritaires (non-conformités)</h2>
+    <table class="qhse-premium-table">
       <thead><tr><th>Collaborateur</th><th>Type</th><th>Statut</th><th>Expiration</th></tr></thead>
       <tbody>${ncRows}</tbody>
     </table>
   `;
 
   const page1 = `${gauge}${typeTable}`;
-  const page2 = `${siteTable}${ncSection}`;
-  return assembleQhsePdfDocument(docTitle, [page1, page2]);
+  const page2 = `${siteTable}${ncSection}<h2 class="qhse-premium-h2">Conclusion</h2><p class="qhse-premium-muted">État des habilitations au moment de l'export. Usage interne.</p>`;
+  return assemblePremiumPdfDocument(docTitle, [page1, page2], {
+    reportDate: formatQhsePdfGenerationDate(),
+    coverSubtitle: 'Conformité habilitations'
+  });
 }
 
 export async function downloadHabilitationsConformitePdf({
@@ -388,7 +398,7 @@ export async function downloadHabilitationsConformitePdf({
   filename
 }) {
   const pdf = await loadQhsePdfChrome();
-  const html = await buildConformitePdfHtml({ filtersText, kpis, bySite, rows }, pdf);
+  const html = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
   await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
     margin: [12, 10, 16, 10],

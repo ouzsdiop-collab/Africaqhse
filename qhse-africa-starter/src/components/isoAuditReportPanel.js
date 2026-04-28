@@ -1,8 +1,9 @@
 /**
- * Panneau modal « Rapport audit IA » : synthèse + export PDF (pipeline existant).
+ * Panneau modal « Rapport audit IA » : synthèse + analyse narrative (API) + export PDF (pipeline existant).
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
 import { buildIsoAuditReportPdfHtml, downloadAuditIsoPdfFromHtml } from './auditPremiumSaaS.pdf.js';
 
 const STYLE_ID = 'qhse-iso-audit-report-styles';
@@ -25,6 +26,15 @@ const CSS = `
 .iso-ar-actions{display:flex;flex-wrap:wrap;gap:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,.1)}
 .iso-ar-prio{color:#fbbf24;font-weight:700}
 .iso-ar-muted{opacity:.88;font-size:11px;color:var(--text3)}
+.iso-ar-narrative{border-radius:12px;border:1px solid rgba(139,92,246,.25);background:rgba(139,92,246,.08);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.iso-ar-narrative-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.iso-ar-narrative-badge{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid rgba(139,92,246,.4);color:#c4b5fd;background:rgba(88,28,135,.2)}
+.iso-ar-narrative-actions{display:flex;flex-wrap:wrap;gap:8px}
+.iso-ar-narrative-summary{margin:0;font-size:13px;line-height:1.5;color:var(--text2)}
+.iso-ar-narrative-sub{margin:0;font-size:11px;font-weight:700;color:var(--text3)}
+.iso-ar-narrative-loading{margin:0;font-size:12px;color:var(--text3)}
+.iso-ar-narrative-err{margin:0;font-size:12px;color:#f87171}
+.iso-ar-source-hint{font-size:10px;color:var(--text3);margin:0}
 `;
 
 function ensureStyles() {
@@ -62,11 +72,33 @@ function sectionList(title, items, formatter) {
   return wrap;
 }
 
+function narrativeSubList(title, strings) {
+  const wrap = document.createElement('div');
+  const h = document.createElement('p');
+  h.className = 'iso-ar-narrative-sub';
+  h.textContent = title;
+  wrap.append(h);
+  const ul = document.createElement('ul');
+  ul.className = 'iso-ar-list';
+  (Array.isArray(strings) ? strings : []).forEach((t) => {
+    const li = document.createElement('li');
+    li.textContent = String(t || '');
+    ul.append(li);
+  });
+  wrap.append(ul);
+  return wrap;
+}
+
 /**
  * @param {ReturnType<import('../services/isoAuditReport.service.js').buildIsoAuditReport>} report
  */
 export function openIsoAuditReportModal(report) {
   ensureStyles();
+  /** @type {{ summary?: string; strengths?: string[]; weaknesses?: string[]; priorityActions?: string[]; confidence?: number } | null} */
+  let lastNarrative = null;
+  /** @type {'ai' | 'fallback' | null} */
+  let lastNarrativeSource = null;
+
   const overlay = document.createElement('div');
   overlay.className = 'iso-ar-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -101,9 +133,102 @@ export function openIsoAuditReportModal(report) {
     <span>Terrain ~${escapeHtml(String(report.score.operationalPct))} %</span>
   `;
 
+  const narrativeBox = document.createElement('div');
+  narrativeBox.className = 'iso-ar-narrative';
+  narrativeBox.setAttribute('aria-busy', 'true');
+  narrativeBox.innerHTML = `
+    <div class="iso-ar-narrative-head">
+      <span class="iso-ar-narrative-badge">IA assistée — validation humaine recommandée</span>
+      <div class="iso-ar-narrative-actions">
+        <button type="button" class="btn btn-secondary iso-ar-narrative-regen" disabled>Régénérer</button>
+      </div>
+    </div>
+    <h4 class="iso-ar-section" style="margin:0">Analyse narrative</h4>
+    <p class="iso-ar-narrative-loading">Génération de la synthèse rédactionnelle…</p>
+    <p class="iso-ar-narrative-err" hidden></p>
+    <div class="iso-ar-narrative-content" hidden></div>
+    <p class="iso-ar-source-hint" hidden></p>
+  `;
+
+  const narrLoading = narrativeBox.querySelector('.iso-ar-narrative-loading');
+  const narrErr = narrativeBox.querySelector('.iso-ar-narrative-err');
+  const narrContent = narrativeBox.querySelector('.iso-ar-narrative-content');
+  const narrHint = narrativeBox.querySelector('.iso-ar-source-hint');
+  const btnRegen = narrativeBox.querySelector('.iso-ar-narrative-regen');
+
+  function renderNarrative(n, source) {
+    lastNarrative = n;
+    lastNarrativeSource = source;
+    narrContent.replaceChildren();
+    if (!n || !String(n.summary || '').trim()) {
+      narrContent.hidden = true;
+      return;
+    }
+    narrContent.hidden = false;
+    const p = document.createElement('p');
+    p.className = 'iso-ar-narrative-summary';
+    p.textContent = n.summary;
+    narrContent.append(p);
+    narrContent.append(narrativeSubList('Forces', n.strengths));
+    narrContent.append(narrativeSubList('Faiblesses / points de vigilance', n.weaknesses));
+    narrContent.append(narrativeSubList('Actions prioritaires (narratif)', n.priorityActions));
+    const conf =
+      typeof n.confidence === 'number' && Number.isFinite(n.confidence)
+        ? ` · Confiance indicative : ${Math.round(n.confidence * 100)} %`
+        : '';
+    narrHint.textContent =
+      source === 'ai'
+        ? `Source : rédaction assistée (métriques agrégées uniquement).${conf}`
+        : `Source : synthèse déterministe (aucun appel IA ou réponse invalide).${conf}`;
+    narrHint.hidden = false;
+  }
+
+  async function loadNarrative() {
+    narrLoading.hidden = false;
+    narrErr.hidden = true;
+    narrErr.textContent = '';
+    narrContent.hidden = true;
+    narrHint.hidden = true;
+    btnRegen.disabled = true;
+    narrativeBox.setAttribute('aria-busy', 'true');
+    try {
+      const res = await qhseFetch('/api/iso/audit/narrative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof j.error === 'string' ? j.error : `Erreur ${res.status}`);
+      }
+      if (!j.success || !j.narrative) {
+        throw new Error('Réponse narrative invalide');
+      }
+      renderNarrative(j.narrative, j.source === 'ai' ? 'ai' : 'fallback');
+    } catch (e) {
+      console.warn('[iso audit narrative]', e);
+      narrErr.textContent =
+        e instanceof Error
+          ? e.message
+          : 'Impossible de charger la narration. Utilisez Régénérer ou exportez le PDF (synthèse structurée inchangée).';
+      narrErr.hidden = false;
+      lastNarrative = null;
+      lastNarrativeSource = null;
+    } finally {
+      narrLoading.hidden = true;
+      btnRegen.disabled = false;
+      narrativeBox.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  btnRegen?.addEventListener('click', () => {
+    void loadNarrative();
+  });
+
   body.append(
     sum,
     scores,
+    narrativeBox,
     sectionList(
       'Points conformes',
       report.conformingPoints,
@@ -160,6 +285,8 @@ export function openIsoAuditReportModal(report) {
   overlay.append(panel);
   document.body.append(overlay);
 
+  void loadNarrative();
+
   function close() {
     overlay.remove();
   }
@@ -174,7 +301,10 @@ export function openIsoAuditReportModal(report) {
     void (async () => {
       btnPdf.disabled = true;
       try {
-        const html = buildIsoAuditReportPdfHtml(report);
+        const html = buildIsoAuditReportPdfHtml(report, {
+          narrative: lastNarrative,
+          narrativeSource: lastNarrativeSource || ''
+        });
         await downloadAuditIsoPdfFromHtml(html, 'rapport-audit-ia-iso');
       } catch (e) {
         console.error(e);
