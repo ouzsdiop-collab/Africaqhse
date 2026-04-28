@@ -102,7 +102,7 @@ function createTerrainBottomNav(currentPage, onNavigate) {
 }
 
 const SW_UPDATE_SESSION_KEY = 'qhse-sw-update-pending';
-/** Une fois : `localStorage.setItem('qhse-sw-purge-once','1')` puis recharger — désinscription + vidage caches + reload. */
+/** Une fois : `localStorage.setItem('qhse-sw-purge-once','1')` puis recharger · désinscription + vidage caches + reload. */
 const SW_PURGE_ONCE_KEY = 'qhse-sw-purge-once';
 const SW_DEBUG_STORAGE_KEY = 'qhse_sw_debug';
 
@@ -127,7 +127,7 @@ async function registerTerrainBackgroundSync() {
       await reg.sync.register('terrain-risk-sync');
     }
   } catch {
-    /* SyncManager refusé / navigateur ancien — pas bloquant */
+    /* SyncManager refusé / navigateur ancien · pas bloquant */
   }
 }
 
@@ -368,7 +368,7 @@ function logBootEvent() {
 
 const APP_BRAND_TITLE = 'QHSE Control';
 
-/** @type {string | null} — évite de précharger plusieurs fois pour la même session navigateur. */
+/** @type {string | null} · évite de précharger plusieurs fois pour la même session navigateur. */
 let qhseRoutePrefetchKey = null;
 
 const PAGE_IMPORT_LOADERS = {
@@ -612,19 +612,19 @@ function createPageRenderer(opts) {
 
 function syncDocumentTitle(pageId) {
   if (pageId === 'login') {
-    document.title = `${APP_BRAND_TITLE} — Connexion`;
+    document.title = `${APP_BRAND_TITLE} · Connexion`;
     return;
   }
   if (pageId === 'forgot-password') {
-    document.title = `${APP_BRAND_TITLE} — Mot de passe oublié`;
+    document.title = `${APP_BRAND_TITLE} · Mot de passe oublié`;
     return;
   }
   if (pageId === 'reset-password') {
-    document.title = `${APP_BRAND_TITLE} — Nouveau mot de passe`;
+    document.title = `${APP_BRAND_TITLE} · Nouveau mot de passe`;
     return;
   }
   if (pageId === 'first-password') {
-    document.title = `${APP_BRAND_TITLE} — Mot de passe définitif`;
+    document.title = `${APP_BRAND_TITLE} · Mot de passe définitif`;
     return;
   }
   if (pageId === 'saas-clients') {
@@ -1058,7 +1058,7 @@ if ('serviceWorker' in navigator) {
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
           if (typeof showToast === 'function') {
-            showToast('Mise a jour disponible — rechargez la page', 'info');
+            showToast('Mise a jour disponible. Rechargez la page.', 'info');
           }
         }
       });

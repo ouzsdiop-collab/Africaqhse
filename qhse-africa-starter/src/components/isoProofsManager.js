@@ -1,5 +1,5 @@
 /**
- * Gestion des preuves ISO — module isolé (store + UI modal + colonne registre).
+ * Gestion des preuves ISO : module isolé (store + UI modal + colonne registre).
  * Ne modifie pas les autres modules ; persistance dédiée localStorage.
  */
 import './isoProofsModule.css';
@@ -25,7 +25,7 @@ const TOUCHED_KEY = 'qhse-iso-proof-touched-reqs-v1';
  * @property {IsoProofDocCategory} docCategory
  * @property {IsoProofLinkKind} linkKind
  * @property {string} linkId
- * @property {string | null} registryRequirementId — ligne registre (null si liaison audit seule)
+ * @property {string | null} registryRequirementId : ligne registre (null si liaison audit seule)
  * @property {IsoProofStatus} status
  * @property {string} fileName
  * @property {number} fileSize
@@ -302,7 +302,7 @@ function openProofModal(opts = {}) {
   panel.innerHTML = `
     <div class="iso-proof-modal__head">
       <h3 id="iso-proof-modal-title">Joindre une preuve ISO</h3>
-      <p>Preuve traitée dans le navigateur — rattachement obligatoire pour le registre maîtrisé.</p>
+      <p>Preuve traitée dans le navigateur : rattachement obligatoire pour le registre maîtrisé.</p>
     </div>
     <div class="iso-proof-modal__body">
       <div class="iso-proof-drop" tabindex="0">
@@ -348,7 +348,7 @@ function openProofModal(opts = {}) {
       <div class="iso-proof-field iso-proof-field-target iso-proof-target-audit-reg" hidden>
         <span>Afficher aussi sur l’exigence (registre)</span>
         <select class="iso-proof-audit-registry-req">
-          <option value="">— Preuve audit seule (hors tableau) —</option>
+          <option value="">Preuve audit seule (hors tableau)</option>
         </select>
       </div>
       <div class="iso-proof-field">
@@ -383,7 +383,7 @@ function openProofModal(opts = {}) {
   reqs.forEach((r) => {
     const o = document.createElement('option');
     o.value = r.id;
-    o.textContent = `${r.clause} — ${r.title}`;
+    o.textContent = `${r.clause} : ${r.title}`;
     selReq?.appendChild(o);
     const o2 = o.cloneNode(true);
     selAuditReg?.appendChild(o2);
@@ -392,14 +392,14 @@ function openProofModal(opts = {}) {
   ncReqs.forEach((r) => {
     const o = document.createElement('option');
     o.value = r.id;
-    o.textContent = `${r.clause} — ${r.title}`;
+    o.textContent = `${r.clause} : ${r.title}`;
     selNc?.appendChild(o);
   });
 
   if (selNc && !selNc.options.length && ncReqs.length === 0) {
     const o = document.createElement('option');
     o.value = '';
-    o.textContent = '— Aucune NC listée —';
+    o.textContent = 'Aucune NC listée';
     selNc.appendChild(o);
   }
 

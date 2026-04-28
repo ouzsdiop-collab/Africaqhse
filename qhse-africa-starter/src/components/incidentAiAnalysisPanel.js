@@ -46,7 +46,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
   panel.id = 'qhse-ia-panel';
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'true');
-  panel.setAttribute('aria-label', 'Analyse IA — incident');
+  panel.setAttribute('aria-label', 'Analyse IA : incident');
 
   const header = document.createElement('div');
   header.className = 'inc-slideover__head';
@@ -95,7 +95,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
       const err = document.createElement('p');
       err.className = 'incidents-detail-muted';
       err.textContent =
-        'Identifiant incident indisponible — rechargez le registre pour activer l’analyse IA.';
+        'Identifiant incident indisponible. Rechargez le registre pour activer l’analyse IA.';
       body.append(err);
       return;
     }
@@ -146,7 +146,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
 
       const prov = document.createElement('p');
       prov.className = 'inc-ia-provider';
-      prov.textContent = `Fournisseur : ${rc.provider || '—'}${rc.error ? ` · ${rc.error}` : ''}`;
+      prov.textContent = `Fournisseur : ${rc.provider || 'Non renseigné'}${rc.error ? ` · ${rc.error}` : ''}`;
 
       const secCauses = document.createElement('section');
       secCauses.className = 'inc-ia-section';
@@ -165,11 +165,11 @@ export function openIncidentAiAnalysis(inc, ctx) {
         const cause = document.createElement('div');
         cause.style.fontWeight = '600';
         cause.style.fontSize = '14px';
-        cause.textContent = String(item.cause || '—');
+        cause.textContent = String(item.cause || 'Non renseigné');
         head.append(cause, pct);
         const cat = document.createElement('div');
         cat.className = 'inc-ia-cat';
-        cat.textContent = `Catégorie : ${String(item.category || '—')}`;
+        cat.textContent = `Catégorie : ${String(item.category || 'Non renseigné')}`;
         row.append(head, cat);
         secCauses.append(row);
       });
@@ -188,7 +188,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
         const ttl = document.createElement('div');
         ttl.style.fontWeight = '700';
         ttl.style.fontSize = '14px';
-        ttl.textContent = String(a.title || '—');
+        ttl.textContent = String(a.title || 'Non renseigné');
         const pct = document.createElement('span');
         pct.className = 'inc-ia-confidence';
         pct.textContent = `${Math.round((Number(a.confidence) || 0) * 100)} %`;
@@ -201,7 +201,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
         desc.textContent = String(a.description || '');
         const meta = document.createElement('div');
         meta.className = 'inc-ia-cat';
-        meta.textContent = `Délai indicatif : ${Number(a.delayDays) || 0} j · rôle type : ${String(a.ownerRole || '—')}`;
+        meta.textContent = `Délai indicatif : ${Number(a.delayDays) || 0} j · rôle type : ${String(a.ownerRole || 'Non renseigné')}`;
         const actionsRow = document.createElement('div');
         actionsRow.className = 'inc-ia-actions';
         const btnCreate = document.createElement('button');
@@ -215,15 +215,15 @@ export function openIncidentAiAnalysis(inc, ctx) {
           openActionCreateDialog({
             users,
             defaults: {
-              title: String(a.title || `Action — ${inc.ref}`).slice(0, 240),
+              title: String(a.title || `Action : ${inc.ref}`).slice(0, 240),
               origin: 'incident',
               actionType: 'corrective',
               priority: priorityFromConfidence(a.confidence),
               description: [
                 String(a.description || '').trim(),
                 '',
-                `[Suggestion IA — confiance ~${Math.round((Number(a.confidence) || 0) * 100)} %]`,
-                `Délai indicatif : ${Number(a.delayDays) || 0} j · responsable type : ${String(a.ownerRole || '—')}`
+                `[Suggestion IA : confiance ~${Math.round((Number(a.confidence) || 0) * 100)} %]`,
+                `Délai indicatif : ${Number(a.delayDays) || 0} j · responsable type : ${String(a.ownerRole || 'Non renseigné')}`
               ].join('\n'),
               linkedIncident: inc.ref,
               dueDate: dueDateIsoFromDelayDays(a.delayDays)

@@ -1,5 +1,5 @@
 /**
- * Couche « décision » — score global et texte direction, dérivés des données
+ * Couche « décision » : score global et texte direction, dérivés des données
  * déjà chargées par le dashboard (aucune nouvelle règle métier serveur).
  *
  * Le score est une synthèse lisible (0–100, plus haut = meilleure posture affichée),
@@ -152,7 +152,7 @@ export function buildExecutiveBriefNarrative(ctx) {
         `Sur ${site}, les indicateurs agrégés ne montrent pas de cumul critique sur les axes incidents, actions et conformité suivis dans cette vue.`
       );
       parts.push(
-        `Poursuivez le pilotage habituel : revues, échéances et preuves — les sections ci-dessous détaillent le niveau opérationnel.`
+        `Poursuivez le pilotage habituel : revues, échéances et preuves. Les sections ci-dessous détaillent le niveau opérationnel.`
       );
     }
   } else {

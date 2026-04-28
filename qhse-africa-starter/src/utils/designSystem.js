@@ -1,5 +1,5 @@
 /**
- * Aligné sur src/styles/design-tokens.css — utile pour SVG inline, canvas ou exports PDF côté front.
+ * Aligné sur src/styles/design-tokens.css : utile pour SVG inline, canvas ou exports PDF côté front.
  * Import optionnel ; aucune page existante ne dépend de ce module.
  */
 export const dsChart = {

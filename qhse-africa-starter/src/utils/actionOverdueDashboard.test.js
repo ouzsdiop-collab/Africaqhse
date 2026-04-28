@@ -20,7 +20,7 @@ describe('isActionOverdueDashboardRow', () => {
       false
     );
     expect(
-      isActionOverdueDashboardRow({ status: 'Clôturé — rappel retard', dueDate: '2026-01-01T00:00:00Z' })
+      isActionOverdueDashboardRow({ status: 'Clôturé : rappel retard', dueDate: '2026-01-01T00:00:00Z' })
     ).toBe(false);
   });
 

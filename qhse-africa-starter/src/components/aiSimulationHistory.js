@@ -1,4 +1,4 @@
-/** Historique léger en mémoire (session) — sans backend. */
+/** Historique léger en mémoire (session) : sans backend. */
 const MAX = 6;
 const entries = [];
 

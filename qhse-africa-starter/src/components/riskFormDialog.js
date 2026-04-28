@@ -13,7 +13,7 @@ const LEVEL_OPTIONS = [
 ];
 
 const RISK_AI_DISCLAIMER =
-  'Suggestions basées sur analyse automatique — à vérifier avant toute décision.';
+  'Suggestions basées sur analyse automatique. À vérifier avant toute décision.';
 
 /** @param {string} severity @param {string} probability */
 function levelsToRegisterMeta(severity, probability) {
@@ -34,7 +34,7 @@ function defaultTitleFromDescription(text) {
 }
 
 /**
- * Suggestion locale si l’API d’analyse est indisponible — toujours validée par l’utilisateur.
+ * Suggestion locale si l’API d’analyse est indisponible, toujours validée par l’utilisateur.
  * @param {string} description
  */
 function suggestRiskFromDescriptionLocal(description) {
@@ -53,7 +53,7 @@ function suggestRiskFromDescriptionLocal(description) {
       'Consigner la mesure de maîtrise dans le registre après validation terrain.',
       'Vérifier la cohérence avec les exigences ISO 45001 / 14001 applicables au site.'
     ],
-    causes: 'À préciser après observation (suggestion automatique — non contractuelle).',
+    causes: 'À préciser après observation (suggestion automatique, non contractuelle).',
     impacts: 'À évaluer selon le contexte opérationnel local (suggestion automatique).'
   };
 }
@@ -65,7 +65,7 @@ function levelLabel(v) {
 
 /**
  * @param {object} opts
- * @param {(data: { title: string, detail: string, status: string, tone: string, meta: string }) => void} opts.onSaved — liste locale (pas d’API persistance)
+ * @param {(data: { title: string, detail: string, status: string, tone: string, meta: string }) => void} opts.onSaved : liste locale (pas d’API persistance)
  * @param {{ title?: string, description?: string, category?: string }} [opts.defaults]
  */
 export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
@@ -78,7 +78,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
   inner.innerHTML = `
     <h2 class="risks-create-dialog__head">Nouvelle fiche risque</h2>
     <p class="risks-create-dialog__lead">
-      Registre QHSE (ISO 45001 / ISO 14001) — décrivez le risque opérationnel. L’assistant propose des éléments à valider : vous gardez le contrôle avant tout enregistrement.
+      Registre QHSE (ISO 45001 / ISO 14001) : décrivez le risque opérationnel. L’assistant propose des éléments à valider. Vous gardez le contrôle avant tout enregistrement.
     </p>
     <form class="risks-form-grid" id="risks-create-form">
       <label>Type *
@@ -165,7 +165,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
     if (disclaimerEl) {
       const src =
         data.provider === 'openai'
-          ? 'Suggestion produite par modèle distant (OpenAI) — validation humaine obligatoire avant enregistrement.'
+          ? 'Suggestion produite par modèle distant (OpenAI). Validation humaine obligatoire avant enregistrement.'
           : RISK_AI_DISCLAIMER;
       disclaimerEl.textContent = src;
     }
@@ -205,9 +205,9 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
     const title = titleEl?.value?.trim() || 'Risque';
     const desc = form.description.value.trim();
     const { causes, impacts } = suggestRiskCausesImpacts(cat, title, desc);
-    const block = `\n\n— Causes (assistant local) —\n${causes}\n\n— Impacts (assistant local) —\n${impacts}`;
+    const block = `\n\nCauses (assistant local)\n${causes}\n\nImpacts (assistant local)\n${impacts}`;
     form.description.value = desc ? `${desc}${block}` : block.trim();
-    showToast('Causes et impacts ajoutés dans la description — relisez avant validation.', 'info');
+    showToast('Causes et impacts ajoutés dans la description. Relisez avant validation.', 'info');
   });
 
   inner.querySelector('[data-action="analyze"]').addEventListener('click', async () => {
@@ -232,7 +232,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
       if (!res.ok) {
         panel.classList.remove('risks-ai-panel--loading');
         renderSuggestion(suggestRiskFromDescriptionLocal(desc));
-        showToast('Suggestion locale — serveur indisponible (à valider).', 'info');
+        showToast('Suggestion locale. Serveur indisponible (à valider).', 'info');
         return;
       }
       if (
@@ -243,7 +243,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
       ) {
         panel.classList.remove('risks-ai-panel--loading');
         renderSuggestion(suggestRiskFromDescriptionLocal(desc));
-        showToast('Réponse incomplète — suggestion locale affichée.', 'info');
+        showToast('Réponse incomplète. Suggestion locale affichée.', 'info');
         return;
       }
       panel.classList.remove('risks-ai-panel--loading');
@@ -257,7 +257,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
         provider: body.provider
       });
       if (body.provider === 'openai') {
-        showToast('Analyse enrichie par le modèle distant — relisez tous les champs.', 'info');
+        showToast('Analyse enrichie par le modèle distant. Relisez tous les champs.', 'info');
       }
     } catch (err) {
       console.error('[risks] POST /api/risks/analyze', err);
@@ -279,7 +279,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
       ? probability
       : 'moyenne';
     form.actions.value = suggestedActions.join('\n');
-    showToast('Suggestions copiées dans le formulaire — contrôle humain obligatoire avant validation.', 'info');
+    showToast('Suggestions copiées dans le formulaire. Contrôle humain obligatoire avant validation.', 'info');
   });
 
   inner.querySelector('[data-action="ignore-suggestions"]').addEventListener('click', () => {
@@ -311,7 +311,7 @@ export function openRiskCreateDialog({ onSaved, defaults = {} } = {}) {
     let detail = description;
     if (cat) detail = `${description}\n\n(Type : ${cat})`;
     if (actionsText.length > 0) {
-      detail = `${detail}\n\n— Mesures envisagées —\n${actionsText}`;
+      detail = `${detail}\n\nMesures envisagées\n${actionsText}`;
     }
 
     const { meta, tone, status } = levelsToRegisterMeta(severity, probability);

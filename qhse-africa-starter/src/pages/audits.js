@@ -19,12 +19,12 @@ import {
   createAuditTerrainWorkflowStrip
 } from '../components/auditPremiumSaaS.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
-/* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
+/* Intent filtre depuis le tableau de bord : clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 
-/** Constantes cockpit Audits (extrait illustratif — complété par l’API quand disponible). */
+/** Constantes cockpit Audits (extrait illustratif, complété par l’API quand disponible). */
 const AUDITS_RETARD_COUNT = 2;
 const NC_OUVERTES_COUNT = 8;
 const ACTIONS_RETARD_COUNT = 5;
@@ -39,19 +39,19 @@ const AUDIT_PRIORITY_LINES = [
   {
     label: 'NC critiques',
     detail:
-      '2 écarts majeurs sur le dernier audit — escalade direction et plan d’actions prioritaire.'
+      '2 écarts majeurs sur le dernier audit. Escalade direction et plan d’actions prioritaire.'
   },
   {
     label: 'Preuves manquantes',
-    detail: `${AUDIT_PROOFS.filter((p) => p.status === 'missing').length} pièce(s) sans justificatif — compléter le dossier probatoire.`
+    detail: `${AUDIT_PROOFS.filter((p) => p.status === 'missing').length} pièce(s) sans justificatif. Complétez le dossier probatoire.`
   },
   {
     label: 'Audits en retard',
-    detail: `${AUDITS_RETARD_COUNT} position(s) à reprogrammer — consulter le planning et les alertes.`
+    detail: `${AUDITS_RETARD_COUNT} position(s) à reprogrammer. Consultez le planning et les alertes.`
   }
 ];
 
-/** Seuils gravité NC — affichage cockpit expert */
+/** Seuils gravité NC : affichage cockpit expert */
 const AUDIT_NC_MAJEURES = 2;
 const AUDIT_NC_MINEURES = 3;
 
@@ -69,14 +69,14 @@ const COCKPIT_CYCLE_LABELS = [
   'Vérification',
   'Clôture'
 ];
-/** Index phase mise en avant (0-based) — cockpit */
+/** Index phase mise en avant (0-based) : cockpit */
 const COCKPIT_CYCLE_ACTIVE = 1;
 
 function countPlannedByStatut(st) {
   return PLANNED_AUDITS.filter((r) => r.statut === st).length;
 }
 
-/** Parse JJ/MM/AAAA — usage pilotage notifications (front uniquement). */
+/** Parse JJ/MM/AAAA : usage pilotage notifications (front uniquement). */
 function parseAuditPlanDateFr(s) {
   const m = String(s || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return null;
@@ -90,17 +90,17 @@ function auditCalendarDaysDiff(from, to) {
 }
 
 /**
- * Notifications cockpit — dérivées des données affichées + constantes (sans appel API dédié ici).
+ * Notifications cockpit : dérivées des données affichées + constantes (sans appel API dédié ici).
  * @returns {{ items: { key: string; title: string; detail: string; tone: 'blue'|'amber'|'green'|'red' }[]; suggestNotifyHint: string }}
  */
 /**
- * Action corrective préremplie depuis un constat NC (checklist audit) — frontend uniquement.
+ * Action corrective préremplie depuis un constat NC (checklist audit), frontend uniquement.
  * @param {object} p
  * @param {string} p.auditRef
  * @param {string} [p.auditSite]
  * @param {string} p.controlPoint
  * @param {'mineur'|'majeur'} p.ncSeverity
- * @param {string} [p.recommendedDueIso] — YYYY-MM-DD
+ * @param {string} [p.recommendedDueIso] : YYYY-MM-DD
  */
 async function openCorrectiveActionFromAuditNc(p) {
   const auditRef = String(p.auditRef || '').trim();
@@ -128,11 +128,11 @@ async function openCorrectiveActionFromAuditNc(p) {
   }
   const title =
     controlPoint.length > 0
-      ? `Corrective — ${controlPoint.slice(0, 100)} (${auditRef})`
-      : `Corrective — audit ${auditRef}`;
+      ? `Corrective : ${controlPoint.slice(0, 100)} (${auditRef})`
+      : `Corrective : audit ${auditRef}`;
   const description = [
     `Source : audit ${auditRef}${site ? ` · ${site}` : ''}.`,
-    `Point de contrôle / NC : ${controlPoint || '—'}.`,
+    `Point de contrôle / NC : ${controlPoint || 'Non renseigné'}.`,
     `Criticité constat : ${sev === 'majeur' ? 'majeure' : 'mineure'}.`
   ].join('\n');
 
@@ -176,7 +176,7 @@ function buildAuditSmartNotifications() {
     if (st === 'terminé') {
       items.push({
         key: `done-${row.ref}`,
-        title: `Audit terminé — ${row.ref}`,
+        title: `Audit terminé : ${row.ref}`,
         detail: `${row.site} · ${row.date} · clôture à consolider côté preuves / synthèse.`,
         tone: 'green'
       });
@@ -185,7 +185,7 @@ function buildAuditSmartNotifications() {
     if (st === 'en cours') {
       items.push({
         key: `run-${row.ref}`,
-        title: `Audit en cours — ${row.ref}`,
+        title: `Audit en cours : ${row.ref}`,
         detail: `${row.site} · auditeur : ${row.auditeur} · date prévue ${row.date}.`,
         tone: 'amber'
       });
@@ -196,21 +196,21 @@ function buildAuditSmartNotifications() {
       if (days <= 0) {
         items.push({
           key: `late-${row.ref}`,
-          title: `Échéance atteinte / dépassée — ${row.ref}`,
-          detail: `${row.site} · prévu le ${row.date} — vérifier le calendrier et notifier les participants.`,
+          title: `Échéance atteinte / dépassée : ${row.ref}`,
+          detail: `${row.site} · prévu le ${row.date}. Vérifiez le calendrier et notifiez les participants.`,
           tone: 'red'
         });
       } else if (days <= 7) {
         items.push({
           key: `soon-${row.ref}`,
-          title: `Audit imminent — ${row.ref}`,
+          title: `Audit imminent : ${row.ref}`,
           detail: `${row.site} dans ${days} jour(s) (${row.date}) · rappel aux équipes et auditeur (${row.auditeur}).`,
           tone: 'amber'
         });
       } else {
         items.push({
           key: `plan-${row.ref}`,
-          title: `Audit planifié — ${row.ref}`,
+          title: `Audit planifié : ${row.ref}`,
           detail: `${row.site} · ${row.date} · ${row.auditeur}.`,
           tone: 'blue'
         });
@@ -218,7 +218,7 @@ function buildAuditSmartNotifications() {
     } else if (st === 'à venir') {
       items.push({
         key: `plan-${row.ref}`,
-        title: `Audit planifié — ${row.ref}`,
+        title: `Audit planifié : ${row.ref}`,
         detail: `${row.site} · date ${row.date} · ${row.auditeur}.`,
         tone: 'blue'
       });
@@ -229,7 +229,7 @@ function buildAuditSmartNotifications() {
     items.push({
       key: 'retard-global',
       title: 'Audits en retard (pilotage)',
-      detail: `${AUDITS_RETARD_COUNT} position(s) à reprogrammer ou escalader — synchroniser avec le planning.`,
+      detail: `${AUDITS_RETARD_COUNT} position(s) à reprogrammer ou escalader. Synchronisez avec le planning.`,
       tone: 'red'
     });
   }
@@ -238,7 +238,7 @@ function buildAuditSmartNotifications() {
     items.push({
       key: 'nc-open',
       title: 'Non-conformités détectées / ouvertes',
-      detail: `${NC_OUVERTES_COUNT} NC suivies sur le registre — informer les responsables et le plan d’actions.`,
+      detail: `${NC_OUVERTES_COUNT} NC suivies sur le registre. Informez les responsables et le plan d’actions.`,
       tone: 'amber'
     });
   }
@@ -247,7 +247,7 @@ function buildAuditSmartNotifications() {
     items.push({
       key: 'actions-late',
       title: 'Actions en retard',
-      detail: `${ACTIONS_RETARD_COUNT} action(s) liées aux audits en retard < 15 j — relance recommandée.`,
+      detail: `${ACTIONS_RETARD_COUNT} action(s) liées aux audits en retard < 15 j. Relance recommandée.`,
       tone: 'red'
     });
   }
@@ -258,13 +258,13 @@ function buildAuditSmartNotifications() {
     'Suggestion IA : notifier après validation humaine du périmètre et des participants (aucun envoi automatique).';
   if (imminent) {
     suggestNotifyHint =
-      'Suggestion IA : envoyer un rappel aux participants et au site dans les 48 h — l’audit est imminent ou l’échéance est passée.';
+      'Suggestion IA : envoyer un rappel aux participants et au site dans les 48 h. L’audit est imminent ou l’échéance est passée.';
   } else if (enCours) {
     suggestNotifyHint =
-      'Suggestion IA : notifier pour point d’étape mi-parcours (constats provisoires) — à valider avec l’auditeur.';
+      'Suggestion IA : notifier pour point d’étape mi-parcours (constats provisoires). À valider avec l’auditeur.';
   } else if (NC_OUVERTES_COUNT > 0 || ACTIONS_RETARD_COUNT > 0) {
     suggestNotifyHint =
-      'Suggestion IA : notifier les pilotes d’actions et la direction sur les NC et retards — message à personnaliser avant envoi.';
+      'Suggestion IA : notifier les pilotes d’actions et la direction sur les NC et retards. Message à personnaliser avant envoi.';
   }
 
   return { items, suggestNotifyHint };
@@ -294,7 +294,7 @@ function createAuditIntelligentNotificationsCard(opts) {
   const notifLead = document.createElement('p');
   notifLead.className = 'content-card-lead audit-cockpit-notifs__lead';
   notifLead.append(
-    document.createTextNode('Échéances et relances — '),
+    document.createTextNode('Échéances et relances : '),
     Object.assign(document.createElement('strong'), { textContent: 'aucun envoi auto' }),
     document.createTextNode(' sans clic.')
   );
@@ -358,7 +358,7 @@ function createAuditIntelligentNotificationsCard(opts) {
   if (items.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'audit-cockpit-notifs__empty';
-    empty.textContent = 'Aucune alerte dérivée des données affichées — le registre est à jour sur cette vue.';
+    empty.textContent = 'Aucune alerte dérivée des données affichées. Le registre est à jour sur cette vue.';
     list.append(empty);
   }
 
@@ -447,8 +447,8 @@ const LAST_AUDIT = {
   conforme: false,
   ref: 'AUD-2026-014',
   ncCount: 2,
-  statusLabel: 'Non conforme — actions requises',
-  auditeur: 'M. Diallo — Auditeur interne SMS'
+  statusLabel: 'Non conforme : actions requises',
+  auditeur: 'M. Diallo, auditeur interne SMS'
 };
 
 const AUDIT_REFERENTIEL_LABEL = 'ISO 9001 · 14001 · 45001';
@@ -474,14 +474,14 @@ const AUDIT_TRACE_ROWS = [
   {
     who: 'M. Diallo',
     when: '28/03/2026 · 14:20',
-    action: 'Constat enregistré — déchets',
+    action: 'Constat enregistré : déchets',
     comment: 'Preuve registre demandée'
   },
   {
     who: 'Coordinateur QHSE',
     when: '27/03/2026 · 09:05',
     action: 'Ouverture fiche audit',
-    comment: '—'
+    comment: 'Non renseigné'
   }
 ];
 
@@ -513,7 +513,7 @@ const CHECKLIST = [
   {
     point: 'Plan urgence environnementale / exercices',
     conforme: false,
-    proofRef: '—'
+    proofRef: 'Non renseigné'
   }
 ];
 
@@ -543,7 +543,7 @@ const FIELD_POINTS = [
   { id: 'f4', point: 'Plan urgence environnementale / exercices' }
 ];
 
-/** Dernier audit (tri API) — même source pour PDF, e-mail et note d’envoi auto. */
+/** Dernier audit (tri API) : même source pour PDF, e-mail et note d’envoi auto. */
 async function loadLatestAuditRow() {
   const res = await qhseFetch('/api/audits?limit=500');
   if (!res.ok) {
@@ -568,11 +568,11 @@ function statutBadgeClass(statut) {
 }
 
 /**
- * Constat + bandeau validation humaine (session locale — pas d’écriture API sur cet écran).
+ * Constat + bandeau validation humaine (session locale, pas d’écriture API sur cet écran).
  * @param {{ point: string; conforme: boolean; proofRef?: string }} item
  * @param {ReturnType<typeof getSessionUser>} [sessionUser]
  * @param {{ bumpScore?: (delta: number) => void }} [hooks]
- * @param {{ auditRef?: string; auditSite?: string }} [auditLink] — contexte audit pour actions / liaisons
+ * @param {{ auditRef?: string; auditSite?: string }} [auditLink] : contexte audit pour actions / liaisons
  */
 function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLink = {}) {
   const wrap = document.createElement('div');
@@ -588,7 +588,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLin
   if (!ok) top.classList.add('audit-checklist-compact-top--nc');
   const pointEl = document.createElement('span');
   pointEl.className = 'audit-checklist-compact-point';
-  pointEl.textContent = item?.point != null ? String(item.point) : '—';
+  pointEl.textContent = item?.point != null ? String(item.point) : 'Non renseigné';
   const auditRefLink = String(auditLink?.auditRef || '').trim();
   const auditSiteLink = String(auditLink?.auditSite || '').trim();
   const badge = document.createElement('span');
@@ -600,7 +600,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLin
   proofEl.textContent =
     item?.proofRef != null && String(item.proofRef).trim() !== ''
       ? String(item.proofRef)
-      : '—';
+      : 'Non disponible';
   const treatBtn = document.createElement('button');
   treatBtn.type = 'button';
   treatBtn.className = 'text-button audit-checklist-treat';
@@ -699,7 +699,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLin
   const legend = document.createElement('p');
   legend.className = 'audit-human-validation-legend';
   legend.textContent =
-    'Décision humaine requise — états ci-dessous après action explicite uniquement.';
+    'Décision humaine requise. Les états ci-dessous changent uniquement après une action explicite.';
 
   const statusEl = document.createElement('span');
   statusEl.className = 'audit-human-status audit-human-status--pending';
@@ -713,17 +713,17 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLin
   traceHint.className = 'audit-human-validation-legend';
   traceHint.style.marginBottom = '6px';
   traceHint.textContent =
-    'Traçabilité décision — renseignez un commentaire puis validez (utilisateur et date après action).';
+    'Traçabilité décision : renseignez un commentaire puis validez (utilisateur et date après action).';
   const traceUser = document.createElement('p');
   traceUser.className = 'audit-human-trace-meta';
-  traceUser.textContent = 'Utilisateur : —';
+  traceUser.textContent = 'Utilisateur : non renseigné';
   const traceDate = document.createElement('p');
   traceDate.className = 'audit-human-trace-meta';
-  traceDate.textContent = 'Date : —';
+  traceDate.textContent = 'Date : non renseignée';
   const traceComment = document.createElement('textarea');
   traceComment.className = 'audit-human-trace-comment';
   traceComment.setAttribute('aria-label', 'Commentaire de traçabilité');
-  traceComment.placeholder = 'Commentaire (obligatoire en certification ISO — contexte de la décision)';
+  traceComment.placeholder = 'Commentaire (obligatoire en certification ISO, contexte de la décision)';
   traceWrap.append(traceHint, traceUser, traceDate, traceComment);
 
   /** @type {'pending'|'validated'|'adjusted'|'rejected'} */
@@ -751,7 +751,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLin
       paintStatus();
       traceUser.textContent = `Utilisateur : ${su?.name || su?.email || 'Auditeur'}`;
       traceDate.textContent = `Date : ${new Date().toLocaleString('fr-FR')}`;
-      showToast(`Suggestion / constat — ${labels[next]} (validation humaine).`, 'info');
+      showToast(`Suggestion / constat : ${labels[next]} (validation humaine).`, 'info');
       hooks?.bumpScore?.(next === 'validated' ? 0.4 : next === 'adjusted' ? 0.2 : -0.3);
       activityLogStore.add({
         module: 'audits',
@@ -799,7 +799,7 @@ function createConstatHumanRow(item, sessionUser, hooks, exigenceIndex, auditLin
  * @param {HTMLElement} treatmentTable
  * @param {{ nc: string; action: string; owner: string; due: string }} r
  * @param {ReturnType<typeof getSessionUser> | null} su
- * @param {string} [auditDisplayRef] — réf. audit affichée (cockpit)
+ * @param {string} [auditDisplayRef] : réf. audit affichée (cockpit)
  */
 function appendTreatmentRowWithRisk(treatmentTable, r, su, auditDisplayRef) {
   const line = document.createElement('div');
@@ -823,7 +823,7 @@ function appendTreatmentRowWithRisk(treatmentTable, r, su, auditDisplayRef) {
     qhseNavigate('risks', {
       skipDefaults: true,
       openRiskCreateFromIntent: true,
-      riskPrefillTitle: `Risque lié — ${r.nc} (${aref})`,
+      riskPrefillTitle: `Risque lié : ${r.nc} (${aref})`,
       riskPrefillDescription: desc.slice(0, 3800)
     });
     activityLogStore.add({
@@ -887,7 +887,7 @@ function createPlanningTable() {
     line.className = 'audit-plan-row audit-plan-row--click';
     line.setAttribute('role', 'button');
     line.tabIndex = 0;
-    line.setAttribute('aria-label', `Aller au pilotage — ${row.ref}`);
+    line.setAttribute('aria-label', `Aller au pilotage : ${row.ref}`);
     line.setAttribute('data-audit-plan-ref', row.ref);
     const stClass = statutBadgeClass(row.statut);
     const cRef = document.createElement('span');
@@ -1065,7 +1065,7 @@ export async function renderAudits() {
       }
     }
 
-    showToast('Audit non présent dans la vue cockpit actuelle — vérifiez la référence.', 'warning');
+    showToast('Audit non présent dans la vue cockpit actuelle. Vérifiez la référence.', 'warning');
   }
 
   const page = document.createElement('section');
@@ -1076,7 +1076,7 @@ export async function renderAudits() {
     pageId: 'audits',
     pageRoot: page,
     hintEssential:
-      'Essentiel : score, workflow et priorités — checklist chantier, exports et blocs experts passent en vue Expert (cette page).',
+      'Essentiel : score, workflow et priorités. Checklist chantier, exports et blocs experts passent en vue Expert (cette page).',
     hintAdvanced:
       'Expert : constats, plan d’action, traçabilité, preuves, checklist chantier et exports CSV/PDF.'
   });
@@ -1111,11 +1111,11 @@ export async function renderAudits() {
     fieldMode.reset();
     fieldMode.show();
     fieldMode.element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    showToast('Checklist chantier activée — renseignez les points ci-dessous.', 'info');
+    showToast('Checklist chantier activée. Renseignez les points ci-dessous.', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Ouverture mode audit terrain',
-      detail: 'Checklist interactive — parcours chantier',
+      detail: 'Checklist interactive : parcours chantier',
       user: 'Auditeur terrain'
     });
   }
@@ -1126,11 +1126,11 @@ export async function renderAudits() {
       behavior: 'smooth',
       block: 'start'
     });
-    showToast('Audit terrain : focus checklist — étapes ci-dessus.', 'info');
+    showToast('Audit terrain : focus checklist. Étapes ci-dessus.', 'info');
     activityLogStore.add({
       module: 'audits',
       action: 'Lancer audit terrain (parcours)',
-      detail: 'Vue simplifiée — parcours terrain',
+      detail: 'Vue simplifiée : parcours terrain',
       user: su?.name || 'Auditeur'
     });
   }
@@ -1188,7 +1188,7 @@ export async function renderAudits() {
       activityLogStore.add({
         module: 'audits',
         action: 'Demande de rapport audit',
-        detail: `Synthèse ${latestRef} — export PDF (navigateur)`,
+        detail: `Synthèse ${latestRef} : export PDF (navigateur)`,
         user: 'Responsable QHSE'
       });
     } catch (e) {
@@ -1344,7 +1344,7 @@ export async function renderAudits() {
   heroPdfIso.type = 'button';
   heroPdfIso.className = 'btn btn-secondary';
   heroPdfIso.textContent = 'PDF ISO (complet)';
-      heroPdfIso.title = 'Checklist, preuves, NC, actions, signature — export PDF';
+      heroPdfIso.title = 'Checklist, preuves, NC, actions, signature : export PDF';
   heroPdfIso.addEventListener('click', () => {
     void generateAuditIsoClientPdf();
   });
@@ -1432,7 +1432,7 @@ export async function renderAudits() {
 
   const conformitySummary = document.createElement('div');
   conformitySummary.className = 'audit-iso-conformity-row';
-  conformitySummary.setAttribute('aria-label', 'Résumé de conformité — constats checklist');
+  conformitySummary.setAttribute('aria-label', 'Résumé de conformité : constats checklist');
   function mkConformityCard(cardCls, lbl, val, hint) {
     const card = document.createElement('div');
     card.className = `audit-iso-conformity-card ${cardCls}`;
@@ -1554,7 +1554,7 @@ export async function renderAudits() {
       activityLogStore.add({
         module: 'audits',
         action: 'Import CSV audit (preview)',
-        detail: 'Validation locale — aperçu import',
+        detail: 'Validation locale : aperçu import',
         user: su?.name || 'Utilisateur'
       });
     });
@@ -1592,7 +1592,7 @@ export async function renderAudits() {
       <div>
         <div class="section-kicker">Lecture direction</div>
         <h3>Scores par norme</h3>
-        <p class="audit-premium-chart-sub">Lecture synthétique — écart vs audit précédent sous le graphique.</p>
+        <p class="audit-premium-chart-sub">Lecture synthétique : écart vs audit précédent sous le graphique.</p>
       </div>
     </div>
   `;
@@ -1686,7 +1686,7 @@ export async function renderAudits() {
   const isoWeakestForInsight = isoSortedForInsight[0];
   const auditStrategicInsightLine =
     isoWeakestForInsight && String(isoWeakestForInsight.norm).includes('14001')
-      ? 'Insight : priorité environnement ISO 14001 — écart vs 9001/45001 sur les scores affichés.'
+      ? 'Insight : priorité environnement ISO 14001, écart vs 9001/45001 sur les scores affichés.'
       : isoWeakestForInsight
         ? `Insight : focus ${isoWeakestForInsight.norm} (${isoWeakestForInsight.score} %).`
         : '';
@@ -1698,7 +1698,7 @@ export async function renderAudits() {
       <div>
         <div class="section-kicker">IA</div>
         <h3 class="audit-premium-assistant__title">Assistant audit</h3>
-        <p class="audit-premium-assistant__lead">Suggestions — validation humaine, sans écriture automatique.</p>
+        <p class="audit-premium-assistant__lead">Suggestions : validation humaine, sans écriture automatique.</p>
       </div>
     </div>
     <p class="audit-premium-assistant__insight" role="status"></p>
@@ -1740,7 +1740,7 @@ export async function renderAudits() {
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         activityLogStore.add({
           module: 'audits',
-          action: 'Suggestion IA — fenêtre de notification',
+          action: 'Suggestion IA : fenêtre de notification',
           detail: 'Quand notifier les participants',
           user: 'Utilisateur'
         });
@@ -1748,7 +1748,7 @@ export async function renderAudits() {
       }
       if (key === 'proof_gap') {
         showToast(
-          'Analyse locale : consulter « Documents & preuves » — colonnes manquants / à vérifier (aucun classement automatique engageant).',
+          'Analyse locale : consulter « Documents & preuves ». Colonnes manquantes / à vérifier (aucun classement automatique engageant).',
           'info'
         );
         document
@@ -1756,14 +1756,14 @@ export async function renderAudits() {
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         activityLogStore.add({
           module: 'audits',
-          action: 'Assistant audit — preuves à compléter',
+          action: 'Assistant audit : preuves à compléter',
           detail: 'Focus zone preuves',
           user: 'Utilisateur'
         });
         return;
       }
       showToast(
-        `Suggestion IA « ${label} » — connectez votre moteur ou API pour une analyse produite côté serveur.`,
+        `Suggestion IA « ${label} ». Connectez votre moteur ou API pour une analyse produite côté serveur.`,
         'info'
       );
       activityLogStore.add({
@@ -1807,14 +1807,14 @@ export async function renderAudits() {
     },
     {
       onPlan: () => {
-        showToast('Plan d’action structuré — brouillon affiché.', 'info');
+        showToast('Plan d’action structuré. Brouillon affiché.', 'info');
         document.getElementById('audit-iso-tier-treatment')?.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest'
         });
         activityLogStore.add({
           module: 'audits',
-          action: 'IA — Générer plan d’action',
+          action: 'IA : générer plan d’action',
           detail: LAST_AUDIT.ref,
           user: su?.name || 'Utilisateur'
         });
@@ -1830,7 +1830,7 @@ export async function renderAudits() {
         showToast('Priorisation : NC critiques et retards (zone « Priorités audit »).', 'info');
         activityLogStore.add({
           module: 'audits',
-          action: 'IA — Prioriser',
+          action: 'IA : prioriser',
           detail: 'Scroll cockpit',
           user: su?.name || 'Utilisateur'
         });
@@ -1861,7 +1861,7 @@ export async function renderAudits() {
       <div>
         <div class="section-kicker">Pilotage</div>
         <h3>Priorités audit</h3>
-        <p class="audit-cockpit-prio__lead">NC critiques, preuves manquantes, audits en retard — liens opérationnels ci-dessous.</p>
+        <p class="audit-cockpit-prio__lead">NC critiques, preuves manquantes, audits en retard. Liens opérationnels ci-dessous.</p>
       </div>
     </div>
   `;
@@ -1954,7 +1954,7 @@ export async function renderAudits() {
     <div class="content-card-head content-card-head--tight">
       <div>
         <div class="section-kicker">Constats / checklist</div>
-        <h3>Exigences — ${escapeHtml(LAST_AUDIT.ref)}</h3>
+        <h3>Exigences : ${escapeHtml(LAST_AUDIT.ref)}</h3>
         <p class="content-card-lead audit-premium-checklist__legend">Point, statut, preuve, validation.</p>
       </div>
     </div>
@@ -1993,7 +1993,7 @@ export async function renderAudits() {
       when: `${LAST_AUDIT.date} · ouverture`,
       icon: '📋',
       title: `Audit ${LAST_AUDIT.ref}`,
-      detail: `${LAST_AUDIT.site} — lancement constats`
+      detail: `${LAST_AUDIT.site} : lancement constats`
     },
     ...AUDIT_TRACE_ROWS.map((tr) => ({
       when: tr.when,
@@ -2022,7 +2022,7 @@ export async function renderAudits() {
       : null;
   histTrend.textContent =
     histSpan != null
-      ? `Écart de scores sur l’extrait affiché : ${histSpan} pts (min ${histMin}% · max ${histMax}%) — indépendant de l’ordre d’affichage.`
+      ? `Écart de scores sur l’extrait affiché : ${histSpan} pts (min ${histMin}% · max ${histMax}%). Indépendant de l’ordre d’affichage.`
       : 'Tendance : au moins deux scores valides requis sur cet extrait.';
   historyCard.append(histTrend);
 
@@ -2037,7 +2037,7 @@ export async function renderAudits() {
     <div class="content-card-head content-card-head--tight">
       <div>
         <div class="section-kicker">Traçabilité</div>
-        <h3>Piste d’audit — qui, quand, quoi</h3>
+        <h3>Piste d’audit : qui, quand, quoi</h3>
         <p class="content-card-lead audit-iso-trace-card__lead">Journal local des événements affichés.</p>
       </div>
     </div>
@@ -2071,7 +2071,7 @@ export async function renderAudits() {
     <div class="content-card-head content-card-head--tight">
       <div>
         <div class="section-kicker">Documents &amp; preuves</div>
-        <h3>Dossier probatoire — ${escapeHtml(LAST_AUDIT.ref)}</h3>
+        <h3>Dossier probatoire : ${escapeHtml(LAST_AUDIT.ref)}</h3>
         <p class="content-card-lead audit-premium-proofs__iso-lead">Présents · à vérifier · manquants.</p>
       </div>
     </div>
@@ -2150,7 +2150,7 @@ export async function renderAudits() {
       added += 1;
     });
     if (!added) {
-      showToast('Actions déjà générées pour ces preuves — consulter le tableau NC / actions.', 'info');
+      showToast('Actions déjà générées pour ces preuves. Consultez le tableau NC / actions.', 'info');
       return;
     }
     bumpScore(0.6);
@@ -2162,7 +2162,7 @@ export async function renderAudits() {
     activityLogStore.add({
       module: 'audits',
       action: 'Générer actions depuis preuves manquantes',
-      detail: `${added} ligne(s) — ${LAST_AUDIT.ref}`,
+      detail: `${added} ligne(s) : ${LAST_AUDIT.ref}`,
       user: su?.name || 'Utilisateur'
     });
   });
@@ -2342,9 +2342,10 @@ export async function renderAudits() {
   if (importDraftEl) importDraftEl.classList.add('audit-expert-hide-direction');
 
   const auditGuideEl = createSimpleModeGuide({
-    title: 'Audit — ce qui compte tout de suite',
+    title: 'Audit : ce qui compte tout de suite',
     hint: 'Le bandeau du haut résume le dernier audit ; la zone « Critiques » liste ce qui bloque la conformité.',
-    nextStep: 'Ensuite : traiter les constats ouverts, puis le suivi d’avancement — le détail technique reste en mode Expert.'
+    nextStep:
+      'Ensuite : traiter les constats ouverts, puis le suivi d’avancement. Le détail technique reste en mode Expert.'
   });
   auditGuideEl.classList.add('audit-expert-hide-direction', 'qhse-page-advanced-only');
 

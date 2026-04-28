@@ -1,5 +1,5 @@
 /**
- * État runtime mode exploration (session) — patches sur incidents / actions sans API.
+ * État runtime mode exploration (session) · patches sur incidents / actions sans API.
  */
 
 const KEY = 'qhse-demo-runtime-v1';
@@ -57,7 +57,7 @@ export function patchDemoIncidentRuntime(ref, partial) {
   saveDemoRuntime(s);
 }
 
-/** @param {object} row — ligne incident complète (POST /api/incidents) */
+/** @param {object} row · ligne incident complète (POST /api/incidents) */
 export function appendDemoCreatedIncident(row) {
   const s = loadDemoRuntime();
   if (!Array.isArray(s.createdIncidents)) s.createdIncidents = [];
@@ -65,7 +65,7 @@ export function appendDemoCreatedIncident(row) {
   saveDemoRuntime(s);
 }
 
-/** @param {object} row — ligne action (POST /api/actions) */
+/** @param {object} row · ligne action (POST /api/actions) */
 export function appendDemoCreatedAction(row) {
   const s = loadDemoRuntime();
   if (!Array.isArray(s.createdActions)) s.createdActions = [];

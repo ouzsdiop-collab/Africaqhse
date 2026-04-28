@@ -1,5 +1,5 @@
 /**
- * Persistance JSON localStorage (paramètres) — extrait de pages/settings.js.
+ * Persistance JSON localStorage (paramètres) : extrait de pages/settings.js.
  */
 
 import { showToast } from '../components/toast.js';

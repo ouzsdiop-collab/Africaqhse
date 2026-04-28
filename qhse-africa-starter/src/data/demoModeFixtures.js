@@ -1,10 +1,10 @@
 /**
- * Jeu de données d’exploration — scénario cohérent (Katiola Mining, audit en cours, incidents récents, NC, actions).
+ * Jeu de données d’exploration : scénario cohérent (Katiola Mining, audit en cours, incidents récents, NC, actions).
  * Utilisé lorsque le mode exploration local est actif (voir demoModeFetch.js).
  */
 
 export const DEMO_SITE_ID = 'site-demo-kassa';
-export const DEMO_SITE_LABEL = 'Katiola Mining — Site Yakouro';
+export const DEMO_SITE_LABEL = 'Katiola Mining : site Yakouro';
 export const DEMO_MINE_ZONES = [
   'Fosse Nord',
   'Usine de traitement',
@@ -21,7 +21,7 @@ export const demoSites = [
     id: DEMO_SITE_ID,
     name: DEMO_SITE_LABEL,
     code: 'MK-RDC',
-    address: 'Site minier — jeu d’illustration',
+    address: 'Site minier (jeu d’illustration)',
     createdAt: '2025-06-01T08:00:00.000Z'
   }
 ];
@@ -51,12 +51,12 @@ export const demoUsers = [
   }
 ];
 
-/** Registre risques — cohérent avec l’assistant pilotage et GET /api/risks en mode exploration. */
+/** Registre risques : cohérent avec l’assistant pilotage et GET /api/risks en mode exploration. */
 export const demoRisks = [
   {
     id: 'cldemo-risk-01',
     ref: 'RSK-MK-2026-01',
-    title: 'Chute de hauteur — accès trémies et passerelles provisoires',
+    title: 'Chute de hauteur : accès trémies et passerelles provisoires',
     description:
       'Travail en hauteur sur infrastructure extraction : garde-corps démontables, intempéries, charge dynamique engins.',
     category: 'Sécurité',
@@ -74,7 +74,7 @@ export const demoRisks = [
   {
     id: 'cldemo-risk-02',
     ref: 'RSK-MK-2026-02',
-    title: 'Écrasement / heurt — circulation engins blindés et bennes',
+    title: 'Écrasement / heurt : circulation engins blindés et bennes',
     description:
       'Croisement engins de terrassement et piétons logistique ; visibilité réduite nuit et poussière.',
     category: 'Sécurité',
@@ -92,7 +92,7 @@ export const demoRisks = [
   {
     id: 'cldemo-risk-03',
     ref: 'RSK-MK-2026-03',
-    title: 'Fuite hydrocarbures — stockage carburant tranchée nord',
+    title: 'Fuite hydrocarbures : stockage carburant tranchée nord',
     description: 'Bacs de rétention, raccords vibratoires, surveillance cuve mobile forage.',
     category: 'Environnement',
     gravity: 3,
@@ -109,7 +109,7 @@ export const demoRisks = [
   {
     id: 'cldemo-risk-04',
     ref: 'RSK-MK-2026-04',
-    title: 'Effondrement localisé — talus stérile humide',
+    title: 'Effondrement localisé : talus stérile humide',
     description: 'Saison des pluies ; stabilité bermes accès flanc nord ; géotechnique à mettre à jour.',
     category: 'Sécurité',
     gravity: 5,
@@ -126,8 +126,8 @@ export const demoRisks = [
   {
     id: 'cldemo-risk-05',
     ref: 'RSK-MK-2026-05',
-    title: 'Exposition poussières silice — concassage primaire',
-    description: 'Mesures EPI FFP3, arrosages, captage — alignement plan hygiène industrielle.',
+    title: 'Exposition poussières silice : concassage primaire',
+    description: 'Mesures EPI FFP3, arrosages, captage. Alignement plan hygiène industrielle.',
     category: 'Santé au travail',
     gravity: 4,
     probability: 3,
@@ -143,13 +143,13 @@ export const demoRisks = [
 ];
 
 /**
- * Causes racines mock (mine / SST) — même forme que POST /api/ai-suggestions/suggest/root-causes.
+ * Causes racines mock (mine / SST) : même forme que POST /api/ai-suggestions/suggest/root-causes.
  * @param {{ id?: string, ref?: string }} inc
  */
 export function buildDemoAiRootCausesPayload(inc) {
-  const ref = inc?.ref || '—';
+  const ref = inc?.ref || 'Non disponible';
   return {
-    incidentId: inc?.id || '—',
+    incidentId: inc?.id || 'Non disponible',
     ref,
     provider: 'qhse-demo-mining',
     error: null,
@@ -184,7 +184,7 @@ export function buildDemoAiRootCausesPayload(inc) {
 }
 
 /**
- * Actions correctives mock — même forme que POST /api/ai-suggestions/suggest/actions.
+ * Actions correctives mock : même forme que POST /api/ai-suggestions/suggest/actions.
  * @param {{ id?: string, ref?: string, severity?: string }} inc
  */
 export function buildDemoAiCorrectiveActionsPayload(inc) {
@@ -192,13 +192,13 @@ export function buildDemoAiCorrectiveActionsPayload(inc) {
   const sev = String(inc?.severity || '').toLowerCase();
   const crit = sev.includes('crit');
   return {
-    incidentId: inc?.id || '—',
+    incidentId: inc?.id || 'Non disponible',
     ref,
     provider: 'qhse-demo-mining',
     error: null,
     actions: [
       {
-        title: `Isolement terrain & consignation — ${ref}`,
+        title: `Isolement terrain et consignation : ${ref}`,
         description:
           'Baliser la zone, couper les énergies si besoin, désigner un opérateur radio, photo de preuve pour QHSE.',
         delayDays: 1,
@@ -206,7 +206,7 @@ export function buildDemoAiCorrectiveActionsPayload(inc) {
         confidence: crit ? 0.9 : 0.78
       },
       {
-        title: `Analyse 5M0 + lien registre risques (trémie / engins) — ${ref}`,
+        title: `Analyse 5M0 + lien registre risques (trémie / engins) : ${ref}`,
         description:
           'Mettre à jour la fiche incident, croiser avec RSK-MK-2026-01 / 02 si pertinent, proposer indicateur de suivi.',
         delayDays: 5,
@@ -214,7 +214,7 @@ export function buildDemoAiCorrectiveActionsPayload(inc) {
         confidence: 0.73
       },
       {
-        title: 'Retour d’expérience — équipe forage & maintenance',
+        title: 'Retour d’expérience : équipe forage et maintenance',
         description:
           'Toolbox 15 min, focus EPI et circulation engins ; enregistrement dans le registre des formations.',
         delayDays: 10,
@@ -238,10 +238,10 @@ export const demoIncidentsBase = [
     siteId: DEMO_SITE_ID,
     severity: 'Critique',
     description:
-      'Décrochage partiel d’un garde-corps provisoire zone trémie T3 — personne non blessée, arrêt chantier 45 min.',
+      'Décrochage partiel d’un garde-corps provisoire zone trémie T3. Personne non blessée, arrêt chantier 45 min.',
     status: 'Investigation',
     createdAt: '2026-04-02T14:20:00.000Z',
-    location: 'Trémie T3 — niveau 420',
+    location: 'Trémie T3, niveau 420',
     causes: null,
     causeCategory: null,
     photosJson: null,
@@ -255,7 +255,7 @@ export const demoIncidentsBase = [
     siteId: DEMO_SITE_ID,
     severity: 'Élevée',
     description:
-      'Engin en intersection sans signalisation complète — manœuvre sécurisée par opérateur terrain.',
+      'Engin en intersection sans signalisation complète. Manœuvre sécurisée par opérateur terrain.',
     status: 'En cours',
     createdAt: '2026-03-18T09:10:00.000Z',
     location: 'Carrefour logistique nord',
@@ -271,7 +271,7 @@ export const demoIncidentsBase = [
     site: DEMO_SITE_LABEL,
     siteId: DEMO_SITE_ID,
     severity: 'Moyenne',
-    description: 'Glissade sur surface humide sans chute — analyse 5M0 enregistrée.',
+    description: 'Glissade sur surface humide sans chute. Analyse 5M0 enregistrée.',
     status: 'Clôturé',
     createdAt: '2026-02-10T16:00:00.000Z',
     location: 'Atelier maintenance',
@@ -287,7 +287,7 @@ export const demoIncidentsBase = [
     site: DEMO_SITE_LABEL,
     siteId: DEMO_SITE_ID,
     severity: 'Faible',
-    description: 'Fuite mineure sur raccord hydraulique — colmatage immédiat.',
+    description: 'Fuite mineure sur raccord hydraulique. Colmatage immédiat.',
     status: 'Nouveau',
     createdAt: '2026-01-08T11:30:00.000Z',
     location: 'Parc engins',
@@ -304,8 +304,8 @@ export const demoIncidentsBase = [
 export const demoActionsBase = [
   {
     id: 'cldemo-act-001',
-    title: 'Renforcer garde-corps provisoires — zone T3',
-    detail: 'Suite INC-DEMO-2026-04 — vérification tous points d’ancrage + plan photo.',
+    title: 'Renforcer garde-corps provisoires : zone T3',
+    detail: 'Suite INC-DEMO-2026-04. Vérification tous points d’ancrage + plan photo.',
     status: 'En cours',
     owner: 'Amina Mukendi',
     dueDate: '2026-04-12T00:00:00.000Z',
@@ -318,7 +318,7 @@ export const demoActionsBase = [
   {
     id: 'cldemo-act-002',
     title: 'Signalisation intersection logistique nord',
-    detail: 'Balisage + feux temporaires — alignement plan circulation interne.',
+    detail: 'Balisage + feux temporaires. Alignement plan circulation interne.',
     status: 'En retard',
     owner: 'Patrick Kasaï',
     dueDate: '2026-03-25T00:00:00.000Z',
@@ -334,8 +334,8 @@ export const demoActionsBase = [
   },
   {
     id: 'cldemo-act-003',
-    title: 'NC AUD — preuves formation SST équipe forage',
-    detail: 'Réf. audit AUD-DEMO-2026-03 — joindre attestations à jour.',
+    title: 'NC AUD : preuves formation SST équipe forage',
+    detail: 'Réf. audit AUD-DEMO-2026-03. Joindre attestations à jour.',
     status: 'En retard',
     owner: 'À assigner',
     dueDate: '2026-03-30T00:00:00.000Z',
@@ -347,7 +347,7 @@ export const demoActionsBase = [
   },
   {
     id: 'cldemo-act-004',
-    title: 'Revue documentaire — PdP travail en hauteur',
+    title: 'Revue documentaire : PdP travail en hauteur',
     detail: 'Mise à jour annuelle + diffusion terrain.',
     status: 'À lancer',
     owner: 'À assigner',
@@ -360,7 +360,7 @@ export const demoActionsBase = [
   },
   {
     id: 'cldemo-act-005',
-    title: 'Audit interne — suivi points sortants Q1',
+    title: 'Audit interne : suivi points sortants Q1',
     status: 'Terminé',
     owner: 'Jean-Paul Ilunga',
     dueDate: '2026-02-28T00:00:00.000Z',
@@ -419,7 +419,7 @@ export const demoNonConformities = [
     id: 9201,
     title: 'Registre formation SST incomplet (équipe forage)',
     detail:
-      'Référentiel : ISO 45001 — Article 7.2.\nCriticité : majeure.\nStatut métier : En cours.\nLié audit : AUD-DEMO-2026-03.',
+      'Référentiel : ISO 45001, article 7.2.\nCriticité : majeure.\nStatut métier : En cours.\nLié audit : AUD-DEMO-2026-03.',
     status: 'open',
     auditRef: 'AUD-DEMO-2026-03',
     auditId: 'cldemo-audit-03',
@@ -428,7 +428,7 @@ export const demoNonConformities = [
   },
   {
     id: 9202,
-    title: 'Plan de maintenance extincteurs — version non signée',
+    title: 'Plan de maintenance extincteurs : version non signée',
     detail: 'Criticité : majeure.\nStatut métier : En cours.\nLié audit : AUD-DEMO-2026-03.',
     status: 'open',
     auditRef: 'AUD-DEMO-2026-03',
@@ -448,7 +448,7 @@ export const demoNonConformities = [
   },
   {
     id: 9204,
-    title: 'Bordereau déchets — case code déchet manquante',
+    title: 'Bordereau déchets : case code déchet manquante',
     detail: 'Criticité : mineure.',
     status: 'open',
     auditRef: 'AUD-DEMO-2026-02',
@@ -542,7 +542,7 @@ export function buildDemoReportingSummary(incidents, actions, audits, ncs) {
     priorityAlerts.push({
       level: 'high',
       code: 'ACTIONS_RETARD',
-      message: `${overdue.length} action(s) en retard — relance du plan d’actions recommandée.`
+      message: `${overdue.length} action(s) en retard. Relance du plan d’actions recommandée.`
     });
   }
   if (openNc.length > 0) {
@@ -603,7 +603,7 @@ export function buildDemoReportingSummary(incidents, actions, audits, ncs) {
     })),
     priorityAlerts,
     export: {
-      documentTitle: 'Synthèse QHSE — exploration locale',
+      documentTitle: 'Synthèse QHSE : exploration locale',
       schemaVersion: 1,
       sectionsOrder: [
         'counts',
@@ -623,8 +623,8 @@ export const demoNotifications = [
   {
     id: 'demo-notif-1',
     kind: 'incident',
-    title: 'Incident critique — INC-DEMO-2026-04',
-    detail: 'Quasi-accident zone T3 — investigation en cours.',
+    title: 'Incident critique : INC-DEMO-2026-04',
+    detail: 'Quasi-accident zone T3. Investigation en cours.',
     level: 'critical',
     read: false,
     timestamp: '2026-04-02T15:30:00.000Z'
@@ -632,7 +632,7 @@ export const demoNotifications = [
   {
     id: 'demo-notif-2',
     kind: 'action',
-    title: 'Actions en retard — 2 fiches',
+    title: 'Actions en retard : 2 fiches',
     detail: 'Signalisation nord + preuves formation SST.',
     level: 'warning',
     read: false,
@@ -641,8 +641,8 @@ export const demoNotifications = [
   {
     id: 'demo-notif-3',
     kind: 'audit',
-    title: 'Audit récent — AUD-DEMO-2026-03',
-    detail: 'Audit ISO 45001 en cours — score provisoire 76 %.',
+    title: 'Audit récent : AUD-DEMO-2026-03',
+    detail: 'Audit ISO 45001 en cours. Score provisoire 76 %.',
     level: 'info',
     read: false,
     timestamp: '2026-03-22T09:00:00.000Z'
@@ -650,7 +650,7 @@ export const demoNotifications = [
   {
     id: 'demo-notif-4',
     kind: 'nonconformity',
-    title: 'Non-conformité ouverte — Registre formation SST',
+    title: 'Non-conformité ouverte : registre formation SST',
     detail: 'NC majeure liée à AUD-DEMO-2026-03.',
     level: 'critical',
     read: false,
@@ -659,7 +659,7 @@ export const demoNotifications = [
   {
     id: 'demo-notif-5',
     kind: 'action_assigned',
-    title: 'Action assignée — Garde-corps T3',
+    title: 'Action assignée : garde-corps T3',
     detail: 'Vous êtes responsable du suivi.',
     level: 'info',
     read: true,
@@ -682,7 +682,7 @@ export const demoControlledDocuments = [
     sizeBytes: 245000,
     auditId: null,
     fdsProductRef: null,
-    isoRequirementRef: 'ISO 45001 — 8.1',
+    isoRequirementRef: 'ISO 45001 : 8.1',
     riskRef: null,
     complianceTag: 'SST',
     expiresAt: '2026-06-01T00:00:00.000Z',
@@ -693,7 +693,7 @@ export const demoControlledDocuments = [
   },
   {
     id: 'cldemo-doc-2',
-    name: 'Plan de gestion des déchets — annexe B',
+    name: 'Plan de gestion des déchets : annexe B',
     type: 'iso_proof',
     path: 'demo/pgd-annexe-b.pdf',
     classification: 'normal',
@@ -703,7 +703,7 @@ export const demoControlledDocuments = [
     mimeType: 'application/pdf',
     sizeBytes: 512000,
     auditId: null,
-    isoRequirementRef: 'ISO 14001 — 8.1',
+    isoRequirementRef: 'ISO 14001 : 8.1',
     expiresAt: '2026-03-01T00:00:00.000Z',
     responsible: 'Jean-Paul Ilunga',
     version: '2.0',
@@ -723,7 +723,7 @@ export const demoControlledDocuments = [
     sizeBytes: 88000,
     expiresAt: '2026-05-15T00:00:00.000Z',
     responsible: 'Amina Mukendi',
-    version: '—',
+    version: 'Non renseigné',
     pendingValidation: false,
     rejected: false
   },

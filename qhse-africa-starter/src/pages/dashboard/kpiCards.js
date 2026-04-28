@@ -27,7 +27,7 @@ function updateKpiPriorityLineWithRefs(refs, state) {
     asDashboardCount(stats.nonConformities) === 0;
   if (n === 0 && scalarsQuiet) {
     kpiPriorityLine.textContent =
-      'Aucune donnée sur ce périmètre — vérifiez le filtre site ou élargissez la vue.';
+      'Aucune donnée sur ce périmètre : vérifiez le filtre site ou élargissez la vue.';
     kpiPriorityLine.className = 'dashboard-kpi-priority-line dashboard-kpi-priority-line--ok';
   } else if (n === 0) {
     kpiPriorityLine.textContent = 'Aucun élément critique à traiter en priorité aujourd’hui.';
@@ -45,7 +45,7 @@ function updateKpiPriorityLineWithRefs(refs, state) {
  * @param {HTMLElement} refs.kpiPriorityLine
  * @param {() => string} refs.getScopeEmptyLabel
  * @param {() => unknown[]} refs.getNcListForKpi
- * @param {object} data — stats dashboard (même objet qu’avant : `lastStats` / payload normalisé)
+ * @param {object} data : stats dashboard (même objet qu’avant : `lastStats` / payload normalisé)
  */
 function applyStatsToKpisWithRefs(refs, data) {
   const scopeHint = refs.getScopeEmptyLabel();
@@ -133,7 +133,7 @@ function applyEnrichmentKpisWithRefs(refs, ncList, auditList, ncTotalAggregate) 
       const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
       refs.kpiValues.auditScore.textContent = `${avg}%`;
     } else {
-      refs.kpiValues.auditScore.textContent = '—';
+      refs.kpiValues.auditScore.textContent = 'Non disponible';
     }
     refs.kpiValues.auditsN.textContent = String(auditList.length);
     const audHint = emptyHints.auditsN;
@@ -142,7 +142,7 @@ function applyEnrichmentKpisWithRefs(refs, ncList, auditList, ncTotalAggregate) 
       audHint.textContent = '';
     }
   } else {
-    refs.kpiValues.auditScore.textContent = '—';
+    refs.kpiValues.auditScore.textContent = 'Non disponible';
     refs.kpiValues.auditsN.textContent = '0';
     const audHint = emptyHints.auditsN;
     if (audHint) {
@@ -154,7 +154,7 @@ function applyEnrichmentKpisWithRefs(refs, ncList, auditList, ncTotalAggregate) 
 
 /**
  * Retire la couche squelette KPI (même sélecteur que `renderKpiCards`).
- * @param {HTMLElement | null | undefined} kpiValues — conteneur sticky KPI (hôte du squelette)
+ * @param {HTMLElement | null | undefined} kpiValues : conteneur sticky KPI (hôte du squelette)
  */
 export function dismissKpiSkeleton(kpiValues) {
   const layer = kpiValues?.querySelector('.dashboard-kpi-skeleton-layer');
@@ -162,10 +162,10 @@ export function dismissKpiSkeleton(kpiValues) {
 }
 
 /**
- * @param {object} kpiDomRefs — { kpiValues, kpiEmptyHints, kpiPriorityLine, … }
+ * @param {object} kpiDomRefs : { kpiValues, kpiEmptyHints, kpiPriorityLine, … }
  * @param {() => string} getScopeEmptyLabel
  * @param {() => unknown[]} getNcListForKpi
- * @param {object} data — stats (`lastStats` / payload normalisé)
+ * @param {object} data : stats (`lastStats` / payload normalisé)
  */
 export function applyStatsToKpis(kpiDomRefs, getScopeEmptyLabel, getNcListForKpi, data) {
   applyStatsToKpisWithRefs(
@@ -179,7 +179,7 @@ export function applyStatsToKpis(kpiDomRefs, getScopeEmptyLabel, getNcListForKpi
 }
 
 /**
- * @param {object} kpiDomRefs — { kpiValues, kpiEmptyHints, kpiNotes, … }
+ * @param {object} kpiDomRefs : { kpiValues, kpiEmptyHints, kpiNotes, … }
  * @param {() => string} getScopeEmptyLabel
  */
 export function applyEnrichmentKpis(kpiDomRefs, getScopeEmptyLabel, ncList, auditList, ncTotalAggregate) {

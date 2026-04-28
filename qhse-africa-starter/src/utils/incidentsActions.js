@@ -53,7 +53,7 @@ export async function createLinkedAction(inc) {
   function buildActionBody(o) {
     const body = {
       title: `Suite incident ${inc.ref}`,
-      detail: detailParts.join(' — '),
+      detail: detailParts.join(' · '),
       status: 'À lancer',
       owner: 'Responsable QHSE'
     };
@@ -169,7 +169,7 @@ export async function proposeCorrectiveActionViaAssistant(inc) {
     defaults: buildActionDefaultsFromIncident(inc),
     builtInSuccessToast: false,
     onCreated: (payload) => {
-      showToast('Action enregistrée — issue du formulaire assistant.', 'success', {
+      showToast('Action enregistrée. Issue du formulaire assistant.', 'success', {
         label: 'Ouvrir',
         action: () => {
           if (payload?.id) {
@@ -199,14 +199,14 @@ export async function createCorrectiveAction(inc) {
   await ensureUsersCached();
   const qhse = cachedUsersForActions?.find((u) => normalizedUserRole(u.role) === 'QHSE');
   const detailParts = [
-    `Action corrective — incident ${inc.ref}`,
+    `Action corrective : incident ${inc.ref}`,
     `${inc.type} · ${inc.site}`,
     inc.severity ? `Gravité : ${inc.severity}` : '',
     inc.description ? inc.description.slice(0, 400) : ''
   ].filter(Boolean);
   const body = {
-    title: `Corrective — ${inc.ref}`,
-    detail: detailParts.join(' — '),
+    title: `Corrective · ${inc.ref}`,
+    detail: detailParts.join(' · '),
     status: 'À lancer',
     owner: 'Responsable QHSE'
   };
@@ -238,7 +238,7 @@ export async function createCorrectiveAction(inc) {
     });
     appendActionHistory(String(id), `Créée depuis incident ${inc.ref} (corrective).`);
   }
-  showToast(`Action corrective créée — ${inc.ref}`, 'success');
+  showToast(`Action corrective créée : ${inc.ref}`, 'success');
   linkModules({
     fromModule: 'incidents',
     fromId: inc.ref,

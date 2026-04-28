@@ -815,7 +815,7 @@ function ensureSidebarV2Styles() {
   document.head.append(el);
 }
 
-/** Icônes SVG 20×20, stroke — cohérentes et sobres. */
+/** Icônes SVG 20×20, stroke : cohérentes et sobres. */
 const NAV_ICON_SVG = {
   dashboard:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
@@ -857,7 +857,7 @@ function navIconFor(id) {
   return NAV_ICON_SVG[id] || NAV_ICON_SVG.dashboard;
 }
 
-/** Marquage SVG interne uniquement (icônes menu) — pas de données utilisateur. */
+/** Marquage SVG interne uniquement (icônes menu) : pas de données utilisateur. */
 function mountTrustedSvgChild(host, svgMarkup) {
   host.replaceChildren();
   const doc = new DOMParser().parseFromString(String(svgMarkup).trim(), 'text/html');
@@ -1001,7 +1001,7 @@ export function createSidebar({
         return;
       }
       /* Id périmètre inconnu (catalogue API re-seedé, option retirée) : l’UI peut afficher
-         « Vue groupe » alors que appState gardait l’ancien UUID — les API renvoient alors 0. */
+         « Vue groupe » alors que appState gardait l’ancien UUID : les API renvoient alors 0. */
       onSiteChange(null, 'Vue groupe (tous sites)');
       select.value = '';
       return;
@@ -1160,7 +1160,7 @@ export function createSidebar({
       'Sans connexion : choisissez un profil pour prévisualiser le menu selon le rôle (aperçu local).';
     const optProf0 = document.createElement('option');
     optProf0.value = '';
-    optProf0.textContent = '— Mode libre —';
+    optProf0.textContent = 'Mode libre';
     profileSelect.append(optProf0);
     profileSlot.append(profileSelect);
 

@@ -20,7 +20,7 @@ function ensureAuditLogsApiStyles() {
 
 /** @param {unknown} v */
 function previewJson(v) {
-  if (v == null) return '—';
+  if (v == null) return 'Non disponible';
   try {
     const s = JSON.stringify(v);
     return s.length > 220 ? `${s.slice(0, 220)}…` : s;
@@ -30,7 +30,7 @@ function previewJson(v) {
 }
 
 /**
- * Panneau « journal serveur » (API) — intégré dans la page Journal unifiée.
+ * Panneau « journal serveur » (API) : intégré dans la page Journal unifiée.
  * @returns {HTMLElement} article.content-card ou équivalent
  */
 export function createAuditLogsServerPanel() {
@@ -114,17 +114,17 @@ export function createAuditLogsServerPanel() {
   function buildRow(row, admin) {
     const tr = document.createElement('tr');
     const tdDate = document.createElement('td');
-    tdDate.textContent = row.createdAt ? String(row.createdAt) : '—';
+    tdDate.textContent = row.createdAt ? String(row.createdAt) : 'Non disponible';
     tr.append(tdDate);
     if (admin) {
       const tdTenant = document.createElement('td');
-      tdTenant.textContent = row.tenantId != null ? String(row.tenantId) : '—';
+      tdTenant.textContent = row.tenantId != null ? String(row.tenantId) : 'Non disponible';
       tr.append(tdTenant);
     }
     const u = row.user && typeof row.user === 'object' ? row.user : null;
     const uName = u && typeof u.name === 'string' ? u.name : '';
     const uEmail = u && typeof u.email === 'string' ? u.email : '';
-    const who = uName || uEmail || (row.userId ? String(row.userId) : '—');
+    const who = uName || uEmail || (row.userId ? String(row.userId) : 'Non disponible');
     const tdRes = document.createElement('td');
     tdRes.textContent = String(row.resource ?? '');
     const tdRid = document.createElement('td');

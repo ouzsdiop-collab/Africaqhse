@@ -1,5 +1,5 @@
 /**
- * Suggestions déterministes (assistant local) pour formulaires — à valider par l’utilisateur.
+ * Suggestions déterministes (assistant local) pour formulaires · à valider par l’utilisateur.
  */
 
 import { mockSuggestActionContent } from './mockActionSuggest.js';
@@ -12,7 +12,7 @@ export function buildActionDefaultsFromIncident(inc) {
   const sev = String(inc?.severity || '').toLowerCase();
   const crit = sev.includes('crit');
   return {
-    title: `Corrective — ${ref}`,
+    title: `Corrective : ${ref}`,
     origin: 'incident',
     actionType: 'corrective',
     priority: crit ? 'critique' : 'haute',
@@ -32,7 +32,7 @@ export function buildActionDefaultsFromIncident(inc) {
 export function buildActionDefaultsFromCriticalRisk(risk) {
   const title = risk?.title || 'Risque critique';
   return {
-    title: `Préventive — ${title}`.slice(0, 240),
+    title: `Préventive : ${title}`.slice(0, 240),
     origin: 'risk',
     actionType: 'preventive',
     priority: 'haute',
@@ -68,13 +68,13 @@ export function buildActionDefaultsFromOverdueItem(item) {
     }
   })();
   return {
-    title: `Relance — ${title}`.slice(0, 240),
+    title: `Relance : ${title}`.slice(0, 240),
     origin: 'other',
     actionType: 'corrective',
     priority: 'haute',
     description: [
       '[Module plan d’actions · Assistant dashboard]',
-      '[Assistant] Action signalée en retard — arbitrer : mise à jour d’échéance, réaffectation ou clôture avec preuve.',
+      '[Assistant] Action signalée en retard : arbitrer (mise à jour d’échéance, réaffectation ou clôture avec preuve).',
       due ? `Échéance enregistrée : ${due}.` : '',
       own ? `Responsable connu : ${own}.` : '',
       det ? `Détail : ${det}` : '',
@@ -97,7 +97,7 @@ export function buildActionDefaultsFromOverdueItem(item) {
 export function buildActionDefaultsFromAuditPrep(audit) {
   const title = audit?.title || 'Audit à préparer';
   return {
-    title: `Préparation audit — ${title}`.slice(0, 240),
+    title: `Préparation audit : ${title}`.slice(0, 240),
     origin: 'audit',
     actionType: 'corrective',
     priority: 'haute',
@@ -124,7 +124,7 @@ export function buildActionDefaultsFromAuditPrep(audit) {
 export function buildActionDefaultsFromRenewingDocument(doc) {
   const name = doc?.name || 'Document';
   return {
-    title: `Revue anticipée — ${name}`.slice(0, 240),
+    title: `Revue anticipée : ${name}`.slice(0, 240),
     origin: 'other',
     actionType: 'corrective',
     priority: 'normale',
@@ -147,7 +147,7 @@ export function buildActionDefaultsFromRenewingDocument(doc) {
 export function buildActionDefaultsFromExpiredDocument(doc) {
   const name = doc?.name || 'Document';
   return {
-    title: `Mise à jour document — ${name}`.slice(0, 240),
+    title: `Mise à jour document : ${name}`.slice(0, 240),
     origin: 'other',
     actionType: 'corrective',
     priority: 'haute',

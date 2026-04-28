@@ -55,9 +55,9 @@ function trendArrowForRisks(risks) {
 /**
  * @param {object} opts
  * @param {(filter: { g: number, p: number } | null) => void} [opts.onFilterChange]
- * @param {'default'|'embedded'} [opts.variant] — `embedded` : libellés courts + espacements resserrés (panneau secondaire)
- * @param {boolean} [opts.showRiskDots] — pastilles par fiche dans chaque case (couleur = palier)
- * @param {(info: { g: number, p: number, count: number }) => void} [opts.onCellActivate] — après sélection d’une case avec fiches (ex. scroll registre)
+ * @param {'default'|'embedded'} [opts.variant] : `embedded` : libellés courts + espacements resserrés (panneau secondaire)
+ * @param {boolean} [opts.showRiskDots] : pastilles par fiche dans chaque case (couleur = palier)
+ * @param {(info: { g: number, p: number, count: number }) => void} [opts.onCellActivate] : après sélection d’une case avec fiches (ex. scroll registre)
  */
 export function createRiskMatrixPanel(opts = {}) {
   const { onFilterChange, variant = 'default', showRiskDots = false, onCellActivate } = opts;
@@ -76,7 +76,7 @@ export function createRiskMatrixPanel(opts = {}) {
   toolHead.innerHTML =
     variant === 'embedded'
       ? '<strong class="risk-matrix-tool__title">Synthèse G×P</strong><p class="risk-matrix-tool__lede">Compteurs et pastilles filtrent le registre. Grille ci-dessous pour affiner par case.</p>'
-      : '<strong class="risk-matrix-tool__title">Pilotage par criticité</strong><p class="risk-matrix-tool__lede">Les compteurs ci-dessous suivent vos fiches (G×P). Les pastilles ouvrent le filtre sur le registre — pas besoin de chercher la case dans la grille.</p>';
+      : '<strong class="risk-matrix-tool__title">Pilotage par criticité</strong><p class="risk-matrix-tool__lede">Les compteurs ci-dessous suivent vos fiches (G×P). Les pastilles ouvrent le filtre sur le registre. Pas besoin de chercher la case dans la grille.</p>';
 
   const priorityRow = document.createElement('div');
   priorityRow.className = 'risk-matrix-priority-row';
@@ -87,7 +87,7 @@ export function createRiskMatrixPanel(opts = {}) {
 
   const hotspotsLabel = document.createElement('div');
   hotspotsLabel.className = 'risk-matrix-hotspots-section__label';
-  hotspotsLabel.textContent = 'Raccourcis — cases avec fiches';
+  hotspotsLabel.textContent = 'Raccourcis : cases avec fiches';
 
   const hotspots = document.createElement('div');
   hotspots.className = 'risk-matrix-hotspots';
@@ -193,7 +193,7 @@ export function createRiskMatrixPanel(opts = {}) {
     } else {
       const empty = document.createElement('span');
       empty.className = 'risk-matrix-cell-tooltip__empty';
-      empty.textContent = `Aucune fiche — case ${lvl} (score théorique ${prod})`;
+      empty.textContent = `Aucune fiche : case ${lvl} (score théorique ${prod})`;
       cellTooltip.append(empty);
     }
   }
@@ -267,7 +267,7 @@ export function createRiskMatrixPanel(opts = {}) {
       const h = document.createElement('div');
       h.className = 'risk-matrix-grid__colhead risk-matrix-grid__colhead--premium';
       h.innerHTML = `<span class="risk-matrix-grid__axis-main">P${p}</span><span class="risk-matrix-grid__axis-sub">${escapeHtml(P_TITLE[p])}</span>`;
-      h.title = `Probabilité ${p}/5 — ${P_TITLE[p]}`;
+      h.title = `Probabilité ${p}/5 : ${P_TITLE[p]}`;
       grid.append(h);
     }
 
@@ -275,7 +275,7 @@ export function createRiskMatrixPanel(opts = {}) {
       const rh = document.createElement('div');
       rh.className = 'risk-matrix-grid__rowhead risk-matrix-grid__rowhead--premium';
       rh.innerHTML = `<span class="risk-matrix-grid__axis-main">G${g}</span><span class="risk-matrix-grid__axis-sub">${escapeHtml(G_TITLE[g])}</span>`;
-      rh.title = `Gravité ${g}/5 — ${G_TITLE[g]}`;
+      rh.title = `Gravité ${g}/5 : ${G_TITLE[g]}`;
       grid.append(rh);
 
       for (let p = 1; p <= 5; p++) {
@@ -536,7 +536,7 @@ export function createRiskMatrixPanel(opts = {}) {
           const trendEl = document.createElement('span');
           trendEl.className = 'risk-matrix-cell__trend risk-matrix-cell__trend--muted';
           trendEl.setAttribute('aria-hidden', 'true');
-          trendEl.textContent = '—';
+          trendEl.textContent = 'Non disponible';
           btn.append(trendEl);
         }
         btn.setAttribute(

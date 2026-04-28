@@ -18,8 +18,8 @@ const entries = [
   {
     id: 3,
     module: 'incidents',
-    action: 'Incident critique — gravité élevée',
-    detail: 'INC-204 zone stockage — sécurité',
+    action: 'Incident critique : gravité élevée',
+    detail: 'INC-204 zone stockage : sécurité',
     user: 'HSE terrain',
     timestamp: 'Hier · 17:22'
   },
@@ -27,7 +27,7 @@ const entries = [
     id: 4,
     module: 'actions',
     action: 'Relance action en retard',
-    detail: 'Échéance dépassée — plan correctif site sud',
+    detail: 'Échéance dépassée : plan correctif site sud',
     user: 'Coord. QHSE',
     timestamp: 'Hier · 11:05'
   },
@@ -35,7 +35,7 @@ const entries = [
     id: 5,
     module: 'audits',
     action: 'Non-conformité majeure relevée',
-    detail: 'Constat NC-12 — suivi audits internes',
+    detail: 'Constat NC-12 : suivi audits internes',
     user: 'Auditeur interne',
     timestamp: 'Lun. · 14:30'
   }

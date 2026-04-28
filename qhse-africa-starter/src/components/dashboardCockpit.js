@@ -1,5 +1,5 @@
 /**
- * Bloc central « Cockpit direction QHSE » — données issues du chargement dashboard existant (pas d’API dédiée).
+ * Bloc central « Cockpit direction QHSE » : données issues du chargement dashboard existant (pas d’API dédiée).
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
@@ -40,19 +40,19 @@ const DC_NAV = {
 function computeDynamicIntro(ctx) {
   const { riskVal, openNc, actN, audN, od, actCount } = ctx;
   if (od >= 3 || (od > 0 && od >= openNc + riskVal && od >= 2)) {
-    return 'Exécution tendue : des actions sont en retard — à débloquer en priorité.';
+    return 'Exécution tendue : des actions sont en retard. À débloquer en priorité.';
   }
   if (openNc > 2) {
-    return 'Conformité : beaucoup de NC ouvertes — à traiter ou calendrier avant la revue.';
+    return 'Conformité : beaucoup de NC ouvertes. À traiter ou calendrier avant la revue.';
   }
   if (riskVal > 0) {
-    return 'Sécurité / gravité : incident(s) critique(s) — suivi terrain attendu.';
+    return 'Sécurité / gravité : incident(s) critique(s). Suivi terrain attendu.';
   }
   if (openNc > 0 && od > 0) {
-    return 'Double sujet : NC et retards — arbitrer et piloter les deux files.';
+    return 'Double sujet : NC et retards. Arbitrer et piloter les deux files.';
   }
   if (openNc > 0) {
-    return 'Conformité : NC ouvertes — traiter ou planifier la suite.';
+    return 'Conformité : NC ouvertes. Traiter ou planifier la suite.';
   }
   if (actCount <= 2 && actN + audN < 6) {
     return 'Peu de mouvement récent sur ce tableau de bord.';
@@ -103,11 +103,11 @@ function formatMiniPhrases(ctx) {
   if (!hasScores) {
     score = 'Note d’audit non disponible ici.';
   } else if (avgScore >= 80) {
-    score = `Moyenne audits : ${avgScore} % — bon niveau.`;
+    score = `Moyenne audits : ${avgScore} %. Bon niveau.`;
   } else if (avgScore >= 65) {
-    score = `Moyenne audits : ${avgScore} % — correct.`;
+    score = `Moyenne audits : ${avgScore} %. Correct.`;
   } else {
-    score = `Moyenne audits : ${avgScore} % — sous objectif.`;
+    score = `Moyenne audits : ${avgScore} %. Sous objectif.`;
   }
 
   let echeances;
@@ -228,7 +228,7 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
     return {
       variant: 'warn',
       kicker: 'Priorité',
-      message: `${overdue} action(s) en retard — prioriser l’exécution.`,
+      message: `${overdue} action(s) en retard. Priorisez l’exécution.`,
       cta: 'Voir le plan d’actions →',
       hash: 'actions',
       intent: DC_NAV.overdue,
@@ -242,7 +242,7 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
     return {
       variant: 'nc',
       kicker: 'Priorité',
-      message: `${openNc} NC ouvertes — traiter ou calendrier avant la revue.`,
+      message: `${openNc} NC ouvertes. Traiter ou calendrier avant la revue.`,
       cta: 'Voir les audits →',
       hash: 'audits',
       intent: DC_NAV.ncCrit,
@@ -256,7 +256,7 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
     return {
       variant: 'warn',
       kicker: 'Priorité',
-      message: `${openNc} NC et ${overdue} retard(s) — arbitrer les deux sujets.`,
+      message: `${openNc} NC et ${overdue} retard(s). Arbitrer les deux sujets.`,
       cta: 'Voir les actions →',
       hash: 'actions',
       intent: DC_NAV.overdue,
@@ -267,7 +267,7 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
     return {
       variant: 'risk',
       kicker: 'Priorité',
-      message: `${riskIndicator} incident(s) critique(s) — sécuriser le terrain.`,
+      message: `${riskIndicator} incident(s) critique(s). Sécuriser le terrain.`,
       cta: 'Voir les incidents →',
       hash: 'incidents',
       intent: DC_NAV.incCrit,
@@ -283,7 +283,7 @@ function computePrimaryAlert(openNc, riskIndicator, overdue) {
     return {
       variant: 'nc',
       kicker: 'Conformité',
-      message: `${openNc} NC ouverte(s) — suivre les plans d’action.`,
+      message: `${openNc} NC ouverte(s). Suivre les plans d’action.`,
       cta: 'Voir les audits →',
       hash: 'audits',
       intent: DC_NAV.ncCrit,
@@ -380,7 +380,7 @@ export function createDashboardCockpit() {
       <div class="dashboard-cockpit__bar-track">
         <div class="dashboard-cockpit__bar-fill" data-fill></div>
       </div>
-      <span class="dashboard-cockpit__bar-val" data-val>—</span>
+      <span class="dashboard-cockpit__bar-val" data-val>Non disponible</span>
     `;
     barsHost.append(row);
     barRows[def.key] = {
@@ -399,7 +399,7 @@ export function createDashboardCockpit() {
   miniDefs.forEach((d) => {
     const el = document.createElement('div');
     el.className = 'dashboard-cockpit__mini';
-    el.innerHTML = `<span class="dashboard-cockpit__mini-label">${escapeHtml(d.label)}</span><span class="dashboard-cockpit__mini-val" data-mv>—</span>`;
+    el.innerHTML = `<span class="dashboard-cockpit__mini-label">${escapeHtml(d.label)}</span><span class="dashboard-cockpit__mini-val" data-mv>Non disponible</span>`;
     minisHost.append(el);
     miniEls[d.key] = {
       wrap: el,

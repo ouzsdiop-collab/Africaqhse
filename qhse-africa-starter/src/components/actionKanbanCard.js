@@ -95,8 +95,8 @@ function statusPillClass(columnKey) {
 }
 
 /**
- * Carte action Kanban — lecture claire + actions rapides (détail ; terminer / modifier limités par API).
- * @param {object} item — title, detail, actionId, assigneeId, assigneeName, users, onAssign, canAssign,
+ * Carte action Kanban : lecture claire + actions rapides (détail ; terminer / modifier limités par API).
+ * @param {object} item : title, detail, actionId, assigneeId, assigneeName, users, onAssign, canAssign,
  *   dueDateIso?, statusLabel?, rawRow?, onOpenDetail?(row, columnKey)
  * @param {string} columnKey
  */
@@ -116,7 +116,8 @@ export function createActionKanbanCard(item, columnKey) {
   const parsed = parseActionMeta(item.detail || '');
   const hasNamedAssignee =
     item.assigneeName != null && String(item.assigneeName).trim() !== '';
-  const displayOwner = (hasNamedAssignee ? String(item.assigneeName).trim() : parsed.owner) || '—';
+  const displayOwner =
+    (hasNamedAssignee ? String(item.assigneeName).trim() : parsed.owner) || 'Non renseigné';
 
   const dueFormatted = formatDueShort(item.dueDateIso) || parsed.echeance;
   const prio = computePriorityBadge(columnKey, item.dueDateIso);
@@ -150,7 +151,7 @@ export function createActionKanbanCard(item, columnKey) {
   const ownerStr = String(item.rawRow?.owner || '').trim();
   const noAssignee =
     !item.assigneeId &&
-    (!ownerStr || ownerStr === 'À assigner' || ownerStr === '—');
+    (!ownerStr || ownerStr === 'À assigner' || ownerStr === 'Non renseigné');
   if (noAssignee && columnKey !== 'done') card.classList.add('action-card--no-assignee');
 
   const pb = PRIO_BADGE[pilotage.priority] || PRIO_BADGE.normale;
@@ -182,7 +183,7 @@ export function createActionKanbanCard(item, columnKey) {
 
   const tooltipLines = [
     item.title,
-    `Statut : ${item.statusLabel || '—'}`,
+    `Statut : ${item.statusLabel || 'Non renseigné'}`,
     `Impact : ${IMPACT_LABELS[impactKey] || IMPACT_LABELS.amelioration}`,
     columnKey !== 'done'
       ? `Urgence : ${URGENCY_LABELS[tier]} (score ${urg.total})`
@@ -193,7 +194,7 @@ export function createActionKanbanCard(item, columnKey) {
     `Priorité : ${pilotage.priority || 'normale'}`,
     pilotage.progressPct != null ? `Avancement : ${pilotage.progressPct} %` : null,
     dueFormatted ? `Échéance : ${dueFormatted}` : null,
-    displayOwner !== '—' ? `Responsable : ${displayOwner}` : 'Sans responsable déclaré',
+    displayOwner !== 'Non renseigné' ? `Responsable : ${displayOwner}` : 'Sans responsable déclaré',
     relanceN > 0 ? `Relancé ${relanceN} fois` : null,
     isLate && relanceN === 0 ? 'Relance recommandée (retard sans relance enregistrée).' : null
   ].filter(Boolean);
@@ -360,7 +361,7 @@ export function createActionKanbanCard(item, columnKey) {
 
   const statusEl = document.createElement('span');
   statusEl.className = statusPillClass(columnKey);
-  statusEl.textContent = item.statusLabel || '—';
+  statusEl.textContent = item.statusLabel || 'Non renseigné';
 
   const metaRow = document.createElement('div');
   metaRow.className = 'action-card__premium-meta';
@@ -377,7 +378,7 @@ export function createActionKanbanCard(item, columnKey) {
 
   const dueText = document.createElement('span');
   dueText.className = 'action-card__due-compact-date';
-  dueText.textContent = dueFormatted || '—';
+  dueText.textContent = dueFormatted || 'Non disponible';
   dueSide.append(dueText);
 
   if (isLate && columnKey !== 'overdue') {

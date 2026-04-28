@@ -1,5 +1,5 @@
 /**
- * Pipeline html2canvas + jsPDF — même contrat d’options qu’historiquement via html2pdf.js,
+ * Pipeline html2canvas + jsPDF : même contrat d’options qu’historiquement via html2pdf.js,
  * sans le bundle Webpack html2pdf (~polyfills) pour réduire le JS chargé à l’export.
  * @param {string} filename
  * @param {Record<string, unknown>} [overrides]
@@ -161,7 +161,7 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
 /**
  * Découpe une grande toile sur plusieurs pages A4 (marges mm), comme html2pdf « legacy ».
  * @param {HTMLCanvasElement} canvas
- * @param {Record<string, unknown>} opt — résultat de buildHtml2PdfOptions
+ * @param {Record<string, unknown>} opt : résultat de buildHtml2PdfOptions
  * @param {typeof import('jspdf').jsPDF} JsPdf
  */
 function renderCanvasToPdfAndSave(canvas, opt, JsPdf) {
@@ -212,7 +212,7 @@ function waitForPaintAndLayout() {
 }
 
 /**
- * html2canvas capture mal les canvas (Chart.js, etc.) — rasterisation PNG avant capture.
+ * html2canvas capture mal les canvas (Chart.js, etc.) : rasterisation PNG avant capture.
  * @param {HTMLElement} root
  */
 export function replaceCanvasesWithDataUrlImages(root) {

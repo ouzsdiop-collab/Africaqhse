@@ -1,5 +1,5 @@
 /**
- * Données de pilotage QHSE (sessionStorage) — complètent l’API actions.
+ * Données de pilotage QHSE (sessionStorage) : complètent l’API actions.
  */
 
 const STORAGE_KEY = 'qhse-action-pilotage-overlay-v1';
@@ -77,7 +77,7 @@ export function addActionComment(actionId, text, userName = 'Utilisateur') {
     user: userName
   });
   mergeActionOverlay(actionId, { comments });
-  appendActionHistory(actionId, `Commentaire — ${t.slice(0, 120)}${t.length > 120 ? '…' : ''}`);
+  appendActionHistory(actionId, `Commentaire : ${t.slice(0, 120)}${t.length > 120 ? '…' : ''}`);
 }
 
 /**
@@ -95,7 +95,7 @@ export function appendActionHistory(actionId, line) {
 }
 
 /**
- * @param {object} row — ligne API
+ * @param {object} row : ligne API
  * @param {string} actionId
  */
 export function ensureDefaultOverlayFromRow(row, actionId) {
@@ -134,7 +134,7 @@ export function inferActionTypeFromText(title, detail) {
 
 /**
  * Type d’action affiché : texte fort si détecté, sinon overlay (session), sinon corrective.
- * @param {object} row — ligne API
+ * @param {object} row : ligne API
  * @param {string} [actionId]
  * @returns {'corrective'|'preventive'|'improvement'}
  */

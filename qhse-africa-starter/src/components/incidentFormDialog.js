@@ -49,9 +49,9 @@ function fileToDataUrl(file) {
 }
 
 /**
- * @param {Record<string, unknown>} apiRow — corps brut POST /api/incidents
+ * @param {Record<string, unknown>} apiRow : corps brut POST /api/incidents
  * @param {NonNullable<ReturnType<typeof mapApiIncident>>} mappedEntry
- * @param {string} clientRefGuess — référence envoyée dans la requête si besoin de repli
+ * @param {string} clientRefGuess : référence envoyée dans la requête si besoin de repli
  */
 function buildIncidentCreatedPayload(apiRow, mappedEntry, clientRefGuess) {
   const rawId = apiRow?.id ?? apiRow?._id ?? mappedEntry?.id;
@@ -262,7 +262,7 @@ export function setupIncidentDeclareFlow(ctx) {
         <div class="section-kicker">Essentiel</div>
         <h3>Déclaration express</h3>
         <p class="incidents-form-lead">
-          5 étapes courtes — une seule question visible à la fois. Validation finale requise avant envoi API.
+          5 étapes courtes, une seule question visible à la fois. Validation finale requise avant envoi API.
         </p>
         <p class="incidents-form-api-hint" title="URL technique pour support / intégration">
           API : <code>${escapeHtml(getApiBase())}</code>
@@ -306,7 +306,7 @@ export function setupIncidentDeclareFlow(ctx) {
   typeSelect.tabIndex = -1;
   const optTypePlaceholder = document.createElement('option');
   optTypePlaceholder.value = '';
-  optTypePlaceholder.textContent = '—';
+  optTypePlaceholder.textContent = 'Choisir';
   typeSelect.append(optTypePlaceholder);
   INCIDENT_TYPES.forEach((t) => {
     const opt = document.createElement('option');
@@ -372,7 +372,7 @@ export function setupIncidentDeclareFlow(ctx) {
   const photoNote = document.createElement('p');
   photoNote.className = 'incidents-form-lead incidents-rapid-photo-note';
   photoNote.textContent =
-    '1 photo, max. ~420 Ko — stockée avec la fiche (aperçu dans le détail). Réduisez la résolution si besoin.';
+    '1 photo, max. ~420 Ko. Stockée avec la fiche (aperçu dans le détail). Réduisez la résolution si besoin.';
   const photoPreview = document.createElement('div');
   photoPreview.className = 'incidents-rapid-photo-preview';
   photoInput.addEventListener('change', () => {
@@ -407,7 +407,7 @@ export function setupIncidentDeclareFlow(ctx) {
   causeCatSelect.tabIndex = -1;
   const causeOptNone = document.createElement('option');
   causeOptNone.value = '';
-  causeOptNone.textContent = '—';
+  causeOptNone.textContent = 'Non renseigné';
   causeCatSelect.append(causeOptNone);
   const causeChipByVal = new Map();
   CAUSE_CATEGORY_CHIPS.forEach(([val, label]) => {
@@ -492,7 +492,7 @@ export function setupIncidentDeclareFlow(ctx) {
   riskSelect.setAttribute('aria-label', 'Risque QHSE lié');
   const riskOptNone = document.createElement('option');
   riskOptNone.value = '';
-  riskOptNone.textContent = '— Aucun —';
+  riskOptNone.textContent = 'Aucun';
   riskSelect.append(riskOptNone);
 
   function fillIncidentRiskSelect() {
@@ -509,7 +509,7 @@ export function setupIncidentDeclareFlow(ctx) {
   const riskLinkHint = document.createElement('p');
   riskLinkHint.className = 'incidents-rapid-risk-field__hint';
   riskLinkHint.textContent =
-    'Enregistré dans la description sous forme de repère texte — même logique que le module Risques pour retrouver les incidents liés.';
+    'Enregistré dans la description sous forme de repère texte. Même logique que le module Risques pour retrouver les incidents liés.';
   riskLinkField.append(riskLinkFieldLabel, riskSelect, riskLinkHint);
   pane4.append(
     q4,
@@ -555,7 +555,7 @@ export function setupIncidentDeclareFlow(ctx) {
       d.classList.toggle('incidents-rapid-dot--on', i === wizardStep);
       d.classList.toggle('incidents-rapid-dot--done', i < wizardStep);
     });
-    stepLabel.textContent = `Étape ${wizardStep + 1} / 5 — ${paneTitles[wizardStep]}`;
+    stepLabel.textContent = `Étape ${wizardStep + 1} / 5 : ${paneTitles[wizardStep]}`;
     btnPrev.hidden = wizardStep === 0;
     btnNext.hidden = wizardStep === 4;
     submitBtn.hidden = wizardStep !== 4;
@@ -668,7 +668,7 @@ export function setupIncidentDeclareFlow(ctx) {
       descInput.value = desc.slice(0, 2000);
     }
     clearImportDraft();
-    showToast('Brouillon import appliqué — vérifiez puis enregistrez.', 'info');
+    showToast('Brouillon import appliqué. Vérifiez puis enregistrez.', 'info');
   }
 
   (async function initIncidentSiteAndDraft() {
@@ -683,7 +683,7 @@ export function setupIncidentDeclareFlow(ctx) {
     submitBtn.disabled = true;
     btnNext.disabled = true;
     btnPrev.disabled = true;
-    submitBtn.title = 'Déclaration réservée — votre rôle est en lecture sur les incidents';
+    submitBtn.title = 'Déclaration réservée. Votre rôle est en lecture sur les incidents.';
   }
 
   ensureIncidentsSlideOverStyles();
@@ -768,7 +768,7 @@ export function setupIncidentDeclareFlow(ctx) {
     if (photoInput.files?.[0]) {
       const f = photoInput.files[0];
       if (f.size > 450 * 1024) {
-        showToast('Photo trop lourde — max. ~420–450 Ko.', 'error');
+        showToast('Photo trop lourde. Max. ~420–450 Ko.', 'error');
         return;
       }
       try {
@@ -842,7 +842,7 @@ export function setupIncidentDeclareFlow(ctx) {
         onAddLog({
           module: 'incidents',
           action: 'Incident déclaré',
-          detail: `${ref} · ${type} · ${site} · ${sev} — ${detailForLog.slice(0, 80)}${detailForLog.length > 80 ? '…' : ''}`,
+          detail: `${ref} · ${type} · ${site} · ${sev} : ${detailForLog.slice(0, 80)}${detailForLog.length > 80 ? '…' : ''}`,
           user: 'Agent terrain'
         });
       }
@@ -879,7 +879,7 @@ export function setupIncidentDeclareFlow(ctx) {
           }
         });
       } else {
-        showToast('Incident enregistré — mise à jour de la liste.', 'info');
+        showToast('Incident enregistré. Mise à jour de la liste.', 'info');
         if (typeof refreshList === 'function') {
           try {
             refreshList();

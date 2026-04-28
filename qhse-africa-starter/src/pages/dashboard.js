@@ -57,7 +57,7 @@ import {
   renderKpiFilteredModal as renderKpiFilteredModalModule
 } from './dashboard/kpiCards.js';
 
-/* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats — voir utils/dashboard*.js */
+/* Extraction : navigation depuis KPI, fetch listes avec retry, métriques / normalisation stats (voir utils/dashboard*.js) */
 import { fetchJsonListWithRetry, qhseFetchWithNetworkRetry } from '../utils/dashboardFetchHelpers.js';
 import {
   normalizeDashboardPayload,
@@ -67,6 +67,7 @@ import {
 import { isDemoMode } from '../services/demoMode.service.js';
 
 const DASH_DECISION_STYLE_ID = 'qhse-dashboard-decision-styles';
+const DASH_INTELLIGENCE_STYLE_ID = 'qhse-dashboard-intelligence-styles';
 const DASHBOARD_DEMO_LISTS = {
   incidents: [
     { ref: 'INC-224', type: 'Chute de plain-pied', severity: 'Critique', status: 'Ouvert', site: 'Mine Nord', service: 'Production', createdAt: '2026-04-01' },
@@ -232,7 +233,7 @@ function ensureDashboardDecisionStyles() {
 .dashboard-decision-insight--prio .dashboard-decision-insight-list li::before{
   background:linear-gradient(180deg,#fb923c,#f97316);
 }
-/* État critique : lisible sans halo « démo » — renforce bordure gauche + léger fond. */
+/* État critique : lisible sans halo « démo », renforce bordure gauche + léger fond. */
 .dashboard-kpi-card--crit.metric-card{
   border-left-color:var(--color-text-danger,#ef4444)!important;
   background:color-mix(in srgb,var(--color-danger-bg,rgba(239,68,68,.12)) 18%,var(--color-background-primary))!important;
@@ -263,7 +264,7 @@ function ensureDashboardDecisionStyles() {
 .metric-card.dashboard-kpi-card--tone-success{border-color:var(--color-success-border, rgba(34,197,94,.42));background:var(--color-success-bg, color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-background-secondary)))}
 .dashboard-ops-card--zero-success{border-color:var(--color-success-border, rgba(34,197,94,.42));background:var(--color-success-bg, color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-background-secondary)))}
 .dashboard-decision-alert--zero-success{border-color:var(--color-success-border, rgba(34,197,94,.42));background:var(--color-success-bg, color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-background-secondary)))}
-/* Blocs pilot : surface plus « papier » que « vitrine » — hiérarchie portée par le titre, pas par triple ombre. */
+/* Blocs pilot : surface plus « papier » que « vitrine », hiérarchie portée par le titre, pas par triple ombre. */
 .dashboard-pilot-block{
   position:relative;
   display:grid;
@@ -305,8 +306,565 @@ function ensureDashboardDecisionStyles() {
   document.head.append(el);
 }
 
+function ensureDashboardIntelligenceStyles() {
+  if (document.getElementById(DASH_INTELLIGENCE_STYLE_ID)) return;
+  const el = document.createElement('style');
+  el.id = DASH_INTELLIGENCE_STYLE_ID;
+  el.textContent = `
+.dashboard-intel{border-radius:16px;border:1px solid color-mix(in srgb, #38bdf8 18%, var(--color-border-tertiary));background:linear-gradient(180deg,color-mix(in srgb,var(--color-background-secondary) 96%, rgba(56,189,248,.06)) 0%,var(--color-background-primary) 100%);box-shadow:0 18px 40px -34px rgba(0,0,0,.55);overflow:hidden}
+.dashboard-intel__head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:16px 16px 12px}
+.dashboard-intel__kicker{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.dashboard-intel__title{margin:6px 0 0;font-size:16px;font-weight:900;letter-spacing:-.02em;color:var(--text)}
+.dashboard-intel__sub{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--text2);max-width:62ch}
+.dashboard-intel__score{display:grid;gap:4px;align-content:start;padding:10px 12px;border-radius:14px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 84%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 94%, transparent);min-width:132px}
+.dashboard-intel__scorev{font-size:22px;font-weight:950;line-height:1;color:var(--text)}
+.dashboard-intel__scorelbl{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.dashboard-intel__scoremeta{font-size:11px;color:var(--text2)}
+.dashboard-intel__body{display:grid;gap:12px;padding:0 16px 16px}
+.dashboard-intel__grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+.dashboard-intel__panel{border-radius:14px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 86%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 95%, transparent);padding:12px}
+.dashboard-intel__h{margin:0 0 8px;font-size:12px;font-weight:900;letter-spacing:-.01em;color:var(--text)}
+.dashboard-intel__list{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.dashboard-intel__empty{margin:0;font-size:12px;color:var(--text2);opacity:.92}
+.dashboard-intel__cta-row{display:flex;justify-content:flex-end;gap:10px;padding:0 16px 16px}
+.dashboard-intel__cta{font-size:12px;padding:8px 10px;border-radius:10px;border:1px solid color-mix(in srgb,#38bdf8 36%, var(--color-border-tertiary));background:color-mix(in srgb,#0ea5e9 14%, var(--color-background-primary));color:var(--text);cursor:pointer}
+.dashboard-intel__cta:hover{transform:translateY(-1px)}
+.intel-alert{display:grid;gap:4px;padding:10px 10px 10px 12px;border-radius:12px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 82%, transparent);background:color-mix(in srgb,var(--color-background-primary) 92%, transparent)}
+.intel-alert__top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.intel-alert__sev{font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--color-border-secondary);color:var(--text2);background:var(--color-background-primary)}
+.intel-alert__sev--critical,.intel-alert__sev--high{border-color:color-mix(in srgb,#ef4444 42%, var(--color-border-secondary));color:color-mix(in srgb,#fecaca 88%, var(--text));background:color-mix(in srgb,#ef4444 10%, var(--color-background-primary))}
+.intel-alert__sev--medium{border-color:color-mix(in srgb,#fb923c 45%, var(--color-border-secondary));color:color-mix(in srgb,#fdba74 92%, var(--text));background:color-mix(in srgb,#f97316 10%, var(--color-background-primary))}
+.intel-alert__sev--low{border-color:color-mix(in srgb,#22c55e 40%, var(--color-border-secondary));color:color-mix(in srgb,#bbf7d0 90%, var(--text));background:color-mix(in srgb,#22c55e 10%, var(--color-background-primary))}
+.intel-alert__src{font-size:11px;color:var(--text3)}
+.intel-alert__ttl{font-size:13px;font-weight:850;color:var(--text);letter-spacing:-.01em}
+.intel-alert__desc{font-size:12px;line-height:1.45;color:var(--text2)}
+.intel-alert__meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)}
+.intel-alert__acts{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.intel-alert__btn{font-size:12px;padding:7px 10px;border-radius:10px;border:1px solid color-mix(in srgb,var(--color-border-tertiary) 82%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 92%, transparent);color:var(--text);cursor:pointer}
+.intel-alert__btn:hover{transform:translateY(-1px)}
+.intel-alert__btn--primary{border-color:color-mix(in srgb,#38bdf8 40%, var(--color-border-tertiary));background:color-mix(in srgb,#0ea5e9 14%, var(--color-background-primary));}
+.intel-anom{font-size:12px;line-height:1.45;color:var(--text2);padding:10px 12px;border-radius:12px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 86%, transparent);background:color-mix(in srgb,var(--color-background-primary) 92%, transparent)}
+.intel-anom strong{color:var(--text);font-weight:900}
+@media (max-width: 980px){.dashboard-intel__grid{grid-template-columns:1fr}}
+
+.intel-modal{width:min(980px,calc(100vw - 22px));border-radius:16px;border:1px solid color-mix(in srgb, #38bdf8 18%, var(--color-border-tertiary));background:color-mix(in srgb,var(--color-background-primary) 92%, #0b1220 8%);color:var(--text);padding:0;box-shadow:0 22px 80px -40px rgba(0,0,0,.75)}
+.intel-modal::backdrop{background:rgba(2,6,23,.68)}
+.intel-modal__head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:16px 16px 12px;border-bottom:1px solid color-mix(in srgb,var(--color-border-tertiary) 85%, transparent)}
+.intel-modal__title{margin:0;font-size:16px;font-weight:950;letter-spacing:-.02em}
+.intel-modal__sub{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--text2)}
+.intel-modal__close{border:1px solid color-mix(in srgb,var(--color-border-tertiary) 82%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 92%, transparent);color:var(--text);border-radius:10px;padding:7px 10px;cursor:pointer}
+.intel-modal__body{padding:12px 16px 16px;display:grid;gap:12px}
+.intel-modal__filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.intel-modal__filters label{display:grid;gap:4px;font-size:11px;color:var(--text3)}
+.intel-modal__filters select{min-width:180px;border-radius:10px;border:1px solid color-mix(in srgb,var(--color-border-tertiary) 86%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 92%, transparent);color:var(--text);padding:8px 10px}
+.intel-modal__cols{display:grid;grid-template-columns:1.3fr .7fr;gap:12px}
+.intel-modal__panel{border-radius:14px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 86%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 95%, transparent);padding:12px}
+.intel-modal__h{margin:0 0 8px;font-size:12px;font-weight:900;color:var(--text)}
+.intel-modal__empty{margin:0;font-size:12px;line-height:1.45;color:var(--text2)}
+@media (max-width: 980px){.intel-modal__cols{grid-template-columns:1fr}.intel-modal{width:calc(100vw - 12px)}}
+`;
+  document.head.append(el);
+}
+
+function safeText(x, max = 240) {
+  const s = String(x ?? '').trim();
+  if (!s) return '';
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+function formatGeneratedAt(iso) {
+  if (!iso) return '';
+  const d = new Date(String(iso));
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('fr-FR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function scoreTone(score) {
+  const n = Number(score);
+  if (!Number.isFinite(n)) return 'low';
+  if (n < 40) return 'critical';
+  if (n < 60) return 'high';
+  if (n < 80) return 'medium';
+  return 'low';
+}
+
+function addDaysToYmd(days) {
+  const n = Math.max(0, Math.round(Number(days) || 0));
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function priorityFromSeverity(sev) {
+  const s = String(sev || '').toLowerCase();
+  if (s.includes('crit')) return 'critique';
+  if (s.includes('high')) return 'haute';
+  if (s.includes('med')) return 'normale';
+  if (s.includes('low')) return 'basse';
+  // fallback: accepte déjà "haute/critique" etc.
+  if (s.includes('haut')) return 'haute';
+  if (s.includes('bas')) return 'basse';
+  return 'normale';
+}
+
+function originFromSourceModule(sourceModule) {
+  const s = String(sourceModule || '').toLowerCase();
+  if (s.includes('risk')) return 'risk';
+  if (s.includes('audit')) return 'audit';
+  if (s.includes('incident')) return 'incident';
+  return 'other';
+}
+
+function severityRank(sev) {
+  const s = String(sev || '').toLowerCase();
+  if (s === 'critical' || s.includes('crit')) return 4;
+  if (s === 'high') return 3;
+  if (s === 'medium') return 2;
+  if (s === 'low') return 1;
+  return 0;
+}
+
+function normalizeSourceKey(sourceModule) {
+  const s = String(sourceModule || '').toLowerCase();
+  if (!s) return '';
+  if (s.includes('risk')) return 'risks';
+  if (s.includes('action')) return 'actions';
+  if (s.includes('incident')) return 'incidents';
+  if (s.includes('audit')) return 'audits';
+  if (s.includes('controlled')) return 'controlled_documents';
+  if (s.includes('product')) return 'products';
+  return s.replace(/[^a-z_]+/g, '_').slice(0, 40);
+}
+
+function labelSeverityFr(sevKey) {
+  const s = String(sevKey || '').toLowerCase();
+  if (s === 'critical' || s.includes('crit')) return 'Critique';
+  if (s === 'high') return 'Élevée';
+  if (s === 'medium') return 'Moyenne';
+  if (s === 'low') return 'Faible';
+  return 'Non disponible';
+}
+
+function labelSourceModuleFr(sourceModule) {
+  const k = normalizeSourceKey(sourceModule);
+  switch (k) {
+    case 'risks':
+      return 'Risques';
+    case 'actions':
+      return 'Actions';
+    case 'incidents':
+      return 'Incidents';
+    case 'audits':
+      return 'Audits';
+    case 'controlled_documents':
+      return 'Documents';
+    case 'products':
+      return 'Produits';
+    default:
+      return k ? k.replace(/_/g, ' ').slice(0, 60) : 'Non renseigné';
+  }
+}
+
+function createDashboardIntelligenceWidget() {
+  ensureDashboardStyles();
+  ensureDashboardIntelligenceStyles();
+  const root = document.createElement('article');
+  root.className = 'dashboard-intel';
+  root.innerHTML = `
+    <div class="dashboard-intel__head">
+      <div>
+        <div class="dashboard-intel__kicker">Signaux intelligents</div>
+        <h3 class="dashboard-intel__title">Cockpit QHSE intelligent</h3>
+        <p class="dashboard-intel__sub">
+          Lecture automatique des risques, actions, audits et documents, sans action automatique.
+        </p>
+      </div>
+      <div class="dashboard-intel__score" aria-label="Score QHSE">
+        <div class="dashboard-intel__scorev">Non disponible</div>
+        <div class="dashboard-intel__scorelbl">Score QHSE</div>
+        <div class="dashboard-intel__scoremeta">Non disponible</div>
+      </div>
+    </div>
+    <div class="dashboard-intel__body">
+      <div class="dashboard-intel__grid">
+        <section class="dashboard-intel__panel" aria-label="Alertes intelligentes">
+          <h4 class="dashboard-intel__h">Alertes</h4>
+          <ul class="dashboard-intel__list" data-intel-alerts></ul>
+          <p class="dashboard-intel__empty" data-intel-empty hidden>Aucune alerte intelligente détectée.</p>
+        </section>
+        <section class="dashboard-intel__panel" aria-label="Anomalies" data-intel-anoms-panel hidden>
+          <h4 class="dashboard-intel__h">Anomalies</h4>
+          <div class="dashboard-intel__list" data-intel-anoms></div>
+        </section>
+      </div>
+    </div>
+  `;
+
+  const scoreV = root.querySelector('.dashboard-intel__scorev');
+  const scoreMeta = root.querySelector('.dashboard-intel__scoremeta');
+  const alertsList = root.querySelector('[data-intel-alerts]');
+  const empty = root.querySelector('[data-intel-empty]');
+  const anomsPanel = root.querySelector('[data-intel-anoms-panel]');
+  const anomsHost = root.querySelector('[data-intel-anoms]');
+  /** @type {HTMLDialogElement | null} */
+  let modal = null;
+  /** @type {any} */
+  let lastIntel = null;
+
+  async function openCorrectiveActionFromAlert(alert) {
+    const ttl = safeText(alert?.suggestedActionTitle || '', 240);
+    if (!ttl) return;
+
+    const srcModule = safeText(alert?.sourceModule || '', 80) || 'Non renseigné';
+    const srcId = alert?.sourceId != null && String(alert.sourceId).trim() ? String(alert.sourceId).trim() : '';
+    const dueIn = alert?.suggestedDueInDays;
+    const dueDate = dueIn != null && Number.isFinite(Number(dueIn)) ? addDaysToYmd(Number(dueIn)) : '';
+    const sev = String(alert?.severity || '').toLowerCase() || 'low';
+    const priority = priorityFromSeverity(sev);
+    const origin = originFromSourceModule(srcModule);
+
+    const ctxLines = [
+      safeText(alert?.description || '', 600) || 'Non disponible',
+      '',
+      `Contexte : alerte intelligence QHSE (lecture seule).`,
+      `Source : ${srcModule}${srcId ? ` · ${srcId}` : ''}.`,
+      `Validation humaine requise avant application terrain.`
+    ];
+    const description = ctxLines.join('\n');
+
+    try {
+      const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
+        import('../components/actionCreateDialog.js'),
+        import('../services/users.service.js')
+      ]);
+      const users = await fetchUsers().catch(() => []);
+      openActionCreateDialog({
+        users,
+        builtInSuccessToast: false,
+        defaults: {
+          title: ttl,
+          origin,
+          actionType: 'corrective',
+          priority,
+          description,
+          ...(dueDate ? { dueDate } : {}),
+          ...(srcModule === 'risks' && srcId ? { linkedRiskId: srcId } : {})
+        },
+        onCreated: (payload) => {
+          const t = payload?.title ? String(payload.title).trim() : ttl;
+          const r = payload?.ref != null ? String(payload.ref).trim() : '';
+          showToast(
+            r ? `Action créée (${r})${t ? ` : ${t}` : ''}` : t ? `Action créée : ${t}` : 'Action créée.',
+            'success',
+            {
+              label: 'Ouvrir',
+              action: () => {
+                qhseNavigate('actions', {
+                  skipDefaults: true,
+                  ...(payload?.id ? { focusActionId: payload.id } : {}),
+                  focusActionTitle: t || '',
+                  source: 'dashboard_intelligence_postcreate'
+                });
+              }
+            }
+          );
+        }
+      });
+    } catch (err) {
+      console.error('[dashboard][intelligence] openActionCreateDialog', err);
+      showToast('Action à créer manuellement (dialog indisponible).', 'warning');
+    }
+  }
+
+  function ensureModal() {
+    if (modal && modal.isConnected) return modal;
+    const d = document.createElement('dialog');
+    d.className = 'intel-modal';
+    d.innerHTML = `
+      <div class="intel-modal__head">
+        <div>
+          <h3 class="intel-modal__title">Alertes et anomalies : intelligence QHSE</h3>
+          <p class="intel-modal__sub">Filtrez par sévérité et source. Les actions restent sous validation humaine.</p>
+        </div>
+        <button type="button" class="intel-modal__close" data-close>Fermer</button>
+      </div>
+      <div class="intel-modal__body">
+        <div class="intel-modal__filters">
+          <label>Sévérité
+            <select data-f-sev>
+              <option value="all">Toutes</option>
+              <option value="critical">Critique</option>
+              <option value="high">Élevée</option>
+              <option value="medium">Moyenne</option>
+              <option value="low">Faible</option>
+            </select>
+          </label>
+          <label>Source
+            <select data-f-src>
+              <option value="all">Toutes</option>
+              <option value="risks">Risques</option>
+              <option value="actions">Actions</option>
+              <option value="incidents">Incidents</option>
+              <option value="audits">Audits</option>
+              <option value="controlled_documents">Documents</option>
+              <option value="products">Produits</option>
+            </select>
+          </label>
+        </div>
+        <div class="intel-modal__cols">
+          <section class="intel-modal__panel" aria-label="Alertes opérationnelles">
+            <h4 class="intel-modal__h">Alertes opérationnelles</h4>
+            <ul class="dashboard-intel__list" data-m-alerts></ul>
+            <p class="intel-modal__empty" data-m-alerts-empty hidden></p>
+          </section>
+          <section class="intel-modal__panel" aria-label="Anomalies qualité des données">
+            <h4 class="intel-modal__h">Anomalies / qualité des données</h4>
+            <div class="dashboard-intel__list" data-m-anoms></div>
+            <p class="intel-modal__empty" data-m-anoms-empty hidden></p>
+          </section>
+        </div>
+      </div>
+    `;
+    d.querySelector('[data-close]')?.addEventListener('click', () => d.close());
+    d.addEventListener('click', (ev) => {
+      if (ev.target === d) d.close();
+    });
+    document.body.append(d);
+    modal = d;
+    return d;
+  }
+
+  function renderModal() {
+    const d = ensureModal();
+    const intel = lastIntel;
+    const sevSel = d.querySelector('[data-f-sev]');
+    const srcSel = d.querySelector('[data-f-src]');
+    const sev = sevSel && 'value' in sevSel ? String(sevSel.value) : 'all';
+    const src = srcSel && 'value' in srcSel ? String(srcSel.value) : 'all';
+
+    const alertsHost = d.querySelector('[data-m-alerts]');
+    const alertsEmpty = d.querySelector('[data-m-alerts-empty]');
+    const anomsHost2 = d.querySelector('[data-m-anoms]');
+    const anomsEmpty = d.querySelector('[data-m-anoms-empty]');
+
+    const allAlerts = Array.isArray(intel?.alerts) ? intel.alerts : [];
+    const allAnoms = Array.isArray(intel?.anomalies) ? intel.anomalies : [];
+
+    const filteredAlerts = allAlerts
+      .filter((a) => {
+        const aSev = String(a?.severity || '').toLowerCase() || 'low';
+        const aSrc = normalizeSourceKey(a?.sourceModule);
+        if (sev !== 'all' && aSev !== sev) return false;
+        if (src !== 'all' && aSrc !== src) return false;
+        return true;
+      })
+      .slice()
+      .sort((a, b) => {
+        const ra = severityRank(a?.severity);
+        const rb = severityRank(b?.severity);
+        if (rb !== ra) return rb - ra;
+        const ca = Number(a?.confidence);
+        const cb = Number(b?.confidence);
+        const fa = Number.isFinite(ca) ? ca : -1;
+        const fb = Number.isFinite(cb) ? cb : -1;
+        return fb - fa;
+      });
+
+    if (alertsHost) alertsHost.replaceChildren();
+    if (filteredAlerts.length === 0) {
+      if (alertsEmpty) {
+        alertsEmpty.hidden = false;
+        alertsEmpty.textContent =
+          'Aucune alerte intelligente détectée. Les signaux apparaîtront avec vos données QHSE.';
+      }
+    } else {
+      if (alertsEmpty) alertsEmpty.hidden = true;
+      filteredAlerts.forEach((a) => {
+        const sevKey = String(a?.severity || '').toLowerCase() || 'low';
+        const li = document.createElement('li');
+        li.className = 'intel-alert';
+        const conf =
+          a?.confidence != null && Number.isFinite(Number(a.confidence))
+            ? Math.round(Number(a.confidence) * 100)
+            : null;
+        const hasSuggested = a?.suggestedActionTitle != null && String(a.suggestedActionTitle).trim() !== '';
+        li.innerHTML = `
+          <div class="intel-alert__top">
+            <span class="intel-alert__sev intel-alert__sev--${sevKey}">${escapeHtml(labelSeverityFr(sevKey))}</span>
+            <span class="intel-alert__src">${escapeHtml(labelSourceModuleFr(a?.sourceModule))}</span>
+          </div>
+          <div class="intel-alert__ttl">${escapeHtml(safeText(a?.title || 'Alerte', 140) || 'Alerte')}</div>
+          <div class="intel-alert__desc">${escapeHtml(safeText(a?.description || '', 320) || 'Non disponible')}</div>
+          <div class="intel-alert__meta">
+            ${conf != null ? `<span>Confiance : ${conf}%</span>` : ''}
+          </div>
+          ${
+            hasSuggested
+              ? `<div class="intel-alert__acts"><button type="button" class="intel-alert__btn intel-alert__btn--primary" data-intel-act="1">Créer action</button></div>`
+              : ''
+          }
+        `;
+        const actBtn = li.querySelector('[data-intel-act]');
+        if (actBtn) {
+          actBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            void openCorrectiveActionFromAlert(a);
+          });
+        }
+        alertsHost.append(li);
+      });
+    }
+
+    const filteredAnoms = allAnoms
+      .filter((x) => {
+        // anomalies: filtre source via evidence.sourceModule si présent
+        const evSrc = normalizeSourceKey(x?.evidence?.sourceModule || x?.sourceModule || '');
+        if (src !== 'all' && evSrc && evSrc !== src) return false;
+        return true;
+      })
+      .slice()
+      .sort((a, b) => severityRank(b?.severity) - severityRank(a?.severity));
+
+    if (anomsHost2) anomsHost2.replaceChildren();
+    if (filteredAnoms.length === 0) {
+      if (anomsEmpty) {
+        anomsEmpty.hidden = false;
+        anomsEmpty.textContent = 'Aucune anomalie détectée.';
+      }
+    } else {
+      if (anomsEmpty) anomsEmpty.hidden = true;
+      filteredAnoms.forEach((x) => {
+        const div = document.createElement('div');
+        div.className = 'intel-anom';
+        div.innerHTML = `<strong>${escapeHtml(safeText(x?.title || 'Anomalie', 140) || 'Anomalie')}</strong><div>${escapeHtml(safeText(x?.detail || x?.description || '', 360) || 'Non disponible')}</div>`;
+        anomsHost2.append(div);
+      });
+    }
+  }
+
+  function update(intelligence) {
+    const intel =
+      intelligence && typeof intelligence === 'object' && !Array.isArray(intelligence)
+        ? intelligence
+        : null;
+    lastIntel = intel;
+    const score = intel ? Number(intel.score) : NaN;
+    const tone = scoreTone(score);
+    if (scoreV) {
+      scoreV.textContent = Number.isFinite(score) ? `${Math.round(score)}/100` : 'Non disponible';
+      scoreV.style.color =
+        tone === 'critical' || tone === 'high'
+          ? 'color-mix(in srgb, var(--color-text-danger, #ef4444) 92%, var(--text))'
+          : tone === 'medium'
+            ? 'color-mix(in srgb, #fb923c 90%, var(--text))'
+            : 'color-mix(in srgb, #22c55e 80%, var(--text))';
+    }
+    if (scoreMeta) {
+      const gen = intel?.generatedAt ? formatGeneratedAt(intel.generatedAt) : '';
+      scoreMeta.textContent = gen ? `Généré : ${gen}` : 'Non disponible';
+    }
+
+    const alerts = Array.isArray(intel?.alerts) ? intel.alerts : [];
+    const top = alerts.slice(0, 3);
+    if (alertsList) alertsList.replaceChildren();
+    if (top.length === 0) {
+      if (empty) empty.hidden = false;
+      if (empty) {
+        empty.textContent =
+          'Aucune alerte intelligente détectée. Les signaux apparaîtront avec vos données QHSE.';
+      }
+    } else {
+      if (empty) empty.hidden = true;
+      top.forEach((a) => {
+        const sev = String(a?.severity || '').toLowerCase() || 'low';
+        const li = document.createElement('li');
+        li.className = 'intel-alert';
+        const conf =
+          a?.confidence != null && Number.isFinite(Number(a.confidence))
+            ? Math.round(Number(a.confidence) * 100)
+            : null;
+        const hasSuggested = a?.suggestedActionTitle != null && String(a.suggestedActionTitle).trim() !== '';
+        li.innerHTML = `
+          <div class="intel-alert__top">
+            <span class="intel-alert__sev intel-alert__sev--${sev}">${escapeHtml(labelSeverityFr(sev))}</span>
+            <span class="intel-alert__src">${escapeHtml(labelSourceModuleFr(a?.sourceModule))}</span>
+          </div>
+          <div class="intel-alert__ttl">${escapeHtml(safeText(a?.title || 'Alerte', 120) || 'Alerte')}</div>
+          <div class="intel-alert__desc">${escapeHtml(safeText(a?.description || '', 220) || 'Non disponible')}</div>
+          <div class="intel-alert__meta">
+            ${conf != null ? `<span>Confiance : ${conf}%</span>` : ''}
+          </div>
+          ${
+            hasSuggested
+              ? `<div class="intel-alert__acts"><button type="button" class="intel-alert__btn intel-alert__btn--primary" data-intel-act="1">Créer action</button></div>`
+              : ''
+          }
+        `;
+        const actBtn = li.querySelector('[data-intel-act]');
+        if (actBtn) {
+          actBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            void openCorrectiveActionFromAlert(a);
+          });
+        }
+        alertsList.append(li);
+      });
+    }
+
+    const anoms = Array.isArray(intel?.anomalies) ? intel.anomalies : [];
+    if (anomsPanel && anomsHost) {
+      if (!anoms.length) {
+        anomsPanel.hidden = true;
+        anomsHost.replaceChildren();
+      } else {
+        anomsPanel.hidden = false;
+        anomsHost.replaceChildren();
+        anoms.slice(0, 3).forEach((x) => {
+          const div = document.createElement('div');
+          div.className = 'intel-anom';
+          div.innerHTML = `<strong>${escapeHtml(safeText(x?.title || 'Anomalie', 120) || 'Anomalie')}</strong><div>${escapeHtml(safeText(x?.detail || x?.description || '', 240) || 'Non disponible')}</div>`;
+          anomsHost.append(div);
+        });
+      }
+    }
+  }
+
+  const ctaRow = document.createElement('div');
+  ctaRow.className = 'dashboard-intel__cta-row';
+  const viewAllBtn = document.createElement('button');
+  viewAllBtn.type = 'button';
+  viewAllBtn.className = 'dashboard-intel__cta';
+  viewAllBtn.textContent = 'Voir toutes les alertes';
+  viewAllBtn.addEventListener('click', () => {
+    const d = ensureModal();
+    renderModal();
+    const sevSel = d.querySelector('[data-f-sev]');
+    const srcSel = d.querySelector('[data-f-src]');
+    if (sevSel) sevSel.addEventListener('change', renderModal);
+    if (srcSel) srcSel.addEventListener('change', renderModal);
+    if (typeof d.showModal === 'function') d.showModal();
+    else showToast('Vue complète indisponible sur ce navigateur.', 'warning');
+  });
+  ctaRow.append(viewAllBtn);
+  root.append(ctaRow);
+
+  return { root, update };
+}
+
 /**
- * Listes chargées par le dashboard — référence stable pour le drawer KPI (pas de re-fetch).
+ * Listes chargées par le dashboard : référence stable pour le drawer KPI (pas de re-fetch).
  * @type {{ incidents: unknown[]; actions: unknown[]; audits: unknown[]; ncs: unknown[]; docs: unknown[]; risks: unknown[] }}
  */
 const kpiDashboardLists = { incidents: [], actions: [], audits: [], ncs: [], docs: [], risks: [] };
@@ -321,7 +879,7 @@ let kpiDetailDrawerSingleton = null;
 function formatDashboardInsightBody(raw) {
   const text = String(raw ?? '').trim();
   if (!text) {
-    return '<p class="dashboard-ai-insight__para dashboard-ai-insight__para--muted">—</p>';
+    return '<p class="dashboard-ai-insight__para dashboard-ai-insight__para--muted">Non disponible</p>';
   }
   const formatInline = (block) => {
     const parts = block.split('**');
@@ -422,7 +980,7 @@ function makeSectionHeader(kicker, title, sub) {
 }
 
 /**
- * Bandeau visible (centré) quand l’API n’est pas joignable — complète le toast.
+ * Bandeau visible (centré) quand l’API n’est pas joignable, complète le toast.
  * @param {HTMLElement} slot
  */
 function showDashboardConnectivityError(slot) {
@@ -488,7 +1046,7 @@ function showDashboardConnectivityError(slot) {
     'npm run dev --prefix backend ne marche que si le terminal est dans le dossier qhse-africa-starter (le backend est dans qhse-africa-starter/backend).';
   const li3 = document.createElement('li');
   li3.textContent =
-    'Dans ce navigateur, testez http://127.0.0.1:3001/api/health — si ça ne s’affiche pas, un pare-feu ou l’aperçu intégré bloque l’accès : ouvrez l’app dans Chrome ou Edge (http://localhost:5173).';
+    "Dans ce navigateur, testez http://127.0.0.1:3001/api/health. Si rien ne s'affiche, un pare-feu ou l’aperçu intégré bloque l’accès. Ouvrez l’app dans Chrome ou Edge (http://localhost:5173).";
   const li4 = document.createElement('li');
   li4.textContent =
     'Si l’API tourne ailleurs, définissez window.__QHSE_API_BASE__ avant le chargement de l’app (voir src/config.js).';
@@ -533,7 +1091,7 @@ export function renderDashboard() {
     pageId: 'dashboard',
     pageRoot: page,
     hintEssential:
-      'Essentiel (cette page) : en-tête, signaux, indicateurs et priorités du jour — analyses étendues et graphiques complémentaires masqués.',
+      'Essentiel (cette page) : en-tête, signaux, indicateurs et priorités du jour. Les analyses étendues et les graphiques complémentaires sont masqués.',
     hintAdvanced:
       'Expert (cette page) : analyses détaillées, graphiques, cockpit, habilitations, activité et assistant.'
   });
@@ -592,7 +1150,7 @@ export function renderDashboard() {
     makeSectionHeader(
       'Tuiles',
       'Pilotage opérationnel étendu',
-      'Neuf indicateurs — même logique qu’avant ; replacés ici pour alléger l’écran principal.'
+      "Neuf indicateurs, même logique qu’avant. Ils sont replacés ici pour alléger l’écran principal."
     ),
     opsGrid
   );
@@ -641,6 +1199,12 @@ export function renderDashboard() {
   bandPriority.className = 'dashboard-band dashboard-band--priority';
   bandPriority.append(priorityNow.root);
 
+  const intelligenceWidget = createDashboardIntelligenceWidget();
+  intelligenceWidget.update(lastStats.intelligence);
+  const bandIntelligence = document.createElement('div');
+  bandIntelligence.className = 'dashboard-band dashboard-band--intelligence';
+  bandIntelligence.append(intelligenceWidget.root);
+
   const cockpitPremium = createDashboardCockpitPremium({
     data: lastStats,
     incidents: [],
@@ -675,9 +1239,9 @@ export function renderDashboard() {
               const r = payload?.ref != null ? String(payload.ref).trim() : '';
               showToast(
                 r
-                  ? `Action créée (${r})${t ? ` — ${t}` : ''}`
+                  ? `Action créée (${r})${t ? ` : ${t}` : ''}`
                   : t
-                    ? `Action créée — ${t}`
+                    ? `Action créée : ${t}`
                     : 'Action créée depuis l’assistant de pilotage.',
                 'success',
                 {
@@ -755,7 +1319,7 @@ export function renderDashboard() {
     makeSectionHeader(
       'Synthèse',
       'État du système QHSE',
-      'Lecture direction — maîtrise et vigilance.'
+      'Lecture direction : maîtrise et vigilance.'
     ),
     systemStatus.root
   );
@@ -921,7 +1485,7 @@ export function renderDashboard() {
   if (chartsQuickRow) chartsGlobalActs.append(chartsQuickRow);
 
   chartsSection.append(
-    makeSectionHeader('Complément', 'Autres graphiques', 'Répartition, audits et charge — la tendance principale est au-dessus du volet.'),
+    makeSectionHeader('Complément', 'Autres graphiques', 'Répartition, audits et charge. La tendance principale est au-dessus du volet.'),
     disclaimer,
     chartsGrid,
     ...(chartsQuickRow ? [chartsGlobalActs] : [])
@@ -937,13 +1501,13 @@ export function renderDashboard() {
     <header class="dashboard-decision-charts-head">
       <div class="section-kicker">Synthèse exécutive</div>
       <h3>Vue décisionnelle</h3>
-      <p class="dashboard-decision-charts-lead">Volume des non-conformités (prioritaires vs autres), typologie des signalements et scores d’audit — cliquez sur un graphique pour ouvrir le module lié.</p>
+      <p class="dashboard-decision-charts-lead">Volume des non-conformités (prioritaires vs autres), typologie des signalements et scores d’audit. Cliquez sur un graphique pour ouvrir le module lié.</p>
     </header>
     <div class="dashboard-decision-charts-grid">
       <div class="dashboard-decision-chart-panel">
         <div class="dashboard-decision-chart-panel__meta">
           <span class="dashboard-decision-chart-panel__tag">Conformité</span>
-          <span class="dashboard-decision-chart-panel__title">Non-conformités créées — prioritaires vs autres (6 mois)</span>
+          <span class="dashboard-decision-chart-panel__title">Non-conformités créées : prioritaires vs autres (6 mois)</span>
         </div>
         <div class="dashboard-decision-chart-panel__canvas"><canvas data-dc-nc-stack></canvas></div>
       </div>
@@ -999,7 +1563,7 @@ export function renderDashboard() {
       { showHeader: false }
     )
   );
-  activitySection.append(makeSectionHeader('Suivi', 'Activité récente', 'Flux récents — lecture secondaire.'), activityWrap);
+  activitySection.append(makeSectionHeader('Suivi', 'Activité récente', 'Flux récents, lecture secondaire.'), activityWrap);
 
   const bandActivity = document.createElement('div');
   bandActivity.className = 'dashboard-band dashboard-band--activity-foot';
@@ -1068,6 +1632,7 @@ export function renderDashboard() {
     kpiSection,
     primaryChartSection,
     bandPriority,
+    bandIntelligence,
     bandToday
   );
 
@@ -1110,6 +1675,7 @@ export function renderDashboard() {
     ncs: [],
     sessionUser: getSessionUser()
   });
+  intelligenceWidget.update(lastStats.intelligence);
   priorityNow.update({ stats: lastStats, ncs: [], audits: [] });
 
   function updateKpiPriorityLine() {
@@ -1187,7 +1753,7 @@ export function renderDashboard() {
     const docsR = listVal(4);
     const risksR = listVal(5);
     if (listResults.some((r) => r.status === 'rejected') && page.isConnected) {
-      showToast('Certaines listes n’ont pas pu être chargées — affichage partiel.', 'warning');
+      showToast("Certaines listes n’ont pas pu être chargées, affichage partiel.", 'warning');
     }
 
     const incidents = isDemoMode() ? incR || DASHBOARD_DEMO_LISTS.incidents : incR || [];
@@ -1210,9 +1776,11 @@ export function renderDashboard() {
         criticalIncidents: derived.criticalIncidents
       });
       applyStatsToKpis(lastStats);
+      intelligenceWidget.update(lastStats.intelligence);
     } else {
       lastStats = reconcileDashboardStatsWithLists(lastStats, incidents, actions, ncs);
       applyStatsToKpis(lastStats);
+      intelligenceWidget.update(lastStats.intelligence);
       shortcutsBundle.updateShortcutBadges({
         overdueCount: lastStats.overdueActions ?? 0,
         ncCount: lastStats.nonConformities ?? 0
@@ -1268,6 +1836,7 @@ export function renderDashboard() {
       ncs,
       sessionUser: getSessionUser()
     });
+    intelligenceWidget.update(lastStats.intelligence);
     priorityNow.update({ stats: lastStats, ncs, audits });
     vigilance.update({
       stats: lastStats,
@@ -1358,7 +1927,7 @@ export function renderDashboard() {
       if (!stillOnDashboard()) return;
       if (res.status === 401) {
         if (stillOnDashboard()) {
-          showToast('Session expirée — reconnectez-vous.', 'warning');
+          showToast('Session expirée, reconnectez-vous.', 'warning');
         }
         dismissKpiSkeleton();
         return;
@@ -1369,7 +1938,7 @@ export function renderDashboard() {
         if (stillOnDashboard()) {
           showToast(
             errStr.includes('Contexte organisation')
-              ? 'Aucune organisation active pour cette session — reconnectez-vous (e-mail, mot de passe, organisation si demandée).'
+              ? "Aucune organisation active pour cette session. Reconnectez-vous (e-mail, mot de passe, organisation si demandée)."
               : 'Accès au tableau de bord refusé pour ce profil.',
             'warning'
           );
@@ -1394,7 +1963,7 @@ export function renderDashboard() {
       const raw = await res.json().catch(() => null);
       const normalized = normalizeDashboardPayload(raw);
       if (!normalized) {
-        console.error('[dashboard] GET /api/dashboard/stats — corps invalide', raw);
+        console.error('[dashboard] GET /api/dashboard/stats : corps invalide', raw);
         if (stillOnDashboard()) {
           showToast('Réponse tableau de bord illisible.', 'warning');
           showDashboardConnectivityError(connectivitySlot);
@@ -1420,6 +1989,7 @@ export function renderDashboard() {
         criticalIncidents: normalized.criticalIncidents
       });
       applyStatsToKpis(normalized);
+      intelligenceWidget.update(lastStats.intelligence);
       dismissKpiSkeleton();
       alertsPrio.update({ stats: lastStats, ncs: [], audits: [] });
       systemStatus.update({
@@ -1471,7 +2041,7 @@ export function renderDashboard() {
       console.error('[dashboard] traitement après stats', err?.message || err, err);
       if (stillOnDashboard()) {
         showToast(
-          `Erreur tableau de bord : ${err instanceof Error ? err.message : String(err)} — voir la console (F12).`,
+          `Erreur tableau de bord : ${err instanceof Error ? err.message : String(err)}. Voir la console (F12).`,
           'warning'
         );
       }

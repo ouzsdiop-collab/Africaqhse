@@ -11,7 +11,7 @@ import { qhseNavigate } from '../utils/qhseNavigate.js';
 export function createAuditDocumentComplianceStrip() {
   const el = document.createElement('div');
   el.className = 'audit-doc-compliance-strip';
-  el.setAttribute('aria-label', 'Documents maîtrisés — impact conformité audit');
+  el.setAttribute('aria-label', 'Documents maîtrisés : impact conformité audit');
   el.innerHTML = `
     <div class="audit-doc-compliance-strip__inner">
       <span class="audit-doc-compliance-strip__kicker">Documentation</span>
@@ -39,8 +39,8 @@ export function createAuditDocumentComplianceStrip() {
       textEl.innerHTML =
         parts.join(' · ') +
         (s.expire > 0
-          ? ' — <em>impact direct sur les preuves attendues en audit.</em>'
-          : ' — alignez les preuves avant la visite.');
+          ? '. <em>Impact direct sur les preuves attendues en audit.</em>'
+          : '. Alignez les preuves avant la visite.');
     }
   })();
 

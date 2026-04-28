@@ -83,7 +83,7 @@ function inferIncidentAiCauseProbable(inc) {
     return 'Scénario accidentel : vérifier conditions de poste, EPI et consignes appliquées.';
   }
   if (/quasi/i.test(t)) {
-    return 'Near-miss : dérive comportementale ou situation non maîtrisée — creuser avant reproduction.';
+    return 'Near-miss : dérive comportementale ou situation non maîtrisée. Creuser avant reproduction.';
   }
   if (/environnement/i.test(t)) {
     return 'Facteur environnement / matière : contrôler stockage, déchets, rejets ou conditions météo.';
@@ -122,7 +122,7 @@ function ensureIncidentDetailDialogStyles() {
  * @param {object} opts
  * @param {() => void} [opts.onClose]
  * @param {(i: object) => void} [opts.onEdit]
- * @param {object} [opts] — reste : contexte passé à {@link mountIncidentDetailPanel}
+ * @param {object} [opts] : reste : contexte passé à {@link mountIncidentDetailPanel}
  */
 export function openIncidentDetail(inc, opts = {}) {
   const { onClose, onEdit, ...detailCtx } = opts;
@@ -246,7 +246,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
     btnIaAnalyze.textContent = '✦ Analyser avec IA';
     btnIaAnalyze.hidden = !ctx.canUseAiSuggest;
     btnIaAnalyze.title = ctx.canUseAiSuggest
-      ? 'Causes racines et actions correctives (API — validation humaine)'
+      ? 'Causes racines et actions correctives (API, validation humaine)'
       : 'Permission suggestions IA requise';
     btnIaAnalyze.addEventListener('click', () => {
       ctx.openIncidentAiAnalysis(inc);
@@ -271,10 +271,10 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   const metaDl = document.createElement('dl');
   metaDl.className = 'incidents-detail-dl';
   [
-    ['Date', row.date || '—'],
-    ['Site', row.site || '—'],
-    ['Lieu précis', (row.location || '').trim() || '—'],
-    ['Gravité', row.severity || '—']
+    ['Date', row.date || 'Non disponible'],
+    ['Site', row.site || 'Non renseigné'],
+    ['Lieu précis', (row.location || '').trim() || 'Non renseigné'],
+    ['Gravité', row.severity || 'Non renseigné']
   ].forEach(([dt, dd]) => {
     const dtt = document.createElement('dt');
     dtt.textContent = dt;
@@ -291,7 +291,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   respLine.className = 'incidents-detail-resp';
   respLine.textContent = row.responsible?.trim()
     ? `Responsable suivi : ${row.responsible.trim()}`
-    : 'Responsable suivi : —';
+    : 'Responsable suivi : non renseigné';
   metaSec.append(metaH, metaDl, respLine);
 
   const serverAnalysisSec = document.createElement('section');
@@ -311,7 +311,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   anaCatSel.className = 'control-select';
   anaCatSel.disabled = !ctx.canWriteIncidents;
   [
-    ['', '— Non renseigné —'],
+    ['', 'Non renseigné'],
     ['humain', 'Humain'],
     ['materiel', 'Matériel'],
     ['organisation', 'Organisation'],
@@ -389,7 +389,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
         ctx.onAddLog({
           module: 'incidents',
           action: 'Analyse incident',
-          detail: `${inc.ref} — causes / catégorie`,
+          detail: `${inc.ref} : causes / catégorie`,
           user: getSessionUser()?.name || 'Terrain'
         });
       }
@@ -420,7 +420,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   descH.textContent = 'Description';
   const descP = document.createElement('p');
   descP.className = 'incidents-detail-desc';
-  descP.textContent = (row.description || '').trim() || '— Aucune description.';
+  descP.textContent = (row.description || '').trim() || 'Aucune description.';
   descSec.append(descH, descP);
 
   const photoSec = document.createElement('section');
@@ -435,7 +435,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
     shots.forEach((src, i) => {
       const img = document.createElement('img');
       img.src = src;
-      img.alt = `Photo ${i + 1} — ${row.ref}`;
+      img.alt = `Photo ${i + 1} : ${row.ref}`;
       img.className = 'incidents-detail-photo-thumb';
       img.loading = 'lazy';
       grid.append(img);
@@ -458,7 +458,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   const aiDisclaimer = document.createElement('p');
   aiDisclaimer.className = 'incidents-detail-muted';
   aiDisclaimer.textContent =
-    'Propositions générées localement (type + gravité). Elles ne sont jamais enregistrées sans action de votre part — l’API PATCH incident ne prend pas encore la description.';
+    'Propositions générées localement (type + gravité). Elles ne sont jamais enregistrées sans action de votre part. L’API PATCH incident ne prend pas encore la description.';
   const aiGrid = document.createElement('div');
   aiGrid.className = 'incidents-ai-grid';
   const boxC = document.createElement('div');
@@ -490,7 +490,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   copyAiBtn.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(aiDraft);
-      showToast('Texte copié — à coller dans votre rapport ou SI.', 'info');
+      showToast('Texte copié. À coller dans votre rapport ou SI.', 'info');
     } catch {
       showToast('Copie impossible sur ce navigateur', 'error');
     }
@@ -519,7 +519,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   const anNote = document.createElement('p');
   anNote.className = 'incidents-detail-muted';
   anNote.textContent =
-    'Non synchronisé avec le serveur — utilisez « Copier » pour votre GED / rapport. Aucune écriture automatique.';
+    'Non synchronisé avec le serveur. Utilisez « Copier » pour votre GED / rapport. Aucune écriture automatique.';
   analysisSec.append(anH, anTa, anNote);
 
   const actSec = document.createElement('section');
@@ -540,8 +540,8 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   const btnCorrAssist = document.createElement('button');
   btnCorrAssist.type = 'button';
   btnCorrAssist.className = 'btn btn-secondary';
-  btnCorrAssist.textContent = 'Assistant — action corrective';
-  btnCorrAssist.title = 'Ouvre le formulaire prérempli par l’assistant — vous validez avant envoi';
+  btnCorrAssist.textContent = 'Assistant : action corrective';
+  btnCorrAssist.title = 'Ouvre le formulaire prérempli par l’assistant. Vous validez avant envoi.';
   btnCorrAssist.hidden = !ctx.canWriteActions;
   btnCorrAssist.addEventListener('click', () => {
     void proposeCorrectiveActionViaAssistant(inc);
@@ -572,7 +572,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
       defaults: {
         category: 'Sécurité',
         title: `Risque lié ${inc.ref}`,
-        description: `Contexte incident ${inc.ref} — ${inc.type} (${inc.site}).\n\n${(inc.description || '').slice(0, 1400)}`
+        description: `Contexte incident ${inc.ref} : ${inc.type} (${inc.site}).\n\n${(inc.description || '').slice(0, 1400)}`
       },
       onSaved: () => {
         showToast(
@@ -625,18 +625,18 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
       const li = document.createElement('li');
       li.className = 'incidents-detail-action-item';
       const t = document.createElement('strong');
-      t.textContent = String(a.title || '—');
+      t.textContent = String(a.title || 'Non renseigné');
       const st = document.createElement('span');
       st.className = 'incidents-detail-action-status';
       st.textContent = String(a.status || '');
-      li.append(t, document.createTextNode(' — '), st);
+      li.append(t, document.createTextNode(' · '), st);
       ul.append(li);
     });
     actHost.append(ul);
     if (linked.length > 12) {
       const more = document.createElement('p');
       more.className = 'incidents-detail-muted';
-      more.textContent = `… et ${linked.length - 12} autre(s) — voir pilotage actions.`;
+      more.textContent = `… et ${linked.length - 12} autre(s). Voir pilotage actions.`;
       actHost.append(more);
     }
   }

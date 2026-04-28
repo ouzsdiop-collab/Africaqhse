@@ -1,7 +1,7 @@
 const STYLE_ID = 'qhse-dashboard-module-styles';
 
 const CSS = `
-/* —— Hiérarchie décision : alertes critique → score CEO → cockpit premium → à traiter → jour → raccourcis → analyses repliables → KPI/graphiques → cockpit lecture → activité (pied) —— */
+/* Hiérarchie décision : alertes critique → score CEO → cockpit premium → à traiter → jour → raccourcis → analyses repliables → KPI/graphiques → cockpit lecture → activité (pied) */
 .dashboard-page.page-stack{gap:22px}
 .dashboard-band{display:flex;flex-direction:column;gap:20px;min-width:0}
 .dashboard-band--ceo{
@@ -83,13 +83,13 @@ const CSS = `
   margin-top:0;
   margin-bottom:10px;
 }
-/* Snapshot « Aujourd'hui » — pont léger après décisions */
+/* Snapshot « Aujourd'hui » : pont léger après décisions */
 .dashboard-band--today-snapshot{
   padding:0 2px 4px;
   margin:2px 0 6px;
   gap:12px;
 }
-/* Activité récente — pied de page, importance réduite */
+/* Activité récente : pied de page, importance réduite */
 .dashboard-band--activity-foot{
   padding:16px 12px 12px;
   margin-top:16px;
@@ -567,7 +567,7 @@ const CSS = `
     box-shadow:0 8px 32px rgba(239,91,107,.22);
   }
 }
-/* KPI : complété par dashboard-visual.css (accent gauche) — ici focus clavier seulement */
+/* KPI : complété par dashboard-visual.css (accent gauche), ici focus clavier seulement */
 .dashboard-kpi-card--interactive{
   cursor:pointer;
   position:relative;
@@ -579,7 +579,7 @@ const CSS = `
 .dashboard-kpi-card--interactive:focus:not(:focus-visible){
   box-shadow:none;
 }
-/* Dialog détail KPI — dark theme, scroll interne */
+/* Dialog détail KPI : dark theme, scroll interne */
 .kpi-detail-dialog{
   padding:0;
   border:none;
@@ -892,7 +892,7 @@ const CSS = `
   font-weight:500;
   color:var(--text2);
 }
-/* —— Dashboard : bloc audits Chart.js (score + NC) —— */
+/* Dashboard : bloc audits Chart.js (score + NC) */
 .dashboard-audit-charts-block{display:flex;flex-direction:column;gap:10px;width:100%;min-width:0}
 .dashboard-audit-charts-block__charts{
   display:grid;
@@ -1636,7 +1636,7 @@ const CSS = `
 [data-display-mode="simple"] .dashboard-toggle-row{
   display:none;
 }
-/* Espacement entre bandes — respiration premium */
+/* Espacement entre bandes : respiration premium */
 .dashboard-band { margin-bottom: 8px; }
 .dashboard-band + .dashboard-band { margin-top: 4px; }
 .dashboard-band--ceo { margin-bottom: 0; }
@@ -1664,7 +1664,7 @@ const CSS = `
   line-height: 1.15;
 }
 
-/* CEO Hero — le rendre dominant */
+/* CEO Hero : le rendre dominant */
 .dashboard-ceo-hero__scorenum {
   font-size: clamp(56px, 6vw, 80px);
   font-weight: 900;
@@ -1687,7 +1687,7 @@ const CSS = `
   border-color: rgba(255,255,255,.05);
 }
 
-/* Démo — CEO hero dominant (fin de feuille, surcharge) */
+/* Démo : CEO hero dominant (fin de feuille, surcharge) */
 .dashboard-ceo-hero__scorenum,
 .dashboard-ceo-hero__score-num,
 .dashboard-score-value {
@@ -1766,7 +1766,7 @@ const CSS = `
   background: rgba(255, 255, 255, .015);
 }
 
-/* ── Metric cards — valeurs plus lisibles ───────── */
+/* ── Metric cards : valeurs plus lisibles ───────── */
 .metric-value {
   font-size: clamp(28px, 3vw, 38px);
   font-weight: 800;
@@ -1786,7 +1786,7 @@ const CSS = `
   line-height: 1.4;
 }
 
-/* Bandes dashboard : visibles (éviter display:none — masquait KPI, synthèse, alertes). */
+/* Bandes dashboard : visibles (éviter display:none, masquait KPI, synthèse, alertes). */
 
 .dashboard-ceo-hero__legal-wrap {
   display: none !important;
@@ -1919,7 +1919,7 @@ const CSS = `
   color: rgba(45, 212, 191, 0.95);
 }
 
-/* —— Analytics / Synthèse cockpit —— */
+/* Analytics / Synthèse cockpit */
 .page-stack.analytics-cockpit-page {
   width: 100%;
   max-width: 100%;
@@ -2558,7 +2558,7 @@ const CSS = `
   gap: 10px !important;
 }
 
-/* —— Analyses & synthèse : blocs et sous-lignes lisibles (surtout mode clair) —— */
+/* Analyses & synthèse : blocs et sous-lignes lisibles (surtout mode clair) */
 .analytics-stack-section.content-card.card-soft {
   border-color: rgba(148, 163, 184, 0.2);
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
@@ -2656,7 +2656,7 @@ html[data-theme='light'] .analytics-extended-details-inner .list-row--interactiv
   }
 }
 
-/* —— Performance QHSE (KPI) —— */
+/* Performance QHSE (KPI) */
 .kpi-performance-page {
   gap: 28px;
 }
@@ -4441,7 +4441,7 @@ html[data-theme='light'] .kpi-perf-timeline-empty {
   }
 }
 
-/* —— Assistant pilotage QHSE (suggestions assistées) —— */
+/* Assistant pilotage QHSE (suggestions assistées) */
 .dashboard-band--assistant{
   margin:6px 0 8px;
 }
@@ -4563,7 +4563,7 @@ html[data-theme='light'] .kpi-perf-timeline-empty {
   background:color-mix(in srgb,rgba(245,158,11,.12) 30%,var(--color-background-primary));
   color:#fde68a;
 }
-/* Analyse IA hebdo — carte « executive brief » */
+/* Analyse IA hebdo : carte « executive brief » */
 .dashboard-ai-insight{
   margin-top:0;
   width:100%;

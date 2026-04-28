@@ -21,7 +21,7 @@ function labelImportStatus(status) {
     case 'analysis_failed':
       return 'Échec analyse';
     default:
-      return status ? String(status) : '—';
+      return status ? String(status) : 'Non disponible';
   }
 }
 
@@ -37,15 +37,15 @@ function createImportContextBanner() {
   const map = {
     risks: {
       title: 'Contexte actif : risques',
-      desc: 'Orientation import vers enrichissement du registre risques — extraction IA indicative, validation humaine requise avant enregistrement.'
+      desc: 'Import orienté vers le registre risques. Extraction IA indicative, validation humaine requise avant enregistrement.'
     },
     fds: {
       title: 'Contexte actif : FDS / produits',
-      desc: 'Orientation import vers Produits / FDS — même flux fichier ; rattachement et visa côté module cible.'
+      desc: 'Import orienté vers Produits / FDS. Même flux fichier, rattachement et visa côté module cible.'
     },
     iso: {
       title: 'Contexte actif : ISO / exigences',
-      desc: 'Orientation import vers SMS & exigences — preuves et documents maîtrisés sous contrôle humain.'
+      desc: 'Import orienté vers SMS et exigences. Preuves et documents maîtrisés sous contrôle humain.'
     }
   };
   const m = map[raw];
@@ -91,7 +91,7 @@ function labelDetectedDocType(v) {
     case 'unknown':
       return 'Inconnu / non classé';
     default:
-      return v ? String(v) : '—';
+      return v ? String(v) : 'Non disponible';
   }
 }
 
@@ -99,8 +99,8 @@ function formatPreviewPayload(body) {
   const mod = body.suggestedModule;
   const modLine =
     mod && (mod.label || mod.pageId)
-      ? `${mod.label ?? '—'}${mod.pageId ? ` (module : ${mod.pageId})` : ''}`
-      : '—';
+      ? `${mod.label ?? 'Non disponible'}${mod.pageId ? ` (module : ${mod.pageId})` : ''}`
+      : 'Non disponible';
 
   const hints = Array.isArray(body.detectedHints)
     ? body.detectedHints.slice(0, 8)
@@ -108,18 +108,18 @@ function formatPreviewPayload(body) {
   const hintsBlock =
     hints.length > 0
       ? ['Indices repérés :', ...hints.map((h) => `  • ${h}`), '']
-      : ['Indices repérés : —', ''];
+      : ['Indices repérés : non disponibles', ''];
 
   const preAnalysis =
     body.detectedDocumentType !== undefined
       ? [
-          '— — —',
+          '---',
           'Pré-analyse métier (indicatif)',
           `Type document suggéré : ${labelDetectedDocType(body.detectedDocumentType)}`,
-          `Confiance : ${typeof body.confidence === 'number' ? `${body.confidence} %` : '—'}`,
+          `Confiance : ${typeof body.confidence === 'number' ? `${body.confidence} %` : 'Non disponible'}`,
           `Module suggéré : ${modLine}`,
           ...hintsBlock,
-          '— — —',
+          '---',
           ''
         ]
       : [];
@@ -132,7 +132,7 @@ function formatPreviewPayload(body) {
           Array.isArray(body.missingFields) && body.missingFields.length
             ? `Champs probablement manquants : ${body.missingFields.join(', ')}`
             : '',
-          '— — —',
+          '---',
           ''
         ]
       : [];
@@ -141,9 +141,9 @@ function formatPreviewPayload(body) {
     body.importHistoryId
       ? `Trace import : ${body.importHistoryId}`
       : '',
-    `Format fichier : ${body.fileType ?? body.detectedType ?? '—'}`,
-    `Fichier : ${body.originalName ?? '—'}`,
-    `MIME : ${body.mimeType ?? '—'}`,
+    `Format fichier : ${body.fileType ?? body.detectedType ?? 'Non disponible'}`,
+    `Fichier : ${body.originalName ?? 'Non disponible'}`,
+    `MIME : ${body.mimeType ?? 'Non disponible'}`,
     `Métadonnées : ${JSON.stringify(body.meta ?? {}, null, 2)}`,
     ...preAnalysis,
     ...prefillBlock
@@ -154,7 +154,7 @@ function formatPreviewPayload(body) {
   } else if (p?.kind === 'sheet') {
     lines.push(
       `Feuilles : ${(p.sheetNames || []).join(', ')}`,
-      `Feuille active : ${p.activeSheet ?? '—'}`,
+      `Feuille active : ${p.activeSheet ?? 'Non disponible'}`,
       `Lignes (aperçu) : ${Array.isArray(p.rows) ? p.rows.length : 0}`,
       ''
     );
@@ -184,7 +184,7 @@ export function renderImports() {
     pageId: 'imports',
     pageRoot: page,
     hintEssential:
-      'Essentiel : fichier, analyse et brouillon — feuille de route, JSON brut et historique masqués.',
+      'Essentiel : fichier, analyse et brouillon. Feuille de route, JSON brut et historique masqués.',
     hintAdvanced:
       'Expert : feuille de route imports, aperçu JSON brut complet et historique des traitements.'
   });
@@ -215,7 +215,7 @@ export function renderImports() {
     <div class="content-card-head">
       <div>
         <div class="section-kicker">Documents</div>
-        <h3>Import intelligent — phase 1</h3>
+        <h3>Import intelligent : phase 1</h3>
         <p class="content-card-lead" style="margin:0;max-width:58ch;font-size:14px;line-height:1.5;color:var(--text2)">
           CSV recommandé (modèle ci-dessous), PDF et tableur acceptés : aperçu brut, pré-analyse et brouillon indicatif. Aucune création en base tant que vous ne validez pas explicitement sur le module cible.
         </p>
@@ -337,7 +337,7 @@ export function renderImports() {
         const title = document.createElement('div');
         title.style.fontWeight = '700';
         title.style.marginBottom = '8px';
-        title.textContent = 'Brouillon de préremplissage (indicatif — rien n’est enregistré sans votre action)';
+        title.textContent = 'Brouillon de préremplissage (indicatif, rien n’est enregistré sans votre action)';
         draftPanel.append(title);
         const dl = document.createElement('dl');
         dl.style.cssText = 'margin:0;display:grid;gap:6px 12px;grid-template-columns:auto 1fr;max-width:72ch';
@@ -606,13 +606,13 @@ export function renderImports() {
               dateStyle: 'short',
               timeStyle: 'short'
             })
-          : '—';
-        const modSug = escapeHtml(row.suggestedModule || '—');
+          : 'Non disponible';
+        const modSug = escapeHtml(row.suggestedModule || 'Non disponible');
         const modCreated = row.moduleCreated ? escapeHtml(row.moduleCreated) : '';
         left.innerHTML = `
-          <strong style="font-size:13px">${escapeHtml(String(row.fileName || '—'))}</strong>
+          <strong style="font-size:13px">${escapeHtml(String(row.fileName || 'Non disponible'))}</strong>
           <p style="margin:4px 0 0;font-size:12px;color:var(--text2)">
-            ${escapeHtml(d)} · ${escapeHtml(String(row.fileType || '—'))} · ${escapeHtml(labelDetectedDocType(row.detectedDocumentType))}
+            ${escapeHtml(d)} · ${escapeHtml(String(row.fileType || 'Non disponible'))} · ${escapeHtml(labelDetectedDocType(row.detectedDocumentType))}
           </p>
           <p style="margin:4px 0 0;font-size:12px;color:var(--text3)">
             Module suggéré : ${modSug}

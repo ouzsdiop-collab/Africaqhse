@@ -11,10 +11,10 @@ import {
 import { showToast } from './toast.js';
 
 function formatDue(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Non disponible';
   try {
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
+    if (Number.isNaN(d.getTime())) return 'Non disponible';
     return d.toLocaleDateString('fr-FR', {
       weekday: 'short',
       day: '2-digit',
@@ -22,7 +22,7 @@ function formatDue(iso) {
       year: 'numeric'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -58,7 +58,7 @@ const PRIO_LABELS = {
 };
 
 /**
- * Fiche action (modal pilotage QHSE) — champs API + compléments session locale.
+ * Fiche action (modal pilotage QHSE) : champs API + compléments session locale.
  * @param {{ onRefresh?: () => void, getUserName?: () => string }} [opts]
  */
 export function createActionDetailDialog(opts = {}) {
@@ -185,11 +185,11 @@ export function createActionDetailDialog(opts = {}) {
     const incEl = inner.querySelector('[data-ad-incident]');
     if (!riskEl || !auditEl || !incEl) return;
     if (!editMode) {
-      riskEl.textContent = o.linkedRisk?.trim() || '—';
-      auditEl.textContent = o.linkedAudit?.trim() || '—';
+      riskEl.textContent = o.linkedRisk?.trim() || 'Non renseigné';
+      auditEl.textContent = o.linkedAudit?.trim() || 'Non renseigné';
       const incApi = currentRow?.incident?.ref || currentRow?.incidentId || '';
       incEl.textContent =
-        o.linkedIncident?.trim() || (incApi ? String(incApi) : '—');
+        o.linkedIncident?.trim() || (incApi ? String(incApi) : 'Non renseigné');
       return;
     }
     riskEl.replaceChildren();
@@ -200,7 +200,7 @@ export function createActionDetailDialog(opts = {}) {
       inp.type = 'text';
       inp.className = 'action-detail-dialog__field-input';
       inp.value = val;
-      inp.placeholder = '—';
+      inp.placeholder = 'Non renseigné';
       inp.addEventListener('change', () => {
         mergeActionOverlay(actionId, { [key]: inp.value.trim() });
         appendActionHistory(actionId, `Mise à jour liaison ${key}`);
@@ -255,7 +255,7 @@ export function createActionDetailDialog(opts = {}) {
       li.className = 'action-detail-dialog__comment-li';
       const meta = document.createElement('span');
       meta.className = 'action-detail-dialog__comment-meta';
-      meta.textContent = `${formatIsoShort(c.at)} · ${c.user || '—'}`;
+      meta.textContent = `${formatIsoShort(c.at)} · ${c.user || 'Non renseigné'}`;
       const tx = document.createElement('span');
       tx.className = 'action-detail-dialog__comment-text';
       tx.textContent = c.text;
@@ -265,19 +265,19 @@ export function createActionDetailDialog(opts = {}) {
     if (!o.comments?.length) {
       const li = document.createElement('li');
       li.className = 'action-detail-dialog__empty-li';
-      li.textContent = 'Aucun commentaire — utilisez le champ ci-dessous.';
+      li.textContent = 'Aucun commentaire. Utilisez le champ ci-dessous.';
       ulC.append(li);
     }
     (o.history || []).slice().reverse().forEach((h) => {
       const li = document.createElement('li');
       li.className = 'action-detail-dialog__hist-li';
-      li.textContent = `${formatIsoShort(h.at)} — ${h.line}`;
+      li.textContent = `${formatIsoShort(h.at)} : ${h.line}`;
       ulH.append(li);
     });
     if (!o.history?.length) {
       const li = document.createElement('li');
       li.className = 'action-detail-dialog__empty-li';
-      li.textContent = 'Aucun événement — les changements locaux apparaîtront ici.';
+      li.textContent = 'Aucun événement. Les changements locaux apparaîtront ici.';
       ulH.append(li);
     }
   }
@@ -285,8 +285,8 @@ export function createActionDetailDialog(opts = {}) {
   return {
     element: dlg,
     /**
-     * @param {object} row — ligne API action
-     * @param {string} [columnKey] — todo | doing | overdue | done
+     * @param {object} row : ligne API action
+     * @param {string} [columnKey] : todo | doing | overdue | done
      */
     show(row, columnKey) {
       if (!row) return;
@@ -300,17 +300,17 @@ export function createActionDetailDialog(opts = {}) {
       const o = getActionOverlay(currentActionId);
 
       const title = String(row.title || 'Action').trim() || 'Action';
-      const status = String(row.status || '—').trim();
+      const status = String(row.status || 'Non disponible').trim();
       const resp =
         row.assignee?.name != null && String(row.assignee.name).trim()
           ? String(row.assignee.name).trim()
-          : String(row.owner || '—').trim();
+          : String(row.owner || 'Non renseigné').trim();
       const due = formatDue(row.dueDate);
       const id = currentActionId;
       const detail =
         row.detail != null && String(row.detail).trim()
           ? String(row.detail).trim()
-          : '—';
+          : 'Non disponible';
 
       inner.querySelector('[data-ad-title]').textContent = title;
       inner.querySelector('[data-ad-status]').textContent = status;
@@ -327,7 +327,7 @@ export function createActionDetailDialog(opts = {}) {
       typeBadge.className = `action-detail-type-badge action-detail-type-badge--${resolvedType}`;
       typeBadge.textContent = TYPE_LABELS[resolvedType] || TYPE_LABELS.corrective;
       typeBadge.title =
-        'Type d’action (corrective / préventive / amélioration) — pilotage ISO 45001 / 14001.';
+        'Type d’action (corrective / préventive / amélioration) : pilotage ISO 45001 / 14001.';
       typeWrap.append(typeBadge);
       inner.querySelector('[data-ad-origin]').textContent =
         ORIGIN_LABELS[o.origin] || ORIGIN_LABELS.other;
@@ -354,7 +354,7 @@ export function createActionDetailDialog(opts = {}) {
       pv.className = `action-detail-prio-vis action-detail-prio-vis--${o.priority || 'normale'}`;
       pv.textContent = `Priorité : ${PRIO_LABELS[o.priority] || 'Normale'}`;
       pv.title =
-        'Priorité de pilotage — peut être ajustée selon votre référentiel interne.';
+        'Priorité de pilotage : peut être ajustée selon votre référentiel interne.';
       prioVis.append(pv);
 
       renderProgressControl(row, currentActionId);

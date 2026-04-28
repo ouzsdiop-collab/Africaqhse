@@ -1,5 +1,5 @@
 /**
- * Liaisons transverses — registre des risques QHSE (ISO 45001 / 14001).
+ * Liaisons transverses : registre des risques QHSE (ISO 45001 / 14001).
  */
 
 export { formatRiskLinkTag as formatIncidentToRiskTag } from './riskIncidentLinks.js';

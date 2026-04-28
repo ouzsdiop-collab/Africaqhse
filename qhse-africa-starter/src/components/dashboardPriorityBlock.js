@@ -1,5 +1,5 @@
 /**
- * Alertes prioritaires — incidents critiques, actions en retard, NC ouvertes.
+ * Alertes prioritaires : incidents critiques, actions en retard, NC ouvertes.
  */
 
 function createPriorityRows(items, variant) {

@@ -1,5 +1,5 @@
 /**
- * Préférences d’affichage table ISO (exigences) — extrait de iso.js.
+ * Préférences d’affichage table ISO (exigences) : extrait de iso.js.
  */
 
 export const LS_ISO_REQ_TABLE_COLS = 'qhse.iso.reqTableCols';

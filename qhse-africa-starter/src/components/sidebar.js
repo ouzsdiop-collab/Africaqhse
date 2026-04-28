@@ -13,7 +13,7 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { logoutAndClear } from '../utils/logout.js';
 import { canAccessNavPage } from '../utils/permissionsUi.js';
 
-/** Icônes SVG 20×20, stroke — cohérentes et sobres. */
+/** Icônes SVG 20×20, stroke : cohérentes et sobres. */
 const NAV_ICON_SVG = {
   dashboard:
     '<svg class="shell-nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
@@ -248,7 +248,7 @@ export function createSidebar({
       'Sans connexion : choisissez un profil pour prévisualiser le menu selon le rôle (aperçu local).';
     const optProf0 = document.createElement('option');
     optProf0.value = '';
-    optProf0.textContent = '— Mode libre —';
+    optProf0.textContent = 'Mode libre';
     profileSelect.append(optProf0);
     profileSlot.append(profileSelect);
 

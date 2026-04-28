@@ -799,7 +799,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
         "Nous avons réduit notre temps de reporting QHSE de 60 %
         dès le premier mois d'utilisation."
       </p>
-      <p class="lv2-testimonial-author">— Responsable QHSE, industrie minière, Sénégal</p>
+      <p class="lv2-testimonial-author">Responsable QHSE · industrie minière · Sénégal</p>
     </div>
 
     <div class="lv2-countries">
@@ -837,7 +837,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
     </div>
     <form class="lv2-form" novalidate>
       <p class="lv2-form-title">Connexion à votre espace</p>
-      <p class="lv2-form-sub">Bienvenue sur QHSE Control — la plateforme QHSE dédiée à l'Afrique.</p>
+      <p class="lv2-form-sub">Bienvenue sur QHSE Control : la plateforme QHSE dédiée à l'Afrique.</p>
       <label class="lv2-field">
         <span class="lv2-field-label">E-mail ou identifiant client</span>
         <input type="text" name="identifier" class="control-input lv2-input lv2-email" autocomplete="username" placeholder="vous@entreprise.com ou cli-…" />
@@ -1025,7 +1025,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
     devHint.style.cssText =
       'margin:18px 0 0;font-size:11px;color:rgba(148,163,184,.5);line-height:1.5';
     devHint.innerHTML =
-      'Développement local — après <code style="font-size:10px;opacity:.95">npx prisma db seed</code> : comptes de test (voir <code style="font-size:10px">backend/prisma/seed.js</code>), ex. <code style="font-size:10px">qhse@qhse.local</code> / <code style="font-size:10px">Demo2026!</code>.';
+      'Développement local : après <code style="font-size:10px;opacity:.95">npx prisma db seed</code> : comptes de test (voir <code style="font-size:10px">backend/prisma/seed.js</code>), ex. <code style="font-size:10px">qhse@qhse.local</code> / <code style="font-size:10px">Demo2026!</code>.';
     inner.appendChild(devHint);
   }
 

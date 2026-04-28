@@ -2,18 +2,18 @@ import { getApiBase } from '../config.js';
 
 const STORAGE_KEY = 'qhseSessionUser';
 const TOKEN_KEY = 'qhseAuthToken';
-/** Ancienne clé (utils/auth.js) — conservée pour migration douce. */
+/** Ancienne clé (utils/auth.js) : conservée pour migration douce. */
 const LEGACY_ACCESS_TOKEN_KEY = 'qhse_access_token';
 const TENANT_KEY = 'qhseSessionTenant';
 const TENANTS_KEY = 'qhseSessionTenants';
 const PWD_SETUP_TOKEN_KEY = 'qhsePwdSetupToken';
 const PWD_SETUP_META_KEY = 'qhsePwdSetupMeta';
 
-/** Fetch navigateur d’origine (capturé avant le patch global ci-dessous) — utilisé par qhseFetch pour éviter les boucles. */
+/** Fetch navigateur d’origine (capturé avant le patch global ci-dessous) : utilisé par qhseFetch pour éviter les boucles. */
 export const nativeFetch = globalThis.fetch.bind(globalThis);
 
 /**
- * Profil utilisateur — alimenté par connexion JWT (/api/auth/login) ou sélection manuelle (hors JWT).
+ * Profil utilisateur : alimenté par connexion JWT (/api/auth/login) ou sélection manuelle (hors JWT).
  * @typedef {{ id: string, name: string, role: string, email?: string }} SessionUser
  */
 

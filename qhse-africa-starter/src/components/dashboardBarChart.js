@@ -1,4 +1,4 @@
-/** Histogramme incidents — hauteurs via variable CSS (--bar-h). */
+/** Histogramme incidents : hauteurs via variable CSS (--bar-h). */
 const SERIES = [
   { label: 'Jan', h: 36 },
   { label: 'Fév', h: 52 },
@@ -35,7 +35,7 @@ export function createDashboardBarChart() {
   const foot = document.createElement('p');
   foot.className = 'dashboard-chart-foot';
   foot.textContent =
-    'Tendance : évolution sur la période affichée — à corréler avec l’activité site et la maintenance.';
+    'Tendance : évolution sur la période affichée. À corréler avec l’activité site et la maintenance.';
 
   box.append(axis, wrap, foot);
   return box;

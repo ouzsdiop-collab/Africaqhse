@@ -1,9 +1,9 @@
 /**
- * Shell & cohérence globale — surfaces, rythme, micro-interactions sobres.
+ * Shell & cohérence globale : surfaces, rythme, micro-interactions sobres.
  * Complète sidebarV2 / topbarV2 (styles injectés) sans renommer les classes existantes.
  */
 
-/* —— Rythme vertical : gap porté par .page-stack (token --page-stack-gap) —— */
+/* Rythme vertical : gap porté par .page-stack (token --page-stack-gap) */
 .main-shell .qhse-page-slot > .page-stack {
   flex: 1 1 auto;
   min-height: 0;
@@ -39,7 +39,7 @@
   pointer-events: none;
 }
 
-/* Dashboard : sections pilot en pile — séparateur discret (évite l’effet « quatre cadres empilés »). */
+/* Dashboard : sections pilot en pile ; séparateur discret (évite l’effet « quatre cadres empilés »). */
 .page-stack.dashboard-page > .dashboard-pilot-block {
   margin-block: 0;
 }
@@ -49,7 +49,7 @@
   border-top: 1px solid color-mix(in srgb, var(--color-border-secondary) 30%, transparent);
 }
 
-/* —— Zone principale : lien visuel avec la sidebar —— */
+/* Zone principale : lien visuel avec la sidebar */
 .main-shell {
   background:
     linear-gradient(
@@ -59,7 +59,7 @@
     );
 }
 
-/* —— Cartes & surfaces : respiration et hover discret (zone connectée uniquement) —— */
+/* Cartes & surfaces : respiration et hover discret (zone connectée uniquement) */
 .main-shell .content-card,
 .main-shell .card-soft,
 .main-shell .metric-card {
@@ -87,7 +87,7 @@
   box-shadow: var(--shadow-card), 0 0 0 1px color-mix(in srgb, var(--palette-accent, #14b8a6) 12%, transparent);
 }
 
-/* —— Boutons : léger relief au survol —— */
+/* Boutons : léger relief au survol */
 .main-shell .btn:not(:disabled):hover {
   transform: translateY(-0.5px);
 }
@@ -103,7 +103,7 @@
   }
 }
 
-/* —— En-tête de page module (flat-app) : actions optionnelles —— */
+/* En-tête de page module (flat-app) : actions optionnelles */
 .page-intro__actions {
   display: flex;
   flex-wrap: wrap;
@@ -116,12 +116,12 @@
   font-weight: 600;
 }
 
-/* —— Tableaux : en-têtes plus nets —— */
+/* Tableaux : en-têtes plus nets */
 table thead th {
   letter-spacing: 0.02em;
 }
 
-/* —— Panneau notifications flottant —— */
+/* Panneau notifications flottant */
 .notif-panel.floating-panel {
   box-shadow: var(--ds-shadow-lg, var(--shadow-lg));
 }

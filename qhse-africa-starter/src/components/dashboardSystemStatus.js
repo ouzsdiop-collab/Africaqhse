@@ -1,5 +1,5 @@
 /**
- * Bloc « État du système QHSE » — synthèse direction à partir des données dashboard existantes (pas d’API dédiée).
+ * Bloc « État du système QHSE » : synthèse direction à partir des données dashboard existantes (pas d’API dédiée).
  */
 
 import { buildIncidentMonthlySeries, classifyActionsForMix } from './dashboardCharts.js';
@@ -147,10 +147,10 @@ export function createDashboardSystemStatus() {
     hintEl.textContent = hint;
 
     gridEl.replaceChildren(
-      renderCell('Performance audits', avgScore != null ? `${avgScore} %` : '—'),
+      renderCell('Performance audits', avgScore != null ? `${avgScore} %` : 'Non disponible'),
       renderCell(
         'Avancement des actions',
-        closurePct != null ? `${closurePct} % traitées` : '—'
+        closurePct != null ? `${closurePct} % traitées` : 'Non disponible'
       ),
       renderCell('NC ouvertes', String(openNc)),
       renderCell('Tendance incidents', incidentTrendNote(series))

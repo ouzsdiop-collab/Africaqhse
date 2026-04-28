@@ -1,5 +1,5 @@
 /**
- * Exports registre habilitations (CSV / PDF) — génération côté navigateur.
+ * Exports registre habilitations (CSV / PDF) · génération côté navigateur.
  * PDF : gabarit premium QHSE Control Africa (bandeau #1D9E75, pied de page confidentiel).
  */
 
@@ -121,10 +121,10 @@ function criticalAlertRows(rows) {
 
 /** @param {Record<string, unknown>[]} rows */
 function computeByType(rows) {
-  const types = [...new Set(rows.map((r) => String(r.type || '—')))];
+  const types = [...new Set(rows.map((r) => String(r.type || 'Non renseigné')))];
   return types
     .map((type) => {
-      const bucket = rows.filter((r) => String(r.type || '—') === type);
+      const bucket = rows.filter((r) => String(r.type || 'Non renseigné') === type);
       const nonConf = bucket.filter((r) =>
         ['expiree', 'suspendue', 'incomplete'].includes(String(r.statut))
       ).length;
@@ -331,7 +331,7 @@ async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, 
             `<tr><td>${escapeHtml(t.type)}</td><td>${t.total}</td><td>${t.nonConf}</td><td><strong>${t.score} %</strong></td></tr>`
         )
         .join('')
-    : `<tr><td colspan="4" class="qhse-chrome-muted">—</td></tr>`;
+    : `<tr><td colspan="4" class="qhse-chrome-muted">Non disponible</td></tr>`;
 
   const typeTable = `
     <h2 class="qhse-chrome-h2">Taux par type d’habilitation</h2>
@@ -348,7 +348,7 @@ async function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }, 
             `<tr><td>${escapeHtml(b.site)}</td><td>${b.score}%</td><td>${b.total}</td><td>${b.nonConf}</td></tr>`
         )
         .join('')
-    : `<tr><td colspan="4" class="qhse-chrome-muted">—</td></tr>`;
+    : `<tr><td colspan="4" class="qhse-chrome-muted">Non disponible</td></tr>`;
 
   const siteTable = `
     <h2 class="qhse-chrome-h2">Synthèse par site</h2>

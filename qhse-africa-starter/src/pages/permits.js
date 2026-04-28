@@ -113,7 +113,7 @@ function statusLabel(v) {
 /** Libellé français pour rôle de signature (évite d’afficher la clé API en anglais). */
 function signatureRoleLabel(role) {
   const hit = SIGN_ROLES.find((r) => r.value === role);
-  return hit ? hit.label : String(role || '—');
+  return hit ? hit.label : String(role || 'Non disponible');
 }
 
 const MODULE_LABEL_FR = {
@@ -131,7 +131,7 @@ const MODULE_LABEL_FR = {
 
 function moduleLabelFr(id) {
   const k = String(id || '').trim();
-  return MODULE_LABEL_FR[k] || k || '—';
+  return MODULE_LABEL_FR[k] || k || 'Non disponible';
 }
 
 function isExpiredPermit(permit) {
@@ -334,17 +334,17 @@ export function renderPermits() {
         <div class="ptw-wizard-step">
           <div class="ptw-step-head"><h3>Étape 6 · Signature électronique</h3><span class="ptw-step-badge">6/7</span></div>
           <div class="ptw-mini"><strong>Mode:</strong> ${d.validationMode === 'simple' ? 'Simple' : 'Double'}</div>
-          <div class="ptw-mini"><strong>Analyse risque:</strong> ${d.riskAnalysis || '—'}</div>
+          <div class="ptw-mini"><strong>Analyse risque:</strong> ${d.riskAnalysis || 'Non renseigné'}</div>
         </div>`;
     }
     return `
       <div class="ptw-wizard-step">
         <div class="ptw-step-head"><h3>Étape 7 · Résumé + validation</h3><span class="ptw-step-badge">7/7</span></div>
-          <div class="ptw-mini"><strong>Type:</strong> ${d.type || '—'}</div>
-          <div class="ptw-mini"><strong>Zone:</strong> ${d.zone || '—'} · <strong>Équipe:</strong> ${d.team || '—'} · <strong>Date:</strong> ${d.date || '—'}</div>
-          <div class="ptw-mini"><strong>Description:</strong> ${d.description || '—'}</div>
-          <div class="ptw-mini"><strong>Checklist:</strong> ${d.checklist.map((x) => x.label).join(', ') || '—'}</div>
-          <div class="ptw-mini"><strong>Analyse risque:</strong> ${d.riskAnalysis || '—'}</div>
+          <div class="ptw-mini"><strong>Type:</strong> ${d.type || 'Non renseigné'}</div>
+          <div class="ptw-mini"><strong>Zone:</strong> ${d.zone || 'Non renseigné'} · <strong>Équipe:</strong> ${d.team || 'Non renseigné'} · <strong>Date:</strong> ${d.date || 'Non renseigné'}</div>
+          <div class="ptw-mini"><strong>Description:</strong> ${d.description || 'Non renseigné'}</div>
+          <div class="ptw-mini"><strong>Checklist:</strong> ${d.checklist.map((x) => x.label).join(', ') || 'Non renseigné'}</div>
+          <div class="ptw-mini"><strong>Analyse risque:</strong> ${d.riskAnalysis || 'Non renseigné'}</div>
         </div>`;
   }
   function signatureStepTemplate() {
@@ -363,7 +363,7 @@ export function renderPermits() {
           </div>
           <div class="ptw-sign">
             <strong>Signatures capturées</strong>
-            <div class="ptw-list">${Object.entries(d.signatures).map(([role, s]) => `<div class="ptw-mini"><strong>${role}</strong>: ${s?.name || '—'}</div>`).join('')}</div>
+            <div class="ptw-list">${Object.entries(d.signatures).map(([role, s]) => `<div class="ptw-mini"><strong>${role}</strong>: ${s?.name || 'Non renseigné'}</div>`).join('')}</div>
           </div>
         </div>
       </div>`;
@@ -594,12 +594,12 @@ export function renderPermits() {
     top.className = 'ptw-item-top';
     const topLeft = document.createElement('div');
     const typeStrong = document.createElement('strong');
-    typeStrong.textContent = it.type ?? '—';
+    typeStrong.textContent = it.type ?? 'Non renseigné';
     const miniZR = document.createElement('div');
     miniZR.className = 'ptw-mini';
     const zLab = document.createElement('strong');
     zLab.textContent = 'Zone:';
-    miniZR.append(zLab, document.createTextNode(` ${it.zone || '—'} · `));
+    miniZR.append(zLab, document.createTextNode(` ${it.zone || 'Non renseigné'} · `));
     const rLab = document.createElement('strong');
     rLab.textContent = 'Responsable:';
     miniZR.append(rLab, document.createTextNode(` ${responsible}`));
@@ -607,7 +607,7 @@ export function renderPermits() {
     miniDate.className = 'ptw-mini';
     const dLab = document.createElement('strong');
     dLab.textContent = 'Date:';
-    miniDate.append(dLab, document.createTextNode(` ${it.date || '—'}`));
+    miniDate.append(dLab, document.createTextNode(` ${it.date || 'Non renseigné'}`));
     topLeft.append(typeStrong, miniZR, miniDate);
     const statusChip = document.createElement('span');
     statusChip.className = `ptw-chip ${statusVisualTone(it)}`;
@@ -667,10 +667,10 @@ export function renderPermits() {
     }
     details.append(
       sum,
-      detailLine(`Checklist: ${(it.checklist || []).join(', ') || '—'}`),
-      detailLine(`EPI: ${(it.epi || []).join(', ') || '—'}`),
-      detailLine(`Conditions: ${(it.safetyConditions || []).join(', ') || '—'}`),
-      detailLine(`Analyse risque: ${it.riskAnalysis || '—'}`),
+      detailLine(`Checklist: ${(it.checklist || []).join(', ') || 'Non renseigné'}`),
+      detailLine(`EPI: ${(it.epi || []).join(', ') || 'Non renseigné'}`),
+      detailLine(`Conditions: ${(it.safetyConditions || []).join(', ') || 'Non renseigné'}`),
+      detailLine(`Analyse risque: ${it.riskAnalysis || 'Non renseigné'}`),
       detailLine(`Validation: ${it.validationMode === 'simple' ? 'Simple' : 'Double'}`)
     );
     const sigText =
@@ -678,7 +678,7 @@ export function renderPermits() {
         ? signatures
             .map(
               (s) =>
-                `${s.name || '—'} (${signatureRoleLabel(s.role)}) · ${new Date(s.signedAt).toLocaleString('fr-FR')} · ${
+                `${s.name || 'Non renseigné'} (${signatureRoleLabel(s.role)}) · ${new Date(s.signedAt).toLocaleString('fr-FR')} · ${
                   s.syncStatus === 'pending_sync' ? 'en attente de synchronisation' : 'synchronisé'
                 }`
             )
@@ -797,13 +797,13 @@ export function renderPermits() {
           <p class="qhse-chrome-muted"><strong>Réf.</strong> ${escapeHtml(String(it.id))}</p>
           <table class="qhse-chrome-table" style="margin-top:12px">
             <tbody>
-              <tr><td style="font-weight:700;width:32%">Type</td><td>${escapeHtml(String(it.type || '—'))}</td></tr>
-              <tr><td style="font-weight:700">Zone</td><td>${escapeHtml(String(it.zone || '—'))}</td></tr>
-              <tr><td style="font-weight:700">Responsable</td><td>${escapeHtml(String(responsible || '—'))}</td></tr>
+              <tr><td style="font-weight:700;width:32%">Type</td><td>${escapeHtml(String(it.type || 'Non renseigné'))}</td></tr>
+              <tr><td style="font-weight:700">Zone</td><td>${escapeHtml(String(it.zone || 'Non renseigné'))}</td></tr>
+              <tr><td style="font-weight:700">Responsable</td><td>${escapeHtml(String(responsible || 'Non renseigné'))}</td></tr>
               <tr><td style="font-weight:700">Statut</td><td>${escapeHtml(statusLabel(it.status))}</td></tr>
               <tr><td style="font-weight:700">Expiration</td><td>${escapeHtml(expiryLabel(it))}</td></tr>
-              <tr><td style="font-weight:700">Analyse risque</td><td>${escapeHtml(String(it.riskAnalysis || '—'))}</td></tr>
-              <tr><td style="font-weight:700">Checklist</td><td>${escapeHtml((it.checklist || []).join(', ') || '—')}</td></tr>
+              <tr><td style="font-weight:700">Analyse risque</td><td>${escapeHtml(String(it.riskAnalysis || 'Non renseigné'))}</td></tr>
+              <tr><td style="font-weight:700">Checklist</td><td>${escapeHtml((it.checklist || []).join(', ') || 'Non renseigné')}</td></tr>
               <tr><td style="font-weight:700">Signatures</td><td>${escapeHtml(sigText)}</td></tr>
             </tbody>
           </table>

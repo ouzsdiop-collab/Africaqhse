@@ -18,7 +18,7 @@ function ensureAuditResultDialogStyles() {
 }
 
 /**
- * Panneau modal — score et métadonnées d’un audit (lecture).
+ * Panneau modal : score et métadonnées d’un audit (lecture).
  *
  * @param {object} audit
  * @param {{ onEdit?: (a: object) => void; onClose?: () => void }} [opts]
@@ -47,22 +47,23 @@ export function openAuditResult(audit, opts = {}) {
 
   const body = document.createElement('div');
   body.className = 'qhse-audit-result-dialog__body';
-  const ref = audit?.ref != null ? String(audit.ref) : '—';
-  const site = audit?.site != null ? String(audit.site) : '—';
+  const ref = audit?.ref != null ? String(audit.ref) : 'Non renseigné';
+  const site = audit?.site != null ? String(audit.site) : 'Non renseigné';
   const score =
-    audit?.score != null && audit.score !== '' ? String(audit.score) : '—';
-  const status = audit?.conforme === true ? 'Conforme' : audit?.conforme === false ? 'Non conforme' : '—';
-  const date = audit?.date != null ? String(audit.date) : '—';
-  const auditeur = audit?.auditeur != null ? String(audit.auditeur) : '—';
+    audit?.score != null && audit.score !== '' ? String(audit.score) : 'Non disponible';
+  const status =
+    audit?.conforme === true ? 'Conforme' : audit?.conforme === false ? 'Non conforme' : 'Non renseigné';
+  const date = audit?.date != null ? String(audit.date) : 'Non disponible';
+  const auditeur = audit?.auditeur != null ? String(audit.auditeur) : 'Non renseigné';
   body.innerHTML = `
     <p class="section-kicker">Résultat audit</p>
     <h2 style="margin:0 0 8px;font-size:18px">${escapeHtml(ref)}</h2>
-    <div class="qhse-audit-result-dialog__score">${escapeHtml(score)}${score !== '—' ? '%' : ''}</div>
+    <div class="qhse-audit-result-dialog__score">${escapeHtml(score)}${score !== 'Non disponible' ? '%' : ''}</div>
     <div class="qhse-audit-result-dialog__meta">
-      <div><strong>Site</strong> — ${escapeHtml(site)}</div>
-      <div><strong>Auditeur</strong> — ${escapeHtml(auditeur)}</div>
-      <div><strong>Date</strong> — ${escapeHtml(date)}</div>
-      <div><strong>Synthèse</strong> — ${escapeHtml(status)}</div>
+      <div><strong>Site</strong> : ${escapeHtml(site)}</div>
+      <div><strong>Auditeur</strong> : ${escapeHtml(auditeur)}</div>
+      <div><strong>Date</strong> : ${escapeHtml(date)}</div>
+      <div><strong>Synthèse</strong> : ${escapeHtml(status)}</div>
     </div>
   `;
 

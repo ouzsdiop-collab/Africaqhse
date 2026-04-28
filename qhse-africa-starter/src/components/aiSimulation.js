@@ -1,5 +1,5 @@
 /**
- * Scénarios d’illustration — sortie structurée pour affichage « rapport » et export texte.
+ * Scénarios d’illustration : sortie structurée pour affichage « rapport » et export texte.
  * Aucun appel réseau.
  */
 
@@ -8,7 +8,7 @@ function buildScenario(ref, title, sections) {
 }
 
 const SCENARIOS = {
-  hydrocarbure: buildScenario('SIM-2026-ENV-01', 'Fuite mineure — bac de rétention', [
+  hydrocarbure: buildScenario('SIM-2026-ENV-01', 'Fuite mineure : bac de rétention', [
     {
       id: 'resume',
       title: 'Résumé incident',
@@ -23,7 +23,7 @@ const SCENARIOS = {
       title: 'Gravité / criticité',
       items: [
         'Niveau suggéré : modéré (environnement / conformité stockage).',
-        'Pas de blessé — pas d’escalade SST immédiate au-delà du signalement HSE.'
+        'Pas de blessé. Pas d’escalade SST immédiate au-delà du signalement HSE.'
       ]
     },
     {
@@ -51,13 +51,13 @@ const SCENARIOS = {
       ]
     }
   ]),
-  chute: buildScenario('SIM-2026-SST-02', 'Chute de hauteur — échafaudage', [
+  chute: buildScenario('SIM-2026-SST-02', 'Chute de hauteur : échafaudage', [
     {
       id: 'resume',
       title: 'Résumé incident',
       items: [
         'Chute d’environ 1,8 m depuis plan de travail échafaudage zone B.',
-        'Blessé pris en charge ; EPI portés (harnais + longe — à vérifier au rapport officiel).',
+        'Blessé pris en charge ; EPI portés (harnais + longe, à vérifier au rapport officiel).',
         'Arrêt de travail côté activité concernée : journée.'
       ]
     },
@@ -65,7 +65,7 @@ const SCENARIOS = {
       id: 'gravite',
       title: 'Gravité / criticité',
       items: [
-        'Classification SST : à valider avec médecine du travail — gravité potentielle élevée si MTT.',
+        'Classification SST : à valider avec médecine du travail. Gravité potentielle élevée si MTT.',
         'Signal fort pour le plan de prévention hauteur du site.'
       ]
     },
@@ -82,7 +82,7 @@ const SCENARIOS = {
       id: 'analyse',
       title: 'Analyse simple',
       items: [
-        'Piste : déplacement charge ou défaut garde-corps — à confirmer par enquête terrain.',
+        'Piste : déplacement charge ou défaut garde-corps, à confirmer par enquête terrain.',
         'Organisation : planning chargements / coactivité à examiner.'
       ]
     },
@@ -94,12 +94,12 @@ const SCENARIOS = {
       ]
     }
   ]),
-  espace_confiné: buildScenario('SIM-2026-SST-04', 'Intervention espace confiné — cuve maintenance', [
+  espace_confiné: buildScenario('SIM-2026-SST-04', 'Intervention espace confiné : cuve maintenance', [
     {
       id: 'resume',
       title: 'Résumé incident',
       items: [
-        'Opération d’inspection planifiée sur cuve intermédiaire — accès par trappe étanche.',
+        'Opération d’inspection planifiée sur cuve intermédiaire : accès par trappe étanche.',
         'Mesure portable O₂ : lecture limite basse au fond de cuve ; équipe a interrompu et évacué sans blessé.',
         'Consignation partielle en place ; ventilation mécanique non branchée au moment du constat.'
       ]
@@ -133,11 +133,11 @@ const SCENARIOS = {
       id: 'direction',
       title: 'Synthèse direction',
       items: [
-        'Message : quasi-accident SST majeur évité — renforcement des contrôles avant toute reprise d’intervention en espace confiné ; revue des permis sur 30 j.'
+        'Message : quasi-accident SST majeur évité. Renforcement des contrôles avant toute reprise d’intervention en espace confiné ; revue des permis sur 30 j.'
       ]
     }
   ]),
-  nc_audit: buildScenario('SIM-2026-ISO-03', 'Non-conformité mineure — traçabilité déchets', [
+  nc_audit: buildScenario('SIM-2026-ISO-03', 'Non-conformité mineure : traçabilité déchets', [
     {
       id: 'resume',
       title: 'Résumé incident',
@@ -150,7 +150,7 @@ const SCENARIOS = {
       id: 'gravite',
       title: 'Gravité / criticité',
       items: [
-        'NC mineure documentaire — risque majeur environnemental non démontré sur la base des infos saisies.',
+        'NC mineure documentaire. Risque majeur environnemental non démontré sur la base des infos saisies.',
         'Exposition audit externe : modérée si non clôturée avant prochaine visite.'
       ]
     },
@@ -194,16 +194,16 @@ export function getAiSimulationResult(scenarioId) {
  */
 export function formatSimulationPlainText(result) {
   const lines = [];
-  lines.push('QHSE Control — sortie assistant (scénario illustratif)');
-  lines.push(`Réf. ${result.ref} — ${result.title}`);
+  lines.push('QHSE Control : sortie assistant (scénario illustratif)');
+  lines.push(`Réf. ${result.ref} : ${result.title}`);
   lines.push('');
   result.sections.forEach((sec) => {
-    lines.push(`— ${sec.title}`);
+    lines.push(`• ${sec.title}`);
     sec.items.forEach((line) => {
       lines.push(`  • ${line}`);
     });
     lines.push('');
   });
-  lines.push('(Scénario illustratif — ne pas utiliser comme preuve réglementaire sans validation humaine.)');
+  lines.push('(Scénario illustratif : ne pas utiliser comme preuve réglementaire sans validation humaine.)');
   return lines.join('\n');
 }

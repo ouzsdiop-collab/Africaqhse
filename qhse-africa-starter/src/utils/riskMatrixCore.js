@@ -1,5 +1,5 @@
 /**
- * Cœur métier G × P (sans UI) — partagé par matrice, registre, exports PDF.
+ * Cœur métier G × P (sans UI) : partagé par matrice, registre, exports PDF.
  */
 
 const GP_RE = /G\s*([1-5])\s*[×xX*]\s*P\s*([1-5])/;
@@ -36,7 +36,7 @@ const TIER_LABELS = {
 };
 
 export function riskLevelLabelFromTier(tier) {
-  return TIER_LABELS[Math.min(5, Math.max(1, tier))] || '—';
+  return TIER_LABELS[Math.min(5, Math.max(1, tier))] || 'Non disponible';
 }
 
 export function riskCriticalityFromMeta(meta) {

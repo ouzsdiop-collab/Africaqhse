@@ -12,12 +12,12 @@ import {
 } from '../services/notificationIntelligence.service.js';
 
 /**
- * Panneau notifications — centre premium : filtres par priorité, regroupement, digest.
+ * Panneau notifications : centre premium, filtres par priorité, regroupement, digest.
  * @param {object} params
- * @param {Array} params.notifications — typiquement notificationsStore.all()
+ * @param {Array} params.notifications : typiquement notificationsStore.all()
  * @param {() => void} params.onMarkAllRead
  * @param {() => void} params.onClose
- * @param {() => void} [params.onPresentationChange] — rafraîchir le shell (badge, etc.)
+ * @param {() => void} [params.onPresentationChange] : rafraîchir le shell (badge, etc.)
  * @param {(payload: { id: number|string, page: string, ref: string|null }) => void} [params.onOpenLink]
  */
 export function createNotificationsPanel({

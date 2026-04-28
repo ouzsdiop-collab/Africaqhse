@@ -82,7 +82,7 @@ export function createDashboardExecutivePanel(defaultSiteLabel = '') {
       </div>
       <div class="dashboard-exec-score" data-exec-score-wrap>
         <div class="dashboard-exec-score__ring" data-exec-ring></div>
-        <div class="dashboard-exec-score__value" data-exec-val>—</div>
+        <div class="dashboard-exec-score__value" data-exec-val>Non disponible</div>
         <div class="dashboard-exec-score__label" data-exec-lbl>Indice QHSE</div>
         <p class="dashboard-exec-score__hint" data-exec-hint></p>
         <p class="dashboard-exec-score__micro" data-exec-micro>Basé sur incidents critiques, retards d’actions, NC ouvertes et notes d’audit visibles.</p>

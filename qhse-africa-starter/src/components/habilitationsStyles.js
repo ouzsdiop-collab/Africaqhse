@@ -1,7 +1,7 @@
 const STYLE_ID = 'qhse-habilitations-styles';
 
 const CSS = `
-/* —— Page : hiérarchie type SaaS premium —— */
+/* Page : hiérarchie type SaaS premium */
 .habilitations-page{
   --hab-cockpit-rad:16px;
 }
@@ -61,7 +61,7 @@ const CSS = `
   text-overflow:ellipsis;
 }
 
-/* —— Cockpit : une carte, sections délimitées (plus « produit » que 3 cartons empilés) —— */
+/* Cockpit : une carte, sections délimitées (plus « produit » que 3 cartons empilés) */
 .hab-cockpit{
   position:relative;
   overflow:hidden;
@@ -118,7 +118,7 @@ const CSS = `
   color:var(--color-text-secondary);
 }
 
-/* —— Risque : grille dense, cartes plus sobres —— */
+/* Risque : grille dense, cartes plus sobres */
 .hab-risk-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -176,7 +176,7 @@ const CSS = `
   opacity:.92;
 }
 
-/* —— KPI secondaires —— */
+/* KPI secondaires */
 .hab-kpis--secondary{
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:10px;
@@ -189,7 +189,7 @@ const CSS = `
 }
 .hab-kpi--lite .hab-kpi__v{font-size:18px}
 
-/* —— Exposition terrain —— */
+/* Exposition terrain */
 .hab-expo-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -239,7 +239,7 @@ const CSS = `
   border-color:rgba(249,115,22,.35);
 }
 
-/* —— Barre de commande : sticky, navigation + exports —— */
+/* Barre de commande : sticky, navigation + exports */
 .hab-command-bar{
   position:sticky;
   top:0;
@@ -321,7 +321,7 @@ const CSS = `
 .hab-main-host{margin-top:2px}
 .hab-tab-panel{min-height:120px}
 
-/* —— Table & registre (inchangé fonctionnellement) —— */
+/* Table & registre (inchangé fonctionnellement) */
 .hab-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .hab-kpi{padding:10px;border:1px solid var(--color-border-tertiary);border-radius:10px;background:var(--color-background-secondary);display:grid;gap:2px}
 .hab-kpi__k{font-size:11px;color:var(--color-text-tertiary)}

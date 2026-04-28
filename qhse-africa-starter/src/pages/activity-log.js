@@ -24,7 +24,7 @@ const LS_SCOPE = 'qhse-activity-log-export-scope';
 const LS_CRITICAL = 'qhse-activity-log-critical-only';
 
 /**
- * Tableau du journal — réutilisable avec une liste filtrée / triée (futur).
+ * Tableau du journal : réutilisable avec une liste filtrée / triée (futur).
  * @param {Array} entries liste déjà ordonnée (ex. antichronologique)
  * @param {{ filtersActive?: boolean; onResetFilters?: () => void; storeHasEntries?: boolean }} [opts]
  */
@@ -115,9 +115,9 @@ function openActivityLogPdf(entries) {
 <style>body{font-family:system-ui,-apple-system,sans-serif;padding:20px;font-size:11px;color:#111}
 h1{font-size:16px;margin:0 0 12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f4f4f5;font-size:10px;text-transform:uppercase}
 .foot{margin-top:16px;font-size:10px;color:#666}</style></head><body>
-<h1>Journal des modifications — export</h1>
+<h1>Journal des modifications : export</h1>
 <table><thead><tr><th>Module</th><th>Action</th><th>Détail</th><th>Utilisateur</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>
-<p class="foot">Généré le ${escapeHtml(new Date().toLocaleString('fr-FR'))} — impression ou « Enregistrer au format PDF ».</p>
+<p class="foot">Généré le ${escapeHtml(new Date().toLocaleString('fr-FR'))} · impression ou « Enregistrer au format PDF ».</p>
 <script>addEventListener('load',function(){setTimeout(function(){print()},200)})<\/script>
 </body></html>`;
   const w = window.open('', '_blank');
@@ -195,7 +195,7 @@ export function renderActivityLog(opts = {}) {
       <span class="activity-log-cert-badge">Journal certifiable</span>
       <span class="activity-log-cert-badge activity-log-cert-badge--subtle">Traçabilité inviolable</span>
     </div>
-    <p class="activity-log-cert-lead">Conforme audit ISO — historique non modifiable</p>
+    <p class="activity-log-cert-lead">Conforme audit ISO : historique non modifiable</p>
   `;
 
   const headBlock = document.createElement('div');
@@ -261,7 +261,7 @@ export function renderActivityLog(opts = {}) {
       <input type="checkbox" data-pref="critical" />
       <span>Alertes : événements critiques uniquement (réglage local)</span>
     </label>
-    <p class="activity-log-prefs-hint">L’envoi automatique sera branché côté serveur — les choix sont mémorisés localement.</p>
+    <p class="activity-log-prefs-hint">L’envoi automatique sera branché côté serveur : les choix sont mémorisés localement.</p>
   `;
 
   const filtersEl = document.createElement('div');

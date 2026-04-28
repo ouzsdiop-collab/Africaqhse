@@ -1,5 +1,5 @@
 /**
- * Bloc « Lecture manager » — synthèse premium en tête de page Risques.
+ * Bloc « Lecture manager » : synthèse premium en tête de page Risques.
  */
 
 import { riskCriticalityFromMeta } from '../utils/riskMatrixCore.js';
@@ -77,7 +77,7 @@ export function createRiskManagerReadingCard(risks, opts) {
 
   const art = document.createElement('article');
   art.className = 'risk-manager-reading risk-manager-reading--premium';
-  art.setAttribute('aria-label', 'Lecture manager — synthèse');
+  art.setAttribute('aria-label', 'Lecture manager : synthèse');
 
   const head = document.createElement('div');
   head.className = 'risk-manager-reading__head';
@@ -101,7 +101,7 @@ export function createRiskManagerReadingCard(risks, opts) {
   let reco =
     'Maintenir les revues sur les paliers élevés et vérifier les mesures de maîtrise au terrain.';
   if (sansAction) {
-    reco = `Prioriser une action pour « ${sansAction.title || 'risque sans lien'} » — réduire l’exposition opérationnelle.`;
+    reco = `Prioriser une action pour « ${sansAction.title || 'risque sans lien'} ». Réduire l’exposition opérationnelle.`;
   } else if (derive) {
     reco = `Surveiller « ${derive.title || 'risque en dérive'} » : confirmer les barrières et le responsable terrain.`;
   }
@@ -119,7 +119,7 @@ export function createRiskManagerReadingCard(risks, opts) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'risk-manager-reading__tile';
-    b.innerHTML = `<span class="risk-manager-reading__tile-lbl">${escapeHtml(lbl)}</span><span class="risk-manager-reading__tile-val">${risk ? escapeHtml(String(risk.title || '—')) : '—'}</span><span class="risk-manager-reading__tile-sub">${escapeHtml(hint)}</span>`;
+    b.innerHTML = `<span class="risk-manager-reading__tile-lbl">${escapeHtml(lbl)}</span><span class="risk-manager-reading__tile-val">${risk ? escapeHtml(String(risk.title || 'Non renseigné')) : 'Non disponible'}</span><span class="risk-manager-reading__tile-sub">${escapeHtml(hint)}</span>`;
     if (risk?.title) {
       b.addEventListener('click', () => opts.onScrollToTitle?.(String(risk.title)));
     } else {

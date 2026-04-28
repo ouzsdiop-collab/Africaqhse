@@ -44,7 +44,7 @@ function createRouteLoadingView() {
 }
 
 /**
- * Chargement dynamique des pages — réduit le JS initial (code-splitting Vite).
+ * Chargement dynamique des pages : réduit le JS initial (code-splitting Vite).
  * @param {string} pageId
  * @param {(entry: unknown) => void} onAddLog
  * @returns {Promise<HTMLElement>}

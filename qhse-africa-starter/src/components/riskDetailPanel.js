@@ -1,7 +1,7 @@
 import { openRiskSheetModal } from './riskSheetModal.js';
 
 /**
- * Fiche détail risque (modal) — même contenu que {@link openRiskSheetModal}.
+ * Fiche détail risque (modal) : même contenu que {@link openRiskSheetModal}.
  *
  * @param {object} risk
  * @param {object} [opts]

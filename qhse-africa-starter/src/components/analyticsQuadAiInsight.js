@@ -1,5 +1,5 @@
 /**
- * Synthèse sous la grille Analytics (4 cartes) — heuristique locale + enrichissement API IA si disponible.
+ * Synthèse sous la grille Analytics (4 cartes) : heuristique locale + enrichissement API IA si disponible.
  */
 
 import { qhseFetch } from '../utils/qhseFetch.js';
@@ -21,7 +21,7 @@ function aggregateAuditStatuses(audits) {
   if (!Array.isArray(audits) || !audits.length) return [];
   const m = new Map();
   audits.forEach((a) => {
-    const s = String(a.status || '—').trim() || '—';
+    const s = String(a.status || 'Non renseigné').trim() || 'Non renseigné';
     m.set(s, (m.get(s) || 0) + 1);
   });
   return [...m.entries()]
@@ -52,7 +52,7 @@ export function computeQuadInsightHeuristic(counts, data) {
     const ratio = Math.round((actOver / actTotal) * 100);
     if (actOver === 0) {
       parts.push(
-        `Sur ${actTotal} action(s) suivie(s), aucun retard — discipline d’exécution favorable.`
+        `Sur ${actTotal} action(s) suivie(s), aucun retard. Discipline d’exécution favorable.`
       );
     } else {
       parts.push(
@@ -72,7 +72,7 @@ export function computeQuadInsightHeuristic(counts, data) {
     const top = vols.filter((v) => v.n === maxN);
     const label = top.map((t) => t.key).join(' et ');
     parts.push(
-      `À l’échelle relative des volumes, « ${label} » domine (${maxN}) — c’est le levier le plus visible pour un gain rapide de visibilité.`
+      `À l’échelle relative des volumes, « ${label} » domine (${maxN}). C’est le levier le plus visible pour un gain rapide de visibilité.`
     );
   }
 
@@ -90,15 +90,17 @@ export function computeQuadInsightHeuristic(counts, data) {
     const [a, b] = [types[0], types[1]];
     if (b && a.count === b.count) {
       parts.push(
-        `Les incidents critiques se partagent entre « ${a.type} » et « ${b.type} » (${a.count} chacun) — analyser les causes système communes plutôt qu’un seul poste.`
+        `Les incidents critiques se partagent entre « ${a.type} » et « ${b.type} » (${a.count} chacun). Analyser les causes système communes plutôt qu’un seul poste.`
       );
     } else {
       parts.push(
-        `Parmi les critiques ouverts, « ${a.type} » ressort en tête (${a.count}) — utile pour un focus causes / barrières.`
+        `Parmi les critiques ouverts, « ${a.type} » ressort en tête (${a.count}). Utile pour un focus causes / barrières.`
       );
     }
   } else if (critOpen === 0) {
-    parts.push('Aucun incident critique ouvert dans le périmètre analysé — priorité sécurité sous contrôle sur cet indicateur.');
+    parts.push(
+      'Aucun incident critique ouvert dans le périmètre analysé. Priorité sécurité sous contrôle sur cet indicateur.'
+    );
   }
 
   if (statAudit.length) {
@@ -106,18 +108,18 @@ export function computeQuadInsightHeuristic(counts, data) {
     const second = statAudit[1];
     if (second) {
       parts.push(
-        `Sur l’échantillon audits, « ${topS.type} » (${topS.count}) et « ${second.type} » (${second.count}) structurent le paysage — caler le plan de contrôle en conséquence.`
+        `Sur l’échantillon audits, « ${topS.type} » (${topS.count}) et « ${second.type} » (${second.count}) structurent le paysage. Caler le plan de contrôle en conséquence.`
       );
     } else {
       parts.push(
-        `Les statuts d’audit sont dominés par « ${topS.type} » (${topS.count} cas) — vérifier la couverture temporelle des revues.`
+        `Les statuts d’audit sont dominés par « ${topS.type} » (${topS.count} cas). Vérifier la couverture temporelle des revues.`
       );
     }
   }
 
   if (actTotal >= 8 && actOver > 0 && actOver / actTotal <= 0.12) {
     parts.push(
-      'Les retards restent une minorité du plan d’actions — privilégier la clôture rapide de ces fiches pour éviter qu’elles ne deviennent structurels.'
+      'Les retards restent une minorité du plan d’actions. Privilégier la clôture rapide de ces fiches pour éviter qu’elles ne deviennent structurels.'
     );
   }
 
@@ -129,12 +131,12 @@ export function computeQuadInsightHeuristic(counts, data) {
 
   if (inc30 > 0 && inc30 <= 2 && critOpen === 0) {
     parts.push(
-      'Volume incidents 30 j. contenu sans critique ouvert — opportunité de capitaliser sur le retour d’expérience (Rex) plutôt que sur la réaction d’urgence.'
+      'Volume incidents 30 j. contenu sans critique ouvert. Opportunité de capitaliser sur le retour d’expérience (Rex) plutôt que sur la réaction d’urgence.'
     );
   }
 
   if (parts.length === 0) {
-    return 'Indicateurs peu denses sur cet échantillon — enrichir les données ou élargir le périmètre pour une lecture plus fine.';
+    return 'Indicateurs peu denses sur cet échantillon. Enrichir les données ou élargir le périmètre pour une lecture plus fine.';
   }
 
   return parts.slice(0, 4).join(' ');
@@ -188,7 +190,7 @@ function isPlaceholderSummary(text) {
 /**
  * Section carte : synthèse IA sous les 4 graphiques secondaires.
  * @param {Record<string, unknown>} counts
- * @param {object} data — même objet que la synthèse reporting
+ * @param {object} data : même objet que la synthèse reporting
  * @param {Record<string, unknown>} [kpis]
  * @returns {HTMLElement}
  */
@@ -212,7 +214,7 @@ export function createAnalyticsQuadInsightSection(counts, data, kpis) {
   const badge = document.createElement('span');
   badge.className = 'analytics-quad-ai__badge';
   badge.textContent = 'Indicatif';
-  badge.title = 'Contenu généré ou heuristique — validation métier requise.';
+  badge.title = 'Contenu généré ou heuristique : validation métier requise.';
 
   head.append(kicker, title, badge);
 
@@ -226,7 +228,7 @@ export function createAnalyticsQuadInsightSection(counts, data, kpis) {
 
   const meta = document.createElement('p');
   meta.className = 'analytics-quad-ai__meta';
-  meta.textContent = 'Synthèse locale instantanée — connexion à l’IA en cours…';
+  meta.textContent = 'Synthèse locale instantanée. Connexion à l’IA en cours…';
 
   body.append(textEl, meta);
   section.append(head, body);
@@ -245,11 +247,11 @@ export function createAnalyticsQuadInsightSection(counts, data, kpis) {
       });
       if (res.status === 403) {
         meta.textContent =
-          'Permission « suggestions IA » (écriture) absente — affichage de la synthèse locale uniquement.';
+          'Permission « suggestions IA » (écriture) absente. Affichage de la synthèse locale uniquement.';
         return;
       }
       if (!res.ok) {
-        meta.textContent = `IA indisponible (${res.status}) — synthèse locale conservée.`;
+        meta.textContent = `IA indisponible (${res.status}). Synthèse locale conservée.`;
         return;
       }
       const row = await res.json().catch(() => null);
@@ -263,16 +265,16 @@ export function createAnalyticsQuadInsightSection(counts, data, kpis) {
       if (usedLlm) {
         textEl.textContent = summary;
         meta.textContent =
-          'Proposition enrichie par modèle — à valider avant toute décision opérationnelle.';
+          'Proposition enrichie par modèle : à valider avant toute décision opérationnelle.';
       } else if (!isPlaceholderSummary(summary) && summary.length > 60) {
         textEl.textContent = summary;
-        meta.textContent = 'Synthèse serveur — revue humaine recommandée.';
+        meta.textContent = 'Synthèse serveur : revue humaine recommandée.';
       } else {
         meta.textContent =
-          'Modèle distant non utilisé ou indisponible — synthèse heuristique affichée.';
+          'Modèle distant non utilisé ou indisponible. Synthèse heuristique affichée.';
       }
     } catch {
-      meta.textContent = 'Connexion IA impossible — synthèse locale conservée.';
+      meta.textContent = 'Connexion IA impossible. Synthèse locale conservée.';
     }
   })();
 

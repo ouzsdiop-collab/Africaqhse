@@ -1,5 +1,5 @@
 /**
- * Tri et scoring criticité — pilotage terrain (sans backend).
+ * Tri et scoring criticité : pilotage terrain (sans backend).
  * Ordre : expiré → urgence calendaire → justificatif manquant → statut fragile.
  */
 

@@ -1,7 +1,7 @@
 const STYLE_ID = 'qhse-pilotage-module-styles';
 
 const CSS = `
-/* —— Page Risques : structure & blocs (rythme vertical : .page-stack + --page-stack-gap) —— */
+/* Page Risques : structure & blocs (rythme vertical : .page-stack + --page-stack-gap) */
 .risks-page{min-width:0}
 .risks-page__kpi{
   padding:16px 18px;
@@ -541,7 +541,7 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
   box-shadow:0 0 0 1px color-mix(in srgb,var(--palette-accent,#14b8a6) 22%,transparent);
 }
 
-/* —— Plan d’actions premium : KPI, filtres compacts, Kanban aéré, cartes menu ⋯ —— */
+/* Plan d’actions premium : KPI, filtres compacts, Kanban aéré, cartes menu ⋯ */
 .page-stack--actions-premium{gap:1.35rem}
 .actions-page__main-card{padding:20px 22px 26px}
 .actions-page__kpi-host{margin-top:12px}
@@ -1143,7 +1143,7 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 .risk-matrix-legend__sw--4{background:linear-gradient(148deg,rgba(167,139,250,.88),rgba(249,115,22,.48) 42%,rgba(40,20,30,.28))}
 .risk-matrix-legend__sw--5{background:linear-gradient(148deg,rgba(252,165,165,.95),rgba(185,28,28,.72) 38%,rgba(40,10,12,.42));color:#fff;box-shadow:0 0 14px rgba(220,38,38,.4)}
 
-/* —— Risques premium : bandeau, matrice visible, tableau, évolution, preuves, IA —— */
+/* Risques premium : bandeau, matrice visible, tableau, évolution, preuves, IA */
 .risks-page--premium{gap:1.25rem}
 .risks-pilot-banner-host{margin-bottom:0}
 .risks-pilot-banner{
@@ -1335,7 +1335,7 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
   .risks-register-premium-table{font-size:11px}
 }
 
-/* —— Matrice G×P premium : gradients, heatmap, tooltips, axes —— */
+/* Matrice G×P premium : gradients, heatmap, tooltips, axes */
 .risks-matrix-card-prominent .risk-matrix-grid-wrap{margin-top:4px;padding-bottom:6px}
 .risk-matrix-grid--premium{
   grid-template-columns:minmax(56px,auto) repeat(5,minmax(0,1fr));
@@ -1498,7 +1498,7 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 }
 .risk-matrix-cell-tooltip__empty{font-size:12px;color:var(--color-text-secondary);line-height:1.55}
 
-/* —— Risques : hub QHSE premium (KPI, matrice héro, analyse, détail fiche) —— */
+/* Risques : hub QHSE premium (KPI, matrice héro, analyse, détail fiche) */
 .risks-pilot-banner--qhse-hub .risks-pilot-banner__head{margin-bottom:14px}
 .risks-pilot-banner__kpis--four{
   grid-template-columns:repeat(4,minmax(0,1fr));
@@ -1768,7 +1768,7 @@ html[data-theme='light'] .metric-card--kpi-click:not(.dashboard-kpi-card) .metri
   color:#111827;
 }
 
-/* —— Mode clair : surfaces, filets et pastilles (risques, actions, matrices, kanban) —— */
+/* Mode clair : surfaces, filets et pastilles (risques, actions, matrices, kanban) */
 html[data-theme='light'] .risks-page__kpi,
 html[data-theme='light'] .risks-page__insights{
   border-color:var(--color-border-tertiary);

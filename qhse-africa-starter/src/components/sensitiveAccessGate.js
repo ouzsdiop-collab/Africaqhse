@@ -120,7 +120,7 @@ export function ensureSensitiveAccess(actionKey, opts = {}) {
   const pin = loadSensitiveAccessPin();
   if (!pin) {
     showToast(
-      'Accès renforcé activé sans code enregistré — définissez un code à 6 chiffres dans Paramètres → Sécurité & accès.',
+      'Accès renforcé activé sans code enregistré. Définissez un code à 6 chiffres dans Paramètres → Sécurité & accès.',
       'warning'
     );
     return Promise.resolve(false);

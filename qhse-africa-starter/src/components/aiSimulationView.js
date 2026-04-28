@@ -42,7 +42,7 @@ export function renderSimulationResult(container, result) {
   const foot = document.createElement('p');
   foot.className = 'ai-sim-result-foot';
   foot.textContent =
-    'Sortie illustrative — validation humaine et rattachement à votre système d’information requis pour exploitation réelle.';
+    'Sortie illustrative. Validation humaine et rattachement à votre système d’information requis pour exploitation réelle.';
 
   container.append(head, body, foot);
 }

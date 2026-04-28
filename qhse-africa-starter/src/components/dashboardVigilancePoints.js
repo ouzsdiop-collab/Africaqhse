@@ -1,5 +1,5 @@
 /**
- * Points de vigilance — tendances, anomalies, dérives (données dashboard existantes).
+ * Points de vigilance : tendances, anomalies, dérives (données dashboard existantes).
  */
 
 import { MS_DAY, computeIncidentWeekMetrics } from '../utils/dashboardIncidentMetrics.js';
@@ -111,7 +111,7 @@ export function computeVigilanceItems(input) {
       variant: 'drift',
       headline: 'File d’actions qui vieillit',
       detail:
-        'Nombre élevé d’actions anciennes ou en retard côté agrégat : risque de dérive du plan — arbitrage nécessaire.',
+        'Nombre élevé d’actions anciennes ou en retard côté agrégat : risque de dérive du plan. Arbitrage nécessaire.',
       hash: 'actions'
     });
   } else if (stale30 >= 2 || overdueKpi >= 4) {
@@ -168,7 +168,7 @@ export function computeVigilanceItems(input) {
   return out.slice(0, MAX_ITEMS);
 }
 
-/** @deprecated Utiliser computeVigilanceItems — conservé pour compatibilité éventuelle. */
+/** @deprecated Utiliser computeVigilanceItems. Conservé pour compatibilité éventuelle. */
 export function computeVigilanceMessages(input) {
   return computeVigilanceItems(input).map((x) => x.headline);
 }

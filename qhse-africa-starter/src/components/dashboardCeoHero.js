@@ -163,7 +163,7 @@ function buildCeoScoreArc(score, tone) {
 }
 
 /**
- * Tendance scores d’audit (moyenne mensuelle 0–100) — axe fixe, pas de doublon avec la courbe incidents.
+ * Tendance scores d’audit (moyenne mensuelle 0–100) : axe fixe, pas de doublon avec la courbe incidents.
  * @param {{ label: string; value: number }[]} series
  * @param {string} gradId id unique pour les définitions SVG (dégradés / filtres)
  */
@@ -171,7 +171,7 @@ function buildCeoAuditTrendSvg(series, gradId) {
   const safe =
     Array.isArray(series) && series.length
       ? series
-      : [{ label: '—', value: 0 }];
+      : [{ label: 'Non disponible', value: 0 }];
   const vals = safe.map((s) => Math.max(0, Math.min(100, Number(s.value) || 0)));
   const monthHasAudits = (i) =>
     typeof safe[i]?.count === 'number' ? safe[i].count > 0 : vals[i] > 0;
@@ -360,7 +360,7 @@ function buildCeoAuditTrendSvg(series, gradId) {
       }
     });
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = `${label} : ${value} % — ouvrir le module Audits`;
+    title.textContent = `${label} : ${value} % (ouvrir le module Audits)`;
     dot.append(title);
     svg.append(dot);
   });
@@ -390,9 +390,9 @@ export function createDashboardCeoHero(siteName, opts = {}) {
     </div>
     <div class="dashboard-ceo-hero__body">
       <div class="dashboard-ceo-hero__visual" data-ceo-visual>
-        <span class="dashboard-ceo-hero__status" data-ceo-status-badge>—</span>
+        <span class="dashboard-ceo-hero__status" data-ceo-status-badge>Non disponible</span>
         <div class="dashboard-ceo-hero__ring-wrap" data-ceo-ring></div>
-        <div class="dashboard-ceo-hero__scorenum" data-ceo-score>—</div>
+        <div class="dashboard-ceo-hero__scorenum" data-ceo-score>Non disponible</div>
         <p class="dashboard-ceo-hero__scorecaption" data-ceo-caption>Indice QHSE synthétique</p>
         <p class="dashboard-ceo-hero__scorehint" data-ceo-hint></p>
       </div>
@@ -422,7 +422,7 @@ export function createDashboardCeoHero(siteName, opts = {}) {
             <div class="dashboard-ceo-hero__prime-titles">
               <span class="dashboard-ceo-hero__prime-eyebrow">Synthèse conformité</span>
               <span class="dashboard-ceo-hero__prime-title">Performance des audits</span>
-              <span class="dashboard-ceo-hero__prime-hint">Moyenne mensuelle des scores sur six mois — même périmètre que la liste chargée.</span>
+              <span class="dashboard-ceo-hero__prime-hint">Moyenne mensuelle des scores sur six mois, même périmètre que la liste chargée.</span>
             </div>
             <span class="dashboard-ceo-hero__prime-badge" data-ceo-audit-avg></span>
           </div>
@@ -510,7 +510,7 @@ export function createDashboardCeoHero(siteName, opts = {}) {
     if (criticalCount > 0) parts.push(`${criticalCount} critique(s) ouverte(s)`);
     if (overdueCount > 0) parts.push(`${overdueCount} action(s) en retard`);
     if (ncOpenCount > 0) parts.push(`${ncOpenCount} NC ouverte(s)`);
-    const summaryLine = parts.length ? parts.join(' · ') : 'Aucune alerte — situation maîtrisée';
+    const summaryLine = parts.length ? parts.join(' · ') : 'Aucune alerte, situation maîtrisée';
     briefEl.textContent = summaryLine;
 
     const score = computeQhseGlobalScore({
@@ -539,7 +539,7 @@ export function createDashboardCeoHero(siteName, opts = {}) {
     ringHost.append(buildCeoScoreArc(score, meta.tone));
 
     const auditTrend = buildMonthlyAuditScoreAvgSeries(audits, 6);
-    /** Mois avec au moins un audit daté — la moyenne peut être 0 % (ex. audits planifiés). */
+    /** Mois avec au moins un audit daté : la moyenne peut être 0 % (ex. audits planifiés). */
     const hasAuditTrendData = auditTrend.some((x) => (x.count ?? 0) > 0);
     const scored = auditTrend.filter((x) => (x.count ?? 0) > 0).map((x) => x.value);
     const gradId = `ceo-audit-fill-${Math.random().toString(36).slice(2, 9)}`;
@@ -596,7 +596,7 @@ export function createDashboardCeoHero(siteName, opts = {}) {
     if (primeFootHint) {
       primeFootHint.textContent = hasAuditTrendData
         ? 'Ouvrir le module Audits'
-        : 'Vers les audits — saisir des scores';
+        : 'Vers les audits : saisir des scores';
     }
   }
 

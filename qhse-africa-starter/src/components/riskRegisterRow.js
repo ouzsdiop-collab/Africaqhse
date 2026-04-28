@@ -19,7 +19,7 @@ function tierToRowTone(tier) {
 
 function dash(v) {
   const s = v != null ? String(v).trim() : '';
-  return s || '—';
+  return s || 'Non renseigné';
 }
 
 function hasActionLinked(r) {
@@ -27,7 +27,7 @@ function hasActionLinked(r) {
 }
 
 /**
- * Alertes visuelles — pilotage opérationnel.
+ * Alertes visuelles : pilotage opérationnel.
  * @param {object} r
  */
 export function computeRiskRowAlerts(r) {
@@ -82,7 +82,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
   }
   if (alerts.criticalNoAction) {
     tr.classList.add('risk-register-table-row--pulse-crit');
-    tr.title = 'Risque critique sans action liée — prioriser.';
+    tr.title = 'Risque critique sans action liée. À prioriser.';
   }
   if (alerts.derive) tr.classList.add('risk-register-table-row--warn-derive');
   if (alerts.stale) tr.classList.add('risk-register-table-row--stale-update');
@@ -103,14 +103,14 @@ export function createRiskRegisterRow(risk, opts = {}) {
     const st = document.createElement('span');
     st.className = 'risk-register-table-row__stale-badge';
     st.textContent = 'À actualiser';
-    st.title = 'Dernière mise à jour ancienne — revoir la fiche.';
+    st.title = 'Dernière mise à jour ancienne. Revoir la fiche.';
     tdName.append(st);
   }
   if (alerts.derive) {
     const w = document.createElement('span');
     w.className = 'risk-register-table-row__derive-badge';
     w.textContent = 'Dérive';
-    w.title = 'Tendance à la hausse ou état de dérive — vérifier le pilotage.';
+    w.title = 'Tendance à la hausse ou dérive. Vérifier le pilotage.';
     tdName.append(w);
   }
   if (tableColumnMode === 'essential') {
@@ -118,10 +118,10 @@ export function createRiskRegisterRow(risk, opts = {}) {
     if (crit) bits.push(crit.label);
     if (gp) bits.push(`G${gp.g}×P${gp.p}`);
     const own = dash(risk.responsible);
-    if (own !== '—') bits.push(own);
+    if (own !== 'Non renseigné') bits.push(own);
     const meta = document.createElement('div');
     meta.className = 'risk-register-table-row__meta-inline';
-    meta.textContent = bits.length ? bits.join(' · ') : '—';
+    meta.textContent = bits.length ? bits.join(' · ') : 'Non renseigné';
     tdName.append(meta);
   }
 
@@ -150,7 +150,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
   gpAbbr.className = 'risk-register-table-row__gxp-abbr';
   gpAbbr.title =
     'G×P = Gravité × Probabilité (1 à 25). On multiplie deux notes : plus le produit est élevé, plus la priorité de traitement augmente sur la matrice (ISO 45001 / 14001).';
-  gpAbbr.textContent = gp ? `G${gp.g}×P${gp.p}` : '—';
+  gpAbbr.textContent = gp ? `G${gp.g}×P${gp.p}` : 'Non renseigné';
   tdGp.append(gpAbbr);
   if (tableColumnMode === 'essential') tdGp.classList.add('qhse-col-adv');
 

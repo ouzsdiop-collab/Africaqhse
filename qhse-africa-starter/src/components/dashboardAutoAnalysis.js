@@ -1,5 +1,5 @@
 /**
- * Analyse automatique — jusqu’à 2 sujets actionnables (titres courts + donnée clé + CTA).
+ * Analyse automatique : jusqu’à 2 sujets actionnables (titres courts + donnée clé + CTA).
  * Compteurs : `stats` / listes chargées. Les courbes de tendance du dashboard passent par
  * `stats.timeseries` (voir chartsSection / decisionPanel / audit chart block).
  */

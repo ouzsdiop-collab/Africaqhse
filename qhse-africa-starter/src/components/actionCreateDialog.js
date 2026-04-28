@@ -11,7 +11,7 @@ import { applyAssistantActionFormSuggestion } from '../utils/qhseAssistantFormSu
 
 /**
  * Construit le payload passé à `onCreated` à partir de la réponse API et du formulaire.
- * @param {unknown} created — corps JSON POST /api/actions
+ * @param {unknown} created : corps JSON POST /api/actions
  * @param {{ title: string }} formFallback
  * @returns {ActionCreatedPayload}
  */
@@ -36,7 +36,7 @@ function buildActionCreatedPayload(created, formFallback) {
 /**
  * @param {object} opts
  * @param {(payload?: ActionCreatedPayload) => void} [opts.onCreated]
- * @param {boolean} [opts.builtInSuccessToast=true] — toast « Action créée » si succès (mettre false si le parent gère tout le feedback).
+ * @param {boolean} [opts.builtInSuccessToast=true] : toast « Action créée » si succès (mettre false si le parent gère tout le feedback).
  * @param {Array<{ id: string, name: string, role: string }>} opts.users
  * @param {Partial<{ title: string, origin: string, actionType: string, priority: string, description: string, dueDate: string, assigneeId: string, linkedRisk: string, linkedRiskId: string, linkedAudit: string, linkedIncident: string, status: string }>} [opts.defaults]
  */
@@ -52,14 +52,14 @@ export function openActionCreateDialog(opts) {
 
   inner.innerHTML = `
     <h2 class="action-create-dialog__title" id="action-create-dialog-title">Nouvelle action</h2>
-    <p class="action-create-dialog__lead">L’origine est obligatoire — l’assistant peut préremplir la description et la priorité pour gagner du temps sur le terrain.</p>
+    <p class="action-create-dialog__lead">L’origine est obligatoire. L’assistant peut préremplir la description et la priorité pour gagner du temps sur le terrain.</p>
     <form class="action-create-dialog__form" id="action-create-form">
       <label>Titre *
         <input type="text" name="title" required maxlength="240" placeholder="Ex. Réduction dérive température cuve 3" />
       </label>
       <label>Origine * (pilotage)
         <select name="origin" required>
-          <option value="">— Choisir —</option>
+          <option value="">Choisir</option>
           <option value="risk">Risque</option>
           <option value="audit">Audit</option>
           <option value="incident">Incident</option>
@@ -85,14 +85,14 @@ export function openActionCreateDialog(opts) {
         <textarea name="description" required rows="5" placeholder="Contexte, périmètre, critère de clôture…"></textarea>
       </label>
       <div class="action-create-dialog__ia-row">
-        <button type="button" class="btn btn-secondary" data-action="suggest-ia">Assistant QHSE — description &amp; priorité</button>
+        <button type="button" class="btn btn-secondary" data-action="suggest-ia">Assistant QHSE : description &amp; priorité</button>
       </div>
       <label>Échéance
         <input type="date" name="dueDate" />
       </label>
       <label>Responsable
         <select name="assigneeId">
-          <option value="">— À assigner —</option>
+          <option value="">À assigner</option>
         </select>
       </label>
       <label>Risque lié (référence)
@@ -153,7 +153,7 @@ export function openActionCreateDialog(opts) {
       showToast(r.message || 'Complétez le formulaire pour l’assistant.', 'info');
       return;
     }
-    showToast('Assistant QHSE : description et priorité proposées — contrôle terrain obligatoire.', 'info');
+    showToast('Assistant QHSE : description et priorité proposées. Contrôle terrain obligatoire.', 'info');
   });
 
   inner.querySelector('[data-action="cancel"]').addEventListener('click', () => {

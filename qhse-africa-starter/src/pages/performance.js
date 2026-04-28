@@ -27,7 +27,7 @@ import { createPerformanceTfTgBlock } from '../components/tfTgKpi.js';
 
 const SNAPSHOT_KEY = 'qhse-performance-kpi-snapshot-v1';
 
-/** Objectifs affichés (référence pilotage — pas de persistance serveur). */
+/** Objectifs affichés (référence pilotage, pas de persistance serveur). */
 const GOALS = {
   conformity: 85,
   auditScore: 80,
@@ -88,7 +88,7 @@ function computeGlobalConformity(counts, kpis) {
 }
 
 function formatDelta(prev, cur) {
-  if (prev == null || Number.isNaN(Number(prev))) return '—';
+  if (prev == null || Number.isNaN(Number(prev))) return 'Non disponible';
   const d = Math.round((Number(cur) - Number(prev)) * 10) / 10;
   if (Math.abs(d) < 0.05) return '=';
   return (d > 0 ? '+' : '') + String(d);
@@ -106,7 +106,7 @@ function toneVsGoal(value, goal, lowerIsBetter = false) {
 }
 
 function formatEcartVsObjectif(value, goal, lowerIsBetter, unit = 'pt') {
-  if (value == null || goal == null || Number.isNaN(Number(value))) return '—';
+  if (value == null || goal == null || Number.isNaN(Number(value))) return 'Non disponible';
   const v = Number(value);
   const g = Number(goal);
   if (lowerIsBetter) {
@@ -135,11 +135,11 @@ function vigilanceLevel(conformity, counts, kpis) {
   if (od > 5 || (avg != null && avg < GOALS.auditScore) || conformity < GOALS.conformity) {
     return { label: 'Vigilance', tone: 'amber', hint: 'Serrer le suivi des écarts.' };
   }
-  return { label: 'Maîtrise', tone: 'green', hint: 'Cap soutenable — consolider.' };
+  return { label: 'Maîtrise', tone: 'green', hint: 'Cap soutenable. Consolider.' };
 }
 
 function trendArrowFromDelta(deltaStr) {
-  if (deltaStr === '—' || deltaStr === '=') return '→';
+  if (deltaStr === 'Non disponible' || deltaStr === '=') return '→';
   if (String(deltaStr).startsWith('+')) return '↑';
   if (String(deltaStr).startsWith('-')) return '↓';
   return '→';
@@ -198,44 +198,44 @@ function buildPilotagePrioritiesStructured(counts, kpis) {
 function kpiBusinessInsight(kind, tone) {
   const map = {
     conformity: {
-      red: 'Conformité très inférieure à l’objectif — plan d’action prioritaire.',
-      amber: 'Écart notable vs cible — activer les leviers NC, retards et sécurité.',
-      green: 'Indice sous contrôle par rapport au repère — consolider les pratiques.',
-      blue: 'Indicateur composite — ouvrir le détail pour prioriser les leviers.'
+      red: 'Conformité très inférieure à l’objectif. Plan d’action prioritaire.',
+      amber: 'Écart notable vs cible. Activez les leviers NC, retards et sécurité.',
+      green: 'Indice sous contrôle par rapport au repère. Consolidez les pratiques.',
+      blue: 'Indicateur composite. Ouvrez le détail pour prioriser les leviers.'
     },
     auditScore: {
-      red: 'Score audit sous le seuil — audits et plans d’amélioration à renforcer.',
-      amber: 'Marge vs objectif serrée — suivre les écarts par site et norme.',
+      red: 'Score audit sous le seuil. Audits et plans d’amélioration à renforcer.',
+      amber: 'Marge vs objectif serrée. Suivez les écarts par site et norme.',
       green: 'Performance audit alignée sur la cible.',
-      blue: 'Données score incomplètes — compléter les audits notés.'
+      blue: 'Données score incomplètes. Complétez les audits notés.'
     },
     incidentsCritical: {
-      red: 'Incidents critiques encore ouverts — risque élevé, arbitrage attendu.',
+      red: 'Incidents critiques encore ouverts. Risque élevé, arbitrage attendu.',
       amber: 'Points critiques à traiter sans délai.',
       green: 'Aucun critique ouvert sur le périmètre chargé.',
-      blue: 'Synthèse incidents — ouvrir le détail pour le filtre gravité.'
+      blue: 'Synthèse incidents. Ouvrez le détail pour filtrer par gravité.'
     },
     ncRate: {
-      red: 'Taux de traitement NC sous la cible — goulot sur la clôture.',
+      red: 'Taux de traitement NC sous la cible. Goulot sur la clôture.',
       amber: 'NC : progression à sécuriser (jalons, preuves).',
       green: 'Traitement NC dans les tolérances affichées.',
-      blue: 'Données NC partielles — fiabiliser le référentiel.'
+      blue: 'Données NC partielles. Fiabilisez le référentiel.'
     },
     execution: {
-      red: 'Respect des échéances fragile — désengorger les files d’actions.',
-      amber: 'Retards ponctuels — relancer les porteurs.',
+      red: 'Respect des échéances fragile. Désengorgez les files d’actions.',
+      amber: 'Retards ponctuels. Relancez les porteurs.',
       green: 'Exécution globalement dans les temps.',
-      blue: 'Indicateur d’adhérence — croiser avec les retards réels.'
+      blue: 'Indicateur d’adhérence. Croisez avec les retards réels.'
     },
     actionsLate: {
       red: 'Actions en retard impactent fortement la performance globale.',
       amber: 'Retards à traiter en priorité sur la période.',
       green: 'Aucun retard signalé sur les actions suivies.',
-      blue: 'File actions — filtrer par statut et responsable.'
+      blue: 'File actions. Filtrez par statut et responsable.'
     }
   };
   const row = map[kind] || {};
-  return row[tone] || row.blue || '—';
+  return row[tone] || row.blue || 'Non disponible';
 }
 
 function navigateHash(id) {
@@ -264,7 +264,7 @@ function elKpiMain(opts) {
   art.setAttribute('role', 'button');
   art.setAttribute(
     'aria-label',
-    `${title} — ouvrir le détail (${kpiKey || ''})`
+    `${title} : ouvrir le détail (${kpiKey || ''})`
   );
   art.addEventListener('click', () => onOpenDetail?.(kpiKey));
   art.addEventListener('keydown', (e) => {
@@ -307,7 +307,7 @@ function elKpiMain(opts) {
 function elPerfCockpitHero(conformity, prev, counts, kpis, onOpenConformityDetail) {
   const v = vigilanceLevel(conformity, counts, kpis);
   const safeVigilTone = sanitizeClassToken(v.tone, 'amber');
-  const dConf = prev ? formatDelta(prev.conformity, conformity) : '—';
+  const dConf = prev ? formatDelta(prev.conformity, conformity) : 'Non disponible';
   const arrow = trendArrowFromDelta(dConf);
   const section = document.createElement('section');
   section.className = 'kpi-perf-cockpit-hero';
@@ -359,7 +359,7 @@ function elPerfCockpitHero(conformity, prev, counts, kpis, onOpenConformityDetai
     scoreEl.classList.add('kpi-perf-hero-score--interactive');
     scoreEl.setAttribute('role', 'button');
     scoreEl.tabIndex = 0;
-    scoreEl.setAttribute('aria-label', 'Ouvrir le détail conformité — leviers croisés');
+    scoreEl.setAttribute('aria-label', 'Ouvrir le détail conformité : leviers croisés');
     scoreEl.addEventListener('click', (e) => {
       e.stopPropagation();
       onOpenConformityDetail();
@@ -479,7 +479,7 @@ function elGapsCard(groups, summaryLine) {
     if (!lists[i].children.length) {
       const li = document.createElement('li');
       li.className = 'kpi-perf-gaps-empty';
-      li.textContent = '—';
+      li.textContent = 'Non disponible';
       lists[i].append(li);
     }
   });
@@ -763,28 +763,28 @@ export function renderPerformance() {
           label: 'Score audit moyen',
           pctReal: auditAvg != null ? auditAvg : 0,
           pctGoal: GOALS.auditScore,
-          realText: auditAvg != null ? `${auditAvg} %` : '—',
+          realText: auditAvg != null ? `${auditAvg} %` : 'Non disponible',
           goalText: `${GOALS.auditScore} %`
         },
         {
           label: 'NC traitées (%)',
           pctReal: closeRate != null ? closeRate : 0,
           pctGoal: GOALS.ncTreatmentRate,
-          realText: closeRate != null ? `${closeRate} %` : '—',
+          realText: closeRate != null ? `${closeRate} %` : 'Non disponible',
           goalText: `${GOALS.ncTreatmentRate} %`
         },
         {
           label: 'Actions hors retard',
           pctReal: actOnTrackPct != null ? actOnTrackPct : 0,
           pctGoal: GOALS.actionOnTrackPct,
-          realText: actOnTrackPct != null ? `${actOnTrackPct} %` : '—',
+          realText: actOnTrackPct != null ? `${actOnTrackPct} %` : 'Non disponible',
           goalText: `${GOALS.actionOnTrackPct} %`
         },
         {
           label: 'Pression retards (inv.)',
           pctReal: actTot > 0 ? Math.min(100, (actOd / actTot) * 100) : actOd > 0 ? 100 : 0,
           pctGoal: 0,
-          realText: `${actOd} / ${actTot || '—'}`,
+          realText: `${actOd} / ${actTot || 'Non disponible'}`,
           goalText: '0 retard'
         }
       ];
@@ -818,7 +818,7 @@ export function renderPerformance() {
           label:
             auditAvg != null
               ? `Score audit (${auditAvg} %)`
-              : 'Score audit (—)',
+              : 'Score audit (non disponible)',
           zone:
             auditAvg == null
               ? 'watch'
@@ -828,7 +828,7 @@ export function renderPerformance() {
           label:
             actOnTrackPct != null
               ? `Exécution actions (${actOnTrackPct} % hors retard)`
-              : 'Exécution actions (—)',
+              : 'Exécution actions (non disponible)',
           zone:
             actOnTrackPct == null
               ? 'watch'
@@ -854,7 +854,7 @@ export function renderPerformance() {
       );
       const auditsNote = document.createElement('p');
       auditsNote.className = 'kpi-perf-charge-audits';
-      auditsNote.textContent = `Audits en base : ${counts.auditsTotal ?? '—'}.`;
+      auditsNote.textContent = `Audits en base : ${counts.auditsTotal ?? 'Non disponible'}.`;
 
       const chargeCard = document.createElement('article');
       chargeCard.className = 'content-card card-soft kpi-perf-chart-card kpi-perf-chart-card--charge';
@@ -906,7 +906,7 @@ export function renderPerformance() {
       tierOps.className =
         'kpi-perf-main-grid kpi-grid dashboard-kpi-grid kpi-perf-main-grid--tier-ops';
 
-      const dConf = prev ? formatDelta(prev.conformity, conformity) : '—';
+      const dConf = prev ? formatDelta(prev.conformity, conformity) : 'Non disponible';
       const toneConf = toneVsGoal(conformity, GOALS.conformity);
       tierStrat.append(
         elKpiMain({
@@ -923,11 +923,11 @@ export function renderPerformance() {
         })
       );
 
-      const scoreDisp = auditAvg != null ? `${auditAvg} %` : '—';
+      const scoreDisp = auditAvg != null ? `${auditAvg} %` : 'Non disponible';
       const dScore =
         prev && auditAvg != null && prev.auditScore != null
           ? formatDelta(prev.auditScore, auditAvg)
-          : '—';
+          : 'Non disponible';
       const toneAud =
         auditAvg != null ? toneVsGoal(auditAvg, GOALS.auditScore) : 'blue';
       tierStrat.append(
@@ -939,7 +939,7 @@ export function renderPerformance() {
           gapText:
             auditAvg != null
               ? formatEcartVsObjectif(auditAvg, GOALS.auditScore, false, 'pts')
-              : '—',
+              : 'Non disponible',
           tone: toneAud,
           statusTone: toneAud,
           kpiKey: 'auditScore',
@@ -948,7 +948,7 @@ export function renderPerformance() {
         })
       );
 
-      const dCrit = prev ? formatDelta(prev.critOpen, critOpen) : '—';
+      const dCrit = prev ? formatDelta(prev.critOpen, critOpen) : 'Non disponible';
       const toneCrit = toneVsGoal(critOpen, 0, true);
       tierStrat.append(
         elKpiMain({
@@ -968,19 +968,19 @@ export function renderPerformance() {
       const dNc =
         prev && closeRate != null && prev.ncCloseRate != null
           ? formatDelta(prev.ncCloseRate, closeRate)
-          : '—';
+          : 'Non disponible';
       const toneNc =
         closeRate != null ? toneVsGoal(closeRate, GOALS.ncTreatmentRate) : 'blue';
       tierOps.append(
         elKpiMain({
           title: 'Taux de traitement NC',
-          valueText: closeRate != null ? `${closeRate} %` : '—',
+          valueText: closeRate != null ? `${closeRate} %` : 'Non disponible',
           deltaText: dNc,
           goalText: `${GOALS.ncTreatmentRate} %`,
           gapText:
             closeRate != null
               ? formatEcartVsObjectif(closeRate, GOALS.ncTreatmentRate, false, 'pts')
-              : '—',
+              : 'Non disponible',
           tone: toneNc,
           statusTone: toneNc,
           kpiKey: 'ncTreated',
@@ -992,7 +992,7 @@ export function renderPerformance() {
       const dActPct =
         prev && actOnTrackPct != null && prev.actOnTrackPct != null
           ? formatDelta(prev.actOnTrackPct, actOnTrackPct)
-          : '—';
+          : 'Non disponible';
       const toneExe =
         actOnTrackPct != null
           ? toneVsGoal(actOnTrackPct, GOALS.actionOnTrackPct)
@@ -1000,13 +1000,13 @@ export function renderPerformance() {
       tierOps.append(
         elKpiMain({
           title: 'Respect des échéances',
-          valueText: actOnTrackPct != null ? `${actOnTrackPct} %` : '—',
+          valueText: actOnTrackPct != null ? `${actOnTrackPct} %` : 'Non disponible',
           deltaText: dActPct,
           goalText: `${GOALS.actionOnTrackPct} %`,
           gapText:
             actOnTrackPct != null
               ? formatEcartVsObjectif(actOnTrackPct, GOALS.actionOnTrackPct, false, 'pts')
-              : '—',
+              : 'Non disponible',
           tone: toneExe,
           statusTone: toneExe,
           kpiKey: 'actionsOnTrack',
@@ -1015,7 +1015,7 @@ export function renderPerformance() {
         })
       );
 
-      const dOd = prev ? formatDelta(prev.actionsOverdue, actOd) : '—';
+      const dOd = prev ? formatDelta(prev.actionsOverdue, actOd) : 'Non disponible';
       const toneOd = toneVsGoal(actOd, GOALS.actionsOverdue, true);
       tierOps.append(
         elKpiMain({
@@ -1052,7 +1052,7 @@ export function renderPerformance() {
       const recoSection = createRecommendationsSection(recos, openPerfKpi, {
         assistant: true,
         title: 'Assistant QHSE',
-        subtitle: 'Jusqu’à 3 actions suggérées — cliquer pour traiter'
+        subtitle: 'Jusqu’à 3 actions suggérées, cliquer pour traiter'
       });
       const globalScoreSection = createGlobalScoreSection(cockpitLevel, () =>
         openPerfKpi('conformity')
@@ -1123,7 +1123,7 @@ export function renderPerformance() {
       sum.className = 'kpi-perf-alerts-summary';
       sum.textContent =
         alerts.length === 0
-          ? 'Alertes automatiques — aucune'
+          ? 'Alertes automatiques : aucune'
           : `Alertes automatiques (${alerts.length})`;
       det.append(sum);
       const alStack = document.createElement('div');
@@ -1146,7 +1146,7 @@ export function renderPerformance() {
           ico.textContent = level === 'critical' ? '⚠' : level === 'high' ? '◆' : 'ⓘ';
           const msg = document.createElement('span');
           msg.className = 'kpi-perf-alert__msg';
-          msg.textContent = a.message || a.code || '—';
+          msg.textContent = a.message || a.code || 'Non disponible';
           row.append(ico, msg);
           row.addEventListener('click', () => {
             if (level === 'critical') {

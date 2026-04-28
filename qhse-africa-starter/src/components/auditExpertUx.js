@@ -1,5 +1,5 @@
 /**
- * Couche UX expert QHSE — module Audits (front uniquement, sans backend).
+ * Couche UX expert QHSE : module Audits (front uniquement, sans backend).
  */
 
 import { showToast } from './toast.js';
@@ -160,7 +160,7 @@ export function createAuditExpertCockpitBlock(model) {
   head.innerHTML = `
     <div>
       <h3 id="audit-expert-cockpit-title" class="audit-expert-cockpit__title">Cockpit audit</h3>
-      <p class="audit-expert-cockpit__sub">Synthèse direction — indicateurs consolidés sur le périmètre affiché.</p>
+      <p class="audit-expert-cockpit__sub">Synthèse direction : indicateurs consolidés sur le périmètre affiché.</p>
     </div>
   `;
 
@@ -216,7 +216,7 @@ export function createAuditExpertCockpitBlock(model) {
 async function mountAuditStatusDoughnut(canvas, labels, values) {
   try {
     const { default: Chart } = await import('chart.js/auto');
-    const safeLabels = labels?.length ? labels : ['—'];
+    const safeLabels = labels?.length ? labels : ['Non disponible'];
     const safeVals = values?.length ? values : [1];
     new Chart(canvas, {
       type: 'doughnut',
@@ -288,7 +288,7 @@ export function createExigenceHeatmap(checklist) {
     }
     cell.classList.add(`audit-exigence-heatmap__cell--${tone}`);
     cell.textContent = sym;
-    cell.title = `Exigence ${i + 1} — voir la checklist`;
+    cell.title = `Exigence ${i + 1} : voir la checklist`;
     cell.addEventListener('click', () => {
       document.getElementById(`audit-exigence-${i}`)?.scrollIntoView({
         behavior: 'smooth',
@@ -342,7 +342,7 @@ export function createProcessScoresBlock(rows) {
 
 /**
  * @param {HTMLElement} pageRoot
- * @param {HTMLElement} host — ex. hero CTAs
+ * @param {HTMLElement} host : ex. hero CTAs
  */
 export function attachModeDirectionButton(pageRoot, host) {
   const btn = document.createElement('button');
@@ -390,7 +390,7 @@ export function runAuditExpertAlerts(opts) {
   strip.append(badge, text);
   page.prepend(strip);
 
-  const msg = `Alertes audit : ${reasons.join(' — ')}`;
+  const msg = `Alertes audit : ${reasons.join(' · ')}`;
   showToast(msg, 'error');
 
   const hero = page.querySelector('.audit-premium-header');
@@ -413,13 +413,13 @@ export function buildAuditTimeline(events) {
     const body = document.createElement('div');
     const when = document.createElement('div');
     when.className = 'audit-history-timeline__when';
-    when.textContent = ev.when || '—';
+    when.textContent = ev.when || 'Non disponible';
     const title = document.createElement('div');
     title.className = 'audit-history-timeline__title';
-    title.textContent = ev.title || '—';
+    title.textContent = ev.title || 'Non renseigné';
     const detail = document.createElement('div');
     detail.className = 'audit-history-timeline__detail';
-    detail.textContent = ev.detail || '—';
+    detail.textContent = ev.detail || 'Non renseigné';
     body.append(when, title, detail);
     li.append(ic, body);
     ul.append(li);
@@ -442,7 +442,7 @@ export function openAuditCsvImportModal(onValidate) {
   modal.innerHTML = `
     <h4>Importer un audit (CSV)</h4>
     <p style="margin:0 0 10px;font-size:12px;color:var(--text3);line-height:1.45">
-      Fichier .csv / .tsv — détection heuristique des colonnes (exigences, NC, preuves). Aperçu local avant validation.
+      Fichier .csv / .tsv : détection heuristique des colonnes (exigences, NC, preuves). Aperçu local avant validation.
     </p>
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
       <button type="button" class="btn btn-ghost" data-audit-csv-template>Télécharger modèle CSV</button>
@@ -526,7 +526,7 @@ export function openAuditCsvImportModal(onValidate) {
       const n = Math.min(12, Math.max(parsed.exigences.length, parsed.ncs.length, parsed.preuves.length, 1));
       for (let i = 0; i < n; i++) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${escapeHtml(parsed.exigences[i] || '—')}</td><td>${escapeHtml(parsed.ncs[i] || '—')}</td><td>${escapeHtml(parsed.preuves[i] || '—')}</td>`;
+        tr.innerHTML = `<td>${escapeHtml(parsed.exigences[i] || 'Non renseigné')}</td><td>${escapeHtml(parsed.ncs[i] || 'Non renseigné')}</td><td>${escapeHtml(parsed.preuves[i] || 'Non renseigné')}</td>`;
         tbody.append(tr);
       }
       table.append(tbody);
@@ -534,7 +534,7 @@ export function openAuditCsvImportModal(onValidate) {
       okBtn.disabled = parsed.exigences.length + parsed.ncs.length + parsed.preuves.length === 0;
     } catch (e) {
       console.error(e);
-      preview.innerHTML = `<p style="padding:8px;color:#f87171;font-size:12px">Lecture impossible — vérifiez le format.</p>`;
+      preview.innerHTML = `<p style="padding:8px;color:#f87171;font-size:12px">Lecture impossible. Vérifiez le format.</p>`;
     }
   });
 
@@ -560,7 +560,7 @@ export function enhanceAuditAssistantCard(iaCard, model, actions) {
   ul.className = 'audit-ia-expert-suggest__list';
   const lines = [
     `Preuves manquantes : ${model.missingProofs} point(s) à compléter.`,
-    `NC critiques : ${model.criticalNc} — prioriser la clôture.`,
+    `NC critiques : ${model.criticalNc} : prioriser la clôture.`,
     ...model.recommendations
   ];
   lines.forEach((t) => {

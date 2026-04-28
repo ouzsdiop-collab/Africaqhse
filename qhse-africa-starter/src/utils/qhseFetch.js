@@ -29,14 +29,14 @@ function sharedRefreshAccessToken() {
 }
 
 /**
- * fetch API — priorité au jeton JWT (Authorization), sinon X-User-Id (session / dev).
+ * fetch API · priorité au jeton JWT (Authorization), sinon X-User-Id (session / dev).
  * Sans les deux, le backend répond souvent 403 « Contexte organisation requis » (hors routes exemptées).
  *
  * En navigateur, un 403 dont le JSON `error` évoque le contexte organisation déclenche
  * `CustomEvent` **`qhse:tenant-context-required`** sur `window` (`detail`: `{ path, url }`)
  * pour afficher un message ou rediriger sans coupler ce module à un système de toast.
  *
- * @param {string} path — ex. `/api/actions` ou URL absolue
+ * @param {string} path · ex. `/api/actions` ou URL absolue
  * @param {RequestInit & { _retry?: boolean }} [init]
  */
 export async function qhseFetch(path, init = {}) {
@@ -48,7 +48,7 @@ export async function qhseFetch(path, init = {}) {
     return new Response(
       JSON.stringify({
         error:
-          'Cette opération n’est pas simulée en mode exploration — aucun appel réseau effectué.'
+          'Cette opération n’est pas simulée en mode exploration. Aucun appel réseau effectué.'
       }),
       {
         status: 503,
@@ -69,7 +69,7 @@ export async function qhseFetch(path, init = {}) {
   let token = getAccessTokenForRequest() || getAuthToken();
 
   /* Profil encore en session mais jeton absent (onglet rouvert, clés effacées) : tenter le refresh
-   * cookie avant de retomber sur X-User-Id — en production ce dernier est ignoré → 403 « contexte org ». */
+   * cookie avant de retomber sur X-User-Id · en production ce dernier est ignoré → 403 « contexte org ». */
   if (!isRefreshUrl && !isLoginUrl && !token && getSessionUser()) {
     const fromRefresh = await sharedRefreshAccessToken();
     if (fromRefresh) {
@@ -86,7 +86,7 @@ export async function qhseFetch(path, init = {}) {
 
   const existingAuthHeader = headers.get('Authorization') || headers.get('authorization') || '';
   if (!isRefreshUrl) {
-    /* Important: en retry, l’appelant peut forcer un Bearer (nouveau token) — ne pas l’écraser. */
+    /* Important: en retry, l’appelant peut forcer un Bearer (nouveau token) · ne pas l’écraser. */
     if (!existingAuthHeader) {
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);

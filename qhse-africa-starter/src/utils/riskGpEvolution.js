@@ -1,5 +1,5 @@
 /**
- * Évolution G/P — pilotage dynamique (données locales).
+ * Évolution G/P : pilotage dynamique (données locales).
  */
 
 /**
@@ -12,7 +12,7 @@
  * @returns {string} chaîne type "G3×P3 → G4×P3"
  */
 export function formatGpHistoryArrow(history, _risk) {
-  if (!Array.isArray(history) || history.length < 2) return '—';
+  if (!Array.isArray(history) || history.length < 2) return 'Non disponible';
   const a = history[history.length - 2];
   const b = history[history.length - 1];
   return `G${a.g}×P${a.p} → G${b.g}×P${b.p}`;

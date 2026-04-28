@@ -21,7 +21,7 @@ const TOPBAR_NAV_TOGGLE_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" f
 const TOPBAR_SEARCH_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`;
 const DASHBOARD_INTENT_LAST_KEY = 'qhse.dashboard.intent.last';
 
-/** Marquage SVG interne uniquement — pas de chaînes utilisateur. */
+/** Marquage SVG interne uniquement : pas de chaînes utilisateur. */
 function mountTrustedSvgChild(host, svgMarkup) {
   host.replaceChildren();
   const doc = new DOMParser().parseFromString(String(svgMarkup).trim(), 'text/html');
@@ -829,7 +829,7 @@ export function createTopbar({
   notifToggle.className = 'topbar-v2__notif notification-toggle';
   notifToggle.setAttribute(
     'aria-label',
-    'Ouvrir les notifications' + (safeUnread ? ` — ${safeUnread} non lues` : '')
+    'Ouvrir les notifications' + (safeUnread ? ` : ${safeUnread} non lues` : '')
   );
   const notifIconHost = document.createElement('span');
   notifIconHost.className = 'topbar-v2__notif-icon';
@@ -916,7 +916,7 @@ export function createTopbar({
   segTerrain.setAttribute('data-set-mode', 'terrain');
   segTerrain.setAttribute('aria-pressed', mode === 'terrain' ? 'true' : 'false');
   segTerrain.title =
-    'Navigation réduite et raccourcis opérationnels — sur mobile, ce mode est toujours actif.';
+    'Navigation réduite et raccourcis opérationnels. Sur mobile, ce mode est toujours actif.';
   segTerrain.textContent = 'Essentiel';
   const segExpert = document.createElement('button');
   segExpert.type = 'button';
@@ -1131,11 +1131,11 @@ export function createTopbar({
         setDisplayMode(target);
         syncModeSegments(target);
         if (target === 'terrain') {
-          showToast('Mode Essentiel — navigation réduite et raccourcis opérationnels.', 'info');
+          showToast('Mode Essentiel : navigation réduite et raccourcis opérationnels.', 'info');
           if (typeof onNavigate === 'function') onNavigate('terrain-mode');
           else navigateByHash('terrain-mode');
         } else {
-          showToast('Mode Expert — menu complet et tous les modules.', 'info');
+          showToast('Mode Expert : menu complet et tous les modules.', 'info');
           const dest = currentPage === 'terrain-mode' ? 'dashboard' : currentPage;
           if (typeof onNavigate === 'function') onNavigate(dest);
           else navigateByHash(dest);
@@ -1191,17 +1191,17 @@ export function createTopbar({
       {
         label: 'Incident',
         pageId: 'incidents',
-        toast: 'Saisie incident — utilisez le module Incidents.'
+        toast: 'Saisie incident : utilisez le module Incidents.'
       },
       {
         label: 'Action',
         pageId: 'actions',
-        toast: 'Nouvelle action — depuis le plan d’actions.'
+        toast: 'Nouvelle action : depuis le plan d’actions.'
       },
       {
         label: 'Audit',
         pageId: 'audits',
-        toast: 'Audit — renseignez le module Audits.'
+        toast: 'Audit : renseignez le module Audits.'
       }
     ];
     function closeQuickMenu() {

@@ -198,7 +198,7 @@ const CSS = `
   outline-offset:2px;
 }
 
-/* Mode clair — bandeau certifiabilité : contraste WCAG + séparation nette de la carte */
+/* Mode clair : bandeau certifiabilité, contraste WCAG + séparation nette de la carte */
 [data-theme='light'] .activity-log-cert-strip{
   margin:0 0 18px;
   padding:14px 16px;

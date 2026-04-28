@@ -1,9 +1,9 @@
 /**
- * Graphiques QHSE — harmonisation premium (tooltips, axes, légendes, hovers).
+ * Graphiques QHSE : harmonisation premium (tooltips, axes, légendes, hovers).
  * Surcharge légère des classes existantes (.dashboard-line-chart-*, .kpi-multi-line-*, .dashboard-mix-*).
  */
 
-/* —— Conteneur courbe + tooltip —— */
+/* Conteneur courbe + tooltip */
 .dashboard-line-chart-frame {
   position: relative;
   width: 100%;
@@ -101,7 +101,7 @@
   stroke-width: 2.25px !important;
 }
 
-/* —— Tooltip premium —— */
+/* Tooltip premium */
 .qhse-chart-tooltip {
   position: fixed;
   z-index: 400;
@@ -196,7 +196,7 @@
   }
 }
 
-/* —— Légendes barres / mix —— */
+/* Légendes barres / mix */
 .dashboard-mix-legend {
   gap: 8px 14px;
 }
@@ -289,7 +289,7 @@
   filter: brightness(1.05);
 }
 
-/* Audits — barres ISO (cockpit) */
+/* Audits : barres ISO (cockpit) */
 .dashboard-audit-iso-bar-row {
   padding: 3px 2px;
   margin: 0 -2px;
@@ -330,7 +330,7 @@
   color: var(--color-text-primary, var(--text));
 }
 
-/* —— Courbe incidents (6 mois) : cockpit exécutif —— */
+/* Courbe incidents (6 mois) : cockpit exécutif */
 .dashboard-incidents-chart-meta {
   display: flex;
   align-items: center;
@@ -439,7 +439,7 @@
   filter: drop-shadow(0 2px 8px rgba(249, 115, 22, 0.42));
 }
 
-/* Tooltip incidents — lecture mois / delta / vigilance */
+/* Tooltip incidents : lecture mois / delta / vigilance */
 .qhse-chart-tooltip--incidents-premium {
   min-width: 220px;
   max-width: min(304px, calc(100vw - 24px));
@@ -551,7 +551,7 @@
   font-weight: 500;
 }
 
-/* Chart.js — incidents 6 mois */
+/* Chart.js : incidents 6 mois */
 .dashboard-incidents-chartjs-canvas-wrap {
   position: relative;
   width: 100%;

@@ -1,7 +1,7 @@
 import { ensureQhsePilotageStyles } from './qhsePilotageStyles.js';
 
 /**
- * Bandeau de synthèse — classes existantes du design system.
+ * Bandeau de synthèse : classes existantes du design system.
  * items: { label, value, tone?: 'red'|'amber'|'blue'|'green', hint?: string, hintTitle?: string,
  *   kpiKey?: string, selected?: boolean, onClick?: (kpiKey: string) => void }
  * hintTitle : infobulle native sur la carte (utile quand hint visible est vide pour alléger la grille).

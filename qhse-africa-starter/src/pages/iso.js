@@ -44,7 +44,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
-/* Préférences colonnes table exigences ISO — localStorage centralisé dans isoTablePreferences.js */
+/* Préférences colonnes table exigences ISO : localStorage centralisé dans isoTablePreferences.js */
 import { readIsoReqColumnMode, LS_ISO_REQ_TABLE_COLS } from '../utils/isoTablePreferences.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
 import { ISO_REQ_STATUS_EN_FR, isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
@@ -82,7 +82,7 @@ function requirementLinesForIsoPdf() {
   }));
 }
 
-/** Normes — cartes allégées (statut + une phrase). */
+/** Normes : cartes allégées (statut + une phrase). */
 const NORMS_LITE = [
   {
     id: 'ISO 9001',
@@ -100,7 +100,7 @@ const NORMS_LITE = [
     id: 'ISO 45001',
     status: 'À surveiller',
     badge: 'amber',
-    line: 'Point habilitations — clôture visée mi-avril.'
+    line: 'Point habilitations : clôture visée mi-avril.'
   }
 ];
 
@@ -143,9 +143,9 @@ function isoRequirementStatusDisplayLabel(raw) {
 }
 
 function formatIsoDateShort(v) {
-  if (!v) return '—';
+  if (!v) return 'Non disponible';
   const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR');
+  return Number.isNaN(d.getTime()) ? 'Non disponible' : d.toLocaleDateString('fr-FR');
 }
 
 /**
@@ -209,7 +209,7 @@ async function openDocUpdateAction(row, onAddLog) {
 function relanceDocResponsable(row, onAddLog) {
   const who =
     row.responsible && String(row.responsible).trim() ? String(row.responsible).trim() : 'le responsable désigné';
-  showToast(`Relance enregistrée pour ${who} — ${row.name}`, 'info');
+  showToast(`Relance enregistrée pour ${who} : ${row.name}`, 'info');
   const entry = {
     module: 'iso',
     action: 'Relance responsable document',
@@ -225,7 +225,7 @@ function createDocumentStateSummaryBlock() {
   root.className = 'iso-doc-state-summary';
   root.setAttribute('aria-label', 'État documentaire');
   function update(summary) {
-    const pct = summary.pctValide == null ? '—' : `${summary.pctValide} %`;
+    const pct = summary.pctValide == null ? 'Non disponible' : `${summary.pctValide} %`;
     root.innerHTML = `
       <div class="iso-doc-state-summary__head">
         <span class="iso-doc-state-summary__title">État documentaire</span>
@@ -251,7 +251,7 @@ function createDocumentStateSummaryBlock() {
   return { root, update };
 }
 
-/** Ouvre le volet Documents (second niveau) avant scroll — liens depuis priorités / bannières. */
+/** Ouvre le volet Documents (second niveau) avant scroll : liens depuis priorités / bannières. */
 function ensureIsoDocsPanelOpen() {
   const wrap = document.querySelector('.iso-page .iso-l2-disclosure--docs');
   if (wrap instanceof HTMLDetailsElement) wrap.open = true;
@@ -271,7 +271,7 @@ function createIsoRegistryComplianceBanner() {
       <div class="iso-registry-doc-impact__inner">
         <span class="badge red">Impact conformité</span>
         <p class="iso-registry-doc-impact__text">
-          <strong>${summary.expire} document(s) expiré(s)</strong> — risque pour les preuves audit. Consolidez la version courante dans la section Documents.
+          <strong>${summary.expire} document(s) expiré(s)</strong> : risque pour les preuves audit. Consolidez la version courante dans la section Documents.
         </p>
         <button type="button" class="text-button iso-registry-doc-impact__link">Voir les documents</button>
       </div>
@@ -334,7 +334,7 @@ function createControlledDocumentsTableSection(opts) {
       name.textContent = row.name;
       const type = document.createElement('span');
       type.className = 'iso-cell-muted';
-      type.textContent = row.type || '—';
+      type.textContent = row.type || 'Non renseigné';
       const c0 = document.createElement('span');
       c0.className = 'iso-cell-muted';
       c0.textContent = formatIsoDateShort(row.createdAt);
@@ -346,12 +346,13 @@ function createControlledDocumentsTableSection(opts) {
       c2.textContent = formatIsoDateShort(row.expiresAt);
       const resp = document.createElement('span');
       resp.className = 'iso-cell-muted';
-      resp.textContent = row.responsible && String(row.responsible).trim() ? row.responsible : '—';
+      resp.textContent =
+        row.responsible && String(row.responsible).trim() ? row.responsible : 'Non renseigné';
       const stCell = document.createElement('span');
       stCell.className = 'iso-doc-status-cell';
       const badge = document.createElement('span');
       badge.className = `badge ${docComplianceBadgeClass(st)} iso-doc-compliance-badge iso-doc-compliance--${st}`;
-      badge.textContent = row.complianceLabel || '—';
+      badge.textContent = row.complianceLabel || 'Non disponible';
       stCell.append(badge);
       const actCell = document.createElement('span');
       actCell.className = 'iso-doc-actions-cell';
@@ -386,7 +387,7 @@ function createControlledDocumentsTableSection(opts) {
 }
 
 /**
- * Analyse locale heuristique (navigateur) — mots-clés + hachage stable sur le nom de fichier.
+ * Analyse locale heuristique (navigateur) : mots-clés + hachage stable sur le nom de fichier.
  * @param {string} fileName
  */
 function simulateIsoImportAnalysis(fileName) {
@@ -399,7 +400,7 @@ function simulateIsoImportAnalysis(fileName) {
       requirementId: '',
       keyPoints: ['Aucune exigence chargée.'],
       gaps: ['Chargez le registre ou réessayez.'],
-      confidenceNote: 'Proposition locale — à valider par un responsable.'
+      confidenceNote: 'Proposition locale. À valider par un responsable.'
     };
   }
   let best = reqs[0];
@@ -434,13 +435,15 @@ function simulateIsoImportAnalysis(fileName) {
   const types = ['Procédure opérationnelle', 'Registre / enregistrement', 'Plan de management', 'Instruction', 'Politique', 'Fiche de données'];
   const docTypeLabel = types[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % types.length];
   const keyPoints = [
-    `Type probable : ${docTypeLabel} — à confirmer après lecture humaine.`,
-    `Rattachement suggéré : ${best.clause} — ${best.title} (${norm ? norm.code : best.normId}).`,
+    `Type probable : ${docTypeLabel}. À confirmer après lecture humaine.`,
+    `Rattachement suggéré : ${best.clause} : ${best.title} (${norm ? norm.code : best.normId}).`,
     'Contrôler version, diffusion contrôlée et cohérence avec le SMS.'
   ];
   const gaps = [];
   if (!/sign|visa|approuv|valid/i.test(lower)) {
-    gaps.push('Aucune mention explicite de signature ou validation détectée sur le nom de fichier — vérifier le PDF.');
+    gaps.push(
+      'Aucune mention explicite de signature ou validation détectée sur le nom de fichier. Vérifiez le PDF.'
+    );
   }
   if (/brouillon|draft|copie|old|ancien/i.test(lower)) {
     gaps.push('Intitulé pouvant indiquer un brouillon ou une version non maîtrisée.');
@@ -521,7 +524,7 @@ function openIsoImportReviewOverlay({ fileName, analysis, onValidate, onReject }
       <p class="iso-import-note"></p>
       <div class="iso-import-block">
         <div class="iso-import-block-title">Validé par (optionnel)</div>
-        <input type="text" class="control-input iso-import-validated-by" placeholder="Nom, fonction — terrain" autocomplete="name" />
+        <input type="text" class="control-input iso-import-validated-by" placeholder="Nom, fonction (terrain)" autocomplete="name" />
       </div>
       <div class="iso-import-block">
         <div class="iso-import-block-title">Statut preuve après validation</div>
@@ -550,7 +553,7 @@ function openIsoImportReviewOverlay({ fileName, analysis, onValidate, onReject }
       const norm = getNormById(r.normId);
       const opt = document.createElement('option');
       opt.value = r.id;
-      opt.textContent = `${r.clause} — ${r.title} (${norm ? norm.code : r.normId})`;
+      opt.textContent = `${r.clause} : ${r.title} (${norm ? norm.code : r.normId})`;
       sel.append(opt);
     });
     sel.value = analysis.requirementId || reqs[0].id;
@@ -616,7 +619,7 @@ function importedProofStatusLabel(st) {
 }
 
 function formatEvidenceWithImports(baseEvidence, requirementId) {
-  const base = String(baseEvidence || '—');
+  const base = String(baseEvidence || 'Non disponible');
   const links = getImportedDocumentProofs().filter((p) => p.requirementId === requirementId);
   const ico =
     links.length === 0
@@ -744,7 +747,7 @@ function createNormCardLite(norm) {
     lblStat.textContent = 'Pilotage';
     const pill = document.createElement('span');
     pill.className = `badge ${norm.cockpitLevelClass || 'amber'}`;
-    pill.textContent = norm.cockpitLevelLabel || '—';
+    pill.textContent = norm.cockpitLevelLabel || 'Non disponible';
     rowStat.append(lblStat, pill);
     const rowNc = document.createElement('div');
     rowNc.className = 'iso-norm-metric-row';
@@ -773,7 +776,7 @@ function createNormCardLite(norm) {
     lblAud.textContent = 'Audits liés';
     const valAud = document.createElement('span');
     valAud.className = 'iso-norm-audit-line';
-    valAud.textContent = norm.auditLine || '—';
+    valAud.textContent = norm.auditLine || 'Non disponible';
     rowAud.append(lblAud, valAud);
     m.append(rowScore, rowStat, rowNc, rowDoc, rowAud);
     card.append(m);
@@ -865,7 +868,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
   const isoToolbarMeta = document.createElement('span');
   isoToolbarMeta.className = 'qhse-table-toolbar__meta';
   isoToolbarMeta.textContent =
-    'Par défaut : exigence, statut, action — responsable et preuve dans « Colonnes complètes » ou au détail.';
+    'Par défaut : exigence, statut, action. Responsable et preuve dans « Colonnes complètes » ou au détail.';
   const isoColBtn = document.createElement('button');
   isoColBtn.type = 'button';
   isoColBtn.className = 'btn btn-secondary btn-sm';
@@ -903,7 +906,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
       line.tabIndex = 0;
       line.setAttribute(
         'aria-label',
-        `Ouvrir le détail — ${row.clause} ${row.title}`
+        `Ouvrir le détail : ${row.clause} ${row.title}`
       );
       const stClass = isoRequirementBadgeClass(row.status);
       const badgeLabel = isoRequirementStatusDisplayLabel(row.status);
@@ -911,7 +914,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
       const exigence = document.createElement('span');
       exigence.className = 'iso-cell-strong';
       exigence.append(
-        document.createTextNode(`${row.clause} — ${row.title}`),
+        document.createTextNode(`${row.clause} : ${row.title}`),
         document.createElement('br')
       );
       const normSmall = document.createElement('span');
@@ -1035,7 +1038,7 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
               gaps: analysis.gaps,
               validatedBy: validatedBy || ''
             });
-            showToast('Document rattaché à l’exigence — preuve enregistrée localement.', 'success');
+            showToast('Document rattaché à l’exigence. Preuve enregistrée localement.', 'success');
             if (typeof onAddLog === 'function') {
               onAddLog({
                 module: 'iso',
@@ -1169,7 +1172,7 @@ function createComplianceCycleStrip() {
   const cap = document.createElement('p');
   cap.className = 'iso-compliance-cycle-cap';
   cap.textContent =
-    'Exigences, documents et écarts suivent ce cycle — décision et validation humaines à chaque étape.';
+    'Exigences, documents et écarts suivent ce cycle. Décision et validation humaines à chaque étape.';
   wrap.append(cap);
   return wrap;
 }
@@ -1189,7 +1192,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     <div>
       <div class="section-kicker">Pilotage</div>
       <h3 id="iso-cockpit-prio-title">Priorités à traiter</h3>
-      <p class="content-card-lead">Exigences en écart, pièces à consolider, audits à caler — une action principale par sujet.</p>
+      <p class="content-card-lead">Exigences en écart, pièces à consolider, audits à caler. Une action principale par sujet.</p>
     </div>
   `;
 
@@ -1241,11 +1244,11 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     if (firstNc) {
       hTitle = 'Non-conformité majeure à traiter immédiatement';
       const norm = getNormById(firstNc.normId);
-      hDetail = `${firstNc.clause} — ${firstNc.title} (${norm ? norm.code : firstNc.normId}).`;
+      hDetail = `${firstNc.clause} : ${firstNc.title} (${norm ? norm.code : firstNc.normId}).`;
       hOn = () => onAnalyze({ ...firstNc, normCode: norm ? norm.code : firstNc.normId });
     } else if (ar.missingDocsCount > 0) {
-      hTitle = 'Documents manquants — risque pour l’audit';
-      hDetail = `${ar.missingDocsCount} pièce(s) signalée(s) — joindre les preuves au registre.`;
+      hTitle = 'Documents manquants : risque pour l’audit';
+      hDetail = `${ar.missingDocsCount} pièce(s) signalée(s). Joignez les preuves au registre.`;
     } else if (ar.readiness === 'fragile') {
       hDetail = ar.message;
     }
@@ -1306,7 +1309,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     const docDetail =
       docLines.length === 0
         ? 'Aucune pièce prioritaire signalée.'
-        : `${docLines.length} pièce(s) — ${docLines[0].name} (${docLines[0].tag})${
+        : `${docLines.length} pièce(s) : ${docLines[0].name} (${docLines[0].tag})${
             docLines.length > 1 ? ` · +${docLines.length - 1} autre(s)` : ''
           }`;
     appendPriorityRow('Documents & preuves', docDetail, 'Ouvrir documents', () => {
@@ -1315,7 +1318,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
     });
 
     const audDetail = AUDITS_TO_SCHEDULE.length
-      ? AUDITS_TO_SCHEDULE.map((a) => `· ${a.title} — ${a.horizon}`).join('\n')
+      ? AUDITS_TO_SCHEDULE.map((a) => `· ${a.title} : ${a.horizon}`).join('\n')
       : 'Aucune échéance planifiée sur le périmètre affiché.';
     appendPriorityRow('Audits à planifier', audDetail, 'Voir Audits', () => {
       qhseNavigate('audits');
@@ -1324,7 +1327,7 @@ function createPrioritiesCockpitBlock(onAnalyze) {
 
     const ncForList = reqsNc[0];
     const ncDetail = ncForList
-      ? `${ncForList.clause} — ${ncForList.title} (non-conformité à traiter en priorité).`
+      ? `${ncForList.clause} : ${ncForList.title} (non-conformité à traiter en priorité).`
       : 'Aucune non-conformité stricte ouverte sur le registre.';
     appendPriorityRow('Non-conformités majeures', ncDetail, 'Traiter', () => {
       if (ncForList) {
@@ -1378,7 +1381,7 @@ function createDocProofStrip(getDocRows) {
       const hint = document.createElement('p');
       hint.className = 'iso-doc-proof-strip-hint';
       hint.textContent =
-        'Aucun document maîtrisé synchronisé sur ce périmètre — les preuves importées sont listées ci-dessous.';
+        'Aucun document maîtrisé synchronisé sur ce périmètre. Les preuves importées sont listées ci-dessous.';
       wrap.append(hint);
     }
     rows.forEach((row) => {
@@ -1391,7 +1394,7 @@ function createDocProofStrip(getDocRows) {
       name.textContent = row.name;
       const badge = document.createElement('span');
       badge.className = `badge ${cls} iso-doc-proof-badge iso-doc-compliance--${st}`;
-      badge.textContent = row.complianceLabel || '—';
+      badge.textContent = row.complianceLabel || 'Non disponible';
       line.append(name, badge);
       wrap.append(line);
     });
@@ -1448,7 +1451,7 @@ function createReviewBlock() {
 }
 
 /**
- * Panneau second niveau (élément HTML details natif) — détail métier replié par défaut, zéro perte de fonction.
+ * Panneau second niveau (élément HTML details natif) : détail métier replié par défaut, zéro perte de fonction.
  * @param {string} titleText
  * @param {string} hintText
  * @param {Node | Node[]} content
@@ -1491,7 +1494,7 @@ export function renderIso(onAddLog) {
     pageId: 'iso',
     pageRoot: page,
     hintEssential:
-      'Essentiel : préparation audit, synthèse, priorités et registre des exigences — normes, assistant et graphiques masqués.',
+      'Essentiel : préparation audit, synthèse, priorités et registre des exigences. Normes, assistant et graphiques masqués.',
     hintAdvanced:
       'Expert : cartographie normes, assistant conformité, graphique du registre et revue de direction.'
   });
@@ -1518,7 +1521,7 @@ export function renderIso(onAddLog) {
         behavior: 'smooth',
         block: 'start'
       });
-      showToast('Traiter les priorités — écarts, preuves et audits.', 'info');
+      showToast('Traiter les priorités : écarts, preuves et audits.', 'info');
     }
   });
 
@@ -1536,7 +1539,7 @@ export function renderIso(onAddLog) {
           )}
         </p>
         <p class="iso-cockpit-hero-trust" role="note">
-          Vue unique pour direction et auditeurs : indicateurs, preuves et écarts — chaque décision reste validée par vos équipes (aucune écriture automatique).
+          Vue unique pour direction et auditeurs : indicateurs, preuves et écarts. Chaque décision reste validée par vos équipes (aucune écriture automatique).
         </p>
       </div>
       <div class="iso-cockpit-hero-actions">
@@ -1549,11 +1552,11 @@ export function renderIso(onAddLog) {
     <div class="iso-cockpit-hero-executive-band">
       <div class="iso-cockpit-hero-kpis iso-cockpit-hero-kpis--dual" aria-label="Synthèse express">
         <div class="iso-hero-kpi">
-          <span class="iso-hero-kpi-value iso-hero-stat-pct">—</span>
+          <span class="iso-hero-kpi-value iso-hero-stat-pct">Non disponible</span>
           <span class="iso-hero-kpi-label">Score global</span>
         </div>
         <div class="iso-hero-kpi">
-          <span class="iso-hero-kpi-value iso-hero-stat-gaps">—</span>
+          <span class="iso-hero-kpi-value iso-hero-stat-gaps">Non disponible</span>
           <span class="iso-hero-kpi-label">Exigences en écart</span>
         </div>
       </div>
@@ -1569,8 +1572,8 @@ export function renderIso(onAddLog) {
       const pctEl = heroCard.querySelector('.iso-hero-stat-pct');
       const gapEl = heroCard.querySelector('.iso-hero-stat-gaps');
       const html = buildIsoConformityPdfHtml({
-        globalScoreLabel: pctEl?.textContent?.trim() || '—',
-        gapsLabel: gapEl?.textContent?.trim() || '—',
+        globalScoreLabel: pctEl?.textContent?.trim() || 'Non disponible',
+        gapsLabel: gapEl?.textContent?.trim() || 'Non disponible',
         normScores: buildIsoNormScoresForPdf(),
         requirementLines: requirementLinesForIsoPdf()
       });
@@ -1579,7 +1582,7 @@ export function renderIso(onAddLog) {
         onAddLog({
           module: 'iso',
           action: 'Export PDF conformité ISO',
-          detail: 'Rapport multi-pages — cockpit',
+          detail: 'Rapport multi-pages : cockpit',
           user: getSessionUser()?.name || 'Utilisateur'
         });
       }
@@ -1590,7 +1593,7 @@ export function renderIso(onAddLog) {
 
   heroCard.querySelector('.iso-prep-audit').addEventListener('click', () => {
     showToast(
-      'Préparation d’audit : checklist, équipe et pièces — intégration workflow possible selon votre déploiement.',
+      'Préparation d’audit : checklist, équipe et pièces. Intégration workflow possible selon votre déploiement.',
       'info'
     );
     if (typeof onAddLog === 'function') {
@@ -1625,11 +1628,11 @@ export function renderIso(onAddLog) {
     <div class="iso-ai-visual" aria-hidden="true"></div>
     <div class="iso-ai-badge">IA assistée</div>
     <h3>Assistant conformité</h3>
-    <p class="iso-ai-trust">Suggestions contextuelles uniquement — le registre et les statuts sont toujours validés par un humain.</p>
+    <p class="iso-ai-trust">Suggestions contextuelles uniquement. Le registre et les statuts sont toujours validés par un humain.</p>
     <p class="iso-ai-lead">
       Accélérez les revues : analyse des écarts, preuves manquantes et pistes de plan d’action, puis traitement dans le registre.
     </p>
-    <div class="iso-ai-suggestion-grid" role="group" aria-label="Assistant conformité — actions suggérées"></div>
+    <div class="iso-ai-suggestion-grid" role="group" aria-label="Assistant conformité : actions suggérées"></div>
   `;
 
   const summary0 = computeComplianceSummary();
@@ -1719,7 +1722,7 @@ export function renderIso(onAddLog) {
         requirement,
         controlledDocuments: isoMergedDocsRef.rows.map((r) => ({
           name: r.name,
-          version: r.version || '—'
+          version: r.version || 'Non renseigné'
         })),
         siteId: appState.activeSiteId,
         onStatusCommitted: async (requirementId, status, meta) => {
@@ -1733,14 +1736,14 @@ export function renderIso(onAddLog) {
               isSensitiveActionEnabled('critical_validation', saCfg) &&
               loadSensitiveAccessPin()
             ) {
-              showToast('Enregistrement annulé — statut inchangé.', 'info');
+              showToast('Enregistrement annulé. Statut inchangé.', 'info');
             }
             return false;
           }
           const saved = await setRequirementStatus(requirementId, status);
           refreshPilotage();
           if (!saved) {
-            showToast('Synchronisation impossible — vérifiez votre connexion ou vos droits.', 'warning');
+            showToast('Synchronisation impossible. Vérifiez votre connexion ou vos droits.', 'warning');
             return false;
           }
           if (typeof onAddLog === 'function') {
@@ -1845,7 +1848,7 @@ export function renderIso(onAddLog) {
   normsHead.innerHTML = `
     <div>
       <div class="section-kicker">Référentiels</div>
-      <h3>9001 · 14001 · 45001 — lecture consolidée</h3>
+      <h3>9001 · 14001 · 45001 : lecture consolidée</h3>
       <p class="content-card-lead">
         Score, statut et écarts par norme, alignés sur le registre d’exigences du périmètre sélectionné.
       </p>
@@ -2006,7 +2009,7 @@ export function renderIso(onAddLog) {
       <div>
         <div class="section-kicker">Revue de direction</div>
         <h3>Synthèse rapide</h3>
-        <p class="content-card-lead">Entrées pour le comité — synthèse des indicateurs affichés.</p>
+        <p class="content-card-lead">Entrées pour le comité : synthèse des indicateurs affichés.</p>
       </div>
     </div>
   `;
@@ -2022,7 +2025,7 @@ export function renderIso(onAddLog) {
   /* Documentation détaillée = second niveau : registre d’exigences reste visible en colonne principale. */
   const docsDisclosure = wrapIsoL2Disclosure(
     'Documents, preuves & liste maîtrisée',
-    'Synthèse conformité, preuves, priorités et tableau documents — tout le flux métier conservé.',
+    'Synthèse conformité, preuves, priorités et tableau documents. Tout le flux métier est conservé.',
     docsCard,
     'iso-l2-disclosure--docs'
   );
@@ -2038,7 +2041,7 @@ export function renderIso(onAddLog) {
   /* IA = aide à la revue, pas lecture immédiate : même composant, accès au clic. */
   const assistantDisclosure = wrapIsoL2Disclosure(
     'Assistant conformité',
-    'Suggestions et raccourcis — validation humaine inchangée.',
+    'Suggestions et raccourcis. Validation humaine inchangée.',
     aiSpotlight,
     'iso-l2-disclosure--assistant'
   );
@@ -2049,7 +2052,7 @@ export function renderIso(onAddLog) {
   focusIntro.innerHTML = `
     <p class="iso-zone-header__kicker">Cartographie</p>
     <h2 class="iso-zone-header__title">Normes &amp; assistance</h2>
-    <p class="iso-zone-header__desc">Référentiels et lecture opérationnelle, avec l’assistant pour préparer vos revues — le registre reste la source de vérité.</p>
+    <p class="iso-zone-header__desc">Référentiels et lecture opérationnelle, avec l’assistant pour préparer vos revues. Le registre reste la source de vérité.</p>
   `;
 
   const focusWrap = document.createElement('div');
@@ -2059,8 +2062,8 @@ export function renderIso(onAddLog) {
   const secondaryZone = document.createElement('div');
   secondaryZone.className = 'iso-secondary-zone';
   const reviewDisclosure = wrapIsoL2Disclosure(
-    'Revue de direction — synthèse',
-    'Indicateurs agrégés pour comité — ouvrir pour le détail.',
+    'Revue de direction : synthèse',
+    'Indicateurs agrégés pour comité. Ouvrir pour le détail.',
     reviewCard,
     'iso-l2-disclosure--review'
   );
@@ -2107,13 +2110,13 @@ export function renderIso(onAddLog) {
   insightsHead.innerHTML = `
     <p class="iso-zone-header__kicker">Indicateurs</p>
     <h2 class="iso-zone-header__title">Lecture du registre</h2>
-    <p class="iso-zone-header__desc">Répartition des statuts d’exigences — cohérente avec le tableau et les filtres ci-dessous.</p>
+    <p class="iso-zone-header__desc">Répartition des statuts d’exigences, cohérente avec le tableau et les filtres ci-dessous.</p>
   `;
   insightsZone.append(insightsHead, isoMixRow);
   /* Graphique redondant avec le tableau : disponible sans encombrer le premier écran. */
   const insightsDisclosure = wrapIsoL2Disclosure(
     'Graphique · répartition des exigences',
-    'Même données que le registre — ouvrir pour la vue visuelle.',
+    'Même données que le registre. Ouvrir pour la vue visuelle.',
     insightsZone,
     'iso-l2-disclosure--insights'
   );

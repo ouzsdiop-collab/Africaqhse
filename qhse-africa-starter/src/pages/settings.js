@@ -73,7 +73,7 @@ const DEFAULT_ALERTS = [
   {
     id: 'al-3',
     name: 'Nouvelle non-conformité majeure',
-    condition: 'NC créée depuis audit — classement majeur',
+    condition: 'NC créée depuis audit : classement majeur',
     level: 'critique',
     channel: 'app',
     on: false
@@ -112,27 +112,27 @@ const USAGE_FLOW_ROWS = [
   {
     key: 'importDoc',
     title: 'Import documentaire',
-    hint: 'Exemple : fiche importée — contrôle puis validation après correction si besoin.'
+    hint: 'Exemple : fiche importée. Contrôle puis validation après correction si besoin.'
   },
   {
     key: 'autoExtract',
     title: 'Extraction automatique',
-    hint: 'Exemple : champs pré-remplis — passage souvent en « à vérifier ».'
+    hint: 'Exemple : champs pré-remplis. Passage souvent en « à vérifier ».'
   },
   {
     key: 'ecartNc',
     title: 'Écart / non-conformité',
-    hint: 'Exemple : constat — typiquement « à corriger » avec preuves attendues.'
+    hint: 'Exemple : constat. Typiquement « à corriger » avec preuves attendues.'
   },
   {
     key: 'audit',
     title: 'Audits & constats',
-    hint: 'Exemple : preuves et réponses — contrôle humain avant clôture.'
+    hint: 'Exemple : preuves et réponses. Contrôle humain avant clôture.'
   },
   {
     key: 'preuve',
     title: 'Preuve / document à vérifier',
-    hint: 'Exemple : pièce jointe — état « à vérifier » jusqu’à visa.'
+    hint: 'Exemple : pièce jointe. État « à vérifier » jusqu’à visa.'
   }
 ];
 
@@ -375,8 +375,8 @@ export function renderSettings() {
         setDemoMode(demoToggle.checked);
         showToast(
           demoToggle.checked
-            ? 'Données d’exploration activées — rechargement…'
-            : 'Données d’exploration désactivées — rechargement…',
+            ? 'Données d’exploration activées. Rechargement…'
+            : 'Données d’exploration désactivées. Rechargement…',
           'info'
         );
         window.setTimeout(() => window.location.reload(), 120);
@@ -385,13 +385,13 @@ export function renderSettings() {
     if (demoReset) {
       demoReset.addEventListener('click', () => {
         resetDemoPresentation();
-        showToast('Scénario réinitialisé — rechargement…', 'success');
+        showToast('Scénario réinitialisé. Rechargement…', 'success');
         window.setTimeout(() => window.location.reload(), 120);
       });
     }
   }
 
-  /* —— Organisation —— */
+  /* Organisation */
   const secA = document.createElement('section');
   secA.className = 'settings-section';
   secA.id = 'settings-anchor-org';
@@ -421,7 +421,7 @@ export function renderSettings() {
         <p class="settings-section__kicker" style="margin:0 0 8px">Compte connecté</p>
         <p class="settings-demo-hint" style="margin:0 0 12px">
           Organisation active : <strong data-tenant-active-name></strong>
-          <span class="dashboard-muted-lead"> — plusieurs organisations sont disponibles pour votre profil.</span>
+          <span class="dashboard-muted-lead"> Plusieurs organisations sont disponibles pour votre profil.</span>
         </p>
         <label class="field field-full">
           <span>Changer d’organisation</span>
@@ -450,10 +450,10 @@ export function renderSettings() {
         }
         const r = await switchActiveTenant(slug);
         if (r.ok) {
-          showToast('Organisation mise à jour — rechargement…', 'success');
+          showToast('Organisation mise à jour. Rechargement…', 'success');
           window.setTimeout(() => window.location.reload(), 400);
         } else {
-          showToast('Changement impossible — reconnectez-vous si besoin.', 'error');
+          showToast('Changement impossible. Reconnectez-vous si besoin.', 'error');
         }
       });
     }
@@ -484,7 +484,7 @@ export function renderSettings() {
   cardImports.innerHTML = `
     <span class="settings-link-card__label">Documents</span>
     <h5 class="settings-link-card__title">Import de documents</h5>
-    <p class="settings-link-card__desc">Chargement, pré-analyse et brouillon — validation sur le module cible.</p>
+    <p class="settings-link-card__desc">Chargement, pré-analyse et brouillon. Validation sur le module cible.</p>
   `;
   const btnImports = document.createElement('button');
   btnImports.type = 'button';
@@ -527,7 +527,7 @@ export function renderSettings() {
     orgCtx.append(cap, actions);
   }
 
-  /* —— Alertes —— */
+  /* Alertes */
   const savedAlerts = loadJson(LS_ALERTS, {});
   let alertsState = Array.isArray(savedAlerts.list) && savedAlerts.list.length ? savedAlerts.list : [...DEFAULT_ALERTS];
 
@@ -578,7 +578,7 @@ export function renderSettings() {
     showToast('Alerte ajoutée (locale). Branchez la création sur l’API.', 'info');
   });
 
-  /* —— Notifications —— */
+  /* Notifications */
   let notif = {
     minLevel: 'warning',
     digest: true,
@@ -628,7 +628,7 @@ export function renderSettings() {
       sw.setAttribute('role', 'switch');
       sw.setAttribute(
         'aria-label',
-        `${label} — ${notif[key] ? 'activé' : 'désactivé'}`
+        `${label} : ${notif[key] ? 'activé' : 'désactivé'}`
       );
       sw.setAttribute('aria-checked', !!notif[key] ? 'true' : 'false');
       sw.addEventListener('click', () => {
@@ -637,7 +637,7 @@ export function renderSettings() {
         sw.setAttribute('aria-checked', next ? 'true' : 'false');
         sw.setAttribute(
           'aria-label',
-          `${label} — ${next ? 'activé' : 'désactivé'}`
+          `${label} : ${next ? 'activé' : 'désactivé'}`
         );
         saveJson(LS_NOTIF, notif);
         showToast('Préférence enregistrée (navigateur).', 'info');
@@ -727,7 +727,7 @@ export function renderSettings() {
       const on = () => !!emailPrefs[key];
       const sync = () => {
         sw.setAttribute('aria-checked', on() ? 'true' : 'false');
-        sw.setAttribute('aria-label', `${label} — ${on() ? 'activé' : 'désactivé'}`);
+        sw.setAttribute('aria-label', `${label} : ${on() ? 'activé' : 'désactivé'}`);
       };
       sync();
       sw.addEventListener('click', async () => {
@@ -805,7 +805,7 @@ export function renderSettings() {
     void refreshEmailPanel();
   }
 
-  /* —— Exports PDF —— */
+  /* Exports PDF */
   let exportPdf = loadJson(LS_EXPORT, {
     audits: true,
     nc: true,
@@ -850,7 +850,7 @@ export function renderSettings() {
     exportHost.append(labEl);
   });
 
-  /* —— Sécurité & accès renforcé (code 6 chiffres, session locale) —— */
+  /* Sécurité & accès renforcé (code 6 chiffres, session locale) */
   let sensitiveCfg = loadSensitiveAccessConfig();
   const secH = document.createElement('section');
   secH.className = 'settings-section settings-section--sensitive-access';
@@ -861,7 +861,7 @@ export function renderSettings() {
       <h4 class="settings-section__title">Code de vérification (accès renforcé)</h4>
       <p class="settings-section__lead">
         Optionnel : code à 6 chiffres sur les actions que vous cochez. Par défaut : une demande par session navigateur (recommandé pour limiter les interruptions).
-        Le Centre IA peut être exclu (décoché par défaut). Stockage local — à remplacer par une politique serveur / SSO en production.
+        Le Centre IA peut être exclu (décoché par défaut). Stockage local, à remplacer par une politique serveur / SSO en production.
       </p>
     </header>
     <div class="settings-sensitive-access-toolbar">
@@ -944,9 +944,9 @@ export function renderSettings() {
       const pinOk = loadSensitiveAccessPin();
       saStatus.textContent = sensitiveCfg.enabled
         ? pinOk
-          ? 'Code enregistré — les actions cochées demanderont le code selon la fréquence choisie.'
+          ? 'Code enregistré. Les actions cochées demanderont le code selon la fréquence choisie.'
           : 'Renfort activé mais aucun code : les actions protégées seront bloquées jusqu’à enregistrement d’un code.'
-        : 'Accès renforcé désactivé — aucune demande de code.';
+        : 'Accès renforcé désactivé. Aucune demande de code.';
     }
     const subOn = sensitiveCfg.enabled;
     [saActionsWrap, saFreqWrap, saLevelWrap].forEach((el) => {
@@ -1011,7 +1011,7 @@ export function renderSettings() {
       sensitiveCfg = { ...sensitiveCfg, frequency: v };
       persistSensitiveCfg();
       clearSensitiveAccessSessionCache();
-      showToast('Fréquence enregistrée — prochaine action demandera le code si nécessaire.', 'info');
+      showToast('Fréquence enregistrée. La prochaine action demandera le code si nécessaire.', 'info');
     }
   });
 
@@ -1056,7 +1056,7 @@ export function renderSettings() {
     if (sw) sw.setAttribute('aria-checked', sensitiveCfg.actions[key] ? 'true' : 'false');
   });
 
-  /* —— Référentiels —— */
+  /* Référentiels */
   const secE = document.createElement('section');
   secE.className = 'settings-section';
   secE.id = 'settings-anchor-ref';
@@ -1076,7 +1076,7 @@ export function renderSettings() {
   secE.querySelector('[data-settings-goto-iso]')?.addEventListener('click', () => goHash('iso'));
   secE.querySelector('[data-settings-goto-products]')?.addEventListener('click', () => goHash('products'));
 
-  /* —— IA & validation —— */
+  /* IA & validation */
   const IA_DEFAULTS = {
     iso: { enabled: true, mode: 'human' },
     imports: { enabled: true, mode: 'human' },
@@ -1093,7 +1093,7 @@ export function renderSettings() {
       <p class="settings-section__kicker">F · IA &amp; validation humaine</p>
       <h4 class="settings-section__title">IA &amp; validation humaine</h4>
       <p class="settings-section__lead">
-        L’IA propose ; l’humain valide, ajuste ou rejette. Les flux métiers (imports, NC, audits) restent sur leurs écrans —
+        L’IA propose ; l’humain valide, ajuste ou rejette. Les flux métiers (imports, NC, audits) restent sur leurs écrans.
         ce bloc fixe la politique affichée côté configuration.
       </p>
     </header>
@@ -1115,7 +1115,7 @@ export function renderSettings() {
     <div class="settings-ia-grid" data-settings-ia></div>
     <p class="settings-ia-states">
       <strong>Statuts de pilotage (affichage configuration) :</strong>
-      en attente · validé · modifié · rejeté — à synchroniser avec les workflows NC, imports et audits côté API.
+      en attente · validé · modifié · rejeté. À synchroniser avec les workflows NC, imports et audits côté API.
     </p>
   `;
   const iaHost = secF.querySelector('[data-settings-ia]');
@@ -1184,7 +1184,7 @@ export function renderSettings() {
   }
   renderIaModules();
 
-  /* —— Cycle contrôle & correction —— */
+  /* Cycle contrôle & correction */
   let cycle = {
     controlRequired: true,
     correctionRequired: true,
@@ -1210,7 +1210,7 @@ export function renderSettings() {
       <p class="settings-section__kicker">G · Phases de contrôle et correction</p>
       <h4 class="settings-section__title">Phases de contrôle et de correction</h4>
       <p class="settings-section__lead">
-        Pilotage crédible : détection, <strong>contrôle humain</strong>, correction, vérification, clôture — pour
+        Pilotage crédible : détection, <strong>contrôle humain</strong>, correction, vérification, clôture. Pour
         <strong>prouver</strong> et <strong>décider</strong> sans sacrifier la traçabilité. Paramètres d’intention (local) prêts pour l’API.
       </p>
     </header>
@@ -1249,7 +1249,7 @@ export function renderSettings() {
       <p class="settings-cycle-bridge__text">
         Les statuts <strong>à contrôler</strong>, <strong>à corriger</strong>, <strong>corrigé</strong>,
         <strong>à vérifier</strong>, <strong>validé</strong> et <strong>rejeté</strong> matérialisent l’avancement
-        sur les flux IA, imports, extractions, écarts, audits et preuves — avec contrôle humain aux passages critiques.
+        sur les flux IA, imports, extractions, écarts, audits et preuves, avec contrôle humain aux passages critiques.
       </p>
     </div>
     <div class="settings-subsection">
@@ -1298,7 +1298,7 @@ export function renderSettings() {
     </div>
     <div class="settings-subsection">
       <h5 class="settings-subsection__title">Règles globales du cycle</h5>
-      <p class="settings-subsection__lead">Interrupteurs d’intention — exécution métier inchangée sur les pages existantes.</p>
+      <p class="settings-subsection__lead">Interrupteurs d’intention. Exécution métier inchangée sur les pages existantes.</p>
       <div class="settings-prefs-grid" data-settings-cycle-toggles></div>
       <div class="settings-pref-row" data-settings-revalidate-scope-wrap style="margin-top:10px"></div>
       <div class="settings-show-reject-row">
@@ -1308,7 +1308,7 @@ export function renderSettings() {
     </div>
     <div class="settings-subsection">
       <h5 class="settings-subsection__title">Rôles responsables (libellés indicatifs)</h5>
-      <p class="settings-subsection__lead">Contrôle, correction et validation finale — à mapper sur vos rôles SI.</p>
+      <p class="settings-subsection__lead">Contrôle, correction et validation finale. À mapper sur vos rôles SI.</p>
       <div class="settings-prefs-grid" data-settings-cycle-roles></div>
     </div>
     <div class="settings-subsection">
@@ -1409,7 +1409,7 @@ export function renderSettings() {
         sw.setAttribute('role', 'switch');
         sw.setAttribute(
           'aria-label',
-          `${lab} — ${cycle[k] ? 'activé' : 'désactivé'}`
+          `${lab} : ${cycle[k] ? 'activé' : 'désactivé'}`
         );
         sw.setAttribute('aria-checked', !!cycle[k] ? 'true' : 'false');
         sw.addEventListener('click', () => {
@@ -1418,7 +1418,7 @@ export function renderSettings() {
           sw.setAttribute('aria-checked', next ? 'true' : 'false');
           sw.setAttribute(
             'aria-label',
-            `${lab} — ${next ? 'activé' : 'désactivé'}`
+            `${lab} : ${next ? 'activé' : 'désactivé'}`
           );
           saveJson(LS_CYCLE, cycle);
           showToast('Paramètre cycle enregistré (navigateur).', 'info');
@@ -1561,7 +1561,7 @@ export function renderSettings() {
         main.className = 'settings-alert-main';
         const nameP = document.createElement('p');
         nameP.className = 'settings-alert-name';
-        nameP.textContent = u.name || '—';
+        nameP.textContent = u.name || 'Non renseigné';
         const emailP = document.createElement('p');
         emailP.className = 'settings-alert-meta';
         emailP.textContent = u.email || '';

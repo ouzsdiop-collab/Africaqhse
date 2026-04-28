@@ -1,5 +1,5 @@
 /**
- * Exports PDF premium — Registre risques, incidents, performance, analytics.
+ * Exports PDF premium : registre risques, incidents, performance, analytics.
  * Conteneur racine (794px, padding 40px 48px, border-box) : `downloadQhseChromePdf` dans `qhsePdfChrome.js`.
  * Options html2canvas (largeur 794, x/y 0) : `html2pdfExport.js`.
  */
@@ -70,7 +70,7 @@ function matrixCellStyle(g, p) {
 }
 
 /**
- * @param {unknown[]} risks — lignes UI registre (title, meta, type, status, responsible…)
+ * @param {unknown[]} risks : lignes UI registre (title, meta, type, status, responsible…)
  * @param {{ siteLabel?: string }} [opts]
  */
 export async function downloadRisksRegisterPdf(risks, opts = {}) {
@@ -105,7 +105,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     for (let p = 1; p <= 5; p += 1) {
       const n = grid[g - 1][p - 1];
       const bg = matrixCellStyle(g, p);
-      matrixHtml += `<td style="background:${bg}"><strong>${n || '—'}</strong></td>`;
+      matrixHtml += `<td style="background:${bg}"><strong>${n || '0'}</strong></td>`;
     }
     matrixHtml += '</tr>';
   }
@@ -119,11 +119,11 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
 
   function rowHtml(r) {
     const gp = parseRiskMatrixGp(r?.meta);
-    const g = gp ? gp.g : '—';
-    const p = gp ? gp.p : '—';
+    const g = gp ? gp.g : 'Non disponible';
+    const p = gp ? gp.p : 'Non disponible';
     const prod = riskGpProduct(r);
-    const ref = r?.id != null ? String(r.id).slice(0, 12) : '—';
-    const st = String(r?.status || '—');
+    const ref = r?.id != null ? String(r.id).slice(0, 12) : 'Non disponible';
+    const st = String(r?.status || 'Non disponible');
     let badgeBg = '#e2e8f0';
     let badgeFg = '#334155';
     if (/critique/i.test(st)) {
@@ -135,13 +135,13 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     }
     return `<tr>
       <td>${escapeHtml(ref)}</td>
-      <td>${escapeHtml(String(r?.title || '—'))}</td>
-      <td>${escapeHtml(String(r?.type || '—'))}</td>
+      <td>${escapeHtml(String(r?.title || 'Non renseigné'))}</td>
+      <td>${escapeHtml(String(r?.type || 'Non renseigné'))}</td>
       <td style="text-align:center">${escapeHtml(String(g))}</td>
       <td style="text-align:center">${escapeHtml(String(p))}</td>
-      <td style="text-align:center">${prod != null ? escapeHtml(String(prod)) : '—'}</td>
+      <td style="text-align:center">${prod != null ? escapeHtml(String(prod)) : 'Non disponible'}</td>
       <td><span class="qhse-chrome-badge" style="background:${badgeBg};color:${badgeFg}">${escapeHtml(st)}</span></td>
-      <td>${escapeHtml(String(r?.responsible || '—'))}</td>
+      <td>${escapeHtml(String(r?.responsible || 'Non renseigné'))}</td>
     </tr>`;
   }
 
@@ -198,19 +198,19 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   `;
 
   function rowHtml(inc) {
-    const ref = escapeHtml(String(inc?.ref ?? inc?.id ?? '—'));
+    const ref = escapeHtml(String(inc?.ref ?? inc?.id ?? 'Non disponible'));
     const date = inc?.createdAtMs
       ? new Date(inc.createdAtMs).toLocaleDateString('fr-FR')
       : inc?.createdAt
         ? new Date(String(inc.createdAt)).toLocaleDateString('fr-FR')
-        : '—';
-    const desc = String(inc?.description || inc?.title || '—').slice(0, 120);
+        : 'Non disponible';
+    const desc = String(inc?.description || inc?.title || 'Non disponible').slice(0, 120);
     return `<tr>
       <td>${ref}</td>
-      <td>${escapeHtml(String(inc?.type || '—'))}</td>
-      <td>${escapeHtml(String(inc?.status || '—'))}</td>
-      <td>${escapeHtml(String(inc?.severity || '—'))}</td>
-      <td>${escapeHtml(String(inc?.site || '—'))}</td>
+      <td>${escapeHtml(String(inc?.type || 'Non renseigné'))}</td>
+      <td>${escapeHtml(String(inc?.status || 'Non disponible'))}</td>
+      <td>${escapeHtml(String(inc?.severity || 'Non renseigné'))}</td>
+      <td>${escapeHtml(String(inc?.site || 'Non renseigné'))}</td>
       <td>${escapeHtml(date)}</td>
       <td>${escapeHtml(desc)}</td>
     </tr>`;
@@ -266,15 +266,15 @@ export async function downloadPerformanceQhsePdf(ctx) {
     <h1 class="qhse-chrome-h1">RAPPORT DE PERFORMANCE QHSE</h1>
     <p class="qhse-chrome-muted"><strong>Période couverte :</strong> ${period}</p>
     <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(ctx.conformity ?? '—'))}%</div><div class="qhse-chrome-kpi-lbl">Conformité (indice)</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">Score audit moy.</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">Actions retard</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">NC ouvertes</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(ctx.conformity ?? '0'))}%</div><div class="qhse-chrome-kpi-lbl">Conformité (indice)</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'Non disponible'))}</div><div class="qhse-chrome-kpi-lbl">Score audit moy.</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">Actions en retard</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">NC ouvertes</div></div>
     </div>
     <h2 class="qhse-chrome-h2">Indicateurs vs objectifs</h2>
     <table class="qhse-chrome-table">
       <thead><tr><th>Indicateur</th><th>Valeur</th><th>Objectif</th></tr></thead>
-      <tbody>${kpiRows || `<tr><td colspan="3" class="qhse-chrome-muted">—</td></tr>`}</tbody>
+      <tbody>${kpiRows || `<tr><td colspan="3" class="qhse-chrome-muted">Non disponible</td></tr>`}</tbody>
     </table>
     <p class="qhse-chrome-muted" style="margin-top:10px">Les graphiques interactifs de l’écran ne sont pas vectorisés ici ; tendance score audit synthétisée ci-dessous.</p>
   `;
@@ -288,10 +288,10 @@ export async function downloadPerformanceQhsePdf(ctx) {
     <h2 class="qhse-chrome-h2">Volumes bruts (extraits API)</h2>
     <table class="qhse-chrome-table">
       <tbody>
-        <tr><td>Incidents (échantillon chargé)</td><td>${escapeHtml(String(counts.incidentsTotal ?? '—'))}</td></tr>
-        <tr><td>Actions</td><td>${escapeHtml(String(counts.actionsTotal ?? '—'))}</td></tr>
-        <tr><td>Audits</td><td>${escapeHtml(String(counts.auditsTotal ?? '—'))}</td></tr>
-        <tr><td>Incidents 30 j</td><td>${escapeHtml(String(counts.incidentsLast30Days ?? '—'))}</td></tr>
+        <tr><td>Incidents (échantillon chargé)</td><td>${escapeHtml(String(counts.incidentsTotal ?? '0'))}</td></tr>
+        <tr><td>Actions</td><td>${escapeHtml(String(counts.actionsTotal ?? '0'))}</td></tr>
+        <tr><td>Audits</td><td>${escapeHtml(String(counts.auditsTotal ?? '0'))}</td></tr>
+        <tr><td>Incidents 30 j</td><td>${escapeHtml(String(counts.incidentsLast30Days ?? '0'))}</td></tr>
       </tbody>
     </table>
   `;
@@ -304,7 +304,7 @@ export async function downloadPerformanceQhsePdf(ctx) {
 }
 
 /**
- * @param {Record<string, unknown>} data — réponse /api/reports/summary
+ * @param {Record<string, unknown>} data : réponse /api/reports/summary
  */
 export async function downloadAnalyticsSummaryPdf(data) {
   const docTitle = 'Synthèse analytique QHSE';
@@ -316,13 +316,13 @@ export async function downloadAnalyticsSummaryPdf(data) {
 
   const kpiGrid = `
     <h1 class="qhse-chrome-h1">RAPPORT DE PERFORMANCE QHSE</h1>
-    <p class="qhse-chrome-muted"><strong>Synthèse API</strong> — généré ${escapeHtml(gen)}</p>
+    <p class="qhse-chrome-muted"><strong>Synthèse API</strong> : généré ${escapeHtml(gen)}</p>
     <h2 class="qhse-chrome-h2">KPIs principaux</h2>
     <div class="qhse-chrome-kpi-grid">
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">Score audit moy.</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">Actions retard</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">NC ouvertes</div></div>
-      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.incidentsLast30Days ?? '—'))}</div><div class="qhse-chrome-kpi-lbl">Incidents 30 j</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'Non disponible'))}</div><div class="qhse-chrome-kpi-lbl">Score audit moy.</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">Actions en retard</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">NC ouvertes</div></div>
+      <div class="qhse-chrome-kpi"><div class="qhse-chrome-kpi-val">${escapeHtml(String(counts.incidentsLast30Days ?? '0'))}</div><div class="qhse-chrome-kpi-lbl">Incidents 30 j</div></div>
     </div>
   `;
 
@@ -331,7 +331,7 @@ export async function downloadAnalyticsSummaryPdf(data) {
     ? alerts
         .map(
           (a) =>
-            `<tr><td>${escapeHtml(String(a.code || '—'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
+            `<tr><td>${escapeHtml(String(a.code || 'Non disponible'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
         )
         .join('')
     : `<tr><td colspan="3" class="qhse-chrome-muted">Aucune alerte.</td></tr>`;
@@ -356,15 +356,15 @@ export async function downloadAnalyticsSummaryPdf(data) {
 export async function downloadAnalyticsPeriodicPdf(data, meta) {
   const docTitle = 'Reporting périodique QHSE';
   const summary = data?.summary || {};
-  const start = meta?.startDate ? formatPdfIsoDate(meta.startDate) : '—';
-  const end = meta?.endDate ? formatPdfIsoDate(meta.endDate) : '—';
+  const start = meta?.startDate ? formatPdfIsoDate(meta.startDate) : 'Non disponible';
+  const end = meta?.endDate ? formatPdfIsoDate(meta.endDate) : 'Non disponible';
 
   const keys = Object.keys(summary);
   const sumRows = keys.length
     ? keys
         .map(
           (k) =>
-            `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(summary[k] ?? '—'))}</td></tr>`
+            `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(summary[k] ?? 'Non disponible'))}</td></tr>`
         )
         .join('')
     : `<tr><td colspan="2" class="qhse-chrome-muted">Résumé vide.</td></tr>`;
@@ -375,7 +375,7 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
         .slice(0, 20)
         .map(
           (a) =>
-            `<tr><td>${escapeHtml(String(a.code || '—'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
+            `<tr><td>${escapeHtml(String(a.code || 'Non disponible'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
         )
         .join('')
     : `<tr><td colspan="3" class="qhse-chrome-muted">Aucune alerte.</td></tr>`;

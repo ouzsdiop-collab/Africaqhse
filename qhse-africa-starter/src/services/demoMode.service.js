@@ -1,11 +1,11 @@
 /**
- * Mode exploration locale — données servies par interception qhseFetch lorsque le backend n’est pas utilisé.
+ * Mode exploration locale · données servies par interception qhseFetch lorsque le backend n’est pas utilisé.
  */
 
 import { resetDemoRuntime } from './demoModeRuntime.service.js';
 
 const STORAGE_KEY = 'qhse-demo-mode-v1';
-/** Aligné sur notificationIntelligence.service.js — évite import circulaire. */
+/** Aligné sur notificationIntelligence.service.js · évite import circulaire. */
 const NOTIF_SYNTH_READ_KEY = 'qhse-notif-synthetic-read-v1';
 
 /**

@@ -21,7 +21,7 @@ function ensureAuditFormDialogStyles() {
 }
 
 /**
- * Brouillon issu de l’import (phase 3) — création API uniquement après validation utilisateur.
+ * Brouillon issu de l’import (phase 3) : création API uniquement après validation utilisateur.
  * @param {Record<string, unknown>} prefill
  */
 export function createAuditImportDraftSection(prefill, canAuditWrite, su) {
@@ -32,7 +32,7 @@ export function createAuditImportDraftSection(prefill, canAuditWrite, su) {
     <div class="content-card-head">
       <div>
         <div class="section-kicker">Import documentaire</div>
-        <h3>Brouillon audit — à valider</h3>
+        <h3>Brouillon audit : à valider</h3>
         <p class="content-card-lead" style="margin:0;max-width:56ch;font-size:13px">Données proposées depuis l’import ; rien n’est créé tant vous n’enregistrez pas.</p>
       </div>
     </div>
@@ -121,7 +121,7 @@ export function createAuditImportDraftSection(prefill, canAuditWrite, su) {
 
 /**
  * Formulaire création / édition audit dans un `<dialog>` natif.
- * Champs affichés : titre (réf.), type, site, date prévue, statut, notes, score — envoi API : ref, site, score, status, checklist (méta optionnelle), siteId.
+ * Champs affichés : titre (réf.), type, site, date prévue, statut, notes, score. Envoi API : ref, site, score, status, checklist (méta optionnelle), siteId.
  *
  * @param {object|null} audit
  * @param {object} opts

@@ -84,15 +84,15 @@ export function incidentsLinkedToRiskFromApiRows(rows, riskTitle) {
   return (Array.isArray(rows) ? rows : [])
     .filter((r) => descriptionLinksToRisk(r?.description, riskTitle))
     .map((r) => ({
-      ref: r.ref || '—',
-      type: r.type || '—',
-      status: r.status || '—',
+      ref: r.ref || 'Non renseigné',
+      type: r.type || 'Non renseigné',
+      status: r.status || 'Non renseigné',
       date: r.createdAt
         ? new Date(r.createdAt).toLocaleDateString('fr-FR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
           })
-        : '—'
+        : 'Non disponible'
     }));
 }

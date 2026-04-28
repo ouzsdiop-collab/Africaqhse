@@ -8,7 +8,7 @@ function goPage(pageId, intent = {}) {
 }
 
 /**
- * Raccourcis compacts sous le cockpit — mêmes `pageId` que la navigation (hash), sans nouvelle route.
+ * Raccourcis compacts sous le cockpit : mêmes `pageId` que la navigation (hash), sans nouvelle route.
  *
  * @param {{
  *   onExportDirection?: () => void;
@@ -96,7 +96,7 @@ export function createDashboardShortcutsSection(opts = {}) {
     btn.type = 'button';
     const featured = def.key === 'incident' ? ' dashboard-shortcuts__tile--featured' : '';
     btn.className = `dashboard-shortcuts__tile dashboard-shortcuts__tile--${def.variant || 'default'}${featured}`;
-    btn.setAttribute('aria-label', `${def.label} — ${def.hint}`);
+    btn.setAttribute('aria-label', `${def.label} : ${def.hint}`);
 
     const lab = document.createElement('span');
     lab.className = 'dashboard-shortcuts__tile-label';

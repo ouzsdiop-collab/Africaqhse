@@ -1,6 +1,6 @@
 import { escapeHtml } from '../utils/escapeHtml.js';
 
-/** Jauge score audit — pourcentage via variable CSS --gauge-pct. */
+/** Jauge score audit : pourcentage via variable CSS --gauge-pct. */
 export function createAuditScoreGauge(score, { label = 'Score global' } = {}) {
   const raw = Number(score);
   const pct = Number.isFinite(raw)
@@ -42,7 +42,7 @@ export function createAuditScoreGauge(score, { label = 'Score global' } = {}) {
   note.textContent =
     pct >= 80
       ? 'Seuil direction : objectif de maintien.'
-      : 'Sous le seuil cible — plan d’actions à suivre.';
+      : 'Sous le seuil cible : plan d’actions à suivre.';
 
   wrap.append(cap, gWrap, note);
   return wrap;

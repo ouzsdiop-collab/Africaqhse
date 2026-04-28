@@ -1,5 +1,5 @@
 /**
- * Graphiques dashboard — SVG / barres CSS + Chart.js (courbe incidents 6 mois).
+ * Graphiques dashboard : SVG / barres CSS + Chart.js (courbe incidents 6 mois).
  */
 
 import { Chart, registerables } from 'chart.js';
@@ -7,7 +7,7 @@ import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js'
 import { interpretIncidentTrend } from '../utils/dashboardIncidentSeriesNarrative.js';
 import { createIncidentsMonthlyLineChartChartJs } from './dashboardIncidentsLineChart.js';
 
-/** Message unifié — tendances issues de `stats.timeseries` uniquement (hors mode démo). */
+/** Message unifié : tendances issues de `stats.timeseries` uniquement (hors mode démo). */
 export const DASHBOARD_TREND_EMPTY_MSG = 'Aucune donnée disponible';
 
 /**
@@ -30,7 +30,7 @@ let qhseDashboardChartJsReady = false;
 
 /**
  * Enregistre Chart.js pour les graphiques canvas du dashboard (idempotent).
- * @param {object} [_stats] — réservé (pré-calculs futurs).
+ * @param {object} [_stats] : réservé (pré-calculs futurs).
  */
 export function initDashboardCharts(_stats) {
   if (qhseDashboardChartJsReady) return;
@@ -38,7 +38,7 @@ export function initDashboardCharts(_stats) {
   qhseDashboardChartJsReady = true;
 }
 
-/** Score audit API / formulaire — tolère chaîne, virgule décimale. */
+/** Score audit API / formulaire : tolère chaîne, virgule décimale. */
 function normalizeAuditScoreValue(raw) {
   if (raw == null || raw === '') return NaN;
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
@@ -47,7 +47,7 @@ function normalizeAuditScoreValue(raw) {
 }
 
 /**
- * Date d’audit pour séries temporelles — préfère updatedAt si présent.
+ * Date d’audit pour séries temporelles : préfère updatedAt si présent.
  * @returns {number | null} timestamp ms
  */
 function getAuditTimestampMs(a) {
@@ -133,7 +133,7 @@ function bindDashboardLineChartHover(wrap, svg, tip, pts, safe, options, geom) {
     k1.textContent = 'Période';
     const v1 = document.createElement('div');
     v1.className = 'qhse-chart-tooltip__v';
-    v1.textContent = p.label || '—';
+    v1.textContent = p.label || 'Non disponible';
     const k2 = document.createElement('div');
     k2.className = 'qhse-chart-tooltip__k';
     k2.textContent = 'Valeur';
@@ -256,7 +256,7 @@ function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX, op
     k1.textContent = 'Période';
     const v1 = document.createElement('div');
     v1.className = 'qhse-chart-tooltip__v';
-    v1.textContent = labs[col] || '—';
+    v1.textContent = labs[col] || 'Non disponible';
     tip.append(k1, v1);
 
     safeSeries.forEach((s) => {
@@ -270,7 +270,7 @@ function bindKpiMultiLineHover(svg, tip, labs, series, dotsByCol, w, h, ptsX, op
       dot.className = 'qhse-chart-tooltip__series-dot';
       dot.style.background = s.color || '#94a3b8';
       const nl = document.createElement('span');
-      nl.textContent = s.name || '—';
+      nl.textContent = s.name || 'Non renseigné';
       name.append(dot, nl);
       const valEl = document.createElement('span');
       valEl.className = 'qhse-chart-tooltip__series-val';
@@ -372,7 +372,7 @@ export function buildIncidentMonthlySeries(incidents) {
 }
 
 /**
- * NC majeures vs mineures par mois (texte « criticité » dans title/detail — aligné seed Prisma).
+ * NC majeures vs mineures par mois (texte « criticité » dans title/detail, aligné seed Prisma).
  * @param {object[]} ncs
  * @param {number} [monthCount=6]
  * @returns {{ labels: string[]; major: number[]; minor: number[] }}
@@ -470,7 +470,7 @@ export function buildMonthlyAuditScoreAvgSeries(audits, monthCount = 6) {
 }
 
 /**
- * Courbe multi-séries (0–100), même axe — pour tendances comparées.
+ * Courbe multi-séries (0–100), même axe, pour tendances comparées.
  * @param {string[]} labels
  * @param {{ name: string; color: string; values: number[] }[]} series
  * @param {string} [footNote]
@@ -487,7 +487,7 @@ export function createKpiMultiLineChart(labels, series, footNote, options = {}) 
     ? 'kpi-multi-line-wrap kpi-multi-line-wrap--analytics'
     : 'kpi-multi-line-wrap';
 
-  const labs = Array.isArray(labels) && labels.length ? labels : ['—'];
+  const labs = Array.isArray(labels) && labels.length ? labels : ['Non disponible'];
   const m = labs.length;
   const w = analytics ? 528 : 392;
   const h = analytics ? 204 : 176;
@@ -764,7 +764,8 @@ export function createDashboardLineChart(series, options = {}) {
   const lineTheme = options.lineTheme;
 
   if (lineTheme === 'incidents') {
-    const safeInc = Array.isArray(series) && series.length ? series : [{ label: '—', value: 0 }];
+    const safeInc =
+      Array.isArray(series) && series.length ? series : [{ label: 'Non disponible', value: 0 }];
     return createIncidentsMonthlyLineChartChartJs(safeInc, options);
   }
 
@@ -785,7 +786,7 @@ export function createDashboardLineChart(series, options = {}) {
     empty.setAttribute('role', 'img');
     empty.setAttribute(
       'aria-label',
-      'Aucune série de scores d’audit — saisir des audits avec note pour afficher la courbe.'
+      'Aucune série de scores d’audit. Saisissez des audits avec note pour afficher la courbe.'
     );
     const inner = document.createElement('div');
     inner.className = 'dashboard-audit-chart-empty__inner';
@@ -812,7 +813,7 @@ export function createDashboardLineChart(series, options = {}) {
     return wrap;
   }
 
-  const safe = Array.isArray(series) && series.length ? series : [{ label: '—', value: 0 }];
+  const safe = Array.isArray(series) && series.length ? series : [{ label: 'Non disponible', value: 0 }];
   const w = 400;
   const h = 188;
   const padL = 12;
@@ -1067,7 +1068,7 @@ export function createActionsMixChart(parts) {
     const dot = document.createElement('span');
     dot.className = `dashboard-mix-dot ${cls}`;
     const txt = document.createElement('span');
-    txt.textContent = `${label} — ${value}`;
+    txt.textContent = `${label} : ${value}`;
     li.append(dot, txt);
     legend.append(li);
   });
@@ -1107,7 +1108,7 @@ export function createIncidentTypeBreakdown(entries) {
     row.className = 'dashboard-breakdown-row';
     const lab = document.createElement('div');
     lab.className = 'dashboard-breakdown-label';
-    lab.textContent = e.type || '—';
+    lab.textContent = e.type || 'Non renseigné';
     const track = document.createElement('div');
     track.className = 'dashboard-breakdown-track';
     const fill = document.createElement('div');
@@ -1173,7 +1174,7 @@ export function buildTopIncidentTypes(incidents, take = 5) {
 }
 
 /**
- * Série temporelle des scores d’audit (API) — derniers enregistrements chronologiques.
+ * Série temporelle des scores d’audit (API) : derniers enregistrements chronologiques.
  * @param {Array<{ score?: unknown; updatedAt?: string; createdAt?: string }>} audits
  * @returns {{ label: string; value: number }[]}
  */
@@ -1190,7 +1191,7 @@ export function buildAuditScoreSeriesFromAudits(audits) {
     .filter(Boolean);
   rows.sort((a, b) => a.t - b.t);
 
-  /** Dernier score par mois calendaire — évite les libellés « nov. nov. » en doublon. */
+  /** Dernier score par mois calendaire : évite les libellés « nov. nov. » en doublon. */
   const byMonth = new Map();
   rows.forEach((r) => {
     if (r.t <= 0) return;
@@ -1228,18 +1229,18 @@ export function interpretAuditScoreSeries(series) {
     return 'Aucun score d’audit exploitable sur la période chargée.';
   }
   const vals = series.map((p) => p.value).filter(Number.isFinite);
-  if (!vals.length) return 'Scores non numériques — vérifiez les données.';
+  if (!vals.length) return 'Scores non numériques. Vérifiez les données.';
   const first = vals[0];
   const last = vals[vals.length - 1];
   const delta = last - first;
   if (vals.length === 1) {
-    return `Dernier score enregistré : ${last} % — chargez plus d’audits pour une tendance.`;
+    return `Dernier score enregistré : ${last} %. Chargez plus d’audits pour une tendance.`;
   }
   if (delta >= 4) {
     return `Tendance à la hausse : ${first} % → ${last} % sur la série affichée.`;
   }
   if (delta <= -4) {
-    return `Tendance à la baisse : ${first} % → ${last} % — creuser les causes et le plan d’actions.`;
+    return `Tendance à la baisse : ${first} % → ${last} %. Creusez les causes et le plan d’actions.`;
   }
   return `Scores stables autour de ${last} % (fourchette ${Math.min(...vals)}–${Math.max(...vals)} %).`;
 }
@@ -1247,14 +1248,14 @@ export function interpretAuditScoreSeries(series) {
 function interpretPilotageTri(c, o, n) {
   const sum = c + o + n;
   if (sum === 0) {
-    return 'Aucun signal sur ces trois indicateurs — données à enrichir.';
+    return 'Aucun signal sur ces trois indicateurs. Données à enrichir.';
   }
   const max = Math.max(c, o, n);
   if (max === o && o >= c && o >= n && o > 0) {
-    return 'Les actions en retard pèsent fortement — prioriser l’exécution et les relances.';
+    return 'Les actions en retard pèsent fortement. Priorisez l’exécution et les relances.';
   }
   if (max === n && n > 0) {
-    return 'Volume notable de NC ouvertes — aligner audits et plans d’actions.';
+    return 'Volume notable de NC ouvertes. Alignez audits et plans d’actions.';
   }
   if (max === c && c > 0) {
     return 'Incidents critiques à traiter en priorité avec la hiérarchie et les équipes.';
@@ -1329,7 +1330,7 @@ export function createPilotageLoadMixChart(parts, options = {}) {
     const dot = document.createElement('span');
     dot.className = `dashboard-mix-dot ${cls}`;
     const txt = document.createElement('span');
-    txt.textContent = `${label} — ${value}`;
+    txt.textContent = `${label} : ${value}`;
     li.append(dot, txt);
     legend.append(li);
   });
@@ -1436,7 +1437,7 @@ export function createAnalyticsKeyCountsBarChart(counts) {
   foot.className = 'dashboard-chart-foot dashboard-chart-foot--tight';
   foot.style.marginTop = '10px';
   foot.textContent =
-    'Échelle relative au plus grand des quatre volumes — pour comparer rapidement les ordres de grandeur.';
+    'Échelle relative au plus grand des quatre volumes, pour comparer rapidement les ordres de grandeur.';
 
   wrap.append(foot);
   return wrap;
@@ -1446,9 +1447,9 @@ function interpretRequirementMix(ok, part, nc) {
   const t = ok + part + nc;
   if (t === 0) return 'Aucune exigence suivie.';
   const ratioNc = nc / t;
-  if (ratioNc > 0.2) return 'Part importante d’exigences non conformes — plan de correction urgent.';
-  if (part > nc * 2) return 'Nombreuses exigences partielles — consolider les preuves et jalons.';
-  return `${ok} exigence(s) au vert sur ${t} — poursuivre le cycle de preuve.`;
+  if (ratioNc > 0.2) return 'Part importante d’exigences non conformes. Plan de correction urgent.';
+  if (part > nc * 2) return 'Nombreuses exigences partielles. Consolidez les preuves et jalons.';
+  return `${ok} exigence(s) au vert sur ${t}. Poursuivez le cycle de preuve.`;
 }
 
 /**
@@ -1500,7 +1501,7 @@ export function createRequirementStatusMixChart(counts) {
     const dot = document.createElement('span');
     dot.className = `dashboard-mix-dot ${cls}`;
     const txt = document.createElement('span');
-    txt.textContent = `${label} — ${value}`;
+    txt.textContent = `${label} : ${value}`;
     li.append(dot, txt);
     legend.append(li);
   });
@@ -1516,7 +1517,7 @@ export function createRequirementStatusMixChart(counts) {
 function interpretDocAttention(m, obs, crit) {
   const t = m + obs + crit;
   if (t === 0) return 'Aucun document signalé en alerte sur ce périmètre.';
-  if (m >= obs && m >= crit) return 'Des preuves manquantes dominent — prioriser la collecte.';
+  if (m >= obs && m >= crit) return 'Des preuves manquantes dominent. Priorisez la collecte.';
   return `${t} point(s) documentaire(s) à traiter (manquants, obsolètes ou critiques).`;
 }
 
@@ -1569,7 +1570,7 @@ export function createDocumentAttentionMixChart(counts) {
     const dot = document.createElement('span');
     dot.className = `dashboard-mix-dot ${cls}`;
     const txt = document.createElement('span');
-    txt.textContent = `${label} — ${value}`;
+    txt.textContent = `${label} : ${value}`;
     li.append(dot, txt);
     legend.append(li);
   });
@@ -1585,13 +1586,13 @@ export function createDocumentAttentionMixChart(counts) {
 function interpretPlanningMix(av, ec, te) {
   const t = av + ec + te;
   if (t === 0) return 'Aucun audit planifié dans les données affichées.';
-  if (ec > av && ec >= te) return 'Charge d’audits en cours élevée — sécuriser ressources et preuves.';
-  if (av > ec + te) return 'Beaucoup d’audits à venir — préparer calendrier et équipes.';
+  if (ec > av && ec >= te) return 'Charge d’audits en cours élevée. Sécurisez ressources et preuves.';
+  if (av > ec + te) return 'Beaucoup d’audits à venir. Préparez calendrier et équipes.';
   return 'Répartition équilibrée entre planifiés, en cours et clôturés (extrait).';
 }
 
 /**
- * Barres horizontales — scores par norme ISO (cockpit audit).
+ * Barres horizontales : scores par norme ISO (cockpit audit).
  * @param {{ norm: string; score: number }[]} entries
  */
 export function createAuditIsoNormBarsChart(entries) {
@@ -1603,7 +1604,7 @@ export function createAuditIsoNormBarsChart(entries) {
   const safe =
     Array.isArray(entries) && entries.length
       ? entries
-      : [{ norm: '—', score: 0 }];
+      : [{ norm: 'Non disponible', score: 0 }];
 
   const scores = safe.map((e) =>
     Math.round(Math.max(0, Math.min(100, Number(e.score) || 0)))
@@ -1619,7 +1620,7 @@ export function createAuditIsoNormBarsChart(entries) {
     row.className = 'dashboard-audit-iso-bar-row';
     const lab = document.createElement('span');
     lab.className = 'dashboard-audit-iso-bar-label';
-    lab.textContent = e.norm != null ? String(e.norm) : '—';
+    lab.textContent = e.norm != null ? String(e.norm) : 'Non disponible';
     const track = document.createElement('div');
     track.className = 'dashboard-audit-iso-bar-track';
     const fill = document.createElement('span');
@@ -1693,7 +1694,7 @@ export function createPlanningStatusMixChart(counts) {
     const dot = document.createElement('span');
     dot.className = `dashboard-mix-dot ${cls}`;
     const txt = document.createElement('span');
-    txt.textContent = `${label} — ${value}`;
+    txt.textContent = `${label} : ${value}`;
     li.append(dot, txt);
     legend.append(li);
   });

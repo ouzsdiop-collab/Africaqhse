@@ -1,4 +1,4 @@
-/* Feuille globale — layout, shell, cartes, formulaires (variables : design-tokens.css).
+/* Feuille globale : layout, shell, cartes, formulaires (variables : design-tokens.css).
  * box-sizing, typo et fond de page : flat-app.css (évite la duplication). */
 
 html,
@@ -30,7 +30,7 @@ body {
   border: 0;
 }
 
-/* ——— Sidebar ——— */
+/* Sidebar */
 .sidebar {
   width: min(300px, 100vw);
   flex-shrink: 0;
@@ -220,7 +220,7 @@ body {
   opacity: 0.85;
 }
 
-/* ——— Zone principale ——— */
+/* Zone principale */
 .main-shell {
   flex: 1;
   min-width: 0;
@@ -462,7 +462,7 @@ body {
   }
 }
 
-/* ——— Shell refonte (sidebar + topbar SaaS) ——— */
+/* Shell refonte (sidebar + topbar SaaS) */
 .shell-sidebar,
 .shell-topbar {
   --shell-r-xs: 8px;
@@ -1414,7 +1414,7 @@ body {
   }
 }
 
-/* ——— Cartes & hero ——— */
+/* Cartes & hero */
 .content-card,
 .card-soft,
 .hero {
@@ -1505,7 +1505,7 @@ body {
   align-items: center;
 }
 
-/* ——— Boutons ——— */
+/* Boutons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1563,7 +1563,7 @@ body {
   color: var(--app-accent-hover, var(--color-text-info));
 }
 
-/* ——— Formulaires ——— */
+/* Formulaires */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1612,7 +1612,7 @@ body {
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
 }
 
-/* ——— KPI / métriques ——— */
+/* KPI / métriques */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1678,7 +1678,7 @@ body {
   margin-top: auto;
 }
 
-/* ——— Listes ——— */
+/* Listes */
 .stack {
   display: flex;
   flex-direction: column;
@@ -1752,7 +1752,7 @@ body {
   color: var(--text3);
 }
 
-/* ——— Badges (sémantique : bleu primaire / rouge critique / orange attention / vert conforme) ——— */
+/* Badges (sémantique : bleu primaire / rouge critique / orange attention / vert conforme) */
 .badge {
   display: inline-block;
   font-size: 11px;
@@ -1790,7 +1790,7 @@ body {
   border-color: var(--color-border-success);
 }
 
-/* ——— Kanban (structure de base) ——— */
+/* Kanban (structure de base) */
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1812,7 +1812,7 @@ body {
   background: rgba(0, 0, 0, 0.12);
 }
 
-/* ——— Graphiques analytics ——— */
+/* Graphiques analytics */
 .line-chart {
   margin-top: 8px;
   border-radius: var(--radius-md);
@@ -1828,7 +1828,7 @@ body {
   min-height: 200px;
 }
 
-/* ——— Panneau notifications ——— */
+/* Panneau notifications */
 .floating-panel {
   position: absolute;
   top: 72px;
@@ -1868,7 +1868,7 @@ body {
   font-weight: 800;
 }
 
-/* ——— Tableau générique ——— */
+/* Tableau générique */
 .table-shell {
   padding: 0;
   overflow: hidden;
@@ -1904,7 +1904,7 @@ body {
   border-bottom: none;
 }
 
-/* ——— Titres de liste incidents ——— */
+/* Titres de liste incidents */
 .incidents-list-heading {
   margin: 0 0 3px;
   font-size: 16px;

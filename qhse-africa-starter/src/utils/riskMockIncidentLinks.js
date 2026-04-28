@@ -63,22 +63,22 @@ export function getMergedIncidentsForRisk(riskTitle, apiRows) {
     if (row) {
       fromApi.push({
         ref: row.ref || ref,
-        type: row.type || '—',
-        status: row.status || '—',
+        type: row.type || 'Non renseigné',
+        status: row.status || 'Non renseigné',
         date: row.createdAt
           ? new Date(row.createdAt).toLocaleDateString('fr-FR', {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric'
             })
-          : '—'
+          : 'Non renseigné'
       });
     } else {
       fromApi.push({
         ref,
-        type: '—',
+        type: 'Non renseigné',
         status: 'Lien manuel',
-        date: '—'
+        date: 'Non renseigné'
       });
     }
     seen.add(ref);

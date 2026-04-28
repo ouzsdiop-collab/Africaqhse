@@ -5,7 +5,7 @@ import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 
 /**
- * Écran de connexion discret (email + mot de passe) — classes existantes du shell.
+ * Écran de connexion discret (email + mot de passe) : classes existantes du shell.
  * @param {{ onSuccess: () => void }} params
  */
 export function createLoginView({ onSuccess }) {
@@ -56,7 +56,7 @@ export function createLoginView({ onSuccess }) {
         </button>
       </div>
       <p class="login-hint login-hint--dev" style="margin:14px 0 0;font-size:12px;color:var(--text3);line-height:1.45;display:none">
-        Développement local — après <code style="font-size:11px">npx prisma db seed</code> : ex.
+        Développement local : après <code style="font-size:11px">npx prisma db seed</code>, ex.
         <code style="font-size:11px">qhse@qhse.local</code> / <code style="font-size:11px">Demo2026!</code>
         (voir <code style="font-size:11px">backend/prisma/seed.js</code>).
       </p>

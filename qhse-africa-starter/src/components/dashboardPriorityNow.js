@@ -1,11 +1,11 @@
 /**
- * Bloc « À faire maintenant » — relances opérationnelles (mêmes sources que les alertes).
+ * Bloc « À faire maintenant » : relances opérationnelles (mêmes sources que les alertes).
  */
 
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 function formatShortDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Non disponible';
   try {
     return new Date(iso).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -13,7 +13,7 @@ function formatShortDate(iso) {
       year: '2-digit'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -69,7 +69,7 @@ function buildPriorityItems(stats, ncs, audits) {
     const hint = String(row.title || row.type || '').trim().slice(0, 240);
     out.push({
       kind: 'urgent',
-      title: `${row.ref || 'Incident'} — ${row.type || 'gravité élevée'}`,
+      title: `${row.ref || 'Incident'} : ${row.type || 'gravité élevée'}`,
       meta: [row.site, formatShortDate(row.createdAt)].filter(Boolean).join(' · ') || 'À traiter sans délai',
       navigate: {
         page: 'incidents',
@@ -131,7 +131,7 @@ function buildPriorityItems(stats, ncs, audits) {
     const ar = a.ref != null ? String(a.ref).trim() : '';
     out.push({
       kind: 'urgent',
-      title: a.ref ? `Audit ${a.ref} — à cadrer` : 'Audit à finaliser',
+      title: a.ref ? `Audit ${a.ref} : à cadrer` : 'Audit à finaliser',
       meta: [a.site, a.status].filter(Boolean).join(' · ').slice(0, 72) || 'Module Audits',
       navigate: {
         page: 'audits',
@@ -221,7 +221,7 @@ export function createDashboardPriorityNow() {
     if (rawTotal > MAX_ITEMS) {
       const more = document.createElement('p');
       more.className = 'dashboard-priority-now__summary-more';
-      more.textContent = `${rawTotal - MAX_ITEMS} autre(s) non listé(s) ici — ouvrez incidents, actions ou audits.`;
+      more.textContent = `${rawTotal - MAX_ITEMS} autre(s) non listé(s) ici. Ouvrez incidents, actions ou audits.`;
       summary.append(more);
     }
 

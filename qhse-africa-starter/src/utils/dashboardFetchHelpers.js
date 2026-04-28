@@ -1,5 +1,5 @@
 /**
- * Chargements liste / stats dashboard — retries réseau et API lente (démarrage dev).
+ * Chargements liste / stats dashboard : retries réseau et API lente (démarrage dev).
  */
 
 import { qhseFetch } from './qhseFetch.js';

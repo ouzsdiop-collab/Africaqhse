@@ -5,24 +5,24 @@ import { NOTIF_TIER } from '../services/notificationIntelligence.service.js';
 /** @type {Array<object>} */
 const items = [];
 
-/** Notification locale groupée (documents / preuves) — hors API. */
+/** Notification locale groupée (documents / preuves) : hors API. */
 let localDocCompliance = /** @type {{ fingerprint: string; item: object } | null} */ (null);
 
 function linkFor(item) {
   switch (item.kind) {
     case 'incident': {
-      const m = /^Incident critique — (.+)$/.exec(item.title);
+      const m = /^Incident critique : (.+)$/.exec(item.title);
       return { page: 'incidents', ref: m ? m[1].trim() : null };
     }
     case 'action':
     case 'action_assigned':
       return { page: 'actions', ref: null };
     case 'nonconformity': {
-      const m = /^Non-conformité ouverte — (.+)$/.exec(item.title);
+      const m = /^Non-conformité ouverte : (.+)$/.exec(item.title);
       return { page: 'audits', ref: m ? m[1].trim() : null };
     }
     case 'audit': {
-      const m = /^Audit récent — (.+)$/.exec(item.title);
+      const m = /^Audit récent : (.+)$/.exec(item.title);
       return { page: 'audits', ref: m ? m[1].trim() : null };
     }
     case 'doc_compliance':
@@ -65,7 +65,7 @@ function hydrateFromApi(raw) {
 
 /**
  * Documents : une carte regroupée, sans spam (pas de bruit pour simples mises à jour).
- * @param {object[]} mergedDocRows — peuvent contenir classification (API)
+ * @param {object[]} mergedDocRows : peuvent contenir classification (API)
  * @param {number} missingIsoProofs
  * @param {string} [userRole]
  */
@@ -101,7 +101,7 @@ export function setDocComplianceGroupedNotification(mergedDocRows, missingIsoPro
   }
   const rejected = mergedDocRows.filter((r) => r.rejected === true).length;
   if (rejected) {
-    parts.push(`${rejected} document rejeté — reprendre la version`);
+    parts.push(`${rejected} document rejeté. Reprendre la version.`);
   }
 
   if (!parts.length) {

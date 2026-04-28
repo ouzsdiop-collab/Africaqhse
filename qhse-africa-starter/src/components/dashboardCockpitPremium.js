@@ -1,5 +1,5 @@
 /**
- * Cockpit direction premium — lecture synthétique, sans logique API.
+ * Cockpit direction premium : lecture synthétique, sans logique API.
  */
 
 import { appState } from '../utils/state.js';
@@ -133,7 +133,7 @@ function formatTodayFr() {
       year: 'numeric'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -293,9 +293,9 @@ export function createDashboardCockpitPremium(opts = {}) {
       ),
       (() => {
         const avg = avgAuditScore(audits);
-        const scoreTxt = avg != null ? `${avg}%` : '—';
+        const scoreTxt = avg != null ? `${avg}%` : 'Non disponible';
         const delta = auditDeltaPts(audits);
-        const deltaTxt = delta != null ? delta : '—';
+        const deltaTxt = delta != null ? delta : 'Non disponible';
         return buildKpiCard('Score audits', scoreTxt, deltaTxt, kpiToneAudit(avg));
       })()
     );
@@ -321,7 +321,7 @@ export function createDashboardCockpitPremium(opts = {}) {
     if (!critList.length) {
       const ok = document.createElement('p');
       ok.className = 'dcp-empty-ok';
-      ok.textContent = 'Aucune alerte critique — situation maîtrisée';
+      ok.textContent = 'Aucune alerte critique, situation maîtrisée';
       cardLeft.append(ok);
     } else {
       critList.forEach((inc) => {
@@ -339,7 +339,7 @@ export function createDashboardCockpitPremium(opts = {}) {
         const delay = inc?.createdAt
           ? formatDelayFr(inc.createdAt)
           : '';
-        meta.textContent = [inc?.site || '—', delay].filter(Boolean).join(' · ');
+        meta.textContent = [inc?.site || 'Non renseigné', delay].filter(Boolean).join(' · ');
         body.append(title, meta);
         const badge = document.createElement('span');
         badge.className = `dcp-badge ${isCritiqueSeverity(inc?.severity) ? 'dcp-badge--critique' : 'dcp-badge--moyen'}`;
@@ -371,7 +371,7 @@ export function createDashboardCockpitPremium(opts = {}) {
         title.textContent = truncate(a?.title || 'Action', 80);
         const meta = document.createElement('div');
         meta.className = 'dcp-action-meta';
-        meta.textContent = a?.owner || a?.assignee?.name || '—';
+        meta.textContent = a?.owner || a?.assignee?.name || 'Non renseigné';
         const badge = document.createElement('span');
         badge.className = 'dcp-overdue-badge';
         const d = overdueDays(a);

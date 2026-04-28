@@ -116,7 +116,7 @@ export function renderSites() {
         row.style.gap = '12px';
         const left = document.createElement('div');
         const title = document.createElement('strong');
-        title.textContent = r.name || '—';
+        title.textContent = r.name || 'Non renseigné';
         const sub = document.createElement('p');
         sub.style.margin = '6px 0 0';
         sub.style.fontSize = '12px';
@@ -132,7 +132,7 @@ export function renderSites() {
       });
     } catch {
       listHost.innerHTML =
-        '<p style="margin:0;font-size:13px;color:var(--text2)">Liste indisponible — vérifiez l’API.</p>';
+        '<p style="margin:0;font-size:13px;color:var(--text2)">Liste indisponible : vérifiez l’API.</p>';
     }
   }
 
@@ -175,7 +175,7 @@ export function renderSites() {
 
   if (!canWrite && su) {
     createBtn.disabled = true;
-    createBtn.title = 'Création réservée — rôle lecture';
+    createBtn.title = 'Création réservée : rôle lecture';
     createBtn.style.opacity = '0.55';
   }
 

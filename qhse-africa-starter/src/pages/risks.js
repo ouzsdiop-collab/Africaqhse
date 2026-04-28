@@ -22,7 +22,7 @@ import { linkModules } from '../services/moduleLinks.service.js';
 import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
 
-/* Extraction : intent dashboard + modèle registre risques (API, cache, analyses) + bloc IA Mistral — évite ~350 lignes dupliquées. */
+/* Extraction : intent dashboard + modèle registre risques (API, cache, analyses) + bloc IA Mistral, évite ~350 lignes dupliquées. */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
@@ -63,7 +63,7 @@ export function renderRisks() {
     pageId: 'risks',
     pageRoot: page,
     hintEssential:
-      'Essentiel : synthèse direction, priorités et registre compact — matrice, analyses et IA masqués.',
+      'Essentiel : synthèse direction, priorités et registre compact. Matrice, analyses et IA masqués.',
     hintAdvanced:
       'Expert : matrice G×P, paliers, tendances, assistant IA et options complètes.'
   });
@@ -72,7 +72,7 @@ export function renderRisks() {
     const banner = document.createElement('div');
     banner.style.cssText =
       'background:#f59e0b22;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#f59e0b;font-size:13px;font-weight:600';
-    banner.textContent = 'Mode hors connexion — affichage des dernieres donnees en cache';
+    banner.textContent = 'Mode hors connexion, affichage des dernières données en cache';
     page.prepend(banner);
   }
 
@@ -83,7 +83,7 @@ export function renderRisks() {
   offlineCacheBanner.setAttribute('role', 'status');
   offlineCacheBanner.style.cssText =
     'margin:0 0 14px;padding:12px 16px;font-weight:600;font-size:14px;border:1px solid var(--color-border-info, #38bdf8);';
-  offlineCacheBanner.textContent = '📡 Mode hors connexion — données en cache';
+  offlineCacheBanner.textContent = '📡 Mode hors connexion, données en cache';
 
   let localRisks = [];
   let risksLoading = true;
@@ -109,7 +109,7 @@ export function renderRisks() {
     .trim()
     .slice(0, 3800);
 
-  /** Dernier risque ouvert depuis le tableau — contexte optionnel pour navigation Produits / FDS. */
+  /** Dernier risque ouvert depuis le tableau, contexte optionnel pour navigation Produits / FDS. */
   let lastRiskFocusForProductsNav = /** @type {{ id: unknown, title: string } | null} */ (null);
 
   /** @type {Array<{ description?: string, ref?: string, type?: string, status?: string, createdAt?: string }>} */
@@ -178,7 +178,7 @@ export function renderRisks() {
           actionType: 'preventive',
           origin: 'risk',
           linkedRisk: t,
-          title: `Prévention — ${t}`
+          title: `Prévention : ${t}`
         };
     if (riskRow?.id) {
       defaults.linkedRiskId = riskRow.id;
@@ -330,7 +330,7 @@ export function renderRisks() {
   let matrixFilter = null;
   /** @type {RiskTierBucket | null} */
   let tierFilter = null;
-  /** @type {'critique'|'eleve'|'maitrise'|'sans_action'|null} — filtres cartes KPI */
+  /** @type {'critique'|'eleve'|'maitrise'|'sans_action'|null} - filtres cartes KPI */
   let bannerKpiFilter = null;
   if (String(dashboardIntentNav?.riskBannerKpi || '').toLowerCase() === 'critique') {
     bannerKpiFilter = 'critique';
@@ -409,11 +409,11 @@ export function renderRisks() {
       <div>
         <div class="section-kicker">Pilotage QHSE</div>
         <h3 class="risks-pilot-banner__title">Registre des risques opérationnels</h3>
-        <p class="risks-pilot-banner__lead">Aligné ISO 45001 &amp; 14001 — matrice G×P, terrain et actions. Cliquez une carte pour filtrer le tableau.</p>
+        <p class="risks-pilot-banner__lead">Aligné ISO 45001 &amp; 14001 : matrice G×P, terrain et actions. Cliquez une carte pour filtrer le tableau.</p>
       </div>`;
     const kpis = document.createElement('div');
     kpis.className = 'risks-pilot-banner__kpis risks-pilot-banner__kpis--four';
-    kpis.setAttribute('aria-label', 'Indicateurs registre risques — filtres');
+    kpis.setAttribute('aria-label', 'Indicateurs registre risques, filtres');
     const cards = [
       ['Critiques', String(nCrit), 'Palier critique', 'risks-pilot-banner__kpi--crit', 'critique'],
       ['Élevés', String(nElev), 'Hors palier critique', 'risks-pilot-banner__kpi--elev', 'eleve'],
@@ -457,7 +457,7 @@ export function renderRisks() {
     const gp = parseRiskMatrixGp(r.meta);
     const gpTxt = gp ? `G${gp.g}×P${gp.p}` : 'G×P ?';
     const crit = riskCriticalityFromMeta(r.meta);
-    const badge = crit ? crit.label : String(r.status || '—');
+    const badge = crit ? crit.label : String(r.status || 'Non renseigné');
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'risks-priority-premium__line';
@@ -483,7 +483,7 @@ export function renderRisks() {
     const h = document.createElement('div');
     h.className = 'content-card-head content-card-head--tight';
     h.innerHTML =
-      '<div><div class="section-kicker">Priorités</div><h3>Risques à surveiller</h3><p class="content-card-lead risks-priority-premium__lead">Raccourcis vers le registre — critiques, récents, dérive.</p></div>';
+      '<div><div class="section-kicker">Priorités</div><h3>Risques à surveiller</h3><p class="content-card-lead risks-priority-premium__lead">Raccourcis vers le registre : critiques, récents, dérive.</p></div>';
     const grid = document.createElement('div');
     grid.className = 'risks-priority-premium__grid';
 
@@ -536,7 +536,7 @@ export function renderRisks() {
         <div>
           <div class="section-kicker">Évolution</div>
           <h3>Tendance</h3>
-          <p class="content-card-lead risks-evolution-card__lead">Risques en palier critique et score moyen G×P par mois de dernière mise à jour — calculé à partir du registre chargé via l’API.</p>
+          <p class="content-card-lead risks-evolution-card__lead">Risques en palier critique et score moyen G×P par mois de dernière mise à jour, calculé à partir du registre chargé via l’API.</p>
         </div>
       </div>
       <div class="risks-evolution-chart" data-risks-evolution-chart></div>
@@ -549,8 +549,8 @@ export function renderRisks() {
       empty.style.padding = '12px 0';
       empty.textContent =
         risksLoading || !localRisks.length
-          ? 'Chargement ou aucune donnée — le graphique s’affichera après synchronisation du registre.'
-          : 'Pas assez de dates de mise à jour pour agréger par mois — vérifiez les champs date côté API.';
+          ? 'Chargement ou aucune donnée. Le graphique s’affichera après synchronisation du registre.'
+          : 'Pas assez de dates de mise à jour pour agréger par mois. Vérifiez les champs date côté API.';
       chartHost.append(empty);
       evolutionHost.append(art);
       return;
@@ -608,7 +608,7 @@ export function renderRisks() {
     const h = document.createElement('div');
     h.className = 'content-card-head content-card-head--tight';
     h.innerHTML =
-      '<div><div class="section-kicker">Preuves & contrôles</div><h3>Liaisons incidents (API)</h3><p class="content-card-lead risks-proofs-card__lead">Risques référencés dans la description d’incidents via le marqueur <code>[Risque lié: …]</code> — données issues de GET /api/incidents.</p></div>';
+      '<div><div class="section-kicker">Preuves & contrôles</div><h3>Liaisons incidents (API)</h3><p class="content-card-lead risks-proofs-card__lead">Risques référencés dans la description d’incidents via le marqueur <code>[Risque lié: …]</code>. Données issues de GET /api/incidents.</p></div>';
     const ul = document.createElement('ul');
     ul.className = 'risks-proofs-list';
     const lines = [];
@@ -619,7 +619,7 @@ export function renderRisks() {
       if (!linked.length) return;
       lines.push({
         kind: 'Incident',
-        label: `${title} — ${linked.length} lien(s) : ${linked.map((x) => String(x.ref)).join(', ')}`
+        label: `${title} : ${linked.length} lien(s) (${linked.map((x) => String(x.ref)).join(', ')})`
       });
     });
     if (!lines.length) {
@@ -627,7 +627,7 @@ export function renderRisks() {
       li.className = 'risks-proofs-item';
       const pk = document.createElement('span');
       pk.className = 'risks-proofs-item__kind';
-      pk.textContent = '—';
+      pk.textContent = 'Non renseigné';
       const pl = document.createElement('span');
       pl.className = 'risks-proofs-item__label';
       pl.textContent =
@@ -668,7 +668,7 @@ export function renderRisks() {
   const iaActionsHost = iaHost.querySelector('[data-risks-ia-actions]');
   const iaResultEl = iaHost.querySelector('[data-risks-ia-result]');
 
-  /** @param {unknown} row — réponse POST /api/ai-suggestions/generate (ligne AiSuggestion). */
+  /** @param {unknown} row - réponse POST /api/ai-suggestions/generate (ligne AiSuggestion). */
   function linesFromAiGenerateRow(row) {
     const c = row && typeof row === 'object' && 'content' in row ? row.content : null;
     if (c == null) return ['Aucune suggestion disponible.'];
@@ -690,7 +690,7 @@ export function renderRisks() {
     const warnings = 'warnings' in c && Array.isArray(c.warnings) ? c.warnings : [];
     const wLines = warnings.map((w) => `⚠ ${String(w)}`).filter(Boolean);
     if (wLines.length) {
-      if (lines.length) lines.push('—');
+      if (lines.length) lines.push('');
       lines.push(...wLines);
     }
     return lines.length ? lines : ['Aucune suggestion disponible.'];
@@ -713,7 +713,7 @@ export function renderRisks() {
     const iaHint = document.createElement('p');
     iaHint.className = 'risks-ia-premium__result-hint';
     iaHint.textContent =
-      'Aucune écriture automatique — validez manuellement dans le registre ou les actions.';
+      'Aucune écriture automatique. Validez manuellement dans le registre ou dans les actions.';
     iaResultEl.append(iaTitle, iaUl, iaHint);
   }
 
@@ -734,7 +734,7 @@ export function renderRisks() {
           crits.map((r) => {
             const gp = parseRiskMatrixGp(r.meta);
             const gpt = gp ? `G${gp.g}×P${gp.p}` : 'G×P ?';
-            return `${r.title || 'Sans titre'} — ${gpt} — ${riskWorkflowStatusLabelFr(r.status)}`;
+            return `${r.title || 'Sans titre'} : ${gpt}. Statut : ${riskWorkflowStatusLabelFr(r.status)}`;
           })
         );
       }
@@ -779,7 +779,7 @@ export function renderRisks() {
           showIaAssistantResult('Pistes d’actions IA', lines);
         } catch {
           showIaAssistantResult('Pistes d’actions', [
-            'Service IA indisponible — analyse locale uniquement.'
+            'Service IA indisponible. Analyse locale uniquement.'
           ]);
         }
       }
@@ -819,7 +819,7 @@ export function renderRisks() {
   const matrixHead = document.createElement('div');
   matrixHead.className = 'content-card-head content-card-head--tight';
   matrixHead.innerHTML =
-    '<div><div class="section-kicker">Matrice centrale</div><h3>Matrice gravité × probabilité (G×P)</h3><p class="content-card-lead risks-matrix-card-prominent__lead">Grille 5×5 : axes gravité (G) et probabilité (P) issus de l’API — chaque fiche est positionnée d’après ses champs gravité / probabilité. Survol : aperçu · clic sur une case remplie : filtre le registre.</p></div>';
+    '<div><div class="section-kicker">Matrice centrale</div><h3>Matrice gravité × probabilité (G×P)</h3><p class="content-card-lead risks-matrix-card-prominent__lead">Grille 5×5 : axes gravité (G) et probabilité (P) issus de l’API. Chaque fiche est positionnée d’après ses champs gravité / probabilité. Survol : aperçu. Clic sur une case remplie : filtre le registre.</p></div>';
   matrixCard.append(matrixHead, matrixStatusLine, matrixPanel.element);
 
   function updateMatrixStatusLine() {
@@ -952,7 +952,7 @@ export function renderRisks() {
     insH3.textContent = 'Répartition & filtres registre';
     const insLead = document.createElement('p');
     insLead.className = 'risks-insights__lead';
-    insLead.textContent = `${unplaced} fiche(s) sans G×P — paliers ci-dessous pour filtrer le tableau.`;
+    insLead.textContent = `${unplaced} fiche(s) sans G×P. Utilisez les paliers ci-dessous pour filtrer le tableau.`;
     insIntro.append(insKicker, insH3, insLead);
     head.append(insIntro);
 
@@ -1148,7 +1148,7 @@ export function renderRisks() {
       return;
     }
     const incidentsLinkNote = appState.activeSiteId
-      ? 'Périmètre : site sélectionné dans la barre principale — aligné sur la liste du module Incidents.'
+      ? 'Périmètre : site sélectionné dans la barre principale. Aligné sur la liste du module Incidents.'
       : 'Périmètre : tous les sites visibles par l’API sur cette requête.';
 
     rows.forEach((r) => {
@@ -1227,14 +1227,14 @@ export function renderRisks() {
     const h = document.createElement('div');
     h.className = 'content-card-head content-card-head--tight';
     h.innerHTML =
-      '<div><div class="section-kicker">Analyse globale</div><h3>Veille & cohérence</h3><p class="content-card-lead risks-analysis-premium__lead">Lecture seule : actions manquantes, G×P, incohérences — à valider métier.</p></div>';
+      '<div><div class="section-kicker">Analyse globale</div><h3>Veille & cohérence</h3><p class="content-card-lead risks-analysis-premium__lead">Lecture seule : actions manquantes, G×P, incohérences. À valider métier.</p></div>';
     const ul = document.createElement('ul');
     ul.className = 'risks-analysis-premium__list';
     if (!findings.length) {
       const li = document.createElement('li');
       li.className = 'risks-analysis-premium__item risks-analysis-premium__item--info';
       li.textContent =
-        'Aucun écart flaggé par les règles locales — poursuivre revues et terrain.';
+        'Aucun écart détecté par les règles locales. Poursuivez les revues et le terrain.';
       ul.append(li);
     } else {
       findings.forEach((f) => {
@@ -1327,7 +1327,7 @@ export function renderRisks() {
 
   function incidentsLinkNoteForRisk() {
     return appState.activeSiteId
-      ? 'Périmètre : site sélectionné dans la barre principale — aligné sur la liste du module Incidents.'
+      ? 'Périmètre : site sélectionné dans la barre principale. Aligné sur la liste du module Incidents.'
       : 'Périmètre : tous les sites visibles par l’API sur cette requête.';
   }
 
@@ -1463,7 +1463,7 @@ export function renderRisks() {
         resultZone.style.color = 'var(--text-primary, #1e293b)';
         resultZone.innerHTML = `
         <strong>${escapeHtml(parsedData.productName)}</strong>
-        ${parsedData.casNumber ? `<span style="color:var(--text-muted,#64748b)"> — CAS ${escapeHtml(String(parsedData.casNumber))}</span>` : ''}
+        ${parsedData.casNumber ? `<span style="color:var(--text-muted,#64748b)">, CAS ${escapeHtml(String(parsedData.casNumber))}</span>` : ''}
         <br><br>
         <strong>Dangers detectes :</strong><br>
         ${
@@ -1488,7 +1488,7 @@ export function renderRisks() {
         dialog.querySelector('#fds-create').style.display = 'inline-block';
         analyzeBtn.style.display = 'none';
       } catch {
-        analyzeBtn.textContent = 'Erreur — Reessayer';
+        analyzeBtn.textContent = 'Erreur, réessayer';
         analyzeBtn.disabled = false;
       }
     });
@@ -1513,9 +1513,9 @@ export function renderRisks() {
             ctx?.id != null && String(ctx.id).trim() !== '' ? String(ctx.id) : undefined,
           linkedRiskTitle: ctx?.title ? String(ctx.title).trim().slice(0, 400) : undefined
         });
-        showToast('Produit enregistré — registre Produits & FDS.', 'success');
+        showToast('Produit enregistré. Registre Produits & FDS.', 'success');
       } catch {
-        createBtn.textContent = 'Erreur — Reessayer';
+        createBtn.textContent = 'Erreur, réessayer';
         createBtn.disabled = false;
       }
     });
@@ -1533,7 +1533,7 @@ export function renderRisks() {
         <div class="section-kicker">Registre des risques</div>
         <h3>Tableau compact</h3>
         <p class="content-card-lead risks-page__panel-lead">
-          Vue compacte par défaut : criticité, G×P et responsable sous le libellé — détail complet au clic ou via « Colonnes complètes ».
+          Vue compacte par défaut : criticité, G×P et responsable sous le libellé. Détail complet au clic ou via « Colonnes complètes ».
         </p>
       </div>
       <div class="risks-page__panel-actions">
@@ -1556,7 +1556,7 @@ export function renderRisks() {
     (risksTableColumnMode === 'full' ? ' qhse-data-table--full' : ' qhse-data-table--essential');
   const caption = document.createElement('caption');
   caption.className = 'risks-register-premium-table__caption';
-  caption.textContent = 'Registre — ligne = synthèse, clic = fiche complète';
+  caption.textContent = 'Registre : ligne = synthèse, clic = fiche complète';
   const colgroup = document.createElement('colgroup');
   colgroup.innerHTML = `
     <col class="risks-register-col risks-register-col--risk" />
@@ -1590,7 +1590,7 @@ export function renderRisks() {
   const tableToolbarMeta = document.createElement('span');
   tableToolbarMeta.className = 'qhse-table-toolbar__meta';
   tableToolbarMeta.textContent =
-    'Tri par criticité conservé — liaisons et boutons d’état dans « Liens & actions » sur chaque ligne.';
+    'Tri par criticité conservé. Liaisons et boutons d’état dans « Liens & actions » sur chaque ligne.';
   const tableToolbarActions = document.createElement('div');
   tableToolbarActions.className = 'qhse-table-toolbar__actions';
   const risksColToggle = document.createElement('button');
@@ -1710,7 +1710,7 @@ export function renderRisks() {
   iaHost.classList.add('qhse-page-advanced-only');
 
   const risksModeGuide = createSimpleModeGuide({
-      title: 'Risques — prioriser avant la matrice',
+      title: 'Risques : prioriser avant la matrice',
       hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
       nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
   });
@@ -1737,7 +1737,7 @@ export function renderRisks() {
         defaults: {
           title: riskPrefillTitleNav,
           description:
-            riskPrefillDescNav || 'Risque lié à un constat audit / NC — complétez la fiche.',
+            riskPrefillDescNav || 'Risque lié à un constat audit / NC. Complétez la fiche.',
           category: 'Sécurité'
         },
         onSaved: async (data) => {

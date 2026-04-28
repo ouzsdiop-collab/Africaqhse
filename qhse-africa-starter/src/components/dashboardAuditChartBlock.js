@@ -1,5 +1,5 @@
 /**
- * Bloc graphiques audit (dashboard) — Chart.js, données API ou jeu d’illustration si vide.
+ * Bloc graphiques audit (dashboard) : Chart.js, données API ou jeu d’illustration si vide.
  */
 
 import {
@@ -22,8 +22,8 @@ const CHART_GRID = 'rgba(148, 163, 184, 0.14)';
 /**
  * @param {object[] | null | undefined} audits
  * @param {object[] | null | undefined} ncs
- * @param {object | null | undefined} timeseries — réponse `GET /api/dashboard/stats` (optionnel)
- * @param {boolean} allowDemoChartFallback — ex. `isDemoMode()` (exploration locale)
+ * @param {object | null | undefined} timeseries : réponse `GET /api/dashboard/stats` (optionnel)
+ * @param {boolean} allowDemoChartFallback : ex. `isDemoMode()` (exploration locale)
  */
 function prepareModel(audits, ncs, timeseries, allowDemoChartFallback) {
   const hasTs = timeseries && typeof timeseries === 'object' && !Array.isArray(timeseries);
@@ -40,7 +40,9 @@ function prepareModel(audits, ncs, timeseries, allowDemoChartFallback) {
       const labelsFromTs =
         Array.isArray(timeseries.labels) && timeseries.labels.length
           ? timeseries.labels.map((l) => String(l))
-          : scoreRows.map((b) => String(/** @type {{ label?: unknown }} */ (b).label ?? '—'));
+          : scoreRows.map((b) =>
+              String(/** @type {{ label?: unknown }} */ (b).label ?? 'Non disponible')
+            );
       const m = Math.min(labelsFromTs.length, scoreRows.length, majorArr.length, minorArr.length);
       if (m > 0) {
         const labels = labelsFromTs.slice(0, m);
@@ -257,7 +259,7 @@ export function createDashboardAuditChartBlock() {
     foot.textContent = fromApiTs
       ? 'Agrégations mensuelles côté serveur (même périmètre que le tableau de bord).'
       : footBits.length
-        ? `Note — ${footBits.join(' · ')}. Les chiffres réels s’affichent dès que les audits et NC couvrent la période.`
+        ? `Note : ${footBits.join(' · ')}. Les chiffres réels s’affichent dès que les audits et NC couvrent la période.`
         : 'Données issues des audits et NC chargés pour les six derniers mois.';
 
     setVisible(skeleton, true);

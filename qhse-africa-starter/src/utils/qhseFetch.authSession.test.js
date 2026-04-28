@@ -7,7 +7,7 @@ function jsonRes(status, body) {
   });
 }
 
-describe('qhseFetch — auth/session/refresh', () => {
+describe('qhseFetch : auth/session/refresh', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();

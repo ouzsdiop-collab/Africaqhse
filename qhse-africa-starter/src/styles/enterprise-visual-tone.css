@@ -7,11 +7,11 @@
  */
 
 html[data-theme='dark'] {
-  /* Ombres plus plates — moins de « flottement UI » */
+  /* Ombres plus plates : moins de « flottement UI » */
   --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 2px 14px rgba(0, 0, 0, 0.22);
   --page-stack-gap: 1.78rem;
 
-  /* Aligné sur tokens.css — évite les panneaux trop « néon » */
+  /* Aligné sur tokens.css : évite les panneaux trop « néon » */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.28);
   --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.34);
@@ -64,7 +64,7 @@ html[data-theme='dark'] {
   box-shadow: none;
 }
 
-/* Rythme vertical zone contenu (dark) — aligné sur --page-stack-gap */
+/* Rythme vertical zone contenu (dark) : aligné sur --page-stack-gap */
 [data-theme='dark'] .main-shell .qhse-page-slot > .page-stack {
   --page-stack-gap: clamp(26px, 2.85vw, 42px);
 }
@@ -157,7 +157,7 @@ html[data-theme='dark'] {
   background: var(--color-background-tertiary, var(--surface-3));
 }
 
-/* Hero cockpit : moins de halo teal et d’ombre profonde — lecture direction plus sobre */
+/* Hero cockpit : moins de halo teal et d’ombre profonde ; lecture direction plus sobre */
 [data-theme='dark'] .dashboard-hero.dashboard-hero,
 [data-theme='dark'] .hero.dashboard-hero {
   background: linear-gradient(

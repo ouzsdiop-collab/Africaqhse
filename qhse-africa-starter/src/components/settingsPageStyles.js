@@ -144,7 +144,7 @@ const CSS = `
 }
 .settings-human-row span{font-size:12px;font-weight:700;color:var(--color-success-text);letter-spacing:.02em}
 .settings-actions-bar{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-/* —— HQ / premium layer (additive — classes existantes inchangées) —— */
+/* HQ / premium layer (additive : classes existantes inchangées) */
 .settings-page--hq > .settings-hero.content-card{
   margin-bottom:0;padding-bottom:20px;border-bottom:1px solid var(--color-border-tertiary);
 }
@@ -356,7 +356,7 @@ html[data-theme='light'] .settings-hero-premium__eyebrow{
   color:#6b7280;
 }
 
-/* Mode clair : bandeau IA — pastilles et CTA lisibles si variables héritées diffèrent */
+/* Mode clair : bandeau IA, pastilles et CTA lisibles si variables héritées diffèrent */
 html[data-theme='light'] .settings-ia-human-pattern__cta{
   color:var(--color-violet-ink);
 }

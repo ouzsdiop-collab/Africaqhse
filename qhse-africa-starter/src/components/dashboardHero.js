@@ -1,7 +1,7 @@
 /**
  * Bandeau hero direction : site actif, messages hiérarchisés, export.
  * leads[0] = message principal ; leads[1] = précision (optionnel).
- * kickerText — remplace le libellé au-dessus du titre (sinon « Comité QHSE · site »).
+ * kickerText : remplace le libellé au-dessus du titre (sinon « Comité QHSE · site »).
  */
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
 

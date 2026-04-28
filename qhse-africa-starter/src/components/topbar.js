@@ -43,7 +43,7 @@ export function createTopbar({
         <div class="app-topbar__logo" aria-hidden="true">Q</div>
         <div class="app-topbar__titles">
           <div class="app-topbar__title">QHSE Control</div>
-          <p class="app-topbar__subtitle">Cockpit QHSE — sécurité, conformité &amp; actions</p>
+          <p class="app-topbar__subtitle">Cockpit QHSE : sécurité, conformité &amp; actions</p>
         </div>
       </div>
       <div class="app-topbar__center">

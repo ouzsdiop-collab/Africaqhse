@@ -7,7 +7,7 @@ import {
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 /**
- * Une ligne du journal — DOM uniquement, prête pour surcouche filtre / tri (entrée déjà filtrée en amont).
+ * Une ligne du journal : DOM uniquement, prête pour surcouche filtre / tri (entrée déjà filtrée en amont).
  */
 export function createActivityLogRow(entry) {
   const meta = moduleMeta(entry.module);
@@ -20,7 +20,7 @@ export function createActivityLogRow(entry) {
   row.setAttribute('role', 'link');
   row.setAttribute(
     'aria-label',
-    `Ouvrir le module ${meta.label} — ${entry.action || 'entrée'}`
+    `Ouvrir le module ${meta.label} : ${entry.action || 'entrée'}`
   );
   if (importance === 'high') {
     row.classList.add('activity-log-row--emphasis');
@@ -62,13 +62,13 @@ export function createActivityLogRow(entry) {
   kindBadge.title = 'Type d’événement (classification locale pour lecture ISO)';
   const strong = document.createElement('span');
   strong.className = 'activity-log-strong';
-  strong.textContent = entry.action || '—';
+  strong.textContent = entry.action || 'Non renseigné';
   actWrap.append(kindBadge, strong);
   if (importance === 'high') {
     const mark = document.createElement('span');
     mark.className = 'activity-log-importance';
     mark.textContent = 'À suivre';
-    mark.title = 'Action ou événement sensible — conservé pour la traçabilité';
+    mark.title = 'Action ou événement sensible : conservé pour la traçabilité';
     actWrap.append(mark);
   }
   cAct.append(actWrap);
@@ -84,14 +84,14 @@ export function createActivityLogRow(entry) {
   cUser.className = 'activity-log-cell activity-log-cell--user';
   const user = document.createElement('span');
   user.className = 'activity-log-meta';
-  user.textContent = entry.user || '—';
+  user.textContent = entry.user || 'Non renseigné';
   cUser.append(user);
 
   const cTime = document.createElement('div');
   cTime.className = 'activity-log-cell activity-log-cell--time';
   const time = document.createElement('span');
   time.className = 'activity-log-time';
-  time.textContent = entry.timestamp || '—';
+  time.textContent = entry.timestamp || 'Non disponible';
   cTime.append(time);
 
   row.append(cMod, cAct, cDet, cUser, cTime);

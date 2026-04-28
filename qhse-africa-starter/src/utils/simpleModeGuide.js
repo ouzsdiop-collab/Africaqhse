@@ -1,5 +1,5 @@
 /**
- * Bandeau d’aide « vue simplifiée » — la visibilité est pilotée par
+ * Bandeau d’aide « vue simplifiée » : la visibilité est pilotée par
  * `[data-display-mode="simple"]` dans displayModes.css (pas de logique métier).
  */
 
@@ -12,7 +12,7 @@ export function createSimpleModeGuide(copy = {}) {
   const aside = document.createElement('aside');
   aside.className = 'qhse-simple-guide';
   aside.setAttribute('role', 'note');
-  aside.setAttribute('aria-label', 'Guide — vue simplifiée');
+  aside.setAttribute('aria-label', 'Guide : vue simplifiée');
 
   if (title) {
     const t = document.createElement('p');

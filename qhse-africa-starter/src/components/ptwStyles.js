@@ -9,7 +9,7 @@ const CSS = `
   box-sizing:border-box;
   background-color:var(--badge-neutral-bg,#f1f5f9);color:var(--badge-neutral-color,#334155);border:1px solid var(--badge-neutral-border,#cbd5e1);
 }
-/* Mode en ligne (connecté) — jetons --btn-online-* sous html[data-theme=light] */
+/* Mode en ligne (connecté) : jetons --btn-online-* sous html[data-theme=light] */
 .ptw-net-badge--online{
   background-color:var(--btn-online-bg,#dcfce7);color:var(--btn-online-color,#166534);border:1px solid var(--btn-online-border,#86efac);
 }
@@ -21,7 +21,7 @@ const CSS = `
 .ptw-net-badge--sync{
   background-color:var(--btn-sync-bg,#dbeafe);color:var(--btn-sync-color,#1e40af);border:1px solid var(--btn-sync-border,#93c5fd);
 }
-/* File d’attente sync — clair (ambre lisible) */
+/* File d’attente sync : clair (ambre lisible) */
 .ptw-net-badge--sync-pending{
   background-color:#ffedd5;color:#9a3412;border:1px solid #fdba74;
 }
