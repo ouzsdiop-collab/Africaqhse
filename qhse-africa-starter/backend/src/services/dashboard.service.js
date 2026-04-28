@@ -7,6 +7,7 @@ import {
   prismaTenantSiteWhere
 } from './kpiCore.service.js';
 import { isFinalAuditStatus } from './auditAutoReport.service.js';
+import { buildQhseIntelligenceSnapshot } from './qhseIntelligence.service.js';
 
 const LIST_MAX = 5;
 const DASHBOARD_TIMESERIES_MONTHS = 6;
@@ -215,6 +216,12 @@ function actionOverdueWhere(now) {
  * @param {string | null} [siteId] — filtre strict sur siteId Prisma ; null = tous périmètres
  */
 export async function getDashboardStats(tenantId, siteId = null) {
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
   const siteFilter = prismaTenantSiteWhere(tenantId, siteId);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -233,7 +240,12 @@ export async function getDashboardStats(tenantId, siteId = null) {
     auditGroups,
     criticalIncidentRows,
     overdueActionCandidates,
-    timeseries
+    timeseries,
+    intelligenceIncidents,
+    intelligenceRisks,
+    intelligenceActions,
+    intelligenceAudits,
+    intelligenceProducts
   ] = await Promise.all([
     prisma.incident.count({ where: siteFilter }),
     prisma.incident.count({
@@ -288,7 +300,37 @@ export async function getDashboardStats(tenantId, siteId = null) {
       orderBy: { dueDate: 'asc' },
       take: LIST_MAX
     }),
-    buildDashboardTimeseries(tenantId, siteId)
+    buildDashboardTimeseries(tenantId, siteId),
+    // Intelligence (read-only, additif). Limite volontaire pour rester "léger".
+    prisma.incident.findMany({
+      where: { ...siteFilter, createdAt: { gte: thirtyDaysAgo } },
+      select: { id: true, ref: true, type: true, site: true, siteId: true, severity: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    }),
+    prisma.risk.findMany({
+      where: siteFilter,
+      select: { id: true, ref: true, title: true, probability: true, gravity: true, severity: true, gp: true, status: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 200
+    }),
+    prisma.action.findMany({
+      where: siteFilter,
+      select: { id: true, title: true, detail: true, status: true, owner: true, dueDate: true, siteId: true },
+      orderBy: { dueDate: 'asc' },
+      take: 200
+    }),
+    prisma.audit.findMany({
+      where: siteFilter,
+      select: { id: true, status: true, score: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    }),
+    prisma.product.findMany({
+      where: siteFilter,
+      select: { id: true, name: true, fdsFileUrl: true, expiresAt: true },
+      take: 200
+    })
   ]);
 
   let auditsTotal = 0;
@@ -340,6 +382,25 @@ export async function getDashboardStats(tenantId, siteId = null) {
     }
   };
 
+  // Bloc intelligence additif (ne casse pas l’ancien format).
+  // Tenant obligatoire pour le calcul : si absent/invalid, on n’expose pas l’intelligence.
+  let intelligence = null;
+  if (normalizeTenantId(tenantId)) {
+    try {
+      intelligence = buildQhseIntelligenceSnapshot({
+        tenantId,
+        incidents: intelligenceIncidents,
+        risks: intelligenceRisks,
+        actions: intelligenceActions,
+        audits: intelligenceAudits,
+        products: intelligenceProducts,
+        now
+      });
+    } catch {
+      intelligence = null;
+    }
+  }
+
   return {
     incidents: incidentsTotal,
     actions: actionsTotal,
@@ -349,6 +410,7 @@ export async function getDashboardStats(tenantId, siteId = null) {
     overdueActionItems,
     siteId: siteFilter?.siteId ?? null,
     stats,
-    timeseries
+    timeseries,
+    ...(intelligence ? { intelligence } : {})
   };
 }
