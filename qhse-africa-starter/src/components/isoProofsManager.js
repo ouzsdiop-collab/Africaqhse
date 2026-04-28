@@ -1,6 +1,6 @@
 /**
  * Gestion des preuves ISO : module isolé (store + UI modal + colonne registre).
- * Ne modifie pas les autres modules ; persistance dédiée localStorage.
+ * Persistance serveur (API) avec repli localStorage si indisponible.
  */
 import './isoProofsModule.css';
 import {
@@ -10,6 +10,8 @@ import {
 } from '../data/conformityStore.js';
 import { showToast } from './toast.js';
 import { ensureSensitiveAccess } from './sensitiveAccessGate.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 const STORAGE_KEY = 'qhse-iso-proof-docs-module-v1';
 const TOUCHED_KEY = 'qhse-iso-proof-touched-reqs-v1';
@@ -21,6 +23,7 @@ const TOUCHED_KEY = 'qhse-iso-proof-touched-reqs-v1';
 /**
  * @typedef {object} IsoProofDocument
  * @property {string} id
+ * @property {'local' | 'api'} [source]
  * @property {string} displayName
  * @property {IsoProofDocCategory} docCategory
  * @property {IsoProofLinkKind} linkKind
@@ -31,6 +34,9 @@ const TOUCHED_KEY = 'qhse-iso-proof-touched-reqs-v1';
  * @property {number} fileSize
  * @property {string} mimeType
  * @property {string} createdAt
+ * @property {'pending'|'validated'|'rejected'} [_apiStatus]
+ * @property {string|null} [_validatedAt]
+ * @property {unknown} [_validatedBy]
  */
 
 /** @type {IsoProofDocument[]} */
@@ -38,6 +44,80 @@ export const documentsStore = [];
 
 /** @type {Set<string>} */
 let touchedReqs = new Set();
+
+/** @param {unknown} row */
+function mapApiRowToDoc(row) {
+  const e = row && typeof row === 'object' ? row : {};
+  const meta = e.meta && typeof e.meta === 'object' && !Array.isArray(e.meta) ? e.meta : {};
+  const apiStatus = String(e.status || 'pending');
+  const uiStatus = apiStatus === 'validated' ? 'validated' : 'verify';
+  const docCategory =
+    e.type === 'audit'
+      ? 'audit_doc'
+      : e.type === 'photo' || String(meta.mimeType || '').startsWith('image/')
+        ? 'preuve'
+        : 'preuve';
+  return {
+    id: String(e.id || ''),
+    source: 'api',
+    displayName: String(meta.displayName || meta.fileName || e.requirementId || 'Preuve ISO').slice(0, 200),
+    docCategory: /** @type {IsoProofDocCategory} */ (docCategory),
+    linkKind:
+      meta.linkKind === 'nc' || meta.linkKind === 'audit' ? meta.linkKind : 'exigence',
+    linkId: String(meta.linkId || e.requirementId || ''),
+    registryRequirementId: e.requirementId != null ? String(e.requirementId).trim() : null,
+    status: /** @type {IsoProofStatus} */ (uiStatus),
+    fileName: String(meta.fileName || '').slice(0, 240),
+    fileSize: Number(meta.fileSize) || 0,
+    mimeType: String(meta.mimeType || 'application/octet-stream').slice(0, 120),
+    createdAt: e.createdAt || new Date().toISOString(),
+    _apiStatus: apiStatus,
+    _validatedAt: e.validatedAt ?? null,
+    _validatedBy: e.validatedBy ?? null
+  };
+}
+
+/** @param {IsoProofDocument} d */
+function normEvidenceStatus(d) {
+  if (d._apiStatus === 'validated' || d._apiStatus === 'rejected' || d._apiStatus === 'pending') {
+    return d._apiStatus;
+  }
+  return d.status === 'validated' ? 'validated' : 'pending';
+}
+
+/**
+ * @param {'preuve' | 'procedure' | 'audit_doc'} docCategory
+ * @param {string} mimeType
+ */
+function mapCategoryToApiType(docCategory, mimeType) {
+  if (docCategory === 'audit_doc') return 'audit';
+  if (mimeType && mimeType.startsWith('image/')) return 'photo';
+  return 'document';
+}
+
+async function hydrateFromApi() {
+  try {
+    const res = await qhseFetch('/api/iso/evidence');
+    if (!res.ok) throw new Error('iso evidence api');
+    const data = await res.json();
+    const list = Array.isArray(data.evidences) ? data.evidences : [];
+    const locals = documentsStore.filter((d) => d.source !== 'api');
+    documentsStore.length = 0;
+    locals.forEach((d) => documentsStore.push(d));
+    for (const e of list) {
+      documentsStore.push(mapApiRowToDoc(e));
+    }
+    const rids = new Set(list.map((x) => String(x.requirementId || '')).filter(Boolean));
+    for (const rid of rids) {
+      touchedReqs.add(rid);
+      syncRequirementStatusFromProofs(rid);
+    }
+    saveTouched();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function loadTouched() {
   try {
@@ -66,7 +146,11 @@ function loadDocuments() {
     const p = JSON.parse(raw);
     if (!Array.isArray(p)) return;
     p.forEach((row) => {
-      if (row && typeof row === 'object' && row.id) documentsStore.push(/** @type {IsoProofDocument} */ (row));
+      if (row && typeof row === 'object' && row.id) {
+        const r = /** @type {IsoProofDocument & { source?: string }} */ (row);
+        if (r.source === 'api') return;
+        documentsStore.push({ ...r, source: 'local' });
+      }
     });
   } catch {
     /* ignore */
@@ -76,7 +160,8 @@ function loadDocuments() {
 
 function persistDocuments() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(documentsStore));
+    const localOnly = documentsStore.filter((d) => d.source !== 'api');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(localOnly));
   } catch {
     /* quota */
   }
@@ -97,6 +182,7 @@ export function addDocument(entry) {
   /** @type {IsoProofDocument} */
   const row = {
     id,
+    source: 'local',
     displayName: String(entry.displayName || entry.fileName || 'Document').slice(0, 200),
     docCategory: entry.docCategory === 'procedure' || entry.docCategory === 'audit_doc' ? entry.docCategory : 'preuve',
     linkKind: entry.linkKind === 'nc' || entry.linkKind === 'audit' ? entry.linkKind : 'exigence',
@@ -143,10 +229,13 @@ function syncRequirementStatusFromProofs(registryRequirementId) {
     void setRequirementStatus(rid, 'non_conforme');
     return;
   }
-  const hasVal = docs.some((d) => d.status === 'validated');
-  const hasVer = docs.some((d) => d.status === 'verify');
+  const sts = docs.map(normEvidenceStatus);
+  const hasVal = sts.some((s) => s === 'validated');
+  const hasPend = sts.some((s) => s === 'pending');
+  const allRejected = sts.length > 0 && sts.every((s) => s === 'rejected');
   if (hasVal) void setRequirementStatus(rid, 'conforme');
-  else if (hasVer) void setRequirementStatus(rid, 'partiel');
+  else if (hasPend) void setRequirementStatus(rid, 'partiel');
+  else if (allRejected) void setRequirementStatus(rid, 'non_conforme');
   else void setRequirementStatus(rid, 'non_conforme');
 }
 
@@ -159,10 +248,16 @@ function getProofVisual(requirementId) {
   if (docs.length === 0) {
     return { icon: '❌', label: 'Aucune preuve', tone: 'missing' };
   }
-  const hasVal = docs.some((d) => d.status === 'validated');
-  const hasVer = docs.some((d) => d.status === 'verify');
-  if (hasVal) return { icon: '📎', label: 'Preuve validée', tone: 'ok' };
-  if (hasVer) return { icon: '🟡', label: 'À vérifier', tone: 'verify' };
+  const sts = docs.map(normEvidenceStatus);
+  if (sts.some((s) => s === 'validated')) {
+    return { icon: '📎', label: 'Preuve validée', tone: 'ok' };
+  }
+  if (sts.some((s) => s === 'pending')) {
+    return { icon: '🟡', label: 'En attente validation', tone: 'verify' };
+  }
+  if (sts.some((s) => s === 'rejected')) {
+    return { icon: '⛔', label: 'Preuve rejetée', tone: 'rejected' };
+  }
   return { icon: '❌', label: 'Aucune preuve', tone: 'missing' };
 }
 
@@ -247,6 +342,87 @@ export function updateUI(root = document) {
       proofHost.append(row1);
     }
 
+    const evs = getDocumentsByExigence(reqId);
+    if (evs.length) {
+      const evList = document.createElement('div');
+      evList.className = 'iso-proof-server-list';
+      evList.style.marginTop = '6px';
+      for (const d of evs) {
+        const st = normEvidenceStatus(d);
+        const stLabel =
+          st === 'validated' ? 'Validé' : st === 'rejected' ? 'Rejeté' : 'Attente validation';
+        const rowEv = document.createElement('div');
+        rowEv.className = 'iso-proof-server-row';
+        rowEv.style.cssText =
+          'display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;margin-top:4px';
+        rowEv.innerHTML = `<span style="font-weight:600">${escapeHtml(d.displayName)}</span><span class="iso-proof-st-${escapeHtml(st)}" style="opacity:.9">${stLabel}</span>`;
+        if (d.source === 'api' && st === 'pending') {
+          const vb = document.createElement('button');
+          vb.type = 'button';
+          vb.className = 'btn btn-secondary';
+          vb.style.padding = '2px 8px';
+          vb.style.fontSize = '10px';
+          vb.textContent = 'Valider';
+          vb.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+              const r = await qhseFetch(`/api/iso/evidence/${encodeURIComponent(d.id)}/validate`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'validated' })
+              });
+              if (!r.ok) {
+                showToast('Validation impossible (droits ou serveur).', 'error');
+                return;
+              }
+              const j = await r.json();
+              const ix = documentsStore.findIndex((x) => x.id === d.id);
+              if (ix >= 0 && j.evidence) documentsStore[ix] = mapApiRowToDoc(j.evidence);
+              syncRequirementStatusFromProofs(reqId);
+              saveTouched();
+              updateUI(document);
+              triggerPageRefresh();
+            } catch {
+              showToast('Erreur réseau', 'error');
+            }
+          });
+          rowEv.appendChild(vb);
+          const rb = document.createElement('button');
+          rb.type = 'button';
+          rb.className = 'btn btn-secondary';
+          rb.style.padding = '2px 8px';
+          rb.style.fontSize = '10px';
+          rb.textContent = 'Rejeter';
+          rb.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+              const r = await qhseFetch(`/api/iso/evidence/${encodeURIComponent(d.id)}/validate`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'rejected' })
+              });
+              if (!r.ok) {
+                showToast('Action impossible.', 'error');
+                return;
+              }
+              const j = await r.json();
+              const ix = documentsStore.findIndex((x) => x.id === d.id);
+              if (ix >= 0 && j.evidence) documentsStore[ix] = mapApiRowToDoc(j.evidence);
+              syncRequirementStatusFromProofs(reqId);
+              saveTouched();
+              updateUI(document);
+              triggerPageRefresh();
+            } catch {
+              showToast('Erreur réseau', 'error');
+            }
+          });
+          rowEv.appendChild(rb);
+        }
+        evList.appendChild(rowEv);
+      }
+      proofHost.append(evList);
+    }
+
     let btn = proofHost.querySelector('.iso-proof-join-row');
     if (!btn) {
       btn = document.createElement('button');
@@ -302,7 +478,7 @@ function openProofModal(opts = {}) {
   panel.innerHTML = `
     <div class="iso-proof-modal__head">
       <h3 id="iso-proof-modal-title">Joindre une preuve ISO</h3>
-      <p>Preuve traitée dans le navigateur : rattachement obligatoire pour le registre maîtrisé.</p>
+      <p>Enregistrement prioritaire sur le serveur (traçabilité) ; repli navigateur si l’API est indisponible.</p>
     </div>
     <div class="iso-proof-modal__body">
       <div class="iso-proof-drop" tabindex="0">
@@ -529,6 +705,63 @@ function openProofModal(opts = {}) {
       return;
     }
 
+    const requirementIdForApi =
+      linkKind === 'exigence' || linkKind === 'nc'
+        ? linkId
+        : String(registryRequirementId || '').trim();
+
+    if (requirementIdForApi && picked) {
+      try {
+        const fd = new FormData();
+        fd.set('requirementId', requirementIdForApi);
+        fd.set(
+          'type',
+          mapCategoryToApiType(docCategory, picked.type || 'application/octet-stream')
+        );
+        fd.set(
+          'meta',
+          JSON.stringify({
+            displayName,
+            fileName: picked.name,
+            mimeType: picked.type || 'application/octet-stream',
+            fileSize: picked.size,
+            linkKind,
+            linkId
+          })
+        );
+        fd.set('file', picked, picked.name);
+        const res = await qhseFetch('/api/iso/evidence', { method: 'POST', body: fd });
+        if (res.ok) {
+          const j = await res.json();
+          let ev = j.evidence;
+          if (status === 'validated' && ev?.status === 'pending') {
+            const v = await qhseFetch(`/api/iso/evidence/${encodeURIComponent(ev.id)}/validate`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'validated' })
+            });
+            if (v.ok) {
+              const vj = await v.json();
+              ev = vj.evidence;
+            }
+          }
+          if (ev) {
+            documentsStore.push(mapApiRowToDoc(ev));
+            touchedReqs.add(requirementIdForApi);
+            syncRequirementStatusFromProofs(requirementIdForApi);
+            saveTouched();
+          }
+          showToast('Preuve enregistrée (serveur)', 'success');
+          close();
+          updateUI(document);
+          triggerPageRefresh();
+          return;
+        }
+      } catch {
+        showToast('API indisponible — enregistrement local.', 'warning');
+      }
+    }
+
     const id = addDocument({
       displayName,
       docCategory,
@@ -544,7 +777,7 @@ function openProofModal(opts = {}) {
       showToast('Enregistrement impossible : vérifiez la liaison.', 'warning');
       return;
     }
-    showToast('Preuve ajoutée', 'success');
+    showToast('Preuve ajoutée (navigateur)', 'success');
     close();
     updateUI(document);
     triggerPageRefresh();
@@ -576,6 +809,9 @@ function enhanceDocsSection(isoRoot) {
 function mountIsoProofsModule(isoRoot) {
   enhanceDocsSection(isoRoot);
   updateUI(isoRoot);
+  void hydrateFromApi().then((ok) => {
+    if (ok) updateUI(isoRoot);
+  });
 
   const table = isoRoot.querySelector('.iso-req-table');
   if (table && !table.dataset.isoProofObs) {

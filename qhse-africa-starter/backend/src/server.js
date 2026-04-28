@@ -38,6 +38,7 @@ import settingsRouter from './routes/settings.routes.js';
 import exportRouter from './routes/export.routes.js';
 import fdsParserRouter from './routes/fdsParser.routes.js';
 import conformityRouter from './routes/conformity.routes.js';
+import isoRouter from './routes/iso.routes.js';
 import ptwRouter from './routes/ptw.routes.js';
 import { attachRequestUser } from './middleware/requestUser.middleware.js';
 import { requireTenantContext } from './middleware/requireTenantContext.middleware.js';
@@ -212,6 +213,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/fds', fdsParserRouter);
 app.use('/api/conformity', conformityRouter);
+app.use('/api/iso', isoRouter);
 app.use('/api/ptw', ptwRouter);
 
 // Swagger UI — desactive en production si besoin

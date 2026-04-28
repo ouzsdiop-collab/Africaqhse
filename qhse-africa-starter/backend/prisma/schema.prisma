@@ -22,8 +22,9 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members TenantMember[]
-  sites   Site[]
+  members      TenantMember[]
+  sites        Site[]
+  isoEvidences IsoEvidence[]
 
   @@map("tenants")
 }
@@ -167,8 +168,37 @@ model User {
   createdControlledDocuments ControlledDocument[] @relation("ControlledDocumentCreatedBy")
   refreshTokens              RefreshToken[]
   habilitations              Habilitation[]
+  createdIsoEvidences        IsoEvidence[] @relation("IsoEvidenceCreatedBy")
+  validatedIsoEvidences      IsoEvidence[] @relation("IsoEvidenceValidatedBy")
 
   @@map("users")
+}
+
+/// Preuves ISO rattachées à une exigence du registre — persistance multi-tenant.
+model IsoEvidence {
+  id            String    @id @default(cuid())
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requirementId String
+  /// photo | document | audit | autre
+  type          String
+  fileUrl       String?
+  content       String?
+  /// pending | validated | rejected
+  status        String    @default("pending")
+  meta          Json      @default("{}")
+
+  createdById   String
+  createdBy     User      @relation("IsoEvidenceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  validatedById String?
+  validatedBy   User?     @relation("IsoEvidenceValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  validatedAt DateTime?
+
+  @@index([tenantId])
+  @@index([tenantId, requirementId])
+  @@map("iso_evidences")
 }
 
 model Habilitation {
