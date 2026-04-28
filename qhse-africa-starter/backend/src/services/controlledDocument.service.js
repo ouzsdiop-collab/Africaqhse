@@ -46,6 +46,27 @@ export function normalizeClassification(c) {
 }
 
 /**
+ * Normalise `ControlledDocument.type` (notamment FDS) pour limiter les variantes.
+ * @param {unknown} t
+ * @returns {string}
+ */
+export function normalizeControlledDocumentType(t) {
+  const raw = String(t || '').trim();
+  if (!raw) return 'other';
+  const s = raw.toLowerCase();
+  if (
+    s.includes('fds') ||
+    s.includes('fiche de donnees de securite') ||
+    s.includes('fiche de données de sécurité') ||
+    s.includes('donnees de securite') ||
+    s.includes('données de sécurité')
+  ) {
+    return 'fds';
+  }
+  return raw.slice(0, 120);
+}
+
+/**
  * @param {{ role: string } | null | undefined} user
  * @param {string} classification
  * @param {'read' | 'write'} need
@@ -188,7 +209,7 @@ export async function createControlledDocument(buffer, meta) {
     data: {
       tenantId: tenantRowId,
       name: String(meta.name || 'Sans titre').slice(0, 500),
-      type: String(meta.type || 'other').slice(0, 120),
+      type: normalizeControlledDocumentType(meta.type),
       path: relativePath,
       classification,
       siteId: meta.siteId || null,
@@ -245,7 +266,7 @@ export async function updateControlledDocumentMeta(tenantId, id, patch) {
     data.name = String(patch.name).trim().slice(0, 500);
   }
   if (patch.type != null && String(patch.type).trim()) {
-    data.type = String(patch.type).trim().slice(0, 120);
+    data.type = normalizeControlledDocumentType(patch.type);
   }
   if ('classification' in patch) {
     data.classification = normalizeClassification(patch.classification);

@@ -101,5 +101,11 @@ describe('controlledDocument.service tenant isolation', () => {
       })
     ).rejects.toMatchObject({ statusCode: 403 });
   });
+
+  it('normalizeControlledDocumentType normalise les variantes FDS', async () => {
+    expect(svc.normalizeControlledDocumentType('FDS')).toBe('fds');
+    expect(svc.normalizeControlledDocumentType('Fiche de données de sécurité')).toBe('fds');
+    expect(svc.normalizeControlledDocumentType('fiche de donnees de securite')).toBe('fds');
+  });
 });
 
