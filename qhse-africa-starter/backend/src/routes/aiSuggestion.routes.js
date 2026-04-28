@@ -59,6 +59,7 @@ router.post('/suggest/actions', write, aiLimiter, async (req, res, next) => {
   try {
     const incidentId = String(req.body?.incidentId ?? '').trim();
     const dc = req.body?.dashboardContext;
+    const persistSuggestion = req.body?.persistSuggestion === true;
     if (
       dc &&
       typeof dc === 'object' &&
@@ -77,7 +78,9 @@ router.post('/suggest/actions', write, aiLimiter, async (req, res, next) => {
     }
     const data = await suggestCorrectiveActions({
       incidentId,
-      tenantId: req.qhseTenantId
+      tenantId: req.qhseTenantId,
+      persistSuggestion,
+      userId: req.qhseUser?.id ?? null
     });
     res.json(data);
   } catch (e) {
@@ -116,8 +119,15 @@ router.get('/:id', read, controller.getById);
 
 mistralAiRouter.post('/incident-causes', incidentsRead, aiLimiter, async (req, res, next) => {
   try {
-    const suggestion = await suggestIncidentCauses(req.body);
-    res.json({ suggestion });
+    const persistSuggestion = req.body?.persistSuggestion === true;
+    const data = await suggestIncidentCauses({
+      ...(req.body || {}),
+      // anti-fuite: on force le tenant/user depuis le contexte serveur
+      tenantId: req.qhseTenantId ?? null,
+      userId: req.qhseUser?.id ?? null,
+      persistSuggestion
+    });
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -125,8 +135,14 @@ mistralAiRouter.post('/incident-causes', incidentsRead, aiLimiter, async (req, r
 
 mistralAiRouter.post('/risk-mitigation', risksRead, aiLimiter, async (req, res, next) => {
   try {
-    const suggestion = await suggestRiskMitigation(req.body);
-    res.json({ suggestion });
+    const persistSuggestion = req.body?.persistSuggestion === true;
+    const data = await suggestRiskMitigation({
+      ...(req.body || {}),
+      tenantId: req.qhseTenantId ?? null,
+      userId: req.qhseUser?.id ?? null,
+      persistSuggestion
+    });
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -134,8 +150,8 @@ mistralAiRouter.post('/risk-mitigation', risksRead, aiLimiter, async (req, res, 
 
 mistralAiRouter.post('/audit-questions', auditsRead, aiLimiter, async (req, res, next) => {
   try {
-    const suggestion = await suggestAuditQuestions(req.body.auditType);
-    res.json({ suggestion });
+    const data = await suggestAuditQuestions(req.body.auditType);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -143,8 +159,14 @@ mistralAiRouter.post('/audit-questions', auditsRead, aiLimiter, async (req, res,
 
 mistralAiRouter.post('/dashboard-insight', incidentsRead, aiLimiter, async (req, res, next) => {
   try {
-    const insight = await generateDashboardInsight(req.body);
-    res.json({ insight });
+    const persistSuggestion = req.body?.persistSuggestion === true;
+    const data = await generateDashboardInsight({
+      ...(req.body || {}),
+      tenantId: req.qhseTenantId ?? null,
+      userId: req.qhseUser?.id ?? null,
+      persistSuggestion
+    });
+    res.json(data);
   } catch (err) {
     next(err);
   }

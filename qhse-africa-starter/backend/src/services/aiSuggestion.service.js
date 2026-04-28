@@ -22,6 +22,100 @@ export const AI_SUGGESTION_STATUS = {
 /** Version du schéma JSON stocké dans `content` / `editedContent`. */
 export const CONTENT_SCHEMA_VERSION = 1;
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function safeJsonStringify(value, maxLen) {
+  try {
+    const s = JSON.stringify(value);
+    if (typeof maxLen === 'number' && maxLen > 0) return s.slice(0, maxLen);
+    return s;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Persistance "minimale" d'une suggestion déjà calculée (sans recontacter un LLM).
+ * Utilisé pour rendre traçables certains endpoints `/api/ai/*` et `/api/ai-suggestions/suggest/actions`.
+ *
+ * @param {{
+ *  tenantId?: string | null,
+ *  type: string,
+ *  context?: Record<string, unknown>,
+ *  response?: Record<string, unknown>,
+ *  summary?: string,
+ *  warnings?: string[],
+ *  providerMeta?: Record<string, unknown> | null,
+ *  userId: string | null,
+ *  targetIncidentId?: string | null,
+ *  riskRef?: string | null
+ * }} opts
+ */
+export async function persistSuggestionDraft(opts) {
+  const {
+    tenantId,
+    type,
+    context = {},
+    response = {},
+    summary = '',
+    warnings = [],
+    providerMeta = null,
+    userId,
+    targetIncidentId,
+    riskRef
+  } = opts;
+
+  const tenantRow = normalizeTenantId(tenantId);
+  if (!tenantRow) {
+    const err = new Error('Contexte organisation requis');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const typeKey = String(type || 'generic').slice(0, 64);
+  const structured = buildStructuredContent({
+    summary:
+      (typeof summary === 'string' && summary.trim()
+        ? summary
+        : `Suggestion générée (type « ${typeKey} ») — revue obligatoire avant toute action.`).slice(0, 2000),
+    confidence: 0.55,
+    items: [
+      { label: 'Context', value: safeJsonStringify(context, 8000) || '—', source: 'heuristic' },
+      { label: 'Response', value: safeJsonStringify(response, 8000) || '—', source: 'llm' }
+    ],
+    proposedPatch: {
+      kind: 'ai_trace',
+      suggestionType: typeKey,
+      context,
+      response
+    },
+    warnings: Array.isArray(warnings) ? warnings : []
+  });
+
+  const meta =
+    providerMeta && typeof providerMeta === 'object'
+      ? { ...providerMeta, trackedAt: nowIso() }
+      : { trackedAt: nowIso() };
+
+  const row = await prisma.aiSuggestion.create({
+    data: {
+      tenantId: tenantRow,
+      type: typeKey,
+      content: structured,
+      status: AI_SUGGESTION_STATUS.PENDING,
+      createdBySource: userId ? 'user' : 'system',
+      createdByUserId: userId,
+      targetIncidentId: targetIncidentId ?? null,
+      riskRef: riskRef ? String(riskRef).slice(0, 200) : null,
+      providerMeta: meta
+    }
+  });
+
+  return row;
+}
+
 /**
  * Enveloppe structurée obligatoire pour toute suggestion.
  * @param {Record<string, unknown>} partial
@@ -514,7 +608,7 @@ Sans texte hors JSON.`;
  * @param {{ incidentId: string, tenantId?: string | null }} opts
  */
 export async function suggestCorrectiveActions(opts) {
-  const { incidentId, tenantId } = opts;
+  const { incidentId, tenantId, persistSuggestion, userId } = opts;
   const tf = prismaTenantFilter(tenantId);
   const incident = await prisma.incident.findFirst({
     where: { id: incidentId, ...tf },
@@ -554,9 +648,17 @@ export async function suggestCorrectiveActions(opts) {
   });
 
   const systemPrompt = `Tu es un responsable QHSE senior. On te donne un incident et un extrait du registre des risques.
-Propose exactement 3 actions correctives prioritaires, réalisables, en français.
-Réponds UNIQUEMENT par un JSON objet avec la clé "actions" : tableau de 3 éléments.
-Chaque élément : { "title": string, "description": string, "delayDays": entier (jours calendaires), "ownerRole": string (ex. "Chef de site", "Responsable QHSE", "Maintenance"), "confidence": nombre 0-1 }.
+Objectif: proposer exactement 3 actions correctives PRIORITAIRES, SMART et vérifiables, en français.
+Interdit: action vague type "former le personnel" sans précision. Chaque action doit préciser preuve attendue et critère de clôture.
+
+Format de sortie: JSON uniquement, avec la clé "actions" : tableau de 3 éléments.
+Chaque élément (conserver ces clés EXACTES pour compat): {
+  "title": string,
+  "description": string (doit inclure: preuve attendue + critère de clôture),
+  "delayDays": entier (jours calendaires),
+  "ownerRole": string (ex. "Chef de site", "Responsable QHSE", "Maintenance"),
+  "confidence": nombre 0-1
+}
 Sans markdown ni texte hors JSON.`;
 
   const userMessage = JSON.stringify({ incident, existingRisks });
@@ -571,12 +673,51 @@ Sans markdown ni texte hors JSON.`;
     actions = actions.slice(0, 3);
   }
 
+  let suggestionId = null;
+  if (persistSuggestion === true) {
+    try {
+      const created = await persistSuggestionDraft({
+        tenantId,
+        type: 'incident_corrective_actions',
+        context: {
+          incident: {
+            id: incident.id,
+            ref: incident.ref,
+            type: incident.type,
+            site: incident.site,
+            severity: incident.severity,
+            status: incident.status,
+            description: incident.description || null,
+            location: incident.location || null
+          },
+          existingRisksPreview: existingRisks
+        },
+        response: { actions },
+        summary: `Actions correctives suggérées pour l’incident ${incident.ref}.`,
+        warnings: ['Brouillon IA — validation humaine obligatoire avant création d’actions.'],
+        providerMeta: {
+          provider: res.provider,
+          model: res.model ?? null,
+          generatedAt: nowIso(),
+          fallbackUsed: Boolean(actions.length && !res.rawText)
+        },
+        userId: userId ?? null,
+        targetIncidentId: incident.id
+      });
+      suggestionId = created?.id || null;
+    } catch {
+      // Traçabilité best-effort : ne pas casser le flux UX existant.
+      suggestionId = null;
+    }
+  }
+
   return {
     incidentId: incident.id,
     ref: incident.ref,
     provider: res.provider,
     error: res.error ?? null,
-    actions
+    actions,
+    ...(suggestionId ? { suggestionId } : {})
   };
 }
 
