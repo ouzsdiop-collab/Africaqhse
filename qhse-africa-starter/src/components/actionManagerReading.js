@@ -1,5 +1,5 @@
 /**
- * Bloc « Vue manager » — synthèse pilotage actions (haut de page).
+ * Bloc « Vue manager » : synthèse pilotage actions (haut de page).
  */
 
 import { getActionPriorityFilterKey } from './actionKanbanCard.js';
@@ -95,7 +95,7 @@ function isSansResp(r) {
 }
 
 /**
- * @param {object[]} rows — actions API
+ * @param {object[]} rows : actions API
  * @param {{
  *   onSelectFilter: (key: 'critiques'|'retard'|'sans_resp'|'preventive_gap'|null) => void
  *   risksWithoutPreventiveCount?: number
@@ -107,7 +107,7 @@ export function createActionManagerReadingCard(rows, opts) {
 
   const art = document.createElement('article');
   art.className = 'action-manager-reading';
-  art.setAttribute('aria-label', 'Vue manager — actions');
+  art.setAttribute('aria-label', 'Vue manager : actions');
 
   const head = document.createElement('div');
   head.innerHTML = `<div class="action-manager-reading__kicker">Pilotage</div><h2 class="action-manager-reading__title">Vue manager</h2>`;
@@ -120,11 +120,11 @@ export function createActionManagerReadingCard(rows, opts) {
   let reco =
     'Prioriser les retards et les actions critiques ; renforcer la prévention là où les risques restent exposés.';
   if (sans.length) {
-    reco = `Désigner un responsable pour ${sans.length} action(s) — réduire le flou de pilotage.`;
+    reco = `Désigner un responsable pour ${sans.length} action(s). Réduire le flou de pilotage.`;
   } else if (ret.length) {
     reco = `Traiter en priorité les ${ret.length} action(s) en retard ou à risque de retard.`;
   } else if (gapN > 0) {
-    reco = `${gapN} risque(s) du registre sans action préventive ouverte — planifier barrières ou contrôles (ISO 45001 / 14001).`;
+    reco = `${gapN} risque(s) du registre sans action préventive ouverte. Planifier barrières ou contrôles (ISO 45001 / 14001).`;
   } else if (crit.length) {
     reco = `Surveiller les ${crit.length} action(s) critiques (urgence ou retard).`;
   }

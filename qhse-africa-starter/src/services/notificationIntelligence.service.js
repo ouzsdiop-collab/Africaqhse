@@ -1,6 +1,6 @@
 /**
  * Couche « premium » : priorisation, regroupement, filtrage par rôle, digest.
- * Ne remplace pas le store API — transforme la liste pour l’affichage.
+ * Ne remplace pas le store API · transforme la liste pour l’affichage.
  */
 
 import { qhseFetch } from '../utils/qhseFetch.js';
@@ -107,7 +107,7 @@ function normalizeRole(role) {
 }
 
 /**
- * Filtre léger par rôle (affichage seul — le serveur filtre déjà une partie du flux).
+ * Filtre léger par rôle (affichage seul · le serveur filtre déjà une partie du flux).
  * @param {object[]} items
  * @param {string} [role]
  */
@@ -153,7 +153,7 @@ function buildGroupedItems(items) {
       kind: 'incident_group',
       synthetic: true,
       title: `${incidents.length} incidents critiques récents`,
-      detail: 'Vue regroupée — priorisez le terrain et la clôture dans Incidents.',
+      detail: 'Vue regroupée : priorisez le terrain et la clôture dans Incidents.',
       level: 'critical',
       timestamp: incidents[0]?.timestamp || '',
       read: syntheticReadSet.has('syn-group-incidents-critiques'),
@@ -171,7 +171,7 @@ function buildGroupedItems(items) {
       kind: 'action_group',
       synthetic: true,
       title: `${actions.length} actions sont en retard`,
-      detail: 'Vue regroupée — traitez ou réaffectez depuis le module Actions.',
+      detail: 'Vue regroupée : traitez ou réaffectez depuis le module Actions.',
       level: 'warning',
       timestamp: actions[0]?.timestamp || '',
       read: syntheticReadSet.has('syn-group-actions-retard'),
@@ -188,7 +188,7 @@ function buildGroupedItems(items) {
 }
 
 /**
- * @param {object[]} rawItems — déjà fusionnées (API + locales)
+ * @param {object[]} rawItems · déjà fusionnées (API + locales)
  * @param {{ role?: string }} [opts]
  */
 export function buildPresentationFeed(rawItems, opts = {}) {
@@ -269,12 +269,12 @@ export function appendDigestSummary(host, payload, opts = {}) {
   const stale = payload.stale;
   const oaDisp = oa != null ? String(oa) : stale ? '…' : '0';
   const ciDisp = ci != null ? String(ci) : stale ? '…' : '0';
-  const audDisp = aud != null ? String(aud) : '—';
+  const audDisp = aud != null ? String(aud) : 'Non renseigné';
 
   host.replaceChildren();
   const lead = document.createElement('p');
   lead.className = 'notif-digest-lead';
-  lead.textContent = 'Résumé structuré (quotidien / hebdo — données pilotage).';
+  lead.textContent = 'Résumé structuré (quotidien / hebdo · données pilotage).';
   const ul = document.createElement('ul');
   ul.className = 'notif-digest-list';
 
@@ -282,7 +282,7 @@ export function appendDigestSummary(host, payload, opts = {}) {
     const li = document.createElement('li');
     const s = document.createElement('strong');
     s.textContent = strongLabel;
-    li.append(s, document.createTextNode(` — ${rest}`));
+    li.append(s, document.createTextNode(` : ${rest}`));
     ul.append(li);
   }
 

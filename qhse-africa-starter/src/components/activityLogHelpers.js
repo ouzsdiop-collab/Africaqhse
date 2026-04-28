@@ -1,5 +1,5 @@
 /**
- * Métadonnées modules — un seul endroit pour labels / styles (badges).
+ * Métadonnées modules : un seul endroit pour labels / styles (badges).
  * Les filtres / tri futurs pourront réutiliser ces clés.
  */
 export const MODULE_META = {
@@ -14,7 +14,7 @@ export const MODULE_META = {
 };
 
 export function moduleMeta(moduleId) {
-  return MODULE_META[moduleId] || { label: moduleId || '—', short: '—', className: 'mod-default' };
+  return MODULE_META[moduleId] || { label: moduleId || 'Non renseigné', short: 'N/A', className: 'mod-default' };
 }
 
 /**
@@ -45,7 +45,7 @@ export function classifyActionImportance(action) {
  */
 export function buildActivityLogSnapshot(entries) {
   const total = entries.length;
-  const lastActivity = total ? entries[0].timestamp || '—' : '—';
+  const lastActivity = total ? entries[0].timestamp || 'Non disponible' : 'Non disponible';
 
   const recentModuleKeys = [];
   const seen = new Set();
@@ -270,7 +270,7 @@ export function buildJournalAnalysisLines(counts, snapshot, periodLabel) {
   const lines = [];
   const anomalie =
     (counts.crit || 0) + (counts.actLate || 0) > 0
-      ? `${(counts.crit || 0) + (counts.actLate || 0)} signal(x) sensible(s) (${periodLabel}) — incidents critiques, retards ou NC mentionnés.`
+      ? `${(counts.crit || 0) + (counts.actLate || 0)} signal(x) sensible(s) (${periodLabel}) : incidents critiques, retards ou NC mentionnés.`
       : `Aucune anomalie forte détectée sur ${periodLabel} avec les règles textuelles actuelles.`;
   lines.push(anomalie);
 
@@ -283,7 +283,7 @@ export function buildJournalAnalysisLines(counts, snapshot, periodLabel) {
   const mods = snapshot.recentModuleKeys || [];
   const trend =
     mods.length > 0
-      ? `Tendances : modules les plus actifs récemment — ${mods.slice(0, 4).map((k) => moduleMeta(k).label).join(', ')}.`
+      ? `Tendances : modules les plus actifs récemment : ${mods.slice(0, 4).map((k) => moduleMeta(k).label).join(', ')}.`
       : 'Tendances : pas assez de données pour une répartition modules.';
   lines.push(trend);
 

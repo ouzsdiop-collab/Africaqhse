@@ -1,5 +1,5 @@
 /**
- * Module Habilitations — pilotage conformité opérationnelle (terrain / industrie).
+ * Module Habilitations : pilotage conformité opérationnelle (terrain / industrie).
  * Liste chargée via GET /api/habilitations ; exports locaux CSV / PDF.
  */
 
@@ -26,6 +26,8 @@ import {
 import { showToast } from '../components/toast.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
+
+const PLACEHOLDER_NA = 'Non renseigné';
 
 /**
  * @param {unknown} raw
@@ -81,16 +83,16 @@ function mapApiHabilitation(api) {
     collaborateur:
       (typeof user.name === 'string' && user.name) ||
       (typeof user.email === 'string' && user.email) ||
-      '—',
-    entreprise: '—',
-    matricule: uid.length >= 8 ? uid.slice(-8) : uid || '—',
-    poste: typeof user.role === 'string' && user.role ? user.role : '—',
-    service: '—',
-    site: site && typeof site.name === 'string' ? site.name : '—',
-    type: typeof api.type === 'string' ? api.type : '—',
+      PLACEHOLDER_NA,
+    entreprise: PLACEHOLDER_NA,
+    matricule: uid.length >= 8 ? uid.slice(-8) : uid || PLACEHOLDER_NA,
+    poste: typeof user.role === 'string' && user.role ? user.role : PLACEHOLDER_NA,
+    service: PLACEHOLDER_NA,
+    site: site && typeof site.name === 'string' ? site.name : PLACEHOLDER_NA,
+    type: typeof api.type === 'string' ? api.type : PLACEHOLDER_NA,
     niveau: api.level != null ? String(api.level) : '',
-    delivrance: vf || '—',
-    expiration: vu || '—',
+    delivrance: vf || PLACEHOLDER_NA,
+    expiration: vu || PLACEHOLDER_NA,
     organisme: typeof api.organisme === 'string' ? api.organisme : '',
     justificatif: hasDoc,
     statut,
@@ -104,11 +106,11 @@ function daysUntil(dateIso) {
 
 /**
  * @param {string} expirationStr
- * @param {number} d — jours jusqu’à expiration (`habDaysUntil`)
+ * @param {number} d : jours jusqu’à expiration (`habDaysUntil`)
  */
 function getDateClass(expirationStr, d) {
   const s = String(expirationStr ?? '').trim();
-  if (!s || s === '—') return '';
+  if (!s || s === PLACEHOLDER_NA) return '';
   if (d < 0) return 'hab-date--expired';
   if (d <= 30) return 'hab-date--warning';
   return 'hab-date--ok';
@@ -177,7 +179,7 @@ export function renderHabilitations() {
         const j = rawBody && typeof rawBody === 'object' ? /** @type {Record<string, unknown>} */ (rawBody) : {};
         const apiMsg = typeof j.error === 'string' && j.error.trim() ? j.error.trim() : '';
         let msg = apiMsg || `Erreur serveur (${res.status})`;
-        if (res.status === 401) msg = 'Session expirée — reconnectez-vous pour voir les habilitations.';
+        if (res.status === 401) msg = 'Session expirée : reconnectez-vous pour voir les habilitations.';
         if (res.status === 403) msg = 'Accès au registre des habilitations refusé pour ce profil.';
         dataState.error = new Error(msg);
         dataState.rows = [];
@@ -196,7 +198,7 @@ export function renderHabilitations() {
       const msg =
         e instanceof Error && e.message
           ? e.message
-          : 'Réseau indisponible — impossible de charger les habilitations.';
+          : 'Réseau indisponible : impossible de charger les habilitations.';
       dataState.error = e instanceof Error ? e : new Error(msg);
       dataState.rows = [];
       showToast(msg, 'error');
@@ -206,7 +208,7 @@ export function renderHabilitations() {
     }
   }
 
-  /** En-tête éditorial — un seul bloc titre, hiérarchie SaaS */
+  /** En-tête éditorial : un seul bloc titre, hiérarchie SaaS */
   const pageHead = document.createElement('header');
   pageHead.className = 'hab-page-head';
   pageHead.innerHTML = `
@@ -216,7 +218,7 @@ export function renderHabilitations() {
     </div>
     <h1 class="hab-page-head__title">Habilitations</h1>
     <p class="hab-page-head__lead">
-      Pilotage terrain : priorités opérationnelles, exposition multi-sites et registre audit-ready — sans changer vos flux métier.
+      Pilotage terrain : priorités opérationnelles, exposition multi-sites et registre audit-ready, sans changer vos flux métier.
     </p>
   `;
 
@@ -368,7 +370,7 @@ export function renderHabilitations() {
     riskBand.innerHTML = `
         <div class="hab-section-head hab-section-head--risk">
           <h2 id="hab-cockpit-risk-title" class="hab-section-head__title">Risque opérationnel immédiat</h2>
-          <p class="hab-section-head__desc">À traiter en premier sur le périmètre filtré — avant le détail du registre.</p>
+          <p class="hab-section-head__desc">À traiter en premier sur le périmètre filtré : avant le détail du registre.</p>
         </div>
         <div class="hab-risk-grid">
           <div class="hab-risk-card">
@@ -504,7 +506,7 @@ export function renderHabilitations() {
         try {
           await downloadHabilitationsPdf({
             title: 'Registre habilitations',
-            subtitle: 'Synthèse opérationnelle — périmètre filtré',
+            subtitle: 'Synthèse opérationnelle : périmètre filtré',
             filtersText: ft,
             rows,
             filename: `habilitations_registre_${Date.now()}`
@@ -564,7 +566,7 @@ export function renderHabilitations() {
           if (!hit) return;
           const pr = allRows().filter((r) => r._userId === hit._userId);
           await downloadHabilitationsPdf({
-            title: `Fiche habilitations — ${hit.collaborateur}`,
+            title: `Fiche habilitations : ${hit.collaborateur}`,
             subtitle: `${hit.poste} · ${hit.entreprise} · ${hit.site}`,
             filtersText: `${ft} · Fiche matricule ${hit.matricule}`,
             rows: pr,
@@ -788,7 +790,7 @@ export function renderHabilitations() {
       const empty = document.createElement('div');
       empty.className = 'content-card card-soft';
       empty.innerHTML =
-        '<p class="ptw-mini">Aucune habilitation chargée — vérifiez l’API ou les droits d’accès.</p>';
+        '<p class="ptw-mini">Aucune habilitation chargée : vérifiez l’API ou les droits d’accès.</p>';
       return empty;
     }
     const personRows = allRows().filter((r) => r._userId === hit._userId);
@@ -819,7 +821,7 @@ export function renderHabilitations() {
           <div class="hab-profile-item"><div class="hab-profile-k">Organisme</div><strong>${hit.organisme}</strong></div>
           <div class="hab-profile-item"><div class="hab-profile-k">Statut</div>${rowChipHtml(hit)}</div>
         </div>
-        <div class="hab-profile-item"><div class="hab-profile-k">Remarques</div><strong>${hit.remarques || '—'}</strong></div>
+        <div class="hab-profile-item"><div class="hab-profile-k">Remarques</div><strong>${hit.remarques || PLACEHOLDER_NA}</strong></div>
         <div class="hab-profile-item"><div class="hab-profile-k">Justificatif</div><strong>${hit.justificatif ? 'Présent' : 'Manquant'}</strong></div>
       </div>
       <div class="hab-list-title"><h4>Liste des habilitations</h4><span class="hab-pill">${personRows.length} habilitation(s)</span></div>
@@ -843,7 +845,7 @@ export function renderHabilitations() {
     card.querySelector('[data-hab-export-fiche-pdf]')?.addEventListener('click', async () => {
       try {
         await downloadHabilitationsPdf({
-          title: `Fiche habilitations — ${hit.collaborateur}`,
+          title: `Fiche habilitations : ${hit.collaborateur}`,
           subtitle: `${hit.poste} · ${hit.entreprise}`,
           filtersText: filtersText(),
           rows: personRows,
@@ -946,11 +948,11 @@ export function renderHabilitations() {
       if (dataState.loading) {
         scopeBadge.textContent = 'Chargement du registre…';
       } else if (dataState.error) {
-        scopeBadge.textContent = 'Registre indisponible — données non chargées';
+        scopeBadge.textContent = 'Registre indisponible : données non chargées';
       } else {
         scopeBadge.textContent = habFiltersActive()
-          ? `${rows.length} résultat(s) — ${filtersText()}`
-          : `${rows.length} habilitation(s) — registre affiché`;
+          ? `${rows.length} résultat(s) : ${filtersText()}`
+          : `${rows.length} habilitation(s) : registre affiché`;
       }
     }
     renderRiskOperational(rows);

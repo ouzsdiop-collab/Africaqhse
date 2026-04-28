@@ -1,5 +1,5 @@
 /**
- * Narratif décisionnel pour la série incidents (6 mois) — partagé SVG / Chart.js.
+ * Narratif décisionnel pour la série incidents (6 mois), partagé SVG / Chart.js.
  * @param {{ label: string; value: number }[]} safe
  */
 export function computeIncidentSeriesNarrative(safe) {
@@ -14,7 +14,7 @@ export function computeIncidentSeriesNarrative(safe) {
       badgeCls: 'dashboard-incidents-badge--neutral',
       peakIdx: 0,
       peakVal: 0,
-      peakLabel: '—',
+      peakLabel: 'Non disponible',
       total: 0,
       avg: 0,
       deltas: [],
@@ -28,7 +28,7 @@ export function computeIncidentSeriesNarrative(safe) {
     if (v > vals[peakIdx]) peakIdx = i;
   });
   const peakVal = vals[peakIdx];
-  const peakLabel = series[peakIdx]?.label || '—';
+  const peakLabel = series[peakIdx]?.label || 'Non disponible';
   const deltas = vals.map((v, i) => (i === 0 ? null : v - vals[i - 1]));
   const avg = total / n;
   const vigilance = vals.map((v) => {
@@ -48,10 +48,10 @@ export function computeIncidentSeriesNarrative(safe) {
       return 'Renforcer observations terrain et lien avec PTW / habilitations sur les postes sensibles.';
     }
     if (d != null && d > 1) {
-      return 'Hausse locale — corréler avec maintenance, intempéries ou charge sous-traitants.';
+    return 'Hausse locale, corréler avec maintenance, intempéries ou charge sous-traitants.';
     }
     if (d != null && d < -1) {
-      return 'Baisse marquée — vérifier que la remontée terrain reste exhaustive.';
+    return 'Baisse marquée, vérifier que la remontée terrain reste exhaustive.';
     }
     return 'Rythme compatible avec un pilotage HSE standard sur ce mois.';
   });
@@ -122,9 +122,9 @@ export function buildIncidentExecutiveInterpret(safe, nar) {
     return `Après un pic à ${peakVal} (${peakLabel}), la courbe se referme (${total} sur six mois). Capitaliser sur les actions engagées sans relâcher le pilotage au sol.`;
   }
   if (trendKey === 'instable') {
-    return `Volume irrégulier (${total} sur six mois, max ${peakVal} en ${peakLabel}) : lecture typique d’activité variable ou de qualité de déclaration hétérogène — cadrer une revue commune direction / terrain.`;
+    return `Volume irrégulier (${total} sur six mois, max ${peakVal} en ${peakLabel}) : activité variable ou qualité de déclaration hétérogène. Lancez une revue commune direction / terrain.`;
   }
-  return `Rythme modéré (${total} sur six mois). Point d’attention principal : ${peakLabel} (${peakVal}) — garder ce pic sous surveillance renforcée en comité de pilotage.`;
+  return `Rythme modéré (${total} sur six mois). Point d’attention principal : ${peakLabel} (${peakVal}). Gardez ce pic sous surveillance en comité de pilotage.`;
 }
 
 /**

@@ -31,7 +31,7 @@ export const appState = {
   /** Id Prisma du site actif ; null = vue groupe (pas de filtre API) */
   activeSiteId: null,
   notificationsOpen: false,
-  /** Mode Expert uniquement — menu latéral en tiroir sur mobile */
+  /** Mode Expert uniquement · menu latéral en tiroir sur mobile */
   expertMobileNavOpen: false
 };
 
@@ -59,8 +59,8 @@ export function consumeJournalServerTabIntent() {
 }
 
 /**
- * @param {string | null | undefined} siteId — id Prisma ou vide pour la vue groupe
- * @param {string} [label] — libellé affiché
+ * @param {string | null | undefined} siteId · id Prisma ou vide pour la vue groupe
+ * @param {string} [label] · libellé affiché
  */
 export function setActiveSiteContext(siteId, label) {
   const trimmed =
@@ -73,7 +73,7 @@ export function setActiveSiteContext(siteId, label) {
   }
 }
 
-/** @deprecated Préférer setActiveSiteContext — conservé pour compatibilité lecture seule */
+/** @deprecated Préférer setActiveSiteContext · conservé pour compatibilité lecture seule */
 export function setActiveSite(siteLabel) {
   appState.currentSite = siteLabel;
   appState.activeSiteId = null;

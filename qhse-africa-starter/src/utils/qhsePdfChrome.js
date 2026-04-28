@@ -28,7 +28,7 @@ export function chunkRowsForPdf(rows, pageSize) {
 }
 
 export const QHSE_PDF_EMPTY_MESSAGE =
-  'Aucune donnée à exporter pour ce périmètre — élargissez les filtres ou complétez le registre.';
+  'Aucune donnée à exporter pour ce périmètre. Élargissez les filtres ou complétez le registre.';
 
 /** Styles injectés sur l’hôte : enfants directs en border-box, pas de clip implicite */
 export const QHSE_PDF_HOST_CHILD_STYLES = `<style>
@@ -115,7 +115,7 @@ export function qhsePdfPageHtml(p) {
     </div>
   </header>
   <div class="qhse-chrome-body">${p.bodyHtml}</div>
-  <footer class="qhse-chrome-foot">QHSE Control Africa — Confidentiel — Page ${p.pageIndex} / ${p.totalPages}</footer>
+  <footer class="qhse-chrome-foot">QHSE Control Africa · Confidentiel · Page ${p.pageIndex} / ${p.totalPages}</footer>
 </section>`;
 }
 
@@ -139,14 +139,14 @@ export function assembleQhsePdfDocument(reportTitle, pageBodies) {
 /**
  * @param {string} html
  * @param {string} filename
- * @param {Record<string, unknown>} [pdfOverrides] — fusionné dans buildHtml2PdfOptions par saveElementAsPdf
- * @param {{ silentToasts?: boolean }} [opts] — désactive les toasts (ex. appelant gère le message)
+ * @param {Record<string, unknown>} [pdfOverrides] · fusionné dans buildHtml2PdfOptions par saveElementAsPdf
+ * @param {{ silentToasts?: boolean }} [opts] · désactive les toasts (ex. appelant gère le message)
  */
 export async function downloadQhseChromePdf(html, filename, pdfOverrides = {}, opts = {}) {
   const silent = Boolean(opts.silentToasts);
   const host = document.createElement('div');
   host.className = 'qhse-pdf-capture-host';
-  /** ~210mm @96dpi — padding hôte pour éviter tout texte coupé à gauche (capture html2canvas) */
+  /** ~210mm @96dpi · padding hôte pour éviter tout texte coupé à gauche (capture html2canvas) */
   host.style.cssText = [
     'box-sizing:border-box',
     'width:794px',

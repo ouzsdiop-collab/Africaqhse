@@ -1,5 +1,5 @@
 /**
- * Panneau d’assistance conformité — analyse locale (API interne) + validation humaine obligatoire.
+ * Panneau d’assistance conformité : analyse locale (API interne) + validation humaine obligatoire.
  */
 
 import { qhseFetch } from '../utils/qhseFetch.js';
@@ -104,7 +104,7 @@ export function openComplianceAssistModal(opts) {
 
   const req = opts.requirement;
   const labelEl = head.querySelector('[data-iso-ca-req-label]');
-  labelEl.textContent = `${req.normCode} · ${req.clause} — ${req.title}`;
+  labelEl.textContent = `${req.normCode} · ${req.clause} : ${req.title}`;
 
   function close() {
     overlay.remove();
@@ -159,7 +159,7 @@ export function openComplianceAssistModal(opts) {
       const statusToken = sanitizeClassToken(j.suggestedStatus, 'partiel');
       pill.className = `iso-ca-status-pill iso-ca-status-pill--${statusToken}`;
 
-      body.querySelector('[data-iso-ca-explain]').textContent = j.explanation || '—';
+      body.querySelector('[data-iso-ca-explain]').textContent = j.explanation || 'Non disponible';
 
       const ul = body.querySelector('[data-iso-ca-actions]');
       ul.replaceChildren();

@@ -10,7 +10,7 @@ import { createEmptyState } from '../utils/designSystem.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
-/** Registre produits / FDS — jeu d’exemple (peut être complété par import). */
+/** Registre produits / FDS : jeu d’exemple (peut être complété par import). */
 const PRODUCT_REGISTRY = [
   {
     id: 'seed-0',
@@ -29,7 +29,7 @@ const PRODUCT_REGISTRY = [
     fdsRescue: 'Retirer les victimes à l’air frais. Rincer abondamment à l’eau (15 min). Consulter un médecin.',
     fdsMeasures: 'Poste de rinçage oculaire à proximité. Pas d’évacuation à l’égout.',
     risksLinked: ['Corrosion', 'Projection', 'Réaction avec eau'],
-    incidentsHint: 'Aucun incident lié sur la période affichée — consulter le module Incidents.',
+    incidentsHint: 'Aucun incident lié sur la période affichée. Consultez le module Incidents.',
     fdsHumanValidated: true,
     iaSuggestedActions: [],
     iaInconsistencies: []
@@ -334,21 +334,21 @@ function mapDbProductToRow(p) {
     };
     return `GHS0${n} ${labels[Number(n)] || ''}`.trim();
   });
-  const siteName = p.siteRecord?.name || appState.currentSite || '—';
+  const siteName = p.siteRecord?.name || appState.currentSite || 'Non renseigné';
   const updated = p.updatedAt ? new Date(p.updatedAt) : null;
   return normalizeProductRow({
     id: String(p.id),
     name: String(p.name || 'Produit'),
-    cas: p.casNumber ? String(p.casNumber) : '—',
+    cas: p.casNumber ? String(p.casNumber) : 'Non renseigné',
     supplier: p.supplier ? String(p.supplier) : '',
     ceNumber: p.ceNumber ? String(p.ceNumber) : '',
     site: siteName,
     danger: inferDangerFromHStatements(hSt),
     revision: updated
       ? updated.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      : '—',
-    signalWord: '—',
-    hazards: hSt.length ? hSt.join(' · ') : '—',
+      : 'Non renseigné',
+    signalWord: 'Non renseigné',
+    hazards: hSt.length ? hSt.join(' · ') : 'Non renseigné',
     fdsFileName: p.fdsFileUrl ? String(p.fdsFileUrl).replace(/^fds:/, '') : '',
     fdsValidUntil: '',
     fdsPictograms: pictoLabels.length ? pictoLabels : ghsCodes,
@@ -408,12 +408,12 @@ function mapControlledDocumentToProduct(doc) {
   return normalizeProductRow({
     id: String(doc?.id || makeProductId()),
     name: String(doc?.name || 'Document FDS'),
-    cas: '—',
+    cas: 'Non renseigné',
     site: String(doc?.site?.name || appState.currentSite || 'Site principal'),
     danger: 'moyen',
     revision: doc?.updatedAt
       ? new Date(doc.updatedAt).toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' })
-      : '—',
+      : 'Non renseigné',
     signalWord: 'Attention',
     hazards: 'FDS importée via API.',
     fdsFileName: String(doc?.name || ''),
@@ -467,7 +467,7 @@ async function uploadFdsDocument(payload) {
   const res = await qhseFetch('/api/controlled-documents', { method: 'POST', body: fd });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error || `Upload impossible (${res.status})`);
+    throw new Error(body?.error || `Téléversement impossible (${res.status})`);
   }
   return res.json();
 }
@@ -534,20 +534,20 @@ function computeAlerts(products) {
   const out = [];
   products.forEach((p) => {
     if (isFdsMissing(p)) {
-      out.push({ type: 'missing', product: p, text: `FDS manquante — ${p.name}` });
+      out.push({ type: 'missing', product: p, text: `FDS manquante : ${p.name}` });
     }
     if (isFdsExpired(p)) {
-      out.push({ type: 'expired', product: p, text: `FDS expirée — ${p.name}` });
+      out.push({ type: 'expired', product: p, text: `FDS expirée : ${p.name}` });
     }
     if (isUncontrolledDangerous(p)) {
-      out.push({ type: 'uncontrolled', product: p, text: `Produit dangereux non maîtrisé — ${p.name}` });
+      out.push({ type: 'uncontrolled', product: p, text: `Produit dangereux non maîtrisé : ${p.name}` });
     }
   });
   return out;
 }
 
 /**
- * Préremplissage assisté côté navigateur — pas de lecture réelle du PDF/image ; validation humaine obligatoire.
+ * Préremplissage assisté côté navigateur : pas de lecture réelle du PDF/image ; validation humaine obligatoire.
  * @param {File} file
  */
 function simulateFdsIaExtraction(file) {
@@ -583,21 +583,21 @@ function simulateFdsIaExtraction(file) {
       const inconsistencies = [];
       if (isImg) {
         inconsistencies.push(
-          'Import image : l’extraction automatique est moins fiable — contrôle humain renforcé requis.'
+          "Import image : l’extraction automatique est moins fiable, contrôle humain renforcé requis."
         );
       }
       if (/brouillon|draft|copie/i.test(fn)) {
-        inconsistencies.push('Le nom de fichier suggère un brouillon — confirmer la version maîtrisée.');
+        inconsistencies.push('Le nom de fichier suggère un brouillon. Confirmez la version maîtrisée.');
       }
       if (h % 5 === 0) {
-        inconsistencies.push('Écart possible entre mot-signal détecté et pictogrammes — recouper section 2 CLP.');
+        inconsistencies.push('Écart possible entre mot-signal détecté et pictogrammes. Recoupez avec la section 2 (CLP).');
       }
       const rev = new Date();
       rev.setMonth(rev.getMonth() + 18);
       const fdsValidUntil = rev.toISOString().slice(0, 10);
       resolve({
         name: friendly.slice(0, 120),
-        cas: '— à vérifier sur la FDS',
+        cas: 'À vérifier sur la FDS',
         site: 'Site principal',
         danger: 'moyen',
         revision: new Date().toLocaleDateString('fr-FR', {
@@ -666,7 +666,7 @@ function createProductRow(product, handlers = {}) {
     docP.textContent = `Pièce jointe : ${product.fdsFileName}`;
   } else {
     docP.className = 'products-row-doc products-row-doc--warn';
-    docP.textContent = 'Pas de fichier — fiche = données saisies';
+    docP.textContent = 'Pas de fichier. La fiche repose sur les données saisies.';
   }
   main.append(docP);
   if (alerts.length > 0) {
@@ -714,11 +714,11 @@ function createProductRow(product, handlers = {}) {
   btnFds.textContent = hasAttachment ? 'Ouvrir fichier' : 'Sans fichier';
   btnFds.disabled = !hasAttachment;
   btnFds.title = hasAttachment
-    ? 'PDF ou image d’origine — la fiche exploitable pour le terrain est constituée des champs structurés (détail).'
+    ? 'PDF ou image d’origine. La fiche terrain repose sur les champs structurés (détail).'
     : 'Aucune pièce jointe : la substance reste gérée via les champs de la fiche.';
   btnFds.addEventListener('click', () => {
     if (typeof onFds === 'function') onFds(product);
-    else showToast(`Fichier source — ${product.name}.`, 'info');
+    else showToast(`Fichier source : ${product.name}.`, 'info');
   });
 
   const btnDet = document.createElement('button');
@@ -739,7 +739,7 @@ function fillDetailListUl(ul, items) {
   ul.replaceChildren();
   if (!items || !items.length) {
     const li = document.createElement('li');
-    li.textContent = '—';
+    li.textContent = 'Non renseigné';
     ul.append(li);
     return;
   }
@@ -757,8 +757,8 @@ function renderProductDetail(product, host) {
   art.className = 'content-card card-soft products-detail-card';
   const fdsName = product.fdsFileName
     ? String(product.fdsFileName)
-    : 'Aucun fichier lié — ajoutez la FDS signée.';
-  const valid = product.fdsValidUntil ? String(product.fdsValidUntil) : '—';
+    : 'Aucun fichier lié. Ajoutez la FDS signée.';
+  const valid = product.fdsValidUntil ? String(product.fdsValidUntil) : 'Non renseigné';
   const validExpired = isFdsExpired(product);
   const dSum = dangerTone(product.danger);
   const hasAtt = !!(product.fdsFileName && String(product.fdsFileName).trim());
@@ -853,7 +853,7 @@ function renderProductDetail(product, host) {
   pHum.className = 'products-detail-text';
   const sh = document.createElement('strong');
   sh.textContent = 'Validation humaine (registre) :';
-  pHum.append(sh, document.createTextNode(` ${product.fdsHumanValidated ? 'Oui' : 'Non — à compléter'}`));
+  pHum.append(sh, document.createTextNode(` ${product.fdsHumanValidated ? 'Oui' : 'Non, à compléter'}`));
   secGen.append(h4g, pRef, pHum);
 
   const secDang = document.createElement('section');
@@ -864,7 +864,7 @@ function renderProductDetail(product, host) {
   pSig.className = 'products-detail-text';
   const ss = document.createElement('strong');
   ss.textContent = 'Mot-signal :';
-  pSig.append(ss, document.createTextNode(` ${product.signalWord || '—'}`));
+  pSig.append(ss, document.createTextNode(` ${product.signalWord || 'Non renseigné'}`));
   const { hLines, pLines } = deriveHPLines(product);
   const hpHost = document.createElement('div');
   hpHost.className = 'products-detail-hp-wrap';
@@ -899,7 +899,7 @@ function renderProductDetail(product, host) {
   if (!hLines.length && !pLines.length) {
     const pHaz = document.createElement('p');
     pHaz.className = 'products-detail-text';
-    pHaz.textContent = '—';
+    pHaz.textContent = 'Non renseigné';
     hpHost.append(pHaz);
   }
   const pictoWrap = document.createElement('div');
@@ -915,7 +915,7 @@ function renderProductDetail(product, host) {
   } else {
     const muted = document.createElement('span');
     muted.className = 'products-detail-muted';
-    muted.textContent = '—';
+    muted.textContent = 'Non renseigné';
     pictoWrap.append(muted);
   }
   secDang.append(h4d, pSig, hpHost, pictoWrap);
@@ -937,12 +937,12 @@ function renderProductDetail(product, host) {
   pSt.className = 'products-detail-text';
   const sst = document.createElement('strong');
   sst.textContent = 'Stockage :';
-  pSt.append(sst, document.createTextNode(` ${product.fdsStorage || '—'}`));
+  pSt.append(sst, document.createTextNode(` ${product.fdsStorage || 'Non renseigné'}`));
   const pPrev = document.createElement('p');
   pPrev.className = 'products-detail-text';
   const spv = document.createElement('strong');
   spv.textContent = 'Prévention :';
-  pPrev.append(spv, document.createTextNode(` ${product.fdsMeasures || '—'}`));
+  pPrev.append(spv, document.createTextNode(` ${product.fdsMeasures || 'Non renseigné'}`));
   secSto.append(h4s, pSt, pPrev);
 
   const secUrg = document.createElement('section');
@@ -951,7 +951,7 @@ function renderProductDetail(product, host) {
   h4u.textContent = 'Urgence & secours';
   const pUrg = document.createElement('p');
   pUrg.className = 'products-detail-text products-detail-urgency';
-  pUrg.textContent = product.fdsRescue || '—';
+  pUrg.textContent = product.fdsRescue || 'Non renseigné';
   secUrg.append(h4u, pUrg);
 
   const secIa = document.createElement('section');
@@ -960,7 +960,7 @@ function renderProductDetail(product, host) {
   h4ia.textContent = 'Analyse IA (indicative)';
   const pNote = document.createElement('p');
   pNote.className = 'products-detail-note';
-  pNote.textContent = 'Pistes générées par l’assistant — à recouper avec la FDS ; aucune décision automatique.';
+  pNote.textContent = 'Pistes proposées par l’assistant. Recoupez avec la FDS, aucune décision automatique.';
   const subInc = document.createElement('p');
   subInc.className = 'products-detail-subh';
   subInc.textContent = 'Incohérences signalées';
@@ -1030,21 +1030,21 @@ function renderProductDetail(product, host) {
   });
   art.querySelector('.products-detail-copy')?.addEventListener('click', () => {
     const d = dangerTone(product.danger).label;
-    const epi0 = (product.fdsEpi && product.fdsEpi[0]) || '—';
+    const epi0 = (product.fdsEpi && product.fdsEpi[0]) || 'Non renseigné';
     const urg = (product.fdsRescue || '').slice(0, 400);
     const text = [
       `Produit : ${product.name}`,
       `CAS : ${product.cas}`,
       `Site : ${product.site}`,
       `Danger : ${d}`,
-      `Mot-signal : ${product.signalWord || '—'}`,
+      `Mot-signal : ${product.signalWord || 'Non renseigné'}`,
       `EPI (extrait) : ${epi0}`,
-      `Urgence / secours : ${urg || '—'}`
+      `Urgence / secours : ${urg || 'Non renseigné'}`
     ].join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
         () => showToast('Synthèse copiée dans le presse-papiers.', 'info'),
-        () => showToast('Copie impossible — sélectionnez le texte manuellement.', 'warning')
+        () => showToast('Copie impossible. Sélectionnez le texte manuellement.', 'warning')
       );
     } else {
       showToast('Copie non disponible dans ce navigateur.', 'warning');
@@ -1057,7 +1057,7 @@ function renderProductDetail(product, host) {
     rb.type = 'button';
     rb.className = 'btn btn-secondary products-detail-ia-refresh';
     rb.textContent = 'Régénérer l’analyse (locale)';
-    rb.title = 'Simule une nouvelle passe IA locale — met à jour les listes sur la fiche enregistrée.';
+    rb.title = 'Relance une passe IA locale et met à jour les listes sur la fiche enregistrée.';
     iaBlock.append(rb);
     rb.addEventListener('click', async () => {
       rb.disabled = true;
@@ -1080,7 +1080,7 @@ function renderProductDetail(product, host) {
         savePersistedProducts(rows);
         const merged = { ...rows[ix] };
         renderProductDetail(merged, host);
-        showToast('Analyse IA régénérée — validation humaine toujours requise pour toute décision.', 'info');
+        showToast('Analyse IA régénérée. Validation humaine toujours requise avant toute décision.', 'info');
       } finally {
         rb.disabled = false;
         rb.textContent = 'Régénérer l’analyse (locale)';
@@ -1248,14 +1248,14 @@ function buildTerrainStrip(products, onOpenDetail, onGoImport) {
   kicker.textContent = 'Vue Essentiel';
   const title = document.createElement('h3');
   title.className = 'products-terrain-title';
-  title.textContent = `Accès rapide — ${pick.name}`;
+  title.textContent = `Accès rapide : ${pick.name}`;
 
   const grid = document.createElement('div');
   grid.className = 'products-terrain-grid';
 
   function fillTerrainCells(host, p) {
     host.replaceChildren();
-    const epi = (p.fdsEpi && p.fdsEpi[0]) || '—';
+    const epi = (p.fdsEpi && p.fdsEpi[0]) || 'Non renseigné';
     const rescue = p.fdsRescue || '';
     const rescueShort = rescue.length > 160 ? `${rescue.slice(0, 160)}…` : rescue;
 
@@ -1319,7 +1319,7 @@ function buildTerrainStrip(products, onOpenDetail, onGoImport) {
     sel.addEventListener('change', () => {
       const i = Number(sel.value);
       pick = list[Number.isFinite(i) ? i : 0] || pick;
-      title.textContent = `Accès rapide — ${pick.name}`;
+      title.textContent = `Accès rapide : ${pick.name}`;
       fillTerrainCells(grid, pick);
     });
   } else {
@@ -1389,17 +1389,17 @@ export function renderProducts() {
   importCard.innerHTML = `
     <div class="content-card-head">
       <div>
-        <div class="section-kicker">Étape 1 — Import</div>
+        <div class="section-kicker">Étape 1 : Import</div>
         <h3>Importer une FDS (PDF ou image)</h3>
         <p class="content-card-lead products-import-lead">
-          <strong>PDF</strong> : extraction automatique côté serveur (sections 1, 3, 8 — H/P, GHS, VLEP, stockage).
-          <strong>Image</strong> : préremplissage assisté local (sans OCR réel) — contrôle humain obligatoire.
+          <strong>PDF</strong> : extraction automatique côté serveur (sections 1, 3, 8 ; H/P, GHS, VLEP, stockage).
+          <strong>Image</strong> : préremplissage assisté local (sans OCR réel), contrôle humain obligatoire.
         </p>
       </div>
     </div>
     <div class="products-fds-dropzone" tabindex="0" role="region" aria-label="Glisser-déposer une FDS PDF">
       <p class="products-fds-dropzone__title">Déposer une FDS PDF ici</p>
-      <p class="products-fds-dropzone__hint">Relâchez le fichier ou choisissez-le ci-dessous — pictogrammes SGH détectés par analyse du texte.</p>
+      <p class="products-fds-dropzone__hint">Relâchez le fichier ou choisissez-le ci-dessous. Les pictogrammes SGH sont détectés par analyse du texte.</p>
     </div>
     <div class="products-import-row">
       <label class="products-file-label">
@@ -1408,7 +1408,7 @@ export function renderProducts() {
       </label>
       <button type="button" class="btn btn-primary products-extract-btn" disabled>Analyser la FDS</button>
     </div>
-    <p class="products-ia-disclaimer" role="note">PDF : premier enregistrement dès l’analyse (brouillon en base) — corrigez puis confirmez. Images : IA indicative locale uniquement.</p>
+    <p class="products-ia-disclaimer" role="note">PDF : premier enregistrement dès l’analyse (brouillon en base). Corrigez puis confirmez. Images : IA indicative locale uniquement.</p>
   `;
 
   const validationCard = document.createElement('article');
@@ -1417,7 +1417,7 @@ export function renderProducts() {
   validationCard.innerHTML = `
     <div class="content-card-head">
       <div>
-        <div class="section-kicker">Étape 2 — Contrôle humain</div>
+        <div class="section-kicker">Étape 2 : Contrôle humain</div>
         <h3>Contrôle avant enregistrement</h3>
         <p class="content-card-lead">Alignez chaque champ sur la FDS officielle ; l’IA propose des pistes, pas des décisions.</p>
       </div>
@@ -1427,7 +1427,7 @@ export function renderProducts() {
       <strong>Validation requise :</strong> contrôlez chaque champ contre la FDS officielle avant confirmation.
     </p>
     <div class="products-ia-preview" aria-live="polite">
-      <h4 class="products-ia-preview-title">Analyse IA — à vérifier</h4>
+      <h4 class="products-ia-preview-title">Analyse IA, à vérifier</h4>
       <div class="products-ia-preview-cols">
         <div>
           <p class="products-ia-preview-sub">Incohérences détectées</p>
@@ -1508,7 +1508,7 @@ export function renderProducts() {
       <div>
         <div class="section-kicker">Registre</div>
         <h3>Liste des produits</h3>
-        <p class="content-card-lead">Cartes criticité, validité FDS et alertes — recherche locale.</p>
+        <p class="content-card-lead">Cartes criticité, validité FDS et alertes, recherche locale.</p>
       </div>
     </div>
     <div class="products-toolbar">
@@ -1586,7 +1586,7 @@ export function renderProducts() {
       if (!inc || !inc.length) {
         const li = document.createElement('li');
         li.className = 'products-ia-preview-empty';
-        li.textContent = '—';
+        li.textContent = 'Non renseigné';
         iaIncList.append(li);
       }
     }
@@ -1600,7 +1600,7 @@ export function renderProducts() {
       if (!act || !act.length) {
         const li = document.createElement('li');
         li.className = 'products-ia-preview-empty';
-        li.textContent = '—';
+        li.textContent = 'Non renseigné';
         iaActList.append(li);
       }
     }
@@ -1683,7 +1683,7 @@ export function renderProducts() {
       pendingFile = f;
       if (extractBtn) extractBtn.disabled = false;
       updateExtractButtonLabel();
-      showToast(`Fichier « ${f.name} » prêt — lancez l’analyse.`, 'info');
+      showToast(`Fichier « ${f.name} » prêt. Lancez l’analyse.`, 'info');
     });
     dropzone.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -1710,7 +1710,7 @@ export function renderProducts() {
           'Compléter EPI, secours et mesures depuis les sections 6–8 si absentes du PDF.'
         ];
         pendingIaInconsistencies = [
-          'Extraction automatique : les mises en page PDF varient — recouper chaque champ.'
+          'Extraction automatique : les mises en page PDF varient. Recoupez chaque champ.'
         ];
         fillIaPreview(pendingIaInconsistencies, pendingIaSuggestedActions);
 
@@ -1742,7 +1742,7 @@ export function renderProducts() {
 
         validationCard.hidden = false;
         validationCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        showToast('PDF analysé — fiche créée ou mise à jour côté serveur. Corrigez puis confirmez.', 'info');
+        showToast('PDF analysé. Fiche créée ou mise à jour côté serveur. Corrigez puis confirmez.', 'info');
         try {
           await loadProductsFromApi();
           refreshList();
@@ -1781,7 +1781,7 @@ export function renderProducts() {
 
         validationCard.hidden = false;
         validationCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        showToast('Analyse terminée — contrôlez chaque champ avant validation.', 'info');
+        showToast('Analyse terminée. Contrôlez chaque champ avant validation.', 'info');
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Analyse impossible', 'error');
@@ -1839,7 +1839,7 @@ export function renderProducts() {
         activityLogStore.add({
           module: 'products',
           action: 'FDS confirmée (serveur)',
-          detail: `${name} — Product ${serverProductId}`,
+          detail: `${name} : produit ${serverProductId}`,
           user: getSessionUser()?.name || 'Utilisateur'
         });
         showToast(`Produit « ${name} » enregistré (base chimique).`, 'success');
@@ -1861,12 +1861,12 @@ export function renderProducts() {
     const row = {
       id,
       name,
-      cas: cas || '—',
+      cas: cas || 'Non renseigné',
       site,
       danger: fieldDanger.value || 'moyen',
-      revision: (fieldRevision.value || '').trim() || '—',
-      signalWord: (fieldSignal.value || '').trim() || '—',
-      hazards: (fieldHazards.value || '').trim() || '—',
+      revision: (fieldRevision.value || '').trim() || 'Non renseigné',
+      signalWord: (fieldSignal.value || '').trim() || 'Non renseigné',
+      hazards: (fieldHazards.value || '').trim() || 'Non renseigné',
       fdsFileName: (fieldFilename.value || '').trim() || (pendingFile?.name ?? ''),
       fdsValidUntil: (fieldValidUntil && fieldValidUntil.value) || '',
       fdsPictograms: linesToArray(fieldPictograms?.value || ''),
@@ -1902,7 +1902,7 @@ export function renderProducts() {
     activityLogStore.add({
       module: 'products',
       action: 'Produit enregistré (FDS)',
-      detail: `${name} — validation humaine`,
+      detail: `${name} : validation humaine`,
       user: getSessionUser()?.name || 'Utilisateur'
     });
     showToast(`Produit « ${name} » enregistré via API.`, 'success');
@@ -1928,7 +1928,7 @@ export function renderProducts() {
       return;
     }
     showToast(
-      `Aucune pièce jointe en session pour « ${product.name} » — la fiche repose sur les champs saisis.`,
+      `Aucune pièce jointe en session pour « ${product.name} ». La fiche repose sur les champs saisis.`,
       'info'
     );
   }
@@ -2020,7 +2020,7 @@ export function renderProducts() {
     if (pd.signalWord != null) fieldSignal.value = String(pd.signalWord);
     if (pd.hazards != null) fieldHazards.value = String(pd.hazards);
     if (pd.fdsFileName != null) fieldFilename.value = String(pd.fdsFileName);
-    showToast('Brouillon import appliqué — contrôlez puis validez.', 'info');
+    showToast('Brouillon import appliqué. Contrôlez puis validez.', 'info');
     clearImportDraft();
   }
 
@@ -2029,7 +2029,7 @@ export function renderProducts() {
       await loadProductsFromApi();
     } catch (err) {
       console.error('[products] GET /api/controlled-documents', err);
-      showToast('Chargement FDS API impossible — mode local.', 'warning');
+      showToast('Chargement FDS API impossible. Mode local activé.', 'warning');
     } finally {
       refreshKpi();
       if (linkedRiskTitleHint && input) {
@@ -2048,12 +2048,12 @@ export function renderProducts() {
       if (linkedRiskTitleHint || linkedRiskIdHint) {
         showToast(
           linkedRiskTitleHint
-            ? `Contexte risque — recherche préremplie (« ${
+            ? `Contexte risque : recherche préremplie (« ${
                 linkedRiskTitleHint.length > 72
                   ? `${linkedRiskTitleHint.slice(0, 72)}…`
                   : linkedRiskTitleHint
               } »).`
-            : 'Registre produits — contexte risque transmis ; recherche à affiner si besoin.',
+            : 'Registre produits : contexte risque transmis. Affinez la recherche si besoin.',
           'info'
         );
       }

@@ -1,5 +1,5 @@
 /**
- * Courbe « Incidents (6 mois) » — Chart.js (interaction, tooltip, annotations légères).
+ * Courbe « Incidents (6 mois) » : Chart.js (interaction, tooltip, annotations légères).
  */
 
 import { Chart } from 'chart.js';
@@ -23,8 +23,8 @@ function hoverInterpretLine(i, safe, nar) {
   let ev = '';
   if (d == null) ev = 'Premier mois de la fenêtre.';
   else if (d === 0) ev = 'Stable vs mois précédent.';
-  else if (d > 0) ev = `+${d} vs mois précédent — surveiller la trajectoire.`;
-  else ev = `${d} vs mois précédent — confirmer la qualité de remontée.`;
+  else if (d > 0) ev = `+${d} vs mois précédent, surveiller la trajectoire.`;
+  else ev = `${d} vs mois précédent, confirmer la qualité de remontée.`;
   return `${row.label} : ${v} incident${v > 1 ? 's' : ''} · ${vig}. ${ev} Vue globale : ${nar.badgeLabel}.`;
 }
 
@@ -38,7 +38,7 @@ function hoverInterpretLine(i, safe, nar) {
  */
 export function createIncidentsMonthlyLineChartChartJs(safe, options = {}) {
   const narrative = computeIncidentSeriesNarrative(safe);
-  const labels = safe.map((p) => p.label || '—');
+  const labels = safe.map((p) => p.label || 'Non disponible');
   const values = safe.map((p) => (Number.isFinite(p.value) ? Math.max(0, p.value) : 0));
   const maxVal = Math.max(1, ...values);
   const suggestedMax = Math.max(maxVal + 1, Math.ceil(maxVal * 1.12));
@@ -293,7 +293,7 @@ export function createIncidentsMonthlyLineChartChartJs(safe, options = {}) {
           borderColor: 'rgba(251, 146, 60, 0.35)',
           borderWidth: 1,
           callbacks: {
-            title: (items) => items[0]?.label || '—',
+            title: (items) => items[0]?.label || 'Non disponible',
             label: (ctx) => {
               const v = ctx.parsed.y ?? 0;
               return `${v} incident${v > 1 ? 's' : ''}`;

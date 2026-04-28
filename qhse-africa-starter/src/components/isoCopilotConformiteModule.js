@@ -1,5 +1,5 @@
 /**
- * Copilot conformité (phase 3) — module isolé.
+ * Copilot conformité (phase 3) : module isolé.
  * Insère un bloc sous le bandeau « Audit readiness » sur la page ISO.
  */
 import './isoCopilotConformiteModule.css';
@@ -41,8 +41,8 @@ export function generateCopilotInsights() {
     pool.push({
       id: 'copilot-missing-docs',
       label: iso14001Hint
-        ? `${nMissing} preuve(s) manquante(s) — ISO 14001`
-        : `${nMissing} document(s) manquant(s) — consolider les preuves`,
+        ? `${nMissing} preuve(s) manquante(s) : ISO 14001`
+        : `${nMissing} document(s) manquant(s). Consolider les preuves.`,
       icon: '📄',
       action: 'scroll-docs'
     });
@@ -61,8 +61,8 @@ export function generateCopilotInsights() {
       id: 'copilot-nc',
       label:
         ncs.length === 1
-          ? `1 non-conformité à traiter — ${critical.clause} (${code})`
-          : `${ncs.length} non-conformité(s) — priorité ${critical.clause}`,
+          ? `1 non-conformité à traiter : ${critical.clause} (${code})`
+          : `${ncs.length} non-conformité(s) : priorité ${critical.clause}`,
       icon: '⚠️',
       action: 'filter-nc'
     });
@@ -72,7 +72,7 @@ export function generateCopilotInsights() {
     const a = AUDITS_TO_SCHEDULE[0];
     pool.push({
       id: 'copilot-audit',
-      label: `Audit interne à planifier — ${a.title}`,
+      label: `Audit interne à planifier : ${a.title}`,
       icon: '📅',
       action: 'open-audits'
     });
@@ -82,7 +82,7 @@ export function generateCopilotInsights() {
   if (pool.length < 3 && partials > 0 && !pool.some((p) => p.action === 'filter-partial')) {
     pool.push({
       id: 'copilot-partial',
-      label: `${partials} exigence(s) partielle(s) — finaliser les preuves`,
+      label: `${partials} exigence(s) partielle(s). Finaliser les preuves.`,
       icon: '◇',
       action: 'filter-partial'
     });
@@ -92,7 +92,7 @@ export function generateCopilotInsights() {
     const gaps = reqs.filter((r) => r.status !== 'conforme').length;
     pool.push({
       id: 'copilot-gap',
-      label: `${gaps} écart(s) sur le registre — vue filtrée`,
+      label: `${gaps} écart(s) sur le registre : vue filtrée`,
       icon: '◎',
       action: 'filter-gap'
     });
@@ -101,7 +101,7 @@ export function generateCopilotInsights() {
   if (pool.length < 2 && !pool.some((p) => p.action === 'scroll-priorities')) {
     pool.push({
       id: 'copilot-prio',
-      label: 'Priorités cockpit — traiter les actions en cours',
+      label: 'Priorités cockpit : traiter les actions en cours',
       icon: '→',
       action: 'scroll-priorities'
     });
@@ -197,7 +197,7 @@ function renderInsightsInto(host) {
     btn.setAttribute('data-copilot-insight', ins.id);
     btn.setAttribute(
       'aria-label',
-      `${ins.label} — ouvrir la vue correspondante`
+      `${ins.label} : ouvrir la vue correspondante`
     );
     const ic = document.createElement('span');
     ic.className = 'iso-copilot-conformite-premium__icon';

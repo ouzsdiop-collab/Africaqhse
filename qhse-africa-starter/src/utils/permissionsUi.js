@@ -1,5 +1,5 @@
 /**
- * Règles UI alignées sur backend/src/lib/permissions.js (V1 — à maintenir en parallèle).
+ * Règles UI alignées sur backend/src/lib/permissions.js (V1 : à maintenir en parallèle).
  */
 
 import { getDisplayMode } from './displayMode.js';

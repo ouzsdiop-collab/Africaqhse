@@ -1,5 +1,5 @@
 /**
- * Bloc « Aujourd'hui » — visible en mode simplifié via displayModes.css (.dashboard-today-block).
+ * Bloc « Aujourd'hui » : visible en mode simplifié via displayModes.css (.dashboard-today-block).
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';

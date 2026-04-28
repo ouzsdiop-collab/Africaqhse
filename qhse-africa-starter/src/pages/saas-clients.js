@@ -28,7 +28,7 @@ export function renderSaasClients() {
           <h3>Comptes clients</h3>
           <p class="content-card-lead" style="margin:0;max-width:62ch;font-size:13px">
             Créez une entreprise (tenant), un administrateur client et un mot de passe provisoire.
-            Le mot de passe n’est affiché qu’une fois — communiquez-le par un canal sécurisé.
+            Le mot de passe n’est affiché qu’une fois. Communiquez-le par un canal sécurisé.
           </p>
         </div>
       </div>
@@ -131,8 +131,8 @@ export function renderSaasClients() {
           <td>${escapeHtml(t.name || '')}</td>
           <td><code>${escapeHtml(t.slug || '')}</code></td>
           <td>${escapeHtml(t.status || '')}</td>
-          <td>${u ? escapeHtml(u.email || '') : '—'}</td>
-          <td>${u?.clientCode ? `<code>${escapeHtml(u.clientCode)}</code>` : '—'}</td>
+          <td>${u ? escapeHtml(u.email || '') : 'Non renseigné'}</td>
+          <td>${u?.clientCode ? `<code>${escapeHtml(u.clientCode)}</code>` : 'Non renseigné'}</td>
           <td><button type="button" class="btn sc-btn-reset" data-tenant="${escapeHtml(t.id || '')}">Réinitialiser MDP</button></td>
         `;
         tb?.appendChild(tr);
@@ -158,7 +158,7 @@ export function renderSaasClients() {
             }
             const pwd = typeof b2.provisionalPassword === 'string' ? b2.provisionalPassword : '';
             showOnceModal(
-              '<strong>Nouveau mot de passe provisoire</strong> — à communiquer au client une seule fois.',
+              '<strong>Nouveau mot de passe provisoire</strong> (à communiquer au client une seule fois).',
               pwd,
               b2.user
                 ? `Compte : <strong>${escapeHtml(b2.user.email || '')}</strong> · code <code>${escapeHtml(b2.user.clientCode || '')}</code>`

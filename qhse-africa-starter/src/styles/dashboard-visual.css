@@ -1,5 +1,5 @@
 /**
- * Dashboard — niveau produit SaaS (hiérarchie, surfaces, accents).
+ * Dashboard : niveau produit SaaS (hiérarchie, surfaces, accents).
  * Inspiré des patterns des meilleurs outils ops / EHS / analytics modernes.
  * Chargé avant les styles injectés (dashboardStyles) pour la base ;
  * certaines règles complètent sans !important.
@@ -19,7 +19,7 @@
   margin-inline: auto;
 }
 
-/* —— En-têtes de section (type “module” enterprise) —— */
+/* En-têtes de section (type “module” enterprise) */
 .dashboard-section {
   gap: 1.125rem;
   padding-bottom: 0.15rem;
@@ -82,7 +82,7 @@
   margin-top: 2px;
 }
 
-/* —— Hero (bandeau direction, type Datadog / Linear) —— */
+/* Hero (bandeau direction, type Datadog / Linear) */
 .dashboard-hero.dashboard-hero,
 .hero.dashboard-hero {
   position: relative;
@@ -248,7 +248,7 @@
   }
 }
 
-/* —— KPI : tuiles sobres, accent gauche = criticité (direction / QHSE) —— */
+/* KPI : tuiles sobres, accent gauche = criticité (direction / QHSE) */
 .dashboard-kpi-grid {
   gap: 12px;
 }
@@ -388,7 +388,7 @@ button.dashboard-kpi-card.metric-card {
   border-top-color: rgba(148, 163, 184, 0.12) !important;
 }
 
-/* —— Cockpit —— */
+/* Cockpit */
 .dashboard-cockpit {
   border-radius: var(--dash-radius-xl);
   border: 0.5px solid var(--color-border-tertiary);
@@ -474,7 +474,7 @@ button.dashboard-kpi-card.metric-card {
   opacity: 1;
 }
 
-/* —— Graphiques (zone “chart well”) —— */
+/* Graphiques (zone “chart well”) */
 .dashboard-chart-card-inner.content-card,
 .content-card.dashboard-chart-card-inner {
   border: 0.5px solid var(--color-border-tertiary);
@@ -571,7 +571,7 @@ button.dashboard-kpi-card.metric-card {
   border-top: 0.5px dashed rgba(148, 163, 184, 0.14);
 }
 
-/* —— Alertes, vigilance, analyse —— */
+/* Alertes, vigilance, analyse */
 .dashboard-alerts-prio-card {
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: var(--dash-radius-lg);
@@ -700,7 +700,7 @@ button.dashboard-kpi-card.metric-card {
   font-weight: 600;
 }
 
-/* —— État système —— */
+/* État système */
 .dashboard-sys-status {
   border-radius: var(--dash-radius-lg);
   border: 0.5px solid var(--color-border-tertiary);
@@ -727,7 +727,7 @@ button.dashboard-kpi-card.metric-card {
   font-variant-numeric: tabular-nums;
 }
 
-/* —— Activité —— */
+/* Activité */
 .dashboard-activity-section.content-card {
   border: 0.5px solid var(--color-border-tertiary);
   box-shadow: none;
@@ -756,7 +756,7 @@ button.dashboard-kpi-card.metric-card {
   font-weight: 600;
 }
 
-/* —— Raccourcis (tuiles avec code couleur métier) —— */
+/* Raccourcis (tuiles avec code couleur métier) */
 .dashboard-shortcuts__grid {
   gap: 14px;
 }
@@ -860,7 +860,7 @@ button.dashboard-kpi-card.metric-card {
   }
 }
 
-/* —— Liens d’action —— */
+/* Liens d’action */
 .dashboard-block-link {
   display: inline-flex;
   align-items: center;
@@ -883,7 +883,7 @@ button.dashboard-kpi-card.metric-card {
   border-color: var(--color-border-info);
 }
 
-/* —— Connectivité —— */
+/* Connectivité */
 .dashboard-connectivity-card {
   border: 0.5px solid var(--color-border-warning);
   border-radius: var(--dash-radius-lg);
@@ -903,7 +903,7 @@ button.dashboard-kpi-card.metric-card {
   border-radius: var(--dash-radius-md) !important;
 }
 
-/* —— Dashboard exécutif : surface unique au-dessus du volet « Analyses » —— */
+/* Dashboard exécutif : surface unique au-dessus du volet « Analyses » */
 .dashboard-executive-surface {
   display: flex;
   flex-direction: column;
@@ -958,7 +958,7 @@ button.dashboard-kpi-card.metric-card {
   }
 }
 
-/* —— Finitions : aération entre blocs (dashboard uniquement) —— */
+/* Finitions : aération entre blocs (dashboard uniquement) */
 .dashboard-page.page-stack > * + * {
   margin-top: 20px;
 }

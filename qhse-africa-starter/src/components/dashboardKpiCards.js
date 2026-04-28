@@ -1,7 +1,7 @@
 import { createDashboardKpiCard } from './dashboardKpiCard.js';
 import { createSkeletonCard } from '../utils/designSystem.js';
 
-/** 5 KPI « above the fold » — notes courtes ; détail = drawer au clic. */
+/** 5 KPI « above the fold » : notes courtes ; détail = drawer au clic. */
 export const DASHBOARD_KPI_SPECS = [
   { key: 'incidents', label: 'Incidents', note: 'Périmètre courant', tone: 'amber' },
   { key: 'ncOpen', label: 'NC ouvertes', note: 'Non clos', tone: 'amber' },
@@ -36,7 +36,7 @@ export function renderKpiCards(opts) {
   DASHBOARD_KPI_SPECS.forEach((spec) => {
     const card = createDashboardKpiCard({
       label: spec.label,
-      value: '—',
+      value: 'Non disponible',
       note: spec.note,
       tone: spec.tone,
       kpiKey: spec.key,

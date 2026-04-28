@@ -1,4 +1,4 @@
-/** Mapping API / affichage incidents — partagé page + composants (évite imports circulaires). */
+/** Mapping API / affichage incidents : partagé page + composants (évite imports circulaires). */
 
 export function parsePhotosFromApiRow(row) {
   const raw = row?.photosJson;

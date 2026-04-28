@@ -1,5 +1,5 @@
 /**
- * Application — thème sombre par défaut, surfaces plates + dégradés très légers.
+ * Application : thème sombre par défaut, surfaces plates + dégradés très légers.
  * Chargé en dernier pour surcharger styles.css.
  *
  * Breakpoints (référence) : 768px (sm), 1024px (md), 1280px (lg).
@@ -28,7 +28,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dégradés discrets (surtout thème sombre) — toile + primary #1C2F5C */
+/* Dégradés discrets (surtout thème sombre) : toile + primary #1C2F5C */
 [data-theme='dark'] body {
   background:
     radial-gradient(
@@ -64,7 +64,7 @@ body {
     var(--color-background-tertiary);
 }
 
-/* Niveau 1 — titres page / hero */
+/* Niveau 1 : titres page / hero */
 h1,
 .page-intro__title,
 .dashboard-hero__title {
@@ -76,7 +76,7 @@ h1,
   color: var(--color-text-primary);
 }
 
-/* Niveau 2 — sections */
+/* Niveau 2 : sections */
 h2,
 .dashboard-section-title {
   margin: 0;
@@ -87,7 +87,7 @@ h2,
   color: var(--color-text-primary);
 }
 
-/* Niveau 3 — sous-titres globaux (les cartes utilisent .content-card h3, plus spécifique) */
+/* Niveau 3 : sous-titres globaux (les cartes utilisent .content-card h3, plus spécifique) */
 h3 {
   margin: 0;
   font-size: var(--type-card-title-size, 1.0625rem);
@@ -134,7 +134,7 @@ p,
   margin: 0 0 0.55rem;
 }
 
-/* Bandeau titre module — shell (.page-intro) + Analytics (même lecture visuelle) */
+/* Bandeau titre module : shell (.page-intro) + Analytics (même lecture visuelle) */
 .page-intro.module-page-hero,
 .analytics-page-hero {
   position: relative;
@@ -193,7 +193,7 @@ p,
   --shell-content-pad-x: clamp(16px, 2.75vw, 30px);
 }
 
-/* —— Sidebar —— */
+/* Sidebar */
 .sidebar.shell-sidebar {
   width: 272px;
   flex-shrink: 0;
@@ -564,7 +564,7 @@ p,
   font-weight: 400;
 }
 
-/* —— Main —— */
+/* Main */
 .main-shell {
   flex: 1;
   min-width: 0;
@@ -593,7 +593,7 @@ p,
   --page-content-max: 1460px;
 }
 
-/* Hôte de route : aucun padding/gap — le rythme est porté par le .page-stack interne (évite double marge). */
+/* Hôte de route : aucun padding/gap ; le rythme est porté par le .page-stack interne (évite double marge). */
 .qhse-page-host {
   flex: 1;
   min-height: 0;
@@ -698,7 +698,7 @@ p,
   --app-accent-hover: #ea580c;
 }
 
-/* —— Topbar unique sticky —— */
+/* Topbar unique sticky */
 .topbar.shell-topbar {
   position: sticky;
   top: 0;
@@ -1133,7 +1133,7 @@ p,
 
 /* Badge notifications : voir .notif-count-badge (topbar) */
 
-/* —— Cartes génériques —— */
+/* Cartes génériques */
 .content-card,
 .card-soft,
 .hero,
@@ -1238,7 +1238,7 @@ p,
   opacity: 0.9;
 }
 
-/* —— KPI —— */
+/* KPI */
 .qhse-kpi-strip,
 .ds-kpi-grid {
   display: grid;
@@ -1303,7 +1303,7 @@ p,
   color: var(--color-text-tertiary);
 }
 
-/* —— Alertes dashboard (3 colonnes + bordure gauche) —— */
+/* Alertes dashboard (3 colonnes + bordure gauche) */
 .ds-alert-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1363,7 +1363,7 @@ p,
   color: var(--color-text-primary);
 }
 
-/* —— Grille d’actions —— */
+/* Grille d’actions */
 .ds-action-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1430,7 +1430,7 @@ p,
   transform: scale(0.98);
 }
 
-/* —— Tableaux —— */
+/* Tableaux */
 .ds-table-wrap {
   overflow-x: auto;
   border: 0.5px solid var(--color-border-tertiary);
@@ -1510,7 +1510,7 @@ p,
   background: rgba(46, 125, 50, 0.08);
 }
 
-/* —— Filtres —— */
+/* Filtres */
 .ds-filters {
   display: flex;
   flex-wrap: wrap;
@@ -1545,7 +1545,7 @@ p,
   font-weight: 400;
 }
 
-/* —— Divers —— */
+/* Divers */
 .text-button {
   display: inline-flex;
   align-items: center;
@@ -1766,7 +1766,7 @@ p,
   }
 }
 
-/* Mode Complet (expert) — mobile : scroll piégé dans la page, topbar stable, menu en tiroir */
+/* Mode Complet (expert) : mobile, scroll piégé dans la page, topbar stable, menu en tiroir */
 @media (max-width: 1024px) {
   [data-display-mode='expert'] html:has(#app .app-shell) {
     height: 100%;
@@ -1909,7 +1909,7 @@ p,
   }
 }
 
-/* —— Mode terrain / chantier (tactile, évite le zoom iOS < 16px) —— */
+/* Mode terrain / chantier (tactile, évite le zoom iOS < 16px) */
 .btn-terrain {
   display: flex;
   width: 100%;

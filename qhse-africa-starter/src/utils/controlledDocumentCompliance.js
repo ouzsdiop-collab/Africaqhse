@@ -1,4 +1,4 @@
-/** Fenêtre « à renouveler » (jours) — alignée sur le service API. */
+/** Fenêtre « à renouveler » (jours) : alignée sur le service API. */
 export const RENEW_DAYS = 30;
 
 /**

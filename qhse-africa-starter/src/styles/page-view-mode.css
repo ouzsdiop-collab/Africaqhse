@@ -1,5 +1,5 @@
 /**
- * Vue page Essentiel / Expert — masquage via data-qhse-page-view sur la racine du module
+ * Vue page Essentiel / Expert : masquage via data-qhse-page-view sur la racine du module
  * (élément .page-stack rendu dans .qhse-page-slot ; indépendant du mode global terrain | expert).
  */
 
@@ -11,7 +11,7 @@
   display: none !important;
 }
 
-/* —— Barre de bascule —— */
+/* Barre de bascule */
 .qhse-page-view-bar {
   margin-bottom: 0;
   padding: 10px 14px;

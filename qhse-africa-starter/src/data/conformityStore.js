@@ -1,5 +1,5 @@
 /**
- * Référentiel et exigences — données initiales + statuts ISO via API (`/api/conformity`) avec cache mémoire.
+ * Référentiel et exigences : données initiales + statuts ISO via API (`/api/conformity`) avec cache mémoire.
  * Preuves importées : toujours localStorage (`qhse-iso-imported-proofs-v1`).
  */
 import { qhseFetch } from '../utils/qhseFetch.js';
@@ -18,7 +18,7 @@ let conformityMutationSeq = 0;
 
 /**
  * @param {string} requirementId
- * @param {string} siteId — id site ou chaîne vide = périmètre global (sans site)
+ * @param {string} siteId : id site ou chaîne vide = périmètre global (sans site)
  */
 function conformityCacheKey(requirementId, siteId) {
   const s = siteId != null && String(siteId).trim() ? String(siteId).trim() : '';
@@ -88,7 +88,7 @@ function getCachedRequirementStatus(requirementId) {
  * @property {string[]} keyPoints
  * @property {string[]} gaps
  * @property {string} createdAt
- * @property {string} [validatedBy] — validateur terrain (stockage local)
+ * @property {string} [validatedBy] : validateur terrain (stockage local)
  */
 
 /** @typedef {'conforme' | 'partiel' | 'non_conforme'} ConformityStatus */
@@ -110,8 +110,8 @@ function getCachedRequirementStatus(requirementId) {
  * @property {string} owner
  * @property {string} evidence
  * @property {ConformityStatus} defaultStatus
- * @property {string} [actionNote] — repère pour le terrain (module Actions)
- * @property {string} [auditNote] — repère pour le terrain (module Audits)
+ * @property {string} [actionNote] : repère pour le terrain (module Actions)
+ * @property {string} [auditNote] : repère pour le terrain (module Audits)
  */
 
 /** @type {ConformityNorm[]} */
@@ -121,7 +121,7 @@ export const CONFORMITY_NORMS = [
   { id: 'iso45001', code: 'ISO 45001', title: 'Santé et sécurité au travail' }
 ];
 
-/** Documents maîtrisés — stockage local (échéances / responsable enrichis pour statuts conformité). */
+/** Documents maîtrisés : stockage local (échéances / responsable enrichis pour statuts conformité). */
 export const CONTROLLED_DOCUMENTS = [
   {
     name: 'Manuel intégré SMS',
@@ -170,7 +170,7 @@ export const CONTROLLED_DOCUMENTS = [
 ];
 
 /**
- * Repères pilotage documentaire — à afficher en « points d’attention » (n’altère pas CONTROLLED_DOCUMENTS).
+ * Repères pilotage documentaire : à afficher en « points d’attention » (n’altère pas CONTROLLED_DOCUMENTS).
  * @type {{ critical: { name: string; version?: string; note: string }[]; missing: { name: string; note: string }[]; obsolete: { name: string; version?: string; note: string }[] }}
  */
 export const DOCUMENT_ATTENTION = {
@@ -178,7 +178,7 @@ export const DOCUMENT_ATTENTION = {
   missing: [
     {
       name: 'Plan de réponse aux déversements (version signée)',
-      note: 'Exigé pour la surveillance environnementale — pièce à produire.'
+      note: 'Exigé pour la surveillance environnementale : pièce à produire.'
     }
   ],
   obsolete: [
@@ -190,7 +190,7 @@ export const DOCUMENT_ATTENTION = {
   ]
 };
 
-/** Audits / contrôles à mener — pilotage (données locales). */
+/** Audits / contrôles à mener : pilotage (données locales). */
 export const AUDITS_TO_SCHEDULE = [
   { title: 'Audit interne ISO 45001 (Q2)', horizon: 'Avant le 15/04/2026', owner: 'Qualité site' },
   { title: 'Surveillance certification ISO 9001', horizon: 'Fenêtre juin 2026', owner: 'Direction' }
@@ -423,7 +423,7 @@ export function computeComplianceSummary() {
   if (n === 0) {
     return {
       pct: 0,
-      globalLabel: '—',
+      globalLabel: 'Non disponible',
       globalTone: 'watch',
       message: 'Aucune exigence chargée.',
       nonOk: 0,

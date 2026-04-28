@@ -1,5 +1,5 @@
 /**
- * Bloc « Activité récente » — pilotage : 3 axes, lignes compactes, DOM sûr.
+ * Bloc « Activité récente » : pilotage, 3 axes, lignes compactes, DOM sûr.
  */
 
 import { createDashboardBlockActions } from '../utils/dashboardBlockActions.js';
@@ -8,7 +8,7 @@ import { qhseNavigate } from '../utils/qhseNavigate.js';
 const MAX_PER_SECTION = 4;
 
 function formatShortDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Non disponible';
   try {
     return new Date(iso).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -16,7 +16,7 @@ function formatShortDate(iso) {
       year: 'numeric'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -114,14 +114,15 @@ function createActivityRow(p) {
         : p.pageHash === 'audits'
           ? 'Audits'
           : p.pageHash;
-  row.setAttribute('aria-label', `${p.kindLabel} — ${p.title} — ouvrir ${mod}`);
+  row.setAttribute('aria-label', `${p.kindLabel} : ${p.title} : ouvrir ${mod}`);
 
   const inner = document.createElement('div');
   inner.className = 'activity-row__inner';
 
   const type = document.createElement('span');
   type.className = 'activity-row__type';
-  type.textContent = KIND_BADGE[p.kindLabel] || String(p.kindLabel || '—').slice(0, 8);
+  type.textContent =
+    KIND_BADGE[p.kindLabel] || String(p.kindLabel || 'Non renseigné').slice(0, 8);
 
   const body = document.createElement('div');
   body.className = 'activity-row__body';
@@ -137,12 +138,12 @@ function createActivityRow(p) {
 
   const status = document.createElement('span');
   status.className = 'activity-row__status';
-  status.textContent = p.statusLabel || '—';
+  status.textContent = p.statusLabel || 'Non renseigné';
   if ((p.statusLabel || '').length > 56) status.title = p.statusLabel;
 
   const date = document.createElement('span');
   date.className = 'activity-row__date';
-  date.textContent = p.dateLine || '—';
+  date.textContent = p.dateLine || 'Non disponible';
 
   meta.append(status, date);
   body.append(titleEl, meta);
@@ -292,7 +293,7 @@ export function createDashboardActivitySection(data, opts = {}) {
     p.textContent = 'Pas d’entrée récente sur l’échantillon chargé';
     const sub = document.createElement('p');
     sub.className = 'dashboard-activity-global-empty-sub';
-    sub.textContent = 'Échantillon limité — ouvrir un module.';
+    sub.textContent = 'Échantillon limité. Ouvrir un module.';
     const ctaRow = document.createElement('div');
     ctaRow.className = 'dashboard-activity-global-ctas';
     const globalActs = createDashboardBlockActions(
@@ -320,7 +321,7 @@ export function createDashboardActivitySection(data, opts = {}) {
     const statusShort = String(row.status || '').trim() || 'Statut à suivre';
     const sev = String(row.severity || '').trim();
     const statusLabel = truncate(
-      [sev, statusShort].filter((x) => x && x !== '—').join(' · ') || statusShort,
+      [sev, statusShort].filter((x) => x && x !== 'Non renseigné').join(' · ') || statusShort,
       72
     );
     inc.stack.append(

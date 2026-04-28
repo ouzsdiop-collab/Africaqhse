@@ -72,7 +72,7 @@ export function attachRiskMistralMitigationSection(inner, risk) {
         const siteId = siteFromRisk || siteFromState || undefined;
         /** @type {Record<string, string>} */
         const body = {
-          title: `Mitigation — ${risk.title}`,
+          title: `Mitigation : ${risk.title}`,
           detail: String(box.textContent || '').slice(0, 8000),
           status: 'À lancer'
         };
@@ -121,7 +121,7 @@ export function attachRiskMistralMitigationSection(inner, risk) {
           }
           createActionBtn.textContent = '✓ Action créée';
           createActionBtn.disabled = true;
-          showToast('Action créée — suivi dans le plan d’actions.', 'success');
+          showToast('Action créée. Suivi dans le plan d’actions.', 'success');
           activityLogStore.add({
             module: 'risks',
             action: 'Création action depuis suggestion IA mitigation',
@@ -129,12 +129,12 @@ export function attachRiskMistralMitigationSection(inner, risk) {
             user: getSessionUser()?.name || 'Pilotage QHSE'
           });
         } catch {
-          createActionBtn.textContent = 'Erreur — réessayer';
+          createActionBtn.textContent = 'Erreur. Réessayer';
         }
       });
       box.parentNode?.appendChild(createActionBtn);
     } catch {
-      aiBtn.textContent = 'Erreur — Réessayer';
+      aiBtn.textContent = 'Erreur. Réessayer';
       aiBtn.disabled = false;
       aiLoading = false;
     }

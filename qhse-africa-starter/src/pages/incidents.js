@@ -32,7 +32,7 @@ import {
 } from '../components/incidentsConsultationPanels.js';
 import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
-/* Intent filtre depuis le tableau de bord — clé partagée dans dashboardNavigationIntent.js */
+/* Intent filtre depuis le tableau de bord : clé partagée dans dashboardNavigationIntent.js */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
@@ -147,7 +147,7 @@ function computeIncidentsInsight(list) {
   if (!list.length) return '';
   const bySite = {};
   for (const i of list) {
-    const s = i.site || '—';
+    const s = i.site || 'Non renseigné';
     bySite[s] = (bySite[s] || 0) + 1;
   }
   const sorted = Object.entries(bySite).sort((a, b) => b[1] - a[1]);
@@ -156,12 +156,12 @@ function computeIncidentsInsight(list) {
   const [topSite, n] = top;
   const total = list.length;
   if (n >= 2 && total >= 4 && n / total >= 0.35) {
-    return `Fort volume sur le site « ${topSite} » (${n} incidents) — prioriser la veille terrain.`;
+    return `Fort volume sur le site « ${topSite} » (${n} incidents). Priorisez la veille terrain.`;
   }
   const weekAgo = Date.now() - 7 * 86400000;
   const recent = list.filter((i) => (i.createdAtMs || 0) >= weekAgo).length;
   if (recent >= 3) {
-    return `${recent} incident(s) sur les 7 derniers jours — rythme à surveiller.`;
+    return `${recent} incident(s) sur les 7 derniers jours. Rythme à surveiller.`;
   }
   return '';
 }
@@ -172,7 +172,7 @@ function countIncidentsLastDays(list, days) {
   return list.filter((i) => (i.createdAtMs || 0) >= cut).length;
 }
 
-/** Âge moyen (jours) des dossiers encore ouverts — proxy sans date de clôture en base. */
+/** Âge moyen (jours) des dossiers encore ouverts : proxy sans date de clôture en base. */
 function computeMeanOpenDays(list) {
   const open = list.filter((i) => !isStatusClosed(i.status));
   if (!open.length) return null;
@@ -216,7 +216,7 @@ function attachMistralIncidentCausesButton(detailRoot, incident) {
       aiBtn.parentNode.insertBefore(box, aiBtn.nextSibling);
       aiBtn.style.display = 'none';
     } catch {
-      aiBtn.textContent = 'Erreur — Reessayer';
+      aiBtn.textContent = 'Erreur, réessayer';
       aiBtn.disabled = false;
       aiLoading = false;
     }
@@ -238,7 +238,7 @@ export function renderIncidents(onAddLog) {
     pageId: 'incidents',
     pageRoot: page,
     hintEssential:
-      'Essentiel : en-tête, déclaration, priorités et registre — analytics, journal et blocs avancés masqués.',
+      'Essentiel : en-tête, déclaration, priorités et registre. Analytics, journal et blocs avancés masqués.',
     hintAdvanced:
       'Expert : tuiles synthèse, tendances, journal local et options étendues du registre.'
   });
@@ -247,7 +247,7 @@ export function renderIncidents(onAddLog) {
     const banner = document.createElement('div');
     banner.style.cssText =
       'background:#f59e0b22;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#f59e0b;font-size:13px;font-weight:600';
-    banner.textContent = 'Mode hors connexion — affichage des dernieres donnees en cache';
+    banner.textContent = 'Mode hors connexion, affichage des dernières données en cache';
     page.prepend(banner);
   }
 
@@ -258,7 +258,7 @@ export function renderIncidents(onAddLog) {
   offlineCacheBanner.setAttribute('role', 'status');
   offlineCacheBanner.style.cssText =
     'margin:0 0 14px;padding:12px 16px;font-weight:600;font-size:14px;border:1px solid var(--color-border-info, #38bdf8);';
-  offlineCacheBanner.textContent = '📡 Mode hors connexion — données en cache';
+  offlineCacheBanner.textContent = '📡 Mode hors connexion, données en cache';
 
   let panelFilterStatus = 'all';
   let filterDateRange = 'all';
@@ -335,7 +335,7 @@ export function renderIncidents(onAddLog) {
   const pilotageLead = document.createElement('p');
   pilotageLead.className = 'incidents-pilotage-block__lead';
   pilotageLead.textContent =
-    'Indicateurs calculés sur le périmètre chargé — pour le détail, utilisez le registre ci-dessous.';
+    'Indicateurs calculés sur le périmètre chargé. Pour le détail, utilisez le registre ci-dessous.';
   pilotageHead.append(pilotageKicker, pilotageTitle, pilotageLead);
 
   const statsRow = document.createElement('div');
@@ -349,7 +349,7 @@ export function renderIncidents(onAddLog) {
     lb.textContent = label;
     const val = document.createElement('div');
     val.className = 'incidents-synth-tile__value';
-    val.textContent = '—';
+    val.textContent = 'Non disponible';
     box.append(lb, val);
     return { box, val };
   }
@@ -415,7 +415,7 @@ export function renderIncidents(onAddLog) {
   btnTerrain.type = 'button';
   btnTerrain.className = 'btn btn-secondary incidents-quick-actions-card__terrain incidents-terrain-cta-sub';
   btnTerrain.textContent = 'Déclaration rapide';
-  btnTerrain.title = 'Assistant condensé, gros boutons — idéal mobile ou saisie express';
+  btnTerrain.title = 'Assistant condensé, gros boutons. Idéal mobile ou saisie express';
   const btnDash = document.createElement('button');
   btnDash.type = 'button';
   btnDash.className = 'incidents-page-header__linkish';
@@ -436,7 +436,7 @@ export function renderIncidents(onAddLog) {
     <div>
       <div class="incidents-section-kicker">Lecture rapide</div>
       <h2 class="incidents-priorities-card__title">Priorités</h2>
-      <p class="incidents-priorities-card__lead">Aperçu des fiches à traiter en premier — cliquez pour ouvrir le détail.</p>
+      <p class="incidents-priorities-card__lead">Aperçu des fiches à traiter en premier. Cliquez pour ouvrir le détail.</p>
     </div>`;
   const prioritiesHost = document.createElement('div');
   prioritiesHost.className = 'incidents-priorities-card__host';
@@ -489,11 +489,11 @@ export function renderIncidents(onAddLog) {
     if (filterStatus) parts.push(`Statut : ${filterStatus}`);
     if (filterSite) parts.push(`Site : ${filterSite}`);
     if (filterDateRange !== 'all') parts.push(`Fenêtre : ${filterDateRange} derniers jours`);
-    return parts.length ? parts.join(' · ') : 'Registre filtré — vue liste affichée';
+    return parts.length ? parts.join(' · ') : 'Registre filtré, vue liste affichée';
   }
 
   function updateHeaderStats() {
-    const dash = '—';
+    const dash = 'Non disponible';
     if (apiLoadState === 'loading' || apiLoadState === 'error') {
       stTotal.val.textContent = dash;
       stCrit.val.textContent = dash;
@@ -508,7 +508,7 @@ export function renderIncidents(onAddLog) {
     stRecent.val.textContent = String(countIncidentsLastDays(incidentRecords, 7));
     stInv.val.textContent = String(countInvestigationOpenIncidents(incidentRecords));
     const mean = computeMeanOpenDays(incidentRecords);
-    stMean.val.textContent = mean != null ? String(mean) : '—';
+    stMean.val.textContent = mean != null ? String(mean) : 'Non disponible';
     const insight = computeIncidentsInsight(incidentRecords);
     if (insight) {
       insightBar.textContent = insight;
@@ -738,7 +738,7 @@ export function renderIncidents(onAddLog) {
   listTitleRow.className = 'incidents-split-list-head__row';
   const listHeading = document.createElement('h2');
   listHeading.className = 'incidents-list-heading';
-  listHeading.textContent = 'Consultation — registre';
+  listHeading.textContent = 'Consultation : registre';
   const listCount = document.createElement('span');
   listCount.className = 'incidents-list-count';
   listTitleRow.append(listHeading, listCount);
@@ -751,7 +751,7 @@ export function renderIncidents(onAddLog) {
   const tableToolbarMeta = document.createElement('span');
   tableToolbarMeta.className = 'qhse-table-toolbar__meta';
   tableToolbarMeta.textContent =
-    'Vue par défaut : colonnes Incident, Statut, Date et actions — gravité et site regroupés sous le titre.';
+    'Vue par défaut : colonnes Incident, Statut, Date et actions. Gravité et site regroupés sous le titre.';
   const tableToolbarActions = document.createElement('div');
   tableToolbarActions.className = 'qhse-table-toolbar__actions';
   const colToggleBtn = document.createElement('button');
@@ -819,7 +819,7 @@ export function renderIncidents(onAddLog) {
     return incidentRecords.find((r) => String(r.id ?? '').trim() === key);
   }
 
-  /** Registre : délégation — composedPath + comparaison ref en string (API peut envoyer nombre). */
+  /** Registre : délégation : composedPath + comparaison ref en string (API peut envoyer nombre). */
   listHost.addEventListener('click', (e) => {
     const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
 
@@ -888,7 +888,7 @@ export function renderIncidents(onAddLog) {
       <div class="section-kicker">Tendances</div>
       <h3>Analyses</h3>
       <p class="incidents-form-lead incidents-analytics-card__lead">
-        Tendances sur le périmètre chargé — même source que le registre.
+        Tendances sur le périmètre chargé, même source que le registre.
       </p>
     </div>`;
   const analyticsGrid = document.createElement('div');
@@ -905,7 +905,7 @@ export function renderIncidents(onAddLog) {
       <div class="section-kicker">Traçabilité</div>
       <h3>Journal incidents (local)</h3>
       <p class="incidents-form-lead incidents-journal-card__lead">
-        Dernières actions enregistrées dans cette session — déclarations, statuts, analyses.
+        Dernières actions enregistrées dans cette session : déclarations, statuts, analyses.
       </p>
     </div>`;
   const journalBody = document.createElement('div');
@@ -927,7 +927,7 @@ export function renderIncidents(onAddLog) {
   registryShell.append(registryZoneTitle, compactFilters, split);
 
   const incidentsModeGuide = createSimpleModeGuide({
-      title: 'Incidents — lire vite, agir sûr',
+      title: 'Incidents : lire vite, agir sûr',
       hint: 'En-tête : pilotage et priorités ; déclarez depuis le bloc action ; le registre sert à parcourir les fiches.',
       nextStep: 'Déclarer si besoin, sinon parcourir les priorités puis le tableau de consultation.'
   });
@@ -1023,7 +1023,7 @@ export function renderIncidents(onAddLog) {
     }
 
           showToast(
-      'Incident introuvable dans la liste affichée — vérifiez filtres ou périmètre.',
+      'Incident introuvable dans la liste affichée. Vérifiez filtres ou périmètre.',
       'warning'
     );
   }
@@ -1142,7 +1142,7 @@ export function renderIncidents(onAddLog) {
       listCount.textContent = '';
       listCount.hidden = true;
     } else {
-      listHeading.textContent = 'Consultation — registre';
+      listHeading.textContent = 'Consultation : registre';
       listCount.hidden = false;
       listCount.textContent =
         n === total
@@ -1369,7 +1369,7 @@ export function renderIncidents(onAddLog) {
     scheduleScrollIntoView(String(dashboardIntent.scrollToId));
   }
   if (dashboardIntent?.incidentSeverityFilter && filterSeverity) {
-    showToast('Filtre gravité appliqué — priorité depuis le pilotage.', 'info');
+    showToast('Filtre gravité appliqué (priorité depuis le pilotage).', 'info');
   }
 
   return page;

@@ -1,5 +1,5 @@
 /**
- * Extensions premium module Audits (terrain, workflow) — sans backend dédié.
+ * Extensions premium module Audits (terrain, workflow) : sans backend dédié.
  * PDF : auditPremiumSaaS.pdf.js (import dynamique depuis les pages ISO / Audits).
  */
 

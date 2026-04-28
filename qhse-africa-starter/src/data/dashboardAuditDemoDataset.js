@@ -1,5 +1,5 @@
 /**
- * Données d’illustration — graphiques audit du dashboard lorsque l’API ne renvoie pas encore de série.
+ * Données d’illustration : graphiques audit du dashboard lorsque l’API ne renvoie pas encore de série.
  * Courbes et volumes réalistes pour présentation / formation.
  */
 

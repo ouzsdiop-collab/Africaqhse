@@ -81,7 +81,7 @@ function linkButtonLabel(link) {
 }
 
 /**
- * @param {object} item — notification (store ou présentation)
+ * @param {object} item : notification (store ou présentation)
  * @param {{ onOpenLink?: (payload: { page: string, ref: string|null, id: string|number }) => void; onAfterMarkRead?: () => void }} options
  */
 export function createNotificationRow(item, options = {}) {
@@ -137,7 +137,7 @@ export function createNotificationRow(item, options = {}) {
   meta.className = 'notif-item__meta';
   const timeEl = document.createElement('span');
   timeEl.className = 'notif-item__time';
-  timeEl.textContent = item.timestamp || '—';
+  timeEl.textContent = item.timestamp || 'Non disponible';
   meta.append(timeEl);
   if (item.link && item.link.ref) {
     const sep = document.createElement('span');

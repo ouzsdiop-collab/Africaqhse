@@ -1,5 +1,5 @@
 /**
- * Configuration locale — accès renforcé par code.
+ * Configuration locale : accès renforcé par code.
  * Compatible futur branchement API : mêmes clés et formes d’objet.
  */
 
@@ -22,7 +22,7 @@ const SK_LAST_OK = 'qhse_sa_last_ok_ts';
 export const DEFAULT_SENSITIVE_ACCESS = {
   enabled: false,
   protectionLevel: 'standard',
-  /** Par défaut : une seule saisie par onglet — limite la lourdeur UX. */
+  /** Par défaut : une seule saisie par onglet. Limite la lourdeur UX. */
   frequency: 'per_session',
   actions: {
     confidential_document: true,
@@ -54,7 +54,7 @@ export const SENSITIVE_ACCESS_ACTION_META = [
   {
     key: 'security_zone',
     label: 'Zones « sécurité » (IA, analyses)',
-    hint: 'Lancement d’analyses / scénarios au Centre IA — désactivé par défaut (usage fréquent).'
+    hint: 'Lancement d’analyses / scénarios au Centre IA : désactivé par défaut (usage fréquent).'
   },
   {
     key: 'sensitive_mutation',

@@ -1,5 +1,5 @@
 /**
- * Mode clair — contraste UI global (boutons, champs, shell, cartes, graphiques).
+ * Mode clair : contraste UI global (boutons, champs, shell, cartes, graphiques).
  * Inclut une couche « pastilles sémantiques » : encre + fond dérivés des tokens
  * (--color-*-text / --color-*-bg) pour aligner incidents, actions, risques, ISO,
  * audits, PTW, produits, notifications, etc.
@@ -170,7 +170,7 @@ html[data-theme='light'] .topbar-v2__theme:hover {
   color: var(--color-primary-text);
 }
 
-/* ═══ Mode clair — relief, séparation des modules, graphiques moins « plats » ═══ */
+/* ═══ Mode clair : relief, séparation des modules, graphiques moins « plats » ═══ */
 
 html[data-theme='light'] {
   --border-color: #e2e8f0;
@@ -199,7 +199,7 @@ html[data-theme='light'] {
   --btn-sync-color: #1e40af;
   --btn-sync-border: #93c5fd;
 
-  /* Badges et pastilles statut — remplacement des hex dark-first */
+  /* Badges et pastilles statut : remplacement des hex dark-first */
   --badge-success-bg: #dcfce7;
   --badge-success-color: #166534;
   --badge-success-border: #86efac;
@@ -216,7 +216,7 @@ html[data-theme='light'] {
   --badge-neutral-color: #334155;
   --badge-neutral-border: #cbd5e1;
 
-  /* Habilitations — remplace les hex dark-first */
+  /* Habilitations : remplace les hex dark-first */
   --hab-expired-bg: #fee2e2;
   --hab-expired-color: #991b1b;
   --hab-warning-bg: #fef9c3;
@@ -379,7 +379,7 @@ html[data-theme='light'] .kpi-multi-line-wrap .dashboard-line-chart-grid--base {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Mode clair — pastilles & badges sémantiques (cohérence globale)
+   Mode clair : pastilles & badges sémantiques (cohérence globale)
    Même recette partout : encre foncée (tokens) sur fond pâle (tokens).
    Les modules injectés avec hex « dark UI » sont surchargés ici.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -688,9 +688,9 @@ html[data-theme='light'] .risks-pilot-banner__kpi--ok .risks-pilot-banner__kpi-v
   color: var(--color-success-text);
 }
 
-/* ── PTW : pastilles réseau, sync et statuts — couleurs explicites dans src/components/ptwStyles.js (évite conflit de spécificité avec ce fichier) ── */
+/* ── PTW : pastilles réseau, sync et statuts ; couleurs explicites dans src/components/ptwStyles.js (évite conflit de spécificité avec ce fichier) ── */
 
-/* ── Audits + cockpit (auditPlusStyles) — texte violet lisible sur fond clair ── */
+/* ── Audits + cockpit (auditPlusStyles) : texte violet lisible sur fond clair ── */
 html[data-theme='light'] .audit-cockpit-ia__badge,
 html[data-theme='light'] .audit-cockpit-notifs__ia-pill {
   color: var(--color-violet-ink);

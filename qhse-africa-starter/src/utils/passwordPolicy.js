@@ -1,4 +1,4 @@
-/** Aligné sur `backend/src/lib/validation.js` — garder les messages identiques. */
+/** Aligné sur `backend/src/lib/validation.js` : garder les messages identiques. */
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;

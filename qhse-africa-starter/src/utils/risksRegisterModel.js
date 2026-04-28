@@ -1,5 +1,5 @@
 /**
- * Modèle métier du registre risques (analyse, API, cache) — extrait de risks.js pour alléger la page.
+ * Modèle métier du registre risques (analyse, API, cache) : extrait de risks.js pour alléger la page.
  */
 
 import {
@@ -33,7 +33,7 @@ const RISK_WORKFLOW_STATUS_FR = Object.freeze({
  */
 export function riskWorkflowStatusLabelFr(raw) {
   const s = String(raw ?? '').trim();
-  if (!s) return '—';
+  if (!s) return 'Non disponible';
   const key = s.toLowerCase();
   return RISK_WORKFLOW_STATUS_FR[key] ?? s;
 }
@@ -67,16 +67,16 @@ export function incidentsLinkedToRiskFromRows(rows, riskTitle) {
   return (Array.isArray(rows) ? rows : [])
     .filter((r) => descriptionLinksToRisk(r?.description, riskTitle))
     .map((r) => ({
-      ref: r.ref || '—',
-      type: r.type || '—',
-      status: r.status || '—',
+      ref: r.ref || 'Non disponible',
+      type: r.type || 'Non renseigné',
+      status: r.status || 'Non disponible',
       date: r.createdAt
         ? new Date(r.createdAt).toLocaleDateString('fr-FR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
           })
-        : '—'
+        : 'Non disponible'
     }));
 }
 
@@ -203,7 +203,7 @@ export function computeGlobalRiskAnalysis(list) {
   if (sans > 0) {
     findings.push({
       level: 'warn',
-      text: `${sans} risque(s) sans action liée — prioriser le rattachement au registre actions.`
+      text: `${sans} risque(s) sans action liée. Prioriser le rattachement au registre actions.`
     });
   }
   const unplaced = countRisksWithoutGp(list);
@@ -220,7 +220,7 @@ export function computeGlobalRiskAnalysis(list) {
     if (gp && crit && crit.tier >= 4 && (st.includes('faible') || st.includes('modéré') || st.includes('modere'))) {
       findings.push({
         level: 'err',
-        text: `Incohérence possible : « ${r.title || 'Sans titre'} » — palier ${crit.label} vs libellé de statut modeste.`
+        text: `Incohérence possible : « ${r.title || 'Sans titre'} ». Palier ${crit.label} vs libellé de statut modeste.`
       });
     }
     if (gp) {
@@ -228,7 +228,7 @@ export function computeGlobalRiskAnalysis(list) {
       if (prod >= 16 && r.trend === 'stable' && r.pilotageState === 'actif' && crit && crit.tier >= 4) {
         findings.push({
           level: 'warn',
-          text: `Sous-évaluation / veille : « ${r.title || 'Sans titre'} » — score G×P ${prod} mais tendance stable ; confirmer le pilotage.`
+          text: `Sous-évaluation / veille : « ${r.title || 'Sans titre'} ». Score G×P ${prod} mais tendance stable. Confirmez le pilotage.`
         });
       }
     }
@@ -283,7 +283,7 @@ export async function fetchRisksApi(filters = {}) {
   if (filters.q) qs.set('q', String(filters.q));
   const res = await qhseFetch(withSiteQuery(`/api/risks?${qs.toString()}`));
   if (res.status === 401) {
-    showToast('Session expirée — reconnectez-vous pour charger les risques.', 'warning');
+    showToast('Session expirée. Reconnectez-vous pour charger les risques.', 'warning');
     throw new Error('401');
   }
   if (res.status === 403) {

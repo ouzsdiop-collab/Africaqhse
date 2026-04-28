@@ -48,7 +48,7 @@ const USE_CASES = [
     id: 'summary',
     label: 'Résumé incident',
     title: 'Synthèse terrain exploitable immédiatement',
-    body: 'Structuration automatique : faits, lieu, personnes exposées, mesures immédiates et périmètre — prête pour compte rendu HSE et déclarations internes.',
+    body: 'Structuration automatique : faits, lieu, personnes exposées, mesures immédiates et périmètre. Prête pour compte rendu HSE et déclarations internes.',
     foot: 'Livrable type : paragraphe unique + puces pour les suites.'
   },
   {
@@ -62,7 +62,7 @@ const USE_CASES = [
     id: 'analysis',
     label: 'Analyse simple',
     title: 'Facteurs et causes contributives',
-    body: 'Lecture structurée (technique + organisation) pour nourrir l’enquête sans la remplacer — points de vigilance pour auditeur ou comité.',
+    body: 'Lecture structurée (technique + organisation) pour nourrir l’enquête sans la remplacer. Points de vigilance pour auditeur ou comité.',
     foot: 'Sortie : sections prêtes à copier dans le rapport d’investigation.'
   },
   {
@@ -97,7 +97,7 @@ function formatHistoryTime(ts) {
   try {
     return new Date(ts).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -148,10 +148,10 @@ function createSimulationZone(onAddLog) {
   select.id = 'ai-scenario';
   select.className = 'control-input';
   [
-    ['hydrocarbure', 'Fuite hydrocarbure — bac de rétention'],
-    ['chute', 'Chute de hauteur — échafaudage'],
-    ['espace_confiné', 'Espace confiné — atmosphère / ventilation'],
-    ['nc_audit', 'Non-conformité audit — traçabilité déchets']
+    ['hydrocarbure', 'Fuite hydrocarbure : bac de rétention'],
+    ['chute', 'Chute de hauteur : échafaudage'],
+    ['espace_confiné', 'Espace confiné : atmosphère / ventilation'],
+    ['nc_audit', 'Non-conformité audit : traçabilité déchets']
   ].forEach(([value, text]) => {
     const opt = document.createElement('option');
     opt.value = value;
@@ -167,7 +167,7 @@ function createSimulationZone(onAddLog) {
   const placeholder = document.createElement('p');
   placeholder.className = 'ai-sim-placeholder';
   placeholder.textContent =
-    'Choisissez un scénario puis lancez l’analyse. La sortie est structurée en sections (résumé, gravité, actions, analyse, synthèse direction) — aucun envoi réseau.';
+    'Choisissez un scénario puis lancez l’analyse. La sortie est structurée en sections (résumé, gravité, actions, analyse, synthèse direction). Aucun envoi réseau.';
   outWrap.append(placeholder);
 
   const toolbar = document.createElement('div');
@@ -206,12 +206,12 @@ function createSimulationZone(onAddLog) {
     });
     refreshHistoryList(historyListEl, runBtn);
 
-    showToast('Analyse générée (scénario illustratif) — prête à être copiée ou enregistrée.', 'info');
+    showToast('Analyse générée (scénario illustratif). Prête à être copiée ou enregistrée.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
         action: 'Analyse scénario IA (terrain)',
-        detail: `${lastResult.ref} — ${scenarioLabel}`,
+        detail: `${lastResult.ref} : ${scenarioLabel}`,
         user: 'Copilote IA'
       });
     }
@@ -237,18 +237,18 @@ function createSimulationZone(onAddLog) {
       await navigator.clipboard.writeText(text);
       showToast('Texte copié dans le presse-papiers.', 'info');
     } catch {
-      showToast('Copie impossible — sélectionnez le texte manuellement.', 'info');
+      showToast('Copie impossible. Sélectionnez le texte manuellement.', 'info');
     }
   });
 
   saveBtn.addEventListener('click', () => {
     if (!lastResult) return;
-    showToast('Brouillon enregistré dans le journal — export vers votre GED peut être activé sur demande.', 'info');
+    showToast('Brouillon enregistré dans le journal. Export vers votre GED activable sur demande.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
         action: 'Enregistrement analyse IA',
-        detail: `${lastResult.ref} — ${lastResult.title}`,
+        detail: `${lastResult.ref} : ${lastResult.title}`,
         user: 'Responsable QHSE'
       });
     }
@@ -285,17 +285,17 @@ export function renderAiCenter(onAddLog) {
     <div class="content-card-head content-card-head--split">
       <div>
         <div class="section-kicker">Assistants</div>
-        <h3>Centre IA — aide à la décision QHSE</h3>
+        <h3>Centre IA : aide à la décision QHSE</h3>
         <p class="content-card-lead content-card-lead--narrow" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px">
           <span style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:8px;border:1px solid var(--color-primary-border);color:var(--color-primary-text);background:var(--color-primary-bg)">Suggestion IA</span>
           <span style="font-size:13px;font-weight:700;color:var(--text2)">Toujours : humain = validation · jamais d’auto-décision</span>
         </p>
         <p class="content-card-lead content-card-lead--narrow">
           Assistants orientés terrain et audit : résumés d’incidents, plans d’actions, analyses structurées et briefs direction.
-          Les scénarios ci-dessous restent locaux ; l’API suggestions (causes / actions / criticité risque) s’active côté serveur selon <code style="font-size:12px">AI_PROVIDER</code> — toujours avec validation humaine.
+          Les scénarios ci-dessous restent locaux ; l’API suggestions (causes / actions / criticité risque) s’active côté serveur selon <code style="font-size:12px">AI_PROVIDER</code>, avec validation humaine systématique.
         </p>
         <p class="content-card-lead content-card-lead--narrow ai-center-human-trust">
-          <strong class="ai-center-human-trust__strong">Validation humaine</strong> — chaque proposition reste une suggestion : copiez, adaptez ou ignorez avant toute décision ou enregistrement officiel.
+          <strong class="ai-center-human-trust__strong">Validation humaine</strong> : chaque proposition reste une suggestion. Copiez, adaptez ou ignorez avant toute décision ou enregistrement officiel.
         </p>
       </div>
       <button type="button" class="btn btn-primary btn--pilotage-cta ai-quick-run">Enregistrer un brouillon d’analyse</button>
@@ -303,12 +303,12 @@ export function renderAiCenter(onAddLog) {
   `;
 
   intro.querySelector('.ai-quick-run').addEventListener('click', () => {
-    showToast('Brouillon pris en compte — intégration SI / workflow HSE selon votre déploiement.', 'info');
+    showToast('Brouillon pris en compte. Intégration SI / workflow HSE selon votre déploiement.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
         action: 'Brouillon analyse IA',
-        detail: 'Action utilisateur — brouillon enregistré depuis le Centre IA',
+        detail: 'Action utilisateur : brouillon enregistré depuis le Centre IA',
         user: 'Responsable QHSE'
       });
     }
@@ -437,7 +437,7 @@ export function renderAiCenter(onAddLog) {
     hint.className = 'content-card-lead';
     hint.style.marginTop = '8px';
     hint.textContent =
-      'Votre rôle n’inclut pas l’écriture sur les suggestions IA — connectez-vous avec un profil autorisé ou demandez l’accès.';
+      "Votre rôle n’inclut pas l’écriture sur les suggestions IA. Connectez-vous avec un profil autorisé ou demandez l’accès.";
     apiIaCard.append(hint);
   }
 
@@ -450,26 +450,26 @@ export function renderAiCenter(onAddLog) {
       if (ir.ok) {
         const list = await ir.json();
         cachedIncidentsForAi = Array.isArray(list) ? list : [];
-        incPick.innerHTML = '<option value="">— Choisir un incident —</option>';
+        incPick.innerHTML = '<option value="">Choisir un incident</option>';
         cachedIncidentsForAi.forEach((row) => {
           if (!row?.id) return;
           const opt = document.createElement('option');
           opt.value = row.id;
           const ref = row.ref || row.id;
           const t = (row.description || '').trim().split(/\r?\n/)[0]?.slice(0, 48) || row.type || '';
-          opt.textContent = `${ref} — ${t}`;
+          opt.textContent = `${ref} : ${t}`;
           incPick.append(opt);
         });
       }
       if (rr.ok) {
         const list = await rr.json();
         cachedRisksForAi = Array.isArray(list) ? list : [];
-        riskPick.innerHTML = '<option value="">— Choisir un risque —</option>';
+        riskPick.innerHTML = '<option value="">Choisir un risque</option>';
         cachedRisksForAi.forEach((row) => {
           if (!row?.id) return;
           const opt = document.createElement('option');
           opt.value = row.id;
-          opt.textContent = `${row.ref || row.id} — ${(row.title || '').slice(0, 56)}`;
+          opt.textContent = `${row.ref || row.id} : ${(row.title || '').slice(0, 56)}`;
           riskPick.append(opt);
         });
       }
@@ -508,7 +508,7 @@ export function renderAiCenter(onAddLog) {
           body.replaceChildren();
           if (!rcRes.ok || !actRes.ok) {
             const p = document.createElement('p');
-            p.textContent = 'Erreur API — vérifiez la session et les permissions.';
+            p.textContent = 'Erreur API. Vérifiez la session et les permissions.';
             body.append(p);
             return;
           }
@@ -517,7 +517,7 @@ export function renderAiCenter(onAddLog) {
 
           const prov = document.createElement('p');
           prov.className = 'qhse-ac-ia-provider';
-          prov.textContent = `Fournisseur : ${rc.provider || '—'}`;
+          prov.textContent = `Fournisseur : ${rc.provider || 'Non disponible'}`;
 
           const secC = document.createElement('section');
           secC.className = 'qhse-ac-ia-section';
@@ -532,7 +532,7 @@ export function renderAiCenter(onAddLog) {
             head.className = 'qhse-ac-ia-row__head';
             const c = document.createElement('div');
             c.style.fontWeight = '600';
-            c.textContent = String(item.cause || '—');
+            c.textContent = String(item.cause || 'Non renseigné');
             const pct = document.createElement('span');
             pct.className = 'qhse-ac-ia-confidence';
             pct.textContent = `${Math.round((Number(item.confidence) || 0) * 100)} %`;
@@ -557,7 +557,7 @@ export function renderAiCenter(onAddLog) {
             head.className = 'qhse-ac-ia-row__head';
             const ttl = document.createElement('div');
             ttl.style.fontWeight = '700';
-            ttl.textContent = String(a.title || '—');
+            ttl.textContent = String(a.title || 'Non renseigné');
             const pct = document.createElement('span');
             pct.className = 'qhse-ac-ia-confidence';
             pct.textContent = `${Math.round((Number(a.confidence) || 0) * 100)} %`;
@@ -581,7 +581,7 @@ export function renderAiCenter(onAddLog) {
               openActionCreateDialog({
                 users: cachedUsersAi || [],
                 defaults: {
-                  title: String(a.title || `Action — ${ref}`).slice(0, 240),
+                  title: String(a.title || `Action : ${ref}`).slice(0, 240),
                   origin: 'incident',
                   actionType: 'corrective',
                   priority: priorityFromConfidence(a.confidence),
@@ -660,16 +660,16 @@ export function renderAiCenter(onAddLog) {
           const as = data.assessment || {};
           const prov = document.createElement('p');
           prov.className = 'qhse-ac-ia-provider';
-          prov.textContent = `Fournisseur : ${data.provider || '—'} · ${escapeHtml(label)}`;
+          prov.textContent = `Fournisseur : ${data.provider || 'Non disponible'} · ${escapeHtml(label)}`;
           const box = document.createElement('div');
           box.className = 'qhse-ac-ia-row';
           box.innerHTML = `
             <div class="qhse-ac-ia-row__head">
-              <span style="font-weight:800">GP suggéré : ${escapeHtml(String(as.suggestedGp ?? '—'))}</span>
+              <span style="font-weight:800">GP suggéré : ${escapeHtml(String(as.suggestedGp ?? 'Non disponible'))}</span>
               <span class="qhse-ac-ia-confidence">${Math.round((Number(as.confidence) || 0) * 100)} % confiance</span>
             </div>
-            <p class="qhse-ac-ia-cat" style="margin-top:8px">Gravité ${escapeHtml(String(as.suggestedSeverity ?? '—'))} · Probabilité ${escapeHtml(String(as.suggestedProbability ?? '—'))}</p>
-            <p style="margin-top:10px;font-size:13px;line-height:1.5">${escapeHtml(String(as.justification || '—'))}</p>`;
+            <p class="qhse-ac-ia-cat" style="margin-top:8px">Gravité ${escapeHtml(String(as.suggestedSeverity ?? 'Non disponible'))} · Probabilité ${escapeHtml(String(as.suggestedProbability ?? 'Non disponible'))}</p>
+            <p style="margin-top:10px;font-size:13px;line-height:1.5">${escapeHtml(String(as.justification || 'Non disponible'))}</p>`;
           body.append(prov, box);
         } catch (e) {
           console.error(e);
@@ -685,7 +685,7 @@ export function renderAiCenter(onAddLog) {
     <div class="content-card-head">
       <div>
         <div class="section-kicker">Scénarios types</div>
-        <h3>Zone interactive — sortie structurée</h3>
+        <h3>Zone interactive : sortie structurée</h3>
         <p class="content-card-lead">
           Scénarios types prédéfinis : l’analyse produit une fiche en sections (résumé, gravité, actions, analyse, synthèse direction) avec référence documentaire formatée.
         </p>

@@ -1,14 +1,14 @@
 /**
- * Design system QHSE — composants additionnels et raffinements.
+ * Design system QHSE : composants additionnels et raffinements.
  * Charge après styles.css pour préserver les sélecteurs existants.
  */
 
-/* —— Fond app (plat — détails dans flat-app.css) —— */
+/* Fond app (plat : détails dans flat-app.css) */
 body {
   background: var(--color-background-tertiary, var(--bg-deep));
 }
 
-/* —— Focus visible (accessibilité) —— */
+/* Focus visible (accessibilité) */
 .btn:focus-visible,
 .nav-item:focus-visible,
 .ghost-chip:focus-visible,
@@ -21,7 +21,7 @@ body {
   box-shadow: 0 0 0 2px var(--color-background-info, rgba(21, 101, 192, 0.2));
 }
 
-/* —— Boutons : secondaire & danger —— */
+/* Boutons : secondaire & danger */
 .btn-secondary {
   border-color: var(--ds-border-strong);
   background: var(--ds-surface-1);
@@ -49,7 +49,7 @@ body {
   );
 }
 
-/* —— Champs —— */
+/* Champs */
 .control-input,
 .control-select,
 .control-textarea {
@@ -92,7 +92,7 @@ body {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #3b82f6) 20%, transparent);
 }
 
-/* —— Alertes inline —— */
+/* Alertes inline */
 .ds-alert {
   display: flex;
   align-items: flex-start;
@@ -137,7 +137,7 @@ body {
   color: var(--color-text-warning);
 }
 
-/* —— Modal —— */
+/* Modal */
 .ds-modal-overlay {
   position: fixed;
   inset: 0;
@@ -188,7 +188,7 @@ body {
   justify-content: flex-end;
 }
 
-/* —— Loader —— */
+/* Loader */
 @keyframes ds-spin {
   to {
     transform: rotate(360deg);
@@ -221,7 +221,7 @@ body {
   font-size: var(--ds-text-sm);
 }
 
-/* —— Patron de page (optionnel sur les écrans) —— */
+/* Patron de page (optionnel sur les écrans) */
 .ds-page-header {
   display: flex;
   flex-wrap: wrap;
@@ -280,7 +280,7 @@ body {
   }
 }
 
-/* —— État vide —— */
+/* État vide */
 .ds-empty-state {
   text-align: center;
   padding: var(--ds-space-8) var(--ds-space-6);
@@ -301,7 +301,7 @@ body {
   color: var(--text2);
 }
 
-/* —— Tableau : variante dense optionnelle —— */
+/* Tableau : variante dense optionnelle */
 .table-shell--comfortable td,
 .table-shell--comfortable th {
   padding: 14px 16px;
@@ -311,13 +311,13 @@ body {
   background: rgba(255, 255, 255, 0.02);
 }
 
-/* —— Graphiques : cohérence couleurs —— */
+/* Graphiques : cohérence couleurs */
 .line-chart {
   border-color: var(--ds-chart-grid);
   background: rgba(0, 0, 0, 0.22);
 }
 
-/* —— Indicateur réseau (topbar) —— */
+/* Indicateur réseau (topbar) */
 .network-indicator {
   display: inline-flex;
   align-items: center;
@@ -350,7 +350,7 @@ body {
   }
 }
 
-/* —— Toasts —— */
+/* Toasts */
 .app-toast-live {
   position: fixed;
   left: 50%;
@@ -430,7 +430,7 @@ body {
   border-color: var(--color-border-warning);
 }
 
-/* —— Cartes : survol cohérent (premium, sans transform agressif) —— */
+/* Cartes : survol cohérent (premium, sans transform agressif) */
 .content-card:hover,
 .content-card.card-soft:hover,
 .card-soft:hover {
@@ -454,13 +454,13 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-/* —— Centre IA : liseré aligné sur le bleu primaire —— */
+/* Centre IA : liseré aligné sur le bleu primaire */
 .ghost-chip.topbar-ai-btn:hover {
   border-color: var(--ds-ai-border);
   background: color-mix(in srgb, var(--color-primary-bg) 65%, transparent);
 }
 
-/* —— Mode clair : surfaces lisibles (tokens design + teal marque) —— */
+/* Mode clair : surfaces lisibles (tokens design + teal marque) */
 [data-theme='light'] .ds-empty-state {
   background: color-mix(in srgb, var(--color-background-secondary) 92%, var(--palette-accent, #14b8a6) 5%);
 }
@@ -485,7 +485,7 @@ body {
   border-color: var(--color-border-secondary);
 }
 
-/* —— Blocs tonaux unifiés (même pastel rouge / orange / vert que partout — voir design-tokens --surface-*) —— */
+/* Blocs tonaux unifiés (même pastel rouge / orange / vert que partout : voir design-tokens --surface-*) */
 .ds-tone {
   border-radius: var(--border-radius-lg, 12px);
   padding: var(--ds-space-3, 12px) var(--ds-space-4, 16px);
@@ -528,7 +528,7 @@ body {
   border-color: var(--color-border-secondary);
 }
 
-/* —— Skeleton & états vides (listes / KPI / kanban) —— */
+/* Skeleton & états vides (listes / KPI / kanban) */
 .skeleton-card {
   background: var(--surface-2, var(--ds-surface-2));
   border-radius: var(--radius-md);

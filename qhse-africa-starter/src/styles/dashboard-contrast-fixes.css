@@ -1,5 +1,5 @@
 /**
- * Mode clair — cohérence dashboard & performance.
+ * Mode clair : cohérence dashboard & performance.
  * Les styles injectés (dashboardStyles.js) passent après les link CSS : !important
  * sur fonds / bordures des blocs « premium » sombres pour les aligner sur une même famille visuelle.
  */
@@ -545,7 +545,7 @@ html[data-theme='light'] .dashboard-page .dashboard-ai-insight__head {
   }
 }
 
-/* Points de vigilance — cartes séparées du fond, labels lisibles */
+/* Points de vigilance : cartes séparées du fond, labels lisibles */
 html[data-theme='light'] .dashboard-page .dashboard-vigilance-card {
   border-color: var(--dash-border-strong) !important;
   box-shadow: var(--dash-shadow) !important;
@@ -871,7 +871,7 @@ html[data-theme='light'] .dashboard-page .dashboard-decision-alert__k {
   }
 }
 
-/* Dialogue détail KPI (monté sur body) : injecté sombre — en clair, panneau + tableau lisibles */
+/* Dialogue détail KPI (monté sur body) : injecté sombre ; en clair, panneau + tableau lisibles */
 html[data-theme='light'] .kpi-detail-dialog::backdrop {
   background: rgba(15, 23, 42, 0.45) !important;
   backdrop-filter: blur(5px);

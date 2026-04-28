@@ -1,5 +1,5 @@
 /**
- * Store notifications — état front, prêt pour branchement API.
+ * Store notifications · état front, prêt pour branchement API.
  * Champs utiles backend : id, kind, title, detail, level, read, timestamp, link, priority.
  */
 import { qhseFetch } from '../utils/qhseFetch.js';
@@ -9,7 +9,7 @@ const items = [
     id: 1,
     kind: 'incident',
     priority: 'critical',
-    title: 'Incident critique — zone concassage',
+    title: 'Incident critique : zone concassage',
     detail:
       'Blessé léger, arrêt machine ; investigation prioritaire et communication direction. Équipe HSE mobilisée.',
     level: 'critical',
@@ -23,7 +23,7 @@ const items = [
     priority: 'high',
     title: 'Action corrective en retard',
     detail:
-      'Clôture protection machine (zone concassage) — échéance dépassée de 5 jours. Escalade maintenance requise.',
+      'Clôture protection machine (zone concassage) : échéance dépassée de 5 jours. Escalade maintenance requise.',
     level: 'warning',
     read: false,
     timestamp: '01/04/2026 · 16:20',
@@ -35,7 +35,7 @@ const items = [
     priority: 'high',
     title: 'Audit interne à préparer',
     detail:
-      'Site sud — ouverture dans 3 jours ; préparer preuves documentaires et brief équipe d’accueil.',
+      'Site sud : ouverture dans 3 jours ; préparer preuves documentaires et brief équipe d’accueil.',
     level: 'warning',
     read: false,
     timestamp: '31/03/2026 · 09:05',
@@ -45,7 +45,7 @@ const items = [
     id: 4,
     kind: 'info',
     priority: 'normal',
-    title: 'IA — signal faible détecté',
+    title: 'IA · signal faible détecté',
     detail: 'Hausse des quasi-accidents sur le site principal (tendance glissante 30 j). À traiter en revue mensuelle.',
     level: 'info',
     read: true,

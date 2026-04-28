@@ -39,7 +39,7 @@ const CSS = `
 .audit-nc-card__text{font-size:13px;line-height:1.45;color:var(--text2);margin:0}
 .audit-nc-card__actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .audit-main-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:14px;align-items:center}
-/* —— Cockpit audit premium —— */
+/* Cockpit audit premium */
 .audit-cockpit-hero{
   border-radius:18px;border:1px solid rgba(125,211,252,.22);
   background:linear-gradient(165deg,rgba(56,189,248,.1),rgba(255,255,255,.03) 40%,rgba(8,12,20,.45) 100%);
@@ -266,7 +266,7 @@ const CSS = `
   margin:0;flex:1;min-width:min(100%,240px);font-size:11px;line-height:1.45;color:var(--text3);max-width:52ch
 }
 
-/* —— Cockpit stratégique : 4 tiers, hero synthèse, graphiques ISO —— */
+/* Cockpit stratégique : 4 tiers, hero synthèse, graphiques ISO */
 .audit-cockpit-tier{
   display:flex;flex-direction:column;gap:18px;
   margin-bottom:24px;
@@ -522,7 +522,7 @@ const CSS = `
   margin-top:10px;padding:8px 10px;font-size:11px;line-height:1.4;
 }
 
-/* —— Bandeau pilotage ISO & conformité —— */
+/* Bandeau pilotage ISO & conformité */
 .audit-iso-pilot-wrap{display:flex;flex-direction:column;gap:0}
 .audit-iso-pilot-bar{
   display:flex;flex-direction:column;gap:10px;
@@ -676,7 +676,7 @@ const CSS = `
 .audit-doc-compliance-strip--bad{color:#fecaca;font-weight:700}
 .audit-doc-compliance-strip--warn{color:#fcd34d;font-weight:600}
 
-/* —— Contraste lecture (thème sombre) : cockpit audit & pilotage ISO —— */
+/* Contraste lecture (thème sombre) : cockpit audit & pilotage ISO */
 html[data-theme='dark'] .audit-cockpit-cycle-progress strong{
   color:#e0f2fe;
 }

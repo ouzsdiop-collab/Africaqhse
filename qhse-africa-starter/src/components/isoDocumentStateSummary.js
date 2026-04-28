@@ -1,5 +1,5 @@
 /**
- * Bloc résumé état documents ISO — extrait de pages/iso.js.
+ * Bloc résumé état documents ISO : extrait de pages/iso.js.
  */
 
 import { computeDocumentRegistrySummary } from '../services/documentRegistry.service.js';

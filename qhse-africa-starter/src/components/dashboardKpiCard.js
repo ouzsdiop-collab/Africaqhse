@@ -3,8 +3,8 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 const VALID_TONES = new Set(['blue', 'red', 'amber', 'green', 'success']);
 
 /**
- * Carte KPI dashboard — hiérarchie valeur, label, note courte ; accent latéral discret (pilotage pro).
- * @param {{ zeroSuccessMessage?: string }} opts — si défini et valeur à 0, vue « succès » à la place du compteur.
+ * Carte KPI dashboard : hiérarchie valeur, label, note courte ; accent latéral discret (pilotage pro).
+ * @param {{ zeroSuccessMessage?: string }} opts : si défini et valeur à 0, vue « succès » à la place du compteur.
  */
 export function createDashboardKpiCard({
   label,
@@ -23,8 +23,8 @@ export function createDashboardKpiCard({
   card.setAttribute('role', 'button');
   card.setAttribute('tabindex', '0');
   if (kpiKey) card.dataset.kpiKey = kpiKey;
-  card.setAttribute('aria-label', `${label} — ouvrir le détail`);
-  card.title = 'Détail et filtres — clic ou Entrée';
+  card.setAttribute('aria-label', `${label} : ouvrir le détail`);
+  card.title = 'Détail et filtres : clic ou Entrée';
 
   const noteTrim = String(note || '').trim();
   const successTrim = String(zeroSuccessMessage || '').trim();
@@ -37,7 +37,7 @@ export function createDashboardKpiCard({
     <div class="dashboard-kpi-card__stack">
       <div class="metric-label">${escapeHtml(label)}</div>
       <div class="dashboard-kpi-default">
-        <div class="metric-value ${escapeHtml(safeTone)}">${escapeHtml(String(value ?? '—'))}</div>
+        <div class="metric-value ${escapeHtml(safeTone)}">${escapeHtml(String(value ?? 'Non disponible'))}</div>
         <p class="dashboard-kpi-empty-hint" hidden></p>
       </div>
       ${successBlock || ''}

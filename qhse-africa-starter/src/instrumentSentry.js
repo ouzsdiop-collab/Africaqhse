@@ -1,5 +1,5 @@
 /**
- * Sentry — optionnel, chargé en lazy chunk uniquement si VITE_SENTRY_DSN est défini au build.
+ * Sentry : optionnel, chargé en lazy chunk uniquement si VITE_SENTRY_DSN est défini au build.
  * Sans DSN : aucun module @sentry/browser dans le bundle exécutable (branche éliminée au build).
  */
 let sentryReady = false;

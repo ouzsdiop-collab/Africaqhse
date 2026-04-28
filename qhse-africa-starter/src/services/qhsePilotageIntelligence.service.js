@@ -1,5 +1,5 @@
 /**
- * Assistant pilotage QHSE — règles métier + enrichissement optionnel via
+ * Assistant pilotage QHSE : règles métier + enrichissement optionnel via
  * POST /api/ai-suggestions/suggest/actions (body { dashboardContext }).
  */
 
@@ -193,7 +193,7 @@ export async function buildAssistantSnapshot(input) {
   if (totInc >= 14) {
     anomalies.push({
       level: 'err',
-      message: `Volume d’incidents élevé (${totInc}) — vérifiez la tendance et les causes récurrentes.`
+      message: `Volume d’incidents élevé (${totInc}). Vérifiez la tendance et les causes récurrentes.`
     });
   }
   const closed = countActionsClosed(actions);
@@ -201,19 +201,19 @@ export async function buildAssistantSnapshot(input) {
   if (actions.length >= 6 && closed === 0) {
     anomalies.push({
       level: 'warn',
-      message: 'Aucune action en état « clôturé » malgré un plan chargé — risque de dérive de suivi.'
+      message: 'Aucune action en état « clôturé » malgré un plan chargé. Risque de dérive de suivi.'
     });
   }
   if (risksSourceMeta === 'api' && risksSansAction >= 2) {
     anomalies.push({
       level: 'warn',
-      message: `${risksSansAction} risque(s) sans action liée — rattachez des actions dans le registre.`
+      message: `${risksSansAction} risque(s) sans action liée. Rattachez des actions dans le registre.`
     });
   }
   if (openish > 12 && overdue > 4) {
     anomalies.push({
       level: 'warn',
-      message: 'Charge actions importante avec retards cumulés — prioriser l’arbitrage et les relances.'
+      message: 'Charge actions importante avec retards cumulés. Priorisez l’arbitrage et les relances.'
     });
   }
 
@@ -251,7 +251,7 @@ export async function buildAssistantSnapshot(input) {
       dataSource: odSrc,
       internalScore: 60 + Math.min(overdue * 5, 30),
       title: overdue > 1 ? `${overdue} actions en retard` : 'Une action en retard',
-      detail: 'Traiter ou réaffecter depuis le plan d’actions — crédibilité du SMS.',
+      detail: 'Traiter ou réaffecter depuis le plan d’actions. Crédibilité du SMS.',
       navigateHash: 'actions',
       navigateIntent: overdueNav,
       dialogDefaults: overdueForDialog ? buildActionDefaultsFromOverdueItem(overdueForDialog) : null
@@ -267,7 +267,7 @@ export async function buildAssistantSnapshot(input) {
       dataSource: 'api_list',
       internalScore: 78 + Math.min(docSum.expire * 2, 20),
       title:
-        docSum.expire > 1 ? `${docSum.expire} documents expirés` : 'Document expiré — mise à jour requise',
+        docSum.expire > 1 ? `${docSum.expire} documents expirés` : 'Document expiré. Mise à jour requise',
       detail: 'Conformité documentaire : renouvellement ou révision à planifier.',
       navigateHash: fdsLike ? 'products' : 'iso',
       navigateIntent: fdsLike
@@ -323,7 +323,7 @@ export async function buildAssistantSnapshot(input) {
           ? `${risksCriticalKpi} risques critiques (synthèse serveur)`
           : 'Risque critique (synthèse serveur)',
       detail:
-        'Le registre chargé ne contient pas de fiche sur ce périmètre — ouvrez le module risques pour le détail des fiches critiques.',
+        'Le registre chargé ne contient pas de fiche sur ce périmètre. Ouvrez le module risques pour le détail des fiches critiques.',
       navigateHash: 'risks',
       navigateIntent: { riskBannerKpi: 'critique', source: 'dashboard_assistant' },
       dialogDefaults: null
@@ -403,7 +403,7 @@ export async function buildAssistantSnapshot(input) {
       dataSource: 'api_list',
       internalScore: 52 + Math.min(ncOpen * 2, 18),
       title:
-        ncOpen > 5 ? `${ncOpen} NC ouvertes — arbitrage recommandé` : `${ncOpen} NC ouvertes`,
+        ncOpen > 5 ? `${ncOpen} NC ouvertes. Arbitrage recommandé` : `${ncOpen} NC ouvertes`,
       detail: 'Prioriser par criticité et jalons de clôture ; éviter l’empilement sans plan.',
       navigateHash: 'audits',
       navigateIntent: { scrollToId: 'audit-cockpit-tier-critical', source: 'dashboard_assistant' },
@@ -437,11 +437,11 @@ export async function buildAssistantSnapshot(input) {
         .join(', ') || 'à surveiller'}.`
     );
   } else {
-    synthesisParts.push(`Situation relativement maîtrisée sur ${site} — maintenir le suivi des plans.`);
+    synthesisParts.push(`Situation relativement maîtrisée sur ${site}. Maintenir le suivi des plans.`);
   }
   if (risksSourceMeta === 'api' && apiRiskRows && apiRiskRows.length > 0 && risksSansAction >= 2) {
     synthesisParts.push(
-      `${risksSansAction} fiche(s) risque sans action liée — renforcer le lien registre risques / plan d’actions.`
+      `${risksSansAction} fiche(s) risque sans action liée. Renforcer le lien registre risques / plan d’actions.`
     );
   }
   if (auditsSoon) {
@@ -514,7 +514,7 @@ export function buildDashboardPilotageAiContext(input) {
   const critArr = stats.criticalIncidents;
   if (Array.isArray(critArr) && critArr.length && typeof critArr[0] === 'object') {
     criticalPreview = critArr.slice(0, 5).map((i) => ({
-      ref: i.ref ?? i.id ?? '—',
+      ref: i.ref ?? i.id ?? 'Non disponible',
       type: i.type,
       severity: i.severity,
       status: i.status
@@ -524,7 +524,7 @@ export function buildDashboardPilotageAiContext(input) {
       .filter((i) => String(i.severity || '').toLowerCase().includes('crit'))
       .slice(0, 5)
       .map((i) => ({
-        ref: i.ref ?? i.id ?? '—',
+        ref: i.ref ?? i.id ?? 'Non disponible',
         type: i.type,
         severity: i.severity,
         status: i.status

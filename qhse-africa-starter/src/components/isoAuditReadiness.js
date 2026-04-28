@@ -1,5 +1,5 @@
 /**
- * Bloc « Audit readiness » — pilotage certification (front, données conformityStore).
+ * Bloc « Audit readiness » : pilotage certification (front, données conformityStore).
  * Prêt pour enrichissement API (timestamps, preuves serveur).
  */
 
@@ -44,7 +44,7 @@ export function computeAuditReadiness() {
 
   let message = 'Votre dossier est cohérent pour une lecture audit documentaire.';
   if (readiness === 'non_pret') {
-    message = 'Audit risqué si lancé aujourd’hui — écarts ou pièces manquantes à traiter.';
+    message = 'Audit risqué si lancé aujourd’hui. Écarts ou pièces manquantes à traiter.';
   } else if (readiness === 'fragile') {
     message = 'Préparation à consolider : exigences partielles ou documents à vérifier avant la fenêtre audit.';
   }
@@ -78,7 +78,7 @@ const READINESS_LABEL = {
 export function createAuditReadinessBanner(state, hooks) {
   const sec = document.createElement('section');
   sec.className = `iso-audit-readiness iso-audit-readiness--${state.readiness}`;
-  sec.setAttribute('aria-label', 'Préparation audit — statut global');
+  sec.setAttribute('aria-label', 'Préparation audit : statut global');
   sec.innerHTML = `
     <div class="iso-audit-readiness-inner">
       <div class="iso-audit-readiness-top">

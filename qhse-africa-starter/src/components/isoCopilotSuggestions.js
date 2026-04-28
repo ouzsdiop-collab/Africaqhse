@@ -1,5 +1,5 @@
 /**
- * Suggestions dynamiques « Assistant conformité » — audit / preuves / NC.
+ * Suggestions dynamiques « Assistant conformité » : audit / preuves / NC.
  * Jusqu’à 3 entrées orientées action.
  */
 
@@ -29,8 +29,8 @@ export function buildIsoCopilotSuggestions(hooks) {
     out.push({
       id: 'proofs-missing',
       label: iso14001
-        ? `${nMissing} preuve(s) manquante(s) — ISO 14001 à consolider`
-        : `${nMissing} preuve(s) manquante(s) — rattacher au registre`,
+        ? `${nMissing} preuve(s) manquante(s) : ISO 14001 à consolider`
+        : `${nMissing} preuve(s) manquante(s) : rattacher au registre`,
       onClick: () => hooks.onScrollTo('.iso-docs-priority')
     });
   }
@@ -40,7 +40,7 @@ export function buildIsoCopilotSuggestions(hooks) {
     const norm = getNormById(ncFirst.normId);
     out.push({
       id: 'nc-open',
-      label: `Non-conformité à traiter — ${ncFirst.clause} (${norm ? norm.code : ncFirst.normId})`,
+      label: `Non-conformité à traiter : ${ncFirst.clause} (${norm ? norm.code : ncFirst.normId})`,
       onClick: () => hooks.onOpenFirstNc()
     });
   }
@@ -49,7 +49,7 @@ export function buildIsoCopilotSuggestions(hooks) {
     const a = AUDITS_TO_SCHEDULE[0];
     out.push({
       id: 'audit-schedule',
-      label: `Audit interne à planifier — ${a.title}`,
+      label: `Audit interne à planifier : ${a.title}`,
       onClick: () => hooks.onHash('audits')
     });
   }

@@ -1,5 +1,5 @@
 /**
- * Bloc « Alertes & priorités » — hiérarchie Urgent / À surveiller / Normal.
+ * Bloc « Alertes & priorités » : hiérarchie Urgent / À surveiller / Normal.
  * Données : stats API + listes NC / audits (pas de nouvelle route).
  */
 
@@ -9,7 +9,7 @@ import { qhseNavigate } from '../utils/qhseNavigate.js';
 const MAX_ROWS = 5;
 
 function formatShortDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Non disponible';
   try {
     return new Date(iso).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -17,7 +17,7 @@ function formatShortDate(iso) {
       year: '2-digit'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -57,7 +57,7 @@ function buildRows(stats, ncs, audits) {
     if (hintTitle) navExtras.focusIncidentHintTitle = hintTitle;
     urgent.push({
       tier: 'urgent',
-      title: `${row.ref || '—'} — ${row.type || 'Incident'}`,
+      title: `${row.ref || 'Non renseigné'} : ${row.type || 'Incident'}`,
       badge: 'Critique',
       badgeTone: 'red',
       meta: [row.site, formatShortDate(row.createdAt)].filter(Boolean).join(' · '),
@@ -239,7 +239,7 @@ export function createDashboardAlertsPriorites() {
 
       const main = document.createElement('p');
       main.className = 'dashboard-alerts-prio-normal-msg';
-      main.textContent = 'Aucune alerte critique — système stable';
+      main.textContent = 'Aucune alerte critique. Système stable.';
 
       const watchRow = document.createElement('p');
       watchRow.className = 'dashboard-alerts-prio-normal-watch';
@@ -320,7 +320,7 @@ export function createDashboardAlertsPriorites() {
     if (totalAvailable > MAX_ROWS) {
       const more = document.createElement('p');
       more.className = 'dashboard-alerts-prio-more';
-      more.textContent = `+${totalAvailable - MAX_ROWS} autre(s) — ouvrir les modules concernés.`;
+      more.textContent = `+${totalAvailable - MAX_ROWS} autre(s). Ouvrez les modules concernés.`;
       host.append(more);
     }
   }

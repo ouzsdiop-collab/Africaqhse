@@ -4,7 +4,7 @@ import { queueTerrainIncident, queueTerrainRisk, getTerrainQueueState, syncAllTe
 import { appState } from '../utils/state.js';
 
 /**
- * @param {HTMLElement} [container] — hôte optionnel (sinon un div est créé pour le shell).
+ * @param {HTMLElement} [container] : hôte optionnel (sinon un div est créé pour le shell).
  * @returns {Promise<HTMLElement>}
  */
 export async function renderTerrainMode(container) {
@@ -13,13 +13,13 @@ export async function renderTerrainMode(container) {
 
   root.innerHTML = `
     <div class="offline-banner" id="terrain-offline-banner">
-      Hors connexion — vos donnees seront synchronisees a la reconnexion
+      Hors connexion : vos donnees seront synchronisees a la reconnexion
       </div>
     <div style="max-width:480px;margin-inline:auto;width:100%;box-sizing:border-box">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div>
           <h1 style="margin:0;font-size:20px;font-weight:700">Accueil Essentiel</h1>
-          <p style="margin:6px 0 0;font-size:12px;color:var(--text2,#94a3b8);max-width:42ch;line-height:1.4">Hub opérationnel — aligné sur le mode <strong>Essentiel</strong> de la barre supérieure.</p>
+          <p style="margin:6px 0 0;font-size:12px;color:var(--text2,#94a3b8);max-width:42ch;line-height:1.4">Hub opérationnel : aligné sur le mode <strong>Essentiel</strong> de la barre supérieure.</p>
         </div>
         <span class="sync-badge synced" id="terrain-sync-badge">Synchronise</span>
       </div>
@@ -180,7 +180,7 @@ export async function renderTerrainMode(container) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: `Checklist terrain — ${new Date().toLocaleDateString('fr-FR')}`,
+          title: `Checklist terrain : ${new Date().toLocaleDateString('fr-FR')}`,
           type: 'checklist_terrain',
           status: 'completed',
           score,
@@ -189,7 +189,7 @@ export async function renderTerrainMode(container) {
       }).catch(() => {});
       document.getElementById('terrain-form-zone').innerHTML =
         `<div style="background:#10b98122;border:1px solid #10b981;border-radius:10px;padding:16px;color:#10b981;font-weight:600;text-align:center">
-          Checklist validee — Score : ${score}/100
+          Checklist validee · Score : ${score}/100
         </div>`;
     });
   });
@@ -231,7 +231,7 @@ export async function renderTerrainMode(container) {
           'padding:12px 0;border-bottom:1px solid var(--border-color,#e2e8f0)';
         const tEl = document.createElement('div');
         tEl.style.cssText = 'font-weight:600;font-size:14px';
-        tEl.textContent = a.title || '—';
+        tEl.textContent = a.title || 'Non renseigné';
         const dueEl = document.createElement('div');
         dueEl.style.cssText =
           'font-size:12px;color:var(--text-muted,#64748b);margin-top:4px';

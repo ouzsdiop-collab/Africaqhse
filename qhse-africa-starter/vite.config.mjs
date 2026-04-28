@@ -70,6 +70,17 @@ export default defineConfig(({ mode }) => {
               if (n.includes('@sentry')) return 'vendor-sentry';
               return undefined;
             }
+            /**
+             * Chart.js: regrouper tous les modules applicatifs qui importent Chart.js
+             * dans le même chunk "charts" pour éviter un cycle Rollup :
+             * charts -> chunk-dashboard-components -> charts
+             */
+            if (
+              n.includes('src/components/dashboardCharts') ||
+              n.includes('src/components/dashboardIncidentsLineChart')
+            ) {
+              return 'charts';
+            }
             /** Registres / gabarits PDF navigateur — regroupé pour éviter cycle Rollup page-incidents ↔ vendor-pdf. */
             if (
               n.includes('src/services/qhseReportsPdf.service') ||
@@ -96,7 +107,6 @@ export default defineConfig(({ mode }) => {
             if (n.includes('src/pages/settings')) return 'page-settings';
             if (n.includes('src/pages/ai-center')) return 'page-ai-center';
             if (n.includes('src/pages/sites')) return 'page-sites';
-            if (n.includes('src/components/dashboardCharts')) return 'charts';
             if (
               n.includes('src/components/auditExpertUx') ||
               n.includes('src/components/auditFormDialog') ||

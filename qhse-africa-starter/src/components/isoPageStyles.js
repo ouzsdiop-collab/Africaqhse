@@ -200,7 +200,7 @@ const CSS = `
 }
 .iso-pilotage-aside{display:grid;gap:14px;align-content:start;min-width:0}
 
-/* —— Hiérarchie visuelle (page ISO hub, dark premium) —— tout préfixé .iso-page pour limiter la portée —— */
+/* Hiérarchie visuelle (page ISO hub, dark premium) : tout préfixé .iso-page pour limiter la portée */
 .iso-page.iso-page--hub{
   gap:1.75rem;
 }
@@ -237,7 +237,7 @@ const CSS = `
   font-size:14px;
   line-height:1.52;
 }
-/* Cœur module : normes pleine largeur puis IA — hub normes visuellement dominant */
+/* Cœur module : normes pleine largeur puis IA ; hub normes visuellement dominant */
 .iso-page.iso-page--hub .iso-focus-zone{
   display:grid;
   grid-template-columns:minmax(0,1.15fr) minmax(280px,380px);
@@ -504,7 +504,7 @@ const CSS = `
   border-color:rgba(148,163,184,.11);
 }
 .iso-page.iso-page--hub .iso-points-list{gap:12px}
-/* Cartes détail (exigences, docs, revue) : palier bas — moins d’élévation */
+/* Cartes détail (exigences, docs, revue) : palier bas, moins d’élévation */
 .iso-page.iso-page--hub .two-column .content-card.card-soft,
 .iso-page.iso-page--hub .iso-secondary-zone>article.content-card.card-soft{
   background:rgba(0,0,0,.065);
@@ -577,7 +577,7 @@ const CSS = `
 .iso-req-table .iso-table-row{align-items:start}
 .iso-req-table .iso-table-row > *{min-width:0}
 
-/* —— Cockpit premium : hero, cycle, hub normes enrichi, priorités, preuves, audits —— */
+/* Cockpit premium : hero, cycle, hub normes enrichi, priorités, preuves, audits */
 .iso-page.iso-page--cockpit.iso-page--hub{gap:1.85rem}
 .iso-page.iso-page--cockpit .iso-cockpit-hero.content-card{
   border-radius:20px;
@@ -924,7 +924,7 @@ const CSS = `
   gap:8px;
 }
 
-/* —— ISO conformité premium : cadre page, bandeau exécutif, zones lisibles —— */
+/* ISO conformité premium : cadre page, bandeau exécutif, zones lisibles */
 .iso-page.iso-page--hub.iso-page--conformite-premium{
   width:100%;
   max-width:min(1220px,100%);
@@ -1105,7 +1105,7 @@ const CSS = `
 [data-theme='light'] .iso-page.iso-page--hub .iso-conformity-charts-row--single .iso-conformity-chart-card{
   background:var(--color-background-primary);
 }
-/* —— ISO premium phases : audit readiness, preuves, auditeur —— */
+/* ISO premium phases : audit readiness, preuves, auditeur */
 .iso-audit-readiness{
   border-radius:18px;
   padding:18px 20px;
@@ -1171,7 +1171,7 @@ const CSS = `
 .iso-ai-suggestion-btn{transition:transform .15s ease,border-color .15s ease}
 .iso-ai-suggestion-btn:hover{transform:translateY(-1px)}
 
-/* ── ISO : contraste renforcé (thème sombre) — blocs audit & conformité ── */
+/* ── ISO : contraste renforcé (thème sombre), blocs audit & conformité ── */
 html[data-theme='dark'] .iso-audit-readiness{
   background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(15,23,42,.99));
   border-color:rgba(148,163,184,.32);
@@ -1244,7 +1244,7 @@ html[data-theme='dark'] .iso-ia-suggestion-pill{
   border-color:rgba(196,181,253,.45);
 }
 
-/* ── ISO (hub) : mode clair — surfaces et textes lisibles (évite texte foncé sur fond foncé) ── */
+/* ── ISO (hub) : mode clair, surfaces et textes lisibles (évite texte foncé sur fond foncé) ── */
 [data-theme='light'] .iso-priority-hero{
   border:1px solid color-mix(in srgb, #f59e0b 32%, var(--border-color, #e2e8f0));
   background:linear-gradient(
@@ -1442,7 +1442,7 @@ html[data-theme='dark'] .iso-ia-suggestion-pill{
   border-color:rgba(168,85,247,.35);
 }
 
-/* —— Second niveau : replis natifs (lecture rapide au premier niveau) —— */
+/* Second niveau : replis natifs (lecture rapide au premier niveau) */
 .iso-l2-disclosure{
   border:1px solid color-mix(in srgb, var(--color-border-secondary, rgba(148,163,184,.2)) 85%, transparent);
   border-radius:16px;

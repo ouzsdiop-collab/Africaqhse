@@ -21,7 +21,7 @@ import { asDashboardCount } from '../../utils/reconcileDashboardStats.js';
  * @param {{ body: HTMLElement }} refs.typeCard
  * @param {{ update: (p: { audits: unknown[], ncs: unknown[] }) => void }} refs.auditCharts
  * @param {{ body: HTMLElement }} refs.pilotLoadCard
- * @param {object} stats — stats courantes (ex. `lastStats` ; peut inclure `timeseries` API)
+ * @param {object} stats : stats courantes (ex. `lastStats` ; peut inclure `timeseries` API)
  * @param {object} data
  * @param {unknown[]} [data.incidents]
  * @param {unknown[]} [data.actions]
@@ -64,7 +64,7 @@ export function refreshCharts(refs, stats, data) {
     ts.incidentsByMonth.every((x) => x && typeof x === 'object')
   ) {
     incidentSeries = ts.incidentsByMonth.map((x) => ({
-      label: String(/** @type {{ label?: unknown }} */ (x).label ?? '—'),
+      label: String(/** @type {{ label?: unknown }} */ (x).label ?? 'Non disponible'),
       value: Math.max(0, Number(/** @type {{ value?: unknown }} */ (x).value) || 0)
     }));
   } else if (allowDemo) {
@@ -81,8 +81,8 @@ export function refreshCharts(refs, stats, data) {
   }
 
   const listSourceNote = hasTs
-    ? 'Indicateur : listes API (plafond 500) — pas d’agrégat unique issu de la série temporelle pour cette répartition.'
-    : 'Indicateur : listes API (plafond 500) — en l’absence de tendance mensuelle serveur.';
+    ? 'Indicateur : listes API (plafond 500). Pas d’agrégat unique issu de la série temporelle pour cette répartition.'
+    : 'Indicateur : listes API (plafond 500). En l’absence de tendance mensuelle serveur.';
 
   if (hasTs || allowDemo) {
     const mix = createActionsMixChart(classifyActionsForMix(act));

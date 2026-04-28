@@ -1,5 +1,5 @@
 /**
- * Design system — variables canoniques (clair par défaut, dark via data-theme).
+ * Design system : variables canoniques (clair par défaut, dark via data-theme).
  * Pont vers --text, --bg-main, etc. pour compatibilité avec le code existant.
  *
  * Palette produit : accent teal #14B8A6 · teal foncé #0F766E · success / warning / danger inchangés
@@ -10,7 +10,7 @@
 :root {
   --font-sans: ui-sans-serif, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Référence marque — pilotée par tokens.css (--color-primary, etc.) */
+  /* Référence marque : pilotée par tokens.css (--color-primary, etc.) */
   --palette-primary: color-mix(in srgb, var(--color-primary) 42%, black);
   --palette-accent: var(--color-primary);
   --palette-success: var(--color-success);
@@ -65,7 +65,7 @@
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
 
   /**
-   * Surfaces sémantiques douces (rouge / orange / vert / info) — même recette partout.
+   * Surfaces sémantiques douces (rouge / orange / vert / info) : même recette partout.
    * Pointent sur tokens.css (--color-*-bg / text / border), thème sombre inclus.
    */
   --surface-danger: var(--color-danger-bg);
@@ -155,7 +155,7 @@
 }
 
 /**
- * Thème sombre — fond #0B1220, surfaces #111827 / #1F2937, accent teal.
+ * Thème sombre : fond #0B1220, surfaces #111827 / #1F2937, accent teal.
  */
 [data-theme='dark'] {
   --color-background-primary: var(--surface-1);
@@ -218,7 +218,7 @@
   --ds-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.38);
   --ds-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.48);
 
-  /* Habilitations — encre & fonds lisibles sur UI sombre */
+  /* Habilitations : encre & fonds lisibles sur UI sombre */
   --hab-expired-bg: color-mix(in srgb, var(--palette-danger) 16%, var(--color-background-secondary));
   --hab-expired-color: var(--color-text-danger);
   --hab-warning-bg: color-mix(in srgb, var(--palette-warning) 14%, var(--color-background-secondary));

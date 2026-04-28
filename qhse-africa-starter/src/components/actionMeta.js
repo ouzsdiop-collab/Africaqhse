@@ -1,9 +1,9 @@
 /** Extrait périmètre, responsable et échéance depuis le texte du champ « detail ». */
 export function parseActionMeta(detail) {
   const parts = detail.split('•').map((p) => p.trim());
-  let site = '—';
-  let owner = '—';
-  let echeance = '—';
+  let site = 'Non renseigné';
+  let owner = 'Non renseigné';
+  let echeance = 'Non disponible';
 
   parts.forEach((p) => {
     if (/^resp/i.test(p)) {

@@ -1,5 +1,5 @@
 /**
- * Fiche risque QHSE (ISO 45001 / 14001) — modal lecture + contexte opérationnel.
+ * Fiche risque QHSE (ISO 45001 / 14001) : modal lecture + contexte opérationnel.
  */
 
 import { parseRiskMatrixGp, riskCriticalityFromMeta } from '../utils/riskMatrixCore.js';
@@ -207,7 +207,7 @@ function ensureRiskSheetModalStyles() {
 
 function dash(v) {
   const s = v != null ? String(v).trim() : '';
-  return s || '—';
+  return s || 'Non renseigné';
 }
 
 /**
@@ -227,7 +227,7 @@ function defaultHistory(r) {
   if (Array.isArray(r.history) && r.history.length) return r.history;
   return [
     {
-      when: r.updatedAt || '—',
+      when: r.updatedAt || 'Non disponible',
       who: 'Système',
       what: 'Dernière mise à jour affichée sur la fiche.'
     }
@@ -250,7 +250,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   ensureRiskSheetModalStyles();
   const gp = parseRiskMatrixGp(risk.meta);
   const crit = riskCriticalityFromMeta(risk.meta);
-  const prod = gp ? gp.g * gp.p : crit?.product ?? '—';
+  const prod = gp ? gp.g * gp.p : crit?.product ?? 'Non disponible';
   const statusOp = riskOperationalStatusLabel(risk);
   const { main: desc } = splitDetail(risk.detail);
 
@@ -300,16 +300,16 @@ export function openRiskSheetModal(risk, ctx = {}) {
   }
 
   const pDesc = document.createElement('p');
-  pDesc.textContent = desc || '—';
+  pDesc.textContent = desc || 'Non renseigné';
   grid.append(section('Description du risque', pDesc));
 
   const pCauses = document.createElement('p');
-  pCauses.textContent = risk.causes != null ? String(risk.causes) : '—';
+  pCauses.textContent = risk.causes != null ? String(risk.causes) : 'Non renseigné';
   grid.append(section('Causes', pCauses));
 
   const pCons = document.createElement('p');
   pCons.textContent =
-    risk.impacts != null ? String(risk.impacts) : '—';
+    risk.impacts != null ? String(risk.impacts) : 'Non renseigné';
   grid.append(section('Conséquences', pCons));
 
   const gpHist = Array.isArray(risk.gpHistory) ? risk.gpHistory : [];
@@ -335,7 +335,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
     ul.className = 'risk-sheet-modal__gp-timeline';
     gpHist.forEach((h) => {
       const li = document.createElement('li');
-      li.textContent = `${h.when} — G${h.g}×P${h.p}${h.note ? ` · ${h.note}` : ''}`;
+      li.textContent = `${h.when} : G${h.g}×P${h.p}${h.note ? ` · ${h.note}` : ''}`;
       ul.append(li);
     });
     grid.append(section('Historique Gravité / Probabilité', ul));
@@ -343,8 +343,8 @@ export function openRiskSheetModal(risk, ctx = {}) {
 
   const gpBlock = document.createElement('div');
   gpBlock.className = 'risk-sheet-modal__gp-row';
-  const gVal = gp ? `G = ${gp.g}` : '—';
-  const pVal = gp ? `P = ${gp.p}` : '—';
+  const gVal = gp ? `G = ${gp.g}` : 'Non disponible';
+  const pVal = gp ? `P = ${gp.p}` : 'Non disponible';
   const gEl = document.createElement('span');
   gEl.className = 'risk-sheet-modal__gp-pill';
   gEl.textContent = gVal;
@@ -396,7 +396,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
     p.append(
       strong,
       document.createTextNode(
-        ` — ${dash(al.status)} · échéance ${dash(al.due)} · ${dash(al.owner)}`
+        ` · ${dash(al.status)} · échéance ${dash(al.due)} · ${dash(al.owner)}`
       )
     );
     actSec.append(p);
@@ -454,7 +454,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   assocBtn.style.fontSize = '11px';
   assocBtn.style.padding = '6px 10px';
   assocBtn.textContent = 'Associer un incident';
-  assocBtn.title = 'Ajoute une référence locale — à synchroniser avec votre SI si besoin.';
+  assocBtn.title = 'Ajoute une référence locale. À synchroniser avec votre SI si besoin.';
   assocBtn.addEventListener('click', () => {
     const ref = window.prompt('Référence incident (ex. INC-204) :');
     if (!ref || !String(ref).trim()) return;
@@ -469,7 +469,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   if (linked.length === 0) {
     const li = document.createElement('li');
     li.textContent =
-      'Aucun incident lié — bouton ci-dessus ou marqueur dans le module Incidents.';
+      'Aucun incident lié. Utilisez le bouton ci-dessus ou le marqueur dans le module Incidents.';
     incList.append(li);
   } else {
     linked.forEach((inc) => {
@@ -477,7 +477,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
       const when = document.createElement('span');
       when.className = 'risk-sheet-modal__hist-when';
       when.textContent = `${dash(inc.ref)} · ${dash(inc.date)}`;
-      li.append(when, document.createTextNode(`${dash(inc.type)} — ${dash(inc.status)}`));
+      li.append(when, document.createTextNode(`${dash(inc.type)} · ${dash(inc.status)}`));
       incList.append(li);
     });
   }
@@ -492,7 +492,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
   const auditP = document.createElement('p');
   auditP.className = 'risk-sheet-modal__audit-placeholder';
   auditP.textContent =
-    'Liaison audits : utilisez le marqueur dans les constats (structure « Audit → risque ») ou une future clé API — aucune donnée locale sur cette fiche.';
+    'Liaison audits : utilisez le marqueur dans les constats (structure « Audit → risque ») ou une future clé API. Aucune donnée locale sur cette fiche.';
   grid.append(section('Audits associés', auditP));
 
   const histUl = document.createElement('ul');
@@ -534,14 +534,14 @@ export function openRiskSheetModal(risk, ctx = {}) {
 
 function splitDetail(detail) {
   const d = String(detail || '');
-  const idx = d.indexOf('— Mesures envisagées —');
+  const idx = d.indexOf('Mesures envisagées');
   if (idx < 0) return { main: d.trim() };
   return { main: d.slice(0, idx).trim() };
 }
 
 function extractMesuresFromDetail(detail) {
   const d = String(detail || '');
-  const idx = d.indexOf('— Mesures envisagées —');
-  if (idx < 0) return '—';
-  return d.slice(idx + '— Mesures envisagées —'.length).trim() || '—';
+  const idx = d.indexOf('Mesures envisagées');
+  if (idx < 0) return 'Non disponible';
+  return d.slice(idx + 'Mesures envisagées'.length).trim() || 'Non disponible';
 }

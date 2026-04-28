@@ -127,7 +127,7 @@ export function refreshIncidentsJournalDom(journalBody) {
     const p = document.createElement('p');
     p.className = 'incidents-journal-empty';
     p.textContent =
-      'Aucun événement — le journal se remplit quand vous déclarez ou mettez à jour une fiche.';
+      'Aucun événement. Le journal se remplit quand vous déclarez ou mettez à jour une fiche.';
     journalBody.append(p);
     return;
   }
@@ -137,10 +137,10 @@ export function refreshIncidentsJournalDom(journalBody) {
     const li = document.createElement('li');
     li.className = 'incidents-journal-li';
     const strong = document.createElement('strong');
-    strong.textContent = e.action || '—';
+    strong.textContent = e.action || 'Non renseigné';
     const detail = document.createElement('span');
     detail.className = 'incidents-journal-li__detail';
-    detail.textContent = e.detail ? ` — ${e.detail}` : '';
+    detail.textContent = e.detail ? `. ${e.detail}` : '';
     const meta = document.createElement('span');
     meta.className = 'incidents-journal-li__meta';
     meta.textContent = ` · ${e.timestamp || ''} · ${e.user || ''}`;
@@ -237,10 +237,10 @@ export function refreshIncidentsPrioritiesStrip(prioritiesHost, opts) {
 }
 
 /**
- * Ligne registre incidents — pas de listeners ici : la page attache une délégation
+ * Ligne registre incidents : pas de listeners ici, la page attache une délégation
  * sur `.incidents-list-host` (clics re-rendus, z-index / calques).
  *
- * @param {object} inc — ligne affichée (avec title)
+ * @param {object} inc : ligne affichée (avec title)
  * @param {{
  *   isStatusClosed: (st: string) => boolean;
  *   columnMode?: 'essential' | 'full';
@@ -274,7 +274,7 @@ export function buildIncidentTableRow(inc, helpers) {
     crit.className = 'incidents-crit-badge';
     crit.setAttribute('aria-label', 'Incident critique');
     crit.textContent = 'Critique';
-    crit.title = 'Gravité critique — priorité terrain';
+    crit.title = 'Gravité critique : priorité terrain';
     tdTitle.append(crit);
   }
   tdTitle.append(refSmall);
@@ -286,10 +286,10 @@ export function buildIncidentTableRow(inc, helpers) {
           ? 'Faible'
           : inc.severity === 'moyen'
             ? 'Moyen'
-            : String(inc.severity || '—');
+            : String(inc.severity || 'Non renseigné');
     const meta = document.createElement('div');
     meta.className = 'incidents-table-meta';
-    meta.textContent = `${sevLabel} · ${inc.site || '—'}`;
+    meta.textContent = `${sevLabel} · ${inc.site || 'Non renseigné'}`;
     tdTitle.append(meta);
   }
 

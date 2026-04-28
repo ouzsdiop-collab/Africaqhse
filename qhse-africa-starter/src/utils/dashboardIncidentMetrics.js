@@ -1,5 +1,5 @@
 /**
- * Fenêtres temporelles et pic d’incidents — source unique pour vigilance / analyse auto (évite dérive des règles).
+ * Fenêtres temporelles et pic d’incidents : source unique pour vigilance / analyse auto (évite dérive des règles).
  */
 
 export const MS_DAY = 86400000;

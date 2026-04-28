@@ -1,9 +1,9 @@
 /**
- * Animations légères — fluidité premium, accessibilité (prefers-reduced-motion).
+ * Animations légères : fluidité premium, accessibilité (prefers-reduced-motion).
  * Charge après design-system-components.css pour compléter sans renommer les classes existantes.
  */
 
-/* —— Tokens locaux —— */
+/* Tokens locaux */
 :root {
   --qhse-motion-fast: 0.14s;
   --qhse-motion-med: 0.2s;
@@ -77,7 +77,7 @@
   }
 }
 
-/* —— Utilitaire générique (entrée douce) —— */
+/* Utilitaire générique (entrée douce) */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -93,12 +93,12 @@
   animation: fadeIn 0.4s ease;
 }
 
-/* —— Page : entrée unique (évite de cumuler avec des animations par bloc) —— */
+/* Page : entrée unique (évite de cumuler avec des animations par bloc) */
 .page-stack {
   animation: qhse-page-stack-enter var(--qhse-motion-slow) var(--qhse-motion-ease) both;
 }
 
-/* —— Cartes : transitions fluides + léger relief au survol —— */
+/* Cartes : transitions fluides + léger relief au survol */
 .content-card,
 .content-card.card-soft,
 .card-soft {
@@ -135,7 +135,7 @@
   transform: none;
 }
 
-/* —— Boutons : feedback tactile discret —— */
+/* Boutons : feedback tactile discret */
 .btn {
   transition:
     background var(--qhse-motion-med) var(--qhse-motion-ease-out),
@@ -168,7 +168,7 @@
   transform: scale(0.96);
 }
 
-/* —— Blocs IA : pas d’animation d’entrée dédiée (déjà portée par .page-stack) —— */
+/* Blocs IA : pas d’animation d’entrée dédiée (déjà portée par .page-stack) */
 
 .iso-page .iso-ai-suggestion-btn {
   transition:
@@ -193,7 +193,7 @@
   transform: scale(0.98);
 }
 
-/* —— Validation humaine audit : transition de couleur —— */
+/* Validation humaine audit : transition de couleur */
 .audit-human-status {
   transition: color var(--qhse-motion-med) var(--qhse-motion-ease-out), filter var(--qhse-motion-med) ease;
 }
@@ -202,7 +202,7 @@
   transform: scale(0.98);
 }
 
-/* —— Graphiques (dashboard & cartes partagées) —— */
+/* Graphiques (dashboard & cartes partagées) */
 /* Graphiques : court pour ne pas fatiguer à chaque rafraîchissement de données */
 .dashboard-line-chart-wrap,
 .dashboard-mix-chart-wrap,
@@ -210,7 +210,7 @@
   animation: qhse-chart-reveal 0.22s var(--qhse-motion-ease-out) both;
 }
 
-/* —— Toasts : état initial + classe .app-toast--in (ajoutée en JS) —— */
+/* Toasts : état initial + classe .app-toast--in (ajoutée en JS) */
 .app-toast-live .app-toast {
   opacity: 0;
   transform: translateY(10px);
@@ -224,12 +224,12 @@
   transform: translateY(0);
 }
 
-/* —— Badge notifications topbar —— */
+/* Badge notifications topbar */
 .topbar-v2__notif-badge.topbar-v2__notif-badge--visible {
   animation: qhse-badge-pop 0.14s var(--qhse-motion-ease-out) both;
 }
 
-/* —— Shell : menu rapide & modales (très discret vs. contenu .page-stack) —— */
+/* Shell : menu rapide & modales (très discret vs. contenu .page-stack) */
 .topbar-v2__quick-menu:not([hidden]) {
   animation: qhse-dropdown-in 0.12s var(--qhse-motion-ease-out) both;
 }
@@ -263,7 +263,7 @@ dialog.incidents-detail-dialog[open] {
   animation-delay: 0.08s;
 }
 
-/* —— Ghost chip IA barre du haut —— */
+/* Ghost chip IA barre du haut */
 .ghost-chip.topbar-ai-btn {
   transition:
     border-color var(--qhse-motion-med) ease,
@@ -275,7 +275,7 @@ dialog.incidents-detail-dialog[open] {
   transform: scale(0.97);
 }
 
-/* —— Sous-blocs (hors .content-card) : mêmes transitions que les cartes ——
+/* Sous-blocs (hors .content-card) : mêmes transitions que les cartes.
    Thème clair : léger lift. Thème sombre : pas de translation (aligné enterprise-visual-tone),
    seulement bordure + ombre un peu plus marquées. */
 .ai-use-card,
@@ -400,7 +400,7 @@ dialog.incidents-detail-dialog[open] {
   }
 }
 
-/* —— Accessibilité : désactiver mouvements superflus —— */
+/* Accessibilité : désactiver mouvements superflus */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --qhse-motion-fast: 0.01ms;

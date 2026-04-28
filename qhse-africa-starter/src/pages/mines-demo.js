@@ -130,7 +130,7 @@ export function renderMinesDemo() {
   page.className = 'page-stack page-stack--premium-saas mines-demo-page';
 
   const hero = card(
-    `Parcours minier 3 à 5 minutes — ${DEMO_SITE_LABEL}`,
+    `Parcours minier 3 à 5 minutes : ${DEMO_SITE_LABEL}`,
     'Narrative de vente: incidents, quasi-accidents, risques, PTW, habilitations, audits, actions et synthèse direction.'
   );
   hero.classList.add('mines-demo-hero');
@@ -149,7 +149,7 @@ export function renderMinesDemo() {
   const auditEnCours = demoAudits.find((a) => String(a?.status || '').toLowerCase().includes('cours')) || demoAudits[0];
   const presenter = document.createElement('div');
   presenter.className = 'mines-demo-presenter';
-  presenter.innerHTML = `<span><strong>Contexte présentateur</strong> — Astreinte HSE&nbsp;: ${escapeHtml(qhseLead)} · Référent terrain&nbsp;: ${escapeHtml(terrainLead)} · Dernier audit affiché&nbsp;: ${escapeHtml(auditEnCours?.ref || '—')} (${escapeHtml(auditEnCours?.status || '—')})</span>`;
+  presenter.innerHTML = `<span><strong>Contexte présentateur</strong> : Astreinte HSE&nbsp;: ${escapeHtml(qhseLead)} · Référent terrain&nbsp;: ${escapeHtml(terrainLead)} · Dernier audit affiché&nbsp;: ${escapeHtml(auditEnCours?.ref || 'Non disponible')} (${escapeHtml(auditEnCours?.status || 'Non disponible')})</span>`;
 
   const kpis = document.createElement('div');
   kpis.className = 'mines-demo-kpis';

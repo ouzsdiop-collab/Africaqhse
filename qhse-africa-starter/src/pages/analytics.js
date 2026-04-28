@@ -23,7 +23,7 @@ import { createAnalyticsQuadInsightSection } from '../components/analyticsQuadAi
 const ANALYTICS_LIST_CAP = 5;
 
 function formatFrDateTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Non disponible';
   try {
     return new Date(iso).toLocaleString('fr-FR', {
       day: '2-digit',
@@ -33,12 +33,12 @@ function formatFrDateTime(iso) {
       minute: '2-digit'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
 function formatFrDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Non disponible';
   try {
     return new Date(iso).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -46,7 +46,7 @@ function formatFrDate(iso) {
       year: 'numeric'
     });
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 }
 
@@ -189,7 +189,7 @@ function aggregateAuditStatuses(audits) {
   if (!Array.isArray(audits) || !audits.length) return [];
   const m = new Map();
   audits.forEach((a) => {
-    const s = String(a.status || '—').trim() || '—';
+    const s = String(a.status || 'Non disponible').trim() || 'Non disponible';
     m.set(s, (m.get(s) || 0) + 1);
   });
   return [...m.entries()]
@@ -202,11 +202,11 @@ function buildSynthesisPhrases(counts, kpis) {
   const out = [];
   if (counts.incidentsCriticalOpen > 0) {
     out.push(
-      `${counts.incidentsCriticalOpen} incident(s) critique(s) encore ouvert(s) — priorité sécurité.`
+      `${counts.incidentsCriticalOpen} incident(s) critique(s) encore ouvert(s). Priorité sécurité.`
     );
   }
   if (counts.actionsOverdue > 0) {
-    out.push(`${counts.actionsOverdue} action(s) en retard — relancer les porteurs.`);
+    out.push(`${counts.actionsOverdue} action(s) en retard. Relancez les porteurs.`);
   }
   if (counts.nonConformitiesOpen >= 5) {
     out.push(
@@ -220,12 +220,12 @@ function buildSynthesisPhrases(counts, kpis) {
     counts.auditsTotal > 0
   ) {
     out.push(
-      `Score moyen des audits à ${kpis.auditScoreAvg} % — renforcer les plans d'amélioration.`
+      `Score moyen des audits à ${kpis.auditScoreAvg} %. Renforcez les plans d'amélioration.`
     );
   }
   if (out.length === 0) {
     out.push(
-      'Indicateurs stables sur l’échantillon automatique — poursuivre le pilotage et ouvrir le détail si besoin.'
+      'Indicateurs stables sur l’échantillon automatique. Poursuivez le pilotage et ouvrez le détail si besoin.'
     );
   }
   return out.slice(0, 3);
@@ -249,7 +249,7 @@ function buildAnalyticsDecisionPanel(counts, kpis, alerts, layout = 'split') {
     toShow.forEach((a) => {
       const row = document.createElement('div');
       row.className = `analytics-alert-chip analytics-alert-chip--${a.level}`;
-      row.textContent = (a.message || a.code || '—').trim();
+      row.textContent = (a.message || a.code || 'Non disponible').trim();
       list.append(row);
     });
   } else {
@@ -273,7 +273,7 @@ function buildAnalyticsPrimaryKpis(counts, kpis) {
   const ncTotal = Math.max(0, Number(counts.nonConformitiesTotal) || 0);
   const ncOpen = Math.max(0, Number(counts.nonConformitiesOpen) || 0);
   const ncClosed = Math.max(0, ncTotal - ncOpen);
-  let conformPct = '—';
+  let conformPct = 'Non disponible';
   let conformTone = 'blue';
   if (ncTotal > 0) {
     const p = Math.round((ncClosed / ncTotal) * 100);
@@ -293,22 +293,22 @@ function buildAnalyticsPrimaryKpis(counts, kpis) {
     },
     {
       label: 'Incidents (30 j.)',
-      value: String(counts.incidentsLast30Days ?? '—'),
+      value: String(counts.incidentsLast30Days ?? '0'),
       tone: inc30 >= 10 ? 'amber' : 'blue',
-      hint: `${counts.incidentsTotal ?? '—'} total périmètre`
+      hint: `${counts.incidentsTotal ?? '0'} total périmètre`
     },
     {
       label: 'Actions en retard',
-      value: String(counts.actionsOverdue ?? '—'),
+      value: String(counts.actionsOverdue ?? '0'),
       tone: counts.actionsOverdue > 0 ? 'amber' : 'green',
-      hint: `Sur ${counts.actionsTotal ?? '—'} actions`
+      hint: `Sur ${counts.actionsTotal ?? '0'} actions`
     },
     {
       label: 'Score audits',
       value:
         kpis.auditScoreAvg != null && !Number.isNaN(kpis.auditScoreAvg)
           ? `${kpis.auditScoreAvg} %`
-          : '—',
+          : 'Non disponible',
       tone:
         kpis.auditScoreAvg != null && kpis.auditScoreAvg < 70 ? 'amber' : 'green',
       hint:
@@ -363,14 +363,14 @@ function buildAnalyticsMainTrend(counts, data) {
   if (!labels.length) {
     body.append(
       emptyNote(
-        'Pas assez de scores d’audit datés pour une courbe — complétez les audits dans le temps.'
+        'Pas assez de scores d’audit datés pour une courbe. Complétez les audits dans le temps.'
       )
     );
   } else {
     const chart = createKpiMultiLineChart(
       labels,
       series,
-      `${counts.auditsTotal ?? '—'} audit(s) en base · échelle 0–100 % · réf. 75 % · grille + survol`,
+      `${counts.auditsTotal ?? '0'} audit(s) en base · échelle 0–100 % · réf. 75 % · grille + survol`,
       {
         variant: 'analytics',
         targetYPercent: 75,
@@ -523,31 +523,31 @@ function buildKpiGrid(counts, kpis) {
   const items = [
     {
       label: 'Incidents (total)',
-      value: String(counts.incidentsTotal ?? '—'),
+      value: String(counts.incidentsTotal ?? '0'),
       tone: 'blue',
-      note: `${counts.incidentsLast30Days ?? '—'} sur 30 j.`
+      note: `${counts.incidentsLast30Days ?? '0'} sur 30 j.`
     },
     {
       label: 'Incidents critiques ouverts',
-      value: String(counts.incidentsCriticalOpen ?? '—'),
+      value: String(counts.incidentsCriticalOpen ?? '0'),
       tone: counts.incidentsCriticalOpen > 0 ? 'red' : 'green',
       note: 'Sur les 400 derniers incidents (non clos)'
     },
     {
       label: 'NC ouvertes',
-      value: String(counts.nonConformitiesOpen ?? '—'),
+      value: String(counts.nonConformitiesOpen ?? '0'),
       tone: counts.nonConformitiesOpen >= 5 ? 'amber' : 'blue',
-      note: `Sur ${counts.nonConformitiesTotal ?? '—'} enregistrées`
+      note: `Sur ${counts.nonConformitiesTotal ?? '0'} enregistrées`
     },
     {
       label: 'Actions en retard',
-      value: String(counts.actionsOverdue ?? '—'),
+      value: String(counts.actionsOverdue ?? '0'),
       tone: counts.actionsOverdue > 0 ? 'amber' : 'green',
-      note: `Sur ${counts.actionsTotal ?? '—'} actions`
+      note: `Sur ${counts.actionsTotal ?? '0'} actions`
     },
     {
       label: 'Audits (total)',
-      value: String(counts.auditsTotal ?? '—'),
+      value: String(counts.auditsTotal ?? '0'),
       tone: 'blue',
       note: 'Référentiel audits'
     },
@@ -556,7 +556,7 @@ function buildKpiGrid(counts, kpis) {
       value:
         kpis.auditScoreAvg != null && !Number.isNaN(kpis.auditScoreAvg)
           ? `${kpis.auditScoreAvg} %`
-          : '—',
+          : 'Non disponible',
       tone:
         kpis.auditScoreAvg != null && kpis.auditScoreAvg < 70 ? 'amber' : 'green',
       note:
@@ -611,13 +611,13 @@ function buildPeriodicSummaryGrid(summary) {
   const items = [
     {
       label: 'Incidents créés (période)',
-      value: String(summary.incidentsCreated ?? '—'),
+      value: String(summary.incidentsCreated ?? '0'),
       tone: 'blue',
       note: 'Déclarations sur la fenêtre'
     },
     {
       label: 'Audits enregistrés',
-      value: String(summary.auditsRecorded ?? '—'),
+      value: String(summary.auditsRecorded ?? '0'),
       tone: 'blue',
       note: 'Créés sur la période'
     },
@@ -626,7 +626,7 @@ function buildPeriodicSummaryGrid(summary) {
       value:
         summary.auditScoreAvg != null && !Number.isNaN(summary.auditScoreAvg)
           ? `${summary.auditScoreAvg} %`
-          : '—',
+          : 'Non disponible',
       tone:
         summary.auditScoreAvg != null && summary.auditScoreAvg < 70
           ? 'amber'
@@ -635,27 +635,27 @@ function buildPeriodicSummaryGrid(summary) {
     },
     {
       label: 'NC créées',
-      value: String(summary.nonConformitiesCreated ?? '—'),
+      value: String(summary.nonConformitiesCreated ?? '0'),
       tone: 'amber',
-      note: `${summary.nonConformitiesOpenAmongCreated ?? '—'} encore ouvertes`
+      note: `${summary.nonConformitiesOpenAmongCreated ?? '0'} encore ouvertes`
     },
     {
       label: 'Actions créées',
-      value: String(summary.actionsCreated ?? '—'),
+      value: String(summary.actionsCreated ?? '0'),
       tone: 'blue',
-      note: `${summary.actionsCreatedWithClosedLikeStatus ?? '—'} statut terminé/clôturé`
+      note: `${summary.actionsCreatedWithClosedLikeStatus ?? '0'} statut terminé/clôturé`
     },
     {
       label: 'Actions en retard (stock)',
-      value: String(summary.actionsOverdueStock ?? '—'),
+      value: String(summary.actionsOverdueStock ?? '0'),
       tone: summary.actionsOverdueStock > 0 ? 'amber' : 'green',
       note: 'À la fin de la période, filtres appliqués'
     },
     {
       label: 'Incidents critiques (période)',
-      value: String(summary.criticalIncidentsInPeriod ?? '—'),
+      value: String(summary.criticalIncidentsInPeriod ?? '0'),
       tone: summary.criticalIncidentsOpenInPeriod > 0 ? 'red' : 'green',
-      note: `${summary.criticalIncidentsOpenInPeriod ?? '—'} non clôturés`
+      note: `${summary.criticalIncidentsOpenInPeriod ?? '0'} non clôturés`
     }
   ];
   items.forEach((kpi) => {
@@ -707,12 +707,12 @@ function mountPeriodicReportingBlock(periodicCard) {
     siteSel.replaceChildren();
     const siteOpt0 = document.createElement('option');
     siteOpt0.value = '';
-    siteOpt0.textContent = '— Tous sites —';
+    siteOpt0.textContent = 'Tous sites';
     siteSel.append(siteOpt0);
     assigneeSel.replaceChildren();
     const assignOpt0 = document.createElement('option');
     assignOpt0.value = '';
-    assignOpt0.textContent = '— Tous responsables —';
+    assignOpt0.textContent = 'Tous responsables';
     assigneeSel.append(assignOpt0);
     try {
       const sites = await fetchSitesCatalog();
@@ -853,7 +853,7 @@ function mountPeriodicReportingBlock(periodicCard) {
           const row = document.createElement('article');
           row.className = 'list-row';
           mountAnalyticsListRow(row, {
-            primary: `${inc.ref} — ${inc.type}`,
+            primary: `${inc.ref} : ${inc.type}`,
             secondary: `${inc.site} · ${inc.status}`,
             badgeText: formatFrDate(inc.createdAt),
             badgeTone: 'blue',
@@ -873,7 +873,7 @@ function mountPeriodicReportingBlock(periodicCard) {
           const row = document.createElement('article');
           row.className = 'list-row';
           mountAnalyticsListRow(row, {
-            primary: String(a.ref ?? '—'),
+            primary: String(a.ref ?? 'Non disponible'),
             secondary: `${a.site} · ${a.status}`,
             badgeText: `${a.score} %`,
             badgeTone: 'blue',
@@ -901,7 +901,7 @@ function mountPeriodicReportingBlock(periodicCard) {
           const row = document.createElement('article');
           row.className = 'list-row';
           mountAnalyticsListRow(row, {
-            primary: String(nc.title ?? '—'),
+            primary: String(nc.title ?? 'Non renseigné'),
             secondary: `Audit ${nc.auditRef} · ${nc.status}`,
             badgeText: 'NC',
             badgeTone: 'amber',
@@ -919,10 +919,10 @@ function mountPeriodicReportingBlock(periodicCard) {
         acts.forEach((act) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          const due = act.dueDate ? formatFrDate(act.dueDate) : '—';
+          const due = act.dueDate ? formatFrDate(act.dueDate) : 'Non disponible';
           mountAnalyticsListRow(row, {
-            primary: String(act.title ?? '—'),
-            secondary: `${act.owner || '—'} · Échéance ${due}`,
+            primary: String(act.title ?? 'Non renseigné'),
+            secondary: `${act.owner || 'Non renseigné'} · Échéance ${due}`,
             badgeText: 'Retard',
             badgeTone: 'amber',
             navigateHash: '#actions'
@@ -1079,7 +1079,7 @@ export function renderAnalytics() {
   lead.className = 'analytics-page-lead';
   lead.textContent =
     aMeta?.subtitle ||
-    'Lecture décisionnelle : conformité, incidents, exécution du plan d’actions et qualité des audits — même périmètre que la synthèse API.';
+    'Lecture décisionnelle : conformité, incidents, exécution du plan d’actions et qualité des audits. Même périmètre que la synthèse API.';
   const metaHero = document.createElement('p');
   metaHero.className = 'analytics-page-meta';
   metaHero.setAttribute('aria-live', 'polite');
@@ -1123,7 +1123,7 @@ export function renderAnalytics() {
         <div class="section-kicker">Rapport</div>
         <h3>Période et filtres</h3>
         <p class="dashboard-muted-lead analytics-periodic-lead">
-          Rapport périodique (API <code>/api/reports/periodic</code>) — hebdo, mois en cours ou plage personnalisée.
+          Rapport périodique (API <code>/api/reports/periodic</code>) : hebdo, mois en cours ou plage personnalisée.
         </p>
       </div>
     </div>
@@ -1220,7 +1220,7 @@ export function renderAnalytics() {
           const row = document.createElement('article');
           row.className = 'list-row';
           mountAnalyticsListRow(row, {
-            primary: String(nc.title ?? '—'),
+            primary: String(nc.title ?? 'Non renseigné'),
             secondary: `Audit ${nc.auditRef} · ${nc.status}`,
             badgeText: 'NC',
             badgeTone: 'amber',
@@ -1251,10 +1251,10 @@ export function renderAnalytics() {
         shownA.forEach((act) => {
           const row = document.createElement('article');
           row.className = 'list-row';
-          const due = act.dueDate ? formatFrDate(act.dueDate) : '—';
+          const due = act.dueDate ? formatFrDate(act.dueDate) : 'Non disponible';
           mountAnalyticsListRow(row, {
-            primary: String(act.title ?? '—'),
-            secondary: `${act.owner || '—'} · Échéance ${due}`,
+            primary: String(act.title ?? 'Non renseigné'),
+            secondary: `${act.owner || 'Non renseigné'} · Échéance ${due}`,
             badgeText: 'Retard',
             badgeTone: 'amber',
             navigateHash: '#actions'
@@ -1283,7 +1283,7 @@ export function renderAnalytics() {
           const row = document.createElement('article');
           row.className = 'list-row';
           mountAnalyticsListRow(row, {
-            primary: String(a.ref ?? '—'),
+            primary: String(a.ref ?? 'Non disponible'),
             secondary: `${a.site} · ${a.status}`,
             badgeText: `${a.score} %`,
             badgeTone: 'blue',
@@ -1316,7 +1316,7 @@ export function renderAnalytics() {
           const row = document.createElement('article');
           row.className = 'list-row';
           mountAnalyticsListRow(row, {
-            primary: `${inc.ref} — ${inc.type}`,
+            primary: `${inc.ref} : ${inc.type}`,
             secondary: `${inc.site} · ${inc.status}`,
             badgeText: formatFrDate(inc.createdAt),
             badgeTone: 'red',

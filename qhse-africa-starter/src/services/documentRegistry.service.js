@@ -57,7 +57,7 @@ export function mergeControlledDocumentRows(apiRows) {
       enrichUnifiedRow({
         id: r.id,
         name: r.name || 'Sans titre',
-        version: r.version ?? '—',
+        version: r.version ?? 'Non renseigné',
         type: r.type || 'other',
         classification: r.classification ?? null,
         pendingValidation: Boolean(r.pendingValidation),
@@ -79,7 +79,7 @@ export function mergeControlledDocumentRows(apiRows) {
     return enrichUnifiedRow({
       id: `demo-doc-${i}`,
       name: d.name,
-      version: d.version || '—',
+      version: d.version || 'Non renseigné',
       type: d.type || 'procedure',
       createdAt: d.createdAt ?? null,
       updatedAt: d.updatedAt ?? null,

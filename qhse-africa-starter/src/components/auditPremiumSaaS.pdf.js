@@ -1,5 +1,5 @@
 /**
- * PDF ISO / conformité — chargé à la demande (html2canvas + jsPDF) pour alléger le bundle page ISO / Audits.
+ * PDF ISO / conformité : chargé à la demande (html2canvas + jsPDF) pour alléger le bundle page ISO / Audits.
  * Même pipeline hôte + capture que les exports chrome (registre risques, performance).
  * `qhsePdfChrome` est importé dynamiquement à l’export pour ne pas lier ce chunk lourd au parse du module.
  */
@@ -39,8 +39,8 @@ export function buildAuditIsoPdfHtml(data) {
       .replace(/>/g, '&gt;');
 
   const score = Number(data.score);
-  const scoreLabel = Number.isFinite(score) ? `${Math.round(score)} / 100` : '—';
-  let interp = '—';
+  const scoreLabel = Number.isFinite(score) ? `${Math.round(score)} / 100` : 'Non disponible';
+  let interp = 'Non disponible';
   if (Number.isFinite(score)) {
     if (score >= 85) interp = 'Excellent';
     else if (score >= 70) interp = 'Bon';
@@ -69,7 +69,7 @@ export function buildAuditIsoPdfHtml(data) {
     for (const c of bySection.get(sec) || []) {
       idx += 1;
       const st = itemStatus(c);
-      const proof = c.proofRef ? esc(c.proofRef) : '—';
+      const proof = c.proofRef ? esc(c.proofRef) : 'Non disponible';
       const obs = c.comment ? `<p class="qhse-pdf-obs"><strong>Observation :</strong> ${esc(c.comment)}</p>` : '';
       const photo =
         c.photo && /^data:image\//i.test(String(c.photo))
@@ -100,7 +100,7 @@ export function buildAuditIsoPdfHtml(data) {
     .join('');
 
   const proofs = (data.proofs || [])
-    .map((p) => `<li>${esc(p.name)} — <span class="qhse-pdf-muted">${esc(p.status)}</span></li>`)
+    .map((p) => `<li>${esc(p.name)} : <span class="qhse-pdf-muted">${esc(p.status)}</span></li>`)
     .join('');
   const ncs = (data.treatmentRows || [])
     .map(
@@ -157,7 +157,7 @@ export function buildAuditIsoPdfHtml(data) {
   <section class="qhse-pdf-page">
     <div class="qhse-pdf-band"></div>
     <h1 class="qhse-pdf-title">RAPPORT D'AUDIT QHSE</h1>
-    <p class="qhse-pdf-sub">Synthèse ISO — export terrain</p>
+    <p class="qhse-pdf-sub">Synthèse ISO : export terrain</p>
     <div class="qhse-pdf-meta">
       <p><strong>Référence :</strong> ${esc(data.auditRef)}</p>
       <p><strong>Site audité :</strong> ${esc(data.site)}</p>
@@ -170,7 +170,7 @@ export function buildAuditIsoPdfHtml(data) {
       <span class="qhse-pdf-gauge-val">${esc(scoreLabel)}</span>
     </div>
     <p class="qhse-pdf-brand">QHSE Control Africa</p>
-    <p class="qhse-pdf-footer">QHSE Control Africa — Confidentiel — document généré localement le ${esc(new Date().toLocaleString('fr-FR'))}</p>
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel · document généré localement le ${esc(new Date().toLocaleString('fr-FR'))}</p>
   </section>
 
   <section class="qhse-pdf-page">
@@ -181,11 +181,11 @@ export function buildAuditIsoPdfHtml(data) {
     <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:12px">
       <div style="flex:1;min-width:200px">
         <h3 class="qhse-pdf-h3">Points forts</h3>
-        <table class="qhse-pdf-table">${strengthsRows || '<tr><td class="qhse-pdf-td-n">—</td><td class="qhse-pdf-muted">Aucun extrait</td></tr>'}</table>
+        <table class="qhse-pdf-table">${strengthsRows || '<tr><td class="qhse-pdf-td-n">Non disponible</td><td class="qhse-pdf-muted">Aucun extrait</td></tr>'}</table>
       </div>
       <div style="flex:1;min-width:200px">
         <h3 class="qhse-pdf-h3">Points faibles / écarts</h3>
-        <table class="qhse-pdf-table">${weakRows || '<tr><td class="qhse-pdf-td-n">—</td><td class="qhse-pdf-muted">Aucun extrait</td></tr>'}</table>
+        <table class="qhse-pdf-table">${weakRows || '<tr><td class="qhse-pdf-td-n">Non disponible</td><td class="qhse-pdf-muted">Aucun extrait</td></tr>'}</table>
       </div>
     </div>
     ${
@@ -195,7 +195,7 @@ export function buildAuditIsoPdfHtml(data) {
         : ''
     }
     <h2 class="qhse-pdf-h2">Preuves documentaires</h2>
-    <ul style="margin:0;padding-left:20px;font-size:10pt">${proofs || '<li class="qhse-pdf-muted">—</li>'}</ul>
+    <ul style="margin:0;padding-left:20px;font-size:10pt">${proofs || '<li class="qhse-pdf-muted">Non disponible</li>'}</ul>
   </section>
 
   <section class="qhse-pdf-page">
@@ -209,15 +209,15 @@ export function buildAuditIsoPdfHtml(data) {
     <h2 class="qhse-pdf-h2">Plan d'actions &amp; NC</h2>
     <table class="qhse-pdf-table">
       <tr><th>NC</th><th>Action</th><th>Responsable</th><th>Échéance</th><th>Priorité</th></tr>
-      ${ncs || '<tr><td colspan="5" class="qhse-pdf-muted">—</td></tr>'}
+      ${ncs || '<tr><td colspan="5" class="qhse-pdf-muted">Non disponible</td></tr>'}
     </table>
     <h2 class="qhse-pdf-h2">Traçabilité</h2>
     <table class="qhse-pdf-table">
       <tr><th>Qui</th><th>Quand</th><th>Action</th><th>Commentaire</th></tr>
-      ${traces || '<tr><td colspan="4" class="qhse-pdf-muted">—</td></tr>'}
+      ${traces || '<tr><td colspan="4" class="qhse-pdf-muted">Non disponible</td></tr>'}
     </table>
-    <p style="margin-top:24px;font-size:10pt"><strong>Signature / visa :</strong> ${esc(data.signerName || 'À compléter — responsable audit')}</p>
-    <p class="qhse-pdf-footer">QHSE Control Africa — Confidentiel</p>
+    <p style="margin-top:24px;font-size:10pt"><strong>Signature / visa :</strong> ${esc(data.signerName || 'À compléter (responsable audit)')}</p>
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
     <p class="qhse-pdf-brand">QHSE Control Africa</p>
   </section>
 </div>`;
@@ -264,14 +264,14 @@ export function buildIsoConformityPdfHtml(data) {
   <section class="qhse-pdf-page">
     <div class="qhse-pdf-band"></div>
     <h1 class="qhse-pdf-title">RAPPORT DE CONFORMITÉ ISO</h1>
-    <p class="qhse-pdf-muted" style="text-align:center;margin:0 0 20px">Vue pilotage — QHSE Control Africa</p>
-    <p><strong>Score global (écran) :</strong> ${esc(data.globalScoreLabel || '—')}</p>
-    <p><strong>Exigences en écart (écran) :</strong> ${esc(data.gapsLabel || '—')}</p>
+    <p class="qhse-pdf-muted" style="text-align:center;margin:0 0 20px">Vue pilotage · QHSE Control Africa</p>
+    <p><strong>Score global (écran) :</strong> ${esc(data.globalScoreLabel || 'Non disponible')}</p>
+    <p><strong>Exigences en écart (écran) :</strong> ${esc(data.gapsLabel || 'Non disponible')}</p>
     <h2 class="qhse-pdf-h2">Scores par norme</h2>
     <table class="qhse-pdf-table"><tr><th>Référentiel</th><th>Score indicatif</th></tr>${
-      norms.length ? norms.join('') : '<tr><td colspan="2" class="qhse-pdf-muted">—</td></tr>'
+      norms.length ? norms.join('') : '<tr><td colspan="2" class="qhse-pdf-muted">Non disponible</td></tr>'
     }</table>
-    <p class="qhse-pdf-footer">QHSE Control Africa — Confidentiel — ${esc(new Date().toLocaleString('fr-FR'))}</p>
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel · ${esc(new Date().toLocaleString('fr-FR'))}</p>
     <p class="qhse-pdf-brand">QHSE Control Africa</p>
   </section>
   <section class="qhse-pdf-page">
@@ -282,7 +282,7 @@ export function buildIsoConformityPdfHtml(data) {
       <tr><th>Clause</th><th>Exigence</th><th>Statut</th></tr>
       ${reqs.length ? reqs.join('') : '<tr><td colspan="3" class="qhse-pdf-muted">Ouvrez le registre sur la page ISO puis relancez l’export pour alimenter ce tableau.</td></tr>'}
     </table>
-    <p class="qhse-pdf-footer">QHSE Control Africa — Confidentiel</p>
+    <p class="qhse-pdf-footer">QHSE Control Africa · Confidentiel</p>
   </section>
 </div>`;
 }

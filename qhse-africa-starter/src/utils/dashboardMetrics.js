@@ -1,5 +1,5 @@
 /**
- * Métriques et payloads du tableau de bord — logique pure extraite de dashboard.js.
+ * Métriques et payloads du tableau de bord : logique pure extraite de dashboard.js.
  */
 
 import { asDashboardCount, isNcOpen } from './reconcileDashboardStats.js';
@@ -31,7 +31,7 @@ export function trimTrailingZeroAuditScores(series) {
 
 /**
  * Sous-titre des tuiles « pilotage opérationnel » et alertes décisionnelles.
- * Ne pas simuler un delta N vs N-1 sans série temporelle réelle — en démo client cela décrédibilise l’outil.
+ * Ne pas simuler un delta N vs N-1 sans série temporelle réelle. En démo client, cela décrédibilise l’outil.
  */
 export function computeDeltaLabel(_value) {
   return 'Comparaison multi-périodes : non disponible';
@@ -238,7 +238,7 @@ export function computeRisksCriticalForPayload(stats, risks) {
 }
 
 /**
- * Indique l’absence de signaux forts (KPI scalaires + extraits) — pour limiter les mocks IA.
+ * Indique l’absence de signaux forts (KPI scalaires + extraits) pour limiter les mocks IA.
  * @param {Record<string, unknown> | null | undefined} stats
  */
 /**
@@ -311,6 +311,9 @@ export function normalizeDashboardPayload(raw) {
   if (ts != null && typeof ts === 'object' && !Array.isArray(ts)) {
     /** @type {any} */ (out).timeseries = ts;
   }
+  if (r.intelligence != null && typeof r.intelligence === 'object' && !Array.isArray(r.intelligence)) {
+    /** @type {any} */ (out).intelligence = r.intelligence;
+  }
   if (r.siteId != null && r.siteId !== '') {
     /** @type {any} */ (out).siteId = r.siteId;
   }
@@ -381,5 +384,5 @@ export function buildMistralDashboardStatsPayload(lastStats, audits, risks) {
 }
 
 export function formatDashboardCount(v) {
-  return typeof v === 'number' && !Number.isNaN(v) ? String(v) : '—';
+  return typeof v === 'number' && !Number.isNaN(v) ? String(v) : 'Non disponible';
 }

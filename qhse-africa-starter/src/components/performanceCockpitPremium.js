@@ -1,5 +1,5 @@
 /**
- * Blocs « cockpit décisionnel » page Performance QHSE — données injectées, pas d’API ici.
+ * Blocs « cockpit décisionnel » page Performance QHSE : données injectées, pas d’API ici.
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
@@ -52,19 +52,19 @@ export function computeGlobalQhseCockpitLevel(conformity, counts, kpis, goals) {
     critique:
       'Les signaux sécurité / exécution nécessitent des arbitrages rapides et une mobilisation ciblée.',
     fragile:
-      'Des écarts persistent sur la conformité ou le terrain — prioriser les files critiques et retards.',
+      'Des écarts persistent sur la conformité ou le terrain. Prioriser les files critiques et retards.',
     stable:
       'Situation tenable : consolider les plans d’actions et surveiller les indicateurs sensibles.',
     performant:
-      'Bon alignement sur les repères — capitaliser sur les pratiques et documenter les preuves.'
+      'Bon alignement sur les repères. Capitaliser sur les pratiques et documenter les preuves.'
   };
 
   /** Phrase unique lisible sous le score (décision rapide). */
   const interpretation = {
     critique: 'Urgence : arbitrer sécurité et retards sans délai',
     fragile: 'Prioriser incidents critiques, retards et NC ouvertes',
-    stable: 'Situation maîtrisée — maintenir la veille',
-    performant: 'Objectifs tenus — consolider les pratiques'
+    stable: 'Situation maîtrisée. Maintenir la veille.',
+    performant: 'Objectifs tenus. Consolider les pratiques.'
   };
 
   const riskLabel = {
@@ -208,7 +208,7 @@ export function computeAbsolutePriority(counts, kpis, conformity, goalConf, goal
   if (conformity < goalConf) {
     return {
       tone: conformity < goalConf - 10 ? 'amber' : 'amber',
-      message: `La conformité est sous l’objectif (${goalConf} %) — pilotage à renforcer`,
+      message: `La conformité est sous l’objectif (${goalConf} %) : pilotage à renforcer`,
       ctaLabel: 'Voir le détail',
       kpiKey: 'conformity',
       preset: null
@@ -225,7 +225,7 @@ export function computeAbsolutePriority(counts, kpis, conformity, goalConf, goal
   }
   return {
     tone: 'green',
-    message: 'Aucune urgence majeure — poursuivre la veille et les revues',
+    message: 'Aucune urgence majeure. Poursuivre la veille et les revues.',
     ctaLabel: 'Voir la synthèse',
     kpiKey: 'conformity',
     preset: null
@@ -319,7 +319,7 @@ function parseRowMs(row) {
  * }} hooks
  */
 /**
- * CTA principaux — déclarer, traiter urgences, voir actions.
+ * CTA principaux : déclarer, traiter urgences, voir actions.
  * @param {{
  *   navigateHash: (id: string) => void;
  *   openKpi: (k: string, p?: Record<string, string> | null) => void;
@@ -470,7 +470,7 @@ export function createRecommendationsSection(recos, openKpi, opts) {
   sub.className = 'kpi-perf-reco-band-sub';
   sub.textContent =
     opts?.subtitle ||
-    'Recommandations prioritaires — cliquer pour agir dans le module associé';
+    'Recommandations prioritaires : cliquer pour agir dans le module associé';
   head.append(k, sub);
 
   const grid = document.createElement('div');
@@ -483,7 +483,7 @@ export function createRecommendationsSection(recos, openKpi, opts) {
     if (actionable && card instanceof HTMLButtonElement) {
       card.type = 'button';
       card.className = `kpi-perf-reco-card kpi-perf-reco-card--${toneToken} kpi-perf-reco-card--action`;
-      card.setAttribute('aria-label', `${r.text} — ouvrir le détail`);
+      card.setAttribute('aria-label', `${r.text} : ouvrir le détail`);
       card.addEventListener('click', () => openKpi?.(r.kpiKey, r.preset ?? null));
     } else {
       card.className = `kpi-perf-reco-card kpi-perf-reco-card--${toneToken}`;
@@ -591,7 +591,7 @@ export function createUrgencySection(critOpen, actOd, ncOpen, openKpi) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `kpi-perf-urgency-row kpi-perf-urgency-row--${rowToneToken}`;
-    btn.setAttribute('aria-label', `${c.label} : ${c.value} — ouvrir le détail`);
+    btn.setAttribute('aria-label', `${c.label} : ${c.value} : ouvrir le détail`);
     const prio = document.createElement('span');
     prio.className = `kpi-perf-urgency-prio kpi-perf-urgency-prio--${rowToneToken}`;
     prio.textContent = c.prio;
@@ -651,7 +651,7 @@ export function createTimelineSection(entries, openKpi) {
       btn.className = `kpi-perf-timeline-item kpi-perf-timeline-item--${kindToken}`;
       btn.setAttribute(
         'aria-label',
-        `${kindLabel(e.kind)} — ${e.title} — ouvrir le module associé`
+        `${kindLabel(e.kind)} : ${e.title} : ouvrir le module associé`
       );
       const dot = document.createElement('span');
       dot.className = 'kpi-perf-timeline-dot';
@@ -681,7 +681,7 @@ export function createTimelineSection(entries, openKpi) {
             hour: '2-digit',
             minute: '2-digit'
           })
-        : '—';
+        : 'Non disponible';
       btn.append(dot, body, chev, time);
       btn.addEventListener('click', () => {
         if (e.kpiKey && openKpi) openKpi(e.kpiKey, e.preset ?? null);

@@ -2,7 +2,7 @@ import { moduleMeta } from './activityLogHelpers.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 
 /**
- * Bandeau de synthèse du journal — prêt pour enrichissement futur (filtres / recherche).
+ * Bandeau de synthèse du journal : prêt pour enrichissement futur (filtres / recherche).
  * @param {{ total: number, lastActivity: string, recentModuleKeys: string[] }} snapshot
  */
 export function createActivityLogSummary(snapshot) {

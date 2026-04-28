@@ -174,15 +174,24 @@ export function createOnboardingWizard(opts) {
     if (screen === 0) {
       title.textContent = 'Bienvenue sur AfricaQHSE';
       sub.textContent =
-        'Parcours de démarrage — environ 30 secondes pour les fondamentaux. AfricaQHSE centralise QHSE, conformité et terrain.';
+        'Parcours de démarrage : environ 30 secondes pour les fondamentaux. AfricaQHSE centralise QHSE, conformité et terrain.';
 
       const values = el('div', 'qhse-onboarding-wizard__values');
       const v1 = el('div', 'qhse-onboarding-wizard__value');
-      v1.append(el('strong', '', 'Une vision unique'), document.createTextNode(' — incidents, risques, audits et documents au même endroit.'));
+      v1.append(
+        el('strong', '', 'Une vision unique'),
+        document.createTextNode(' : incidents, risques, audits et documents au même endroit.')
+      );
       const v2 = el('div', 'qhse-onboarding-wizard__value');
-      v2.append(el('strong', '', 'Conformité pilotée'), document.createTextNode(' — traçabilité et indicateurs pour vos référentiels.'));
+      v2.append(
+        el('strong', '', 'Conformité pilotée'),
+        document.createTextNode(' : traçabilité et indicateurs pour vos référentiels.')
+      );
       const v3 = el('div', 'qhse-onboarding-wizard__value');
-      v3.append(el('strong', '', 'Équipe alignée'), document.createTextNode(' — sites, rôles et actions partagés en temps réel.'));
+      v3.append(
+        el('strong', '', 'Équipe alignée'),
+        document.createTextNode(' : sites, rôles et actions partagés en temps réel.')
+      );
       values.append(v1, v2, v3);
       const hint = el('p', 'qhse-onboarding-wizard__muted', 'Lecture indicative : ~30 s. Passez à l’étape suivante quand vous êtes prêt.');
       body.append(values, hint);

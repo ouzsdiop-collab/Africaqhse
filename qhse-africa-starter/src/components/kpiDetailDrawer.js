@@ -1,5 +1,5 @@
 /**
- * Modal native (<dialog>) — centre de pilotage : détail KPI, liste filtrée, badges métier, CTA module.
+ * Modal native (<dialog>) : centre de pilotage (détail KPI, liste filtrée, badges métier, CTA module).
  * Données = listes déjà chargées par le dashboard (getData). Pas d’appel API ici.
  * Backend futur : injecter getData depuis un service / fetch paginé sans changer la structure UI.
  */
@@ -76,25 +76,25 @@ function makeBadge(text, tone) {
 /** @param {string} raw */
 function badgeSeverity(raw) {
   const s = raw.toLowerCase();
-  if (s.includes('critique')) return makeBadge(raw || '—', 'red');
-  if (s.includes('moyen')) return makeBadge(raw || '—', 'amber');
-  if (s.includes('faible')) return makeBadge(raw || '—', 'green');
-  return makeBadge(raw || '—', 'info');
+  if (s.includes('critique')) return makeBadge(raw || 'Non renseigné', 'red');
+  if (s.includes('moyen')) return makeBadge(raw || 'Non renseigné', 'amber');
+  if (s.includes('faible')) return makeBadge(raw || 'Non renseigné', 'green');
+  return makeBadge(raw || 'Non renseigné', 'info');
 }
 
 /** @param {string} raw */
 function badgeStatus(raw) {
   const s = raw.toLowerCase();
   if (/(clos|ferm|done|termin|clôtur|résolu|fait|complete)/i.test(s)) {
-    return makeBadge(raw || '—', 'green');
+    return makeBadge(raw || 'Non renseigné', 'green');
   }
   if (/(retard|urgent|critique|investigation)/i.test(s)) {
-    return makeBadge(raw || '—', 'red');
+    return makeBadge(raw || 'Non renseigné', 'red');
   }
   if (/(cours|nouveau|open|ouverte|à lancer)/i.test(s)) {
-    return makeBadge(raw || '—', 'amber');
+    return makeBadge(raw || 'Non renseigné', 'amber');
   }
-  return makeBadge(raw || '—', 'info');
+  return makeBadge(raw || 'Non renseigné', 'info');
 }
 
 /** @param {unknown} row */
@@ -110,7 +110,7 @@ function inferActionPriority(row) {
 /** @param {string} scoreRaw */
 function badgeAuditScore(scoreRaw) {
   const n = Number(scoreRaw);
-  const label = Number.isFinite(n) ? `${Math.round(n)} %` : '—';
+  const label = Number.isFinite(n) ? `${Math.round(n)} %` : 'Non disponible';
   if (!Number.isFinite(n)) return makeBadge(label, 'info');
   if (n >= 80) return makeBadge(label, 'green');
   if (n >= 60) return makeBadge(label, 'amber');
@@ -305,7 +305,7 @@ function resolveKpiDataset(kpiKey, ctx) {
       return {
         kind: /** @type {'incident'} */ ('incident'),
         rows: inc,
-        title: 'Incidents — pilotage',
+        title: 'Incidents : pilotage',
         newHash: 'incidents',
         newLabel: '➕ Nouveau incident'
       };
@@ -338,7 +338,7 @@ function resolveKpiDataset(kpiKey, ctx) {
       return {
         kind: 'audit',
         rows: aud,
-        title: kpiKey === 'auditScore' ? 'Audits — scores' : 'Audits — registre',
+        title: kpiKey === 'auditScore' ? 'Audits : scores' : 'Audits : registre',
         newHash: 'audits',
         newLabel: '➕ Nouvel audit'
       };
@@ -403,7 +403,7 @@ function resolveKpiDataset(kpiKey, ctx) {
       return {
         kind: /** @type {'mixed'} */ ('mixed'),
         rows: mixed,
-        title: 'Leviers conformité — extraits croisés',
+        title: 'Leviers conformité : extraits croisés',
         newHash: 'analytics',
         newLabel: '➕ Synthèse analytique'
       };
@@ -420,16 +420,16 @@ function resolveKpiDataset(kpiKey, ctx) {
 }
 
 const fmtDate = (d) => {
-  if (!d) return '—';
+  if (!d) return 'Non disponible';
   try {
     return new Date(d).toLocaleDateString('fr-FR');
   } catch {
-    return '—';
+    return 'Non disponible';
   }
 };
 
 /**
- * @param {unknown[]} rows — éléments avec `_mix` : incident | action | nc
+ * @param {unknown[]} rows : éléments avec `_mix` : incident | action | nc
  */
 function buildMixedTable(rows) {
   const table = document.createElement('table');
@@ -451,7 +451,7 @@ function buildMixedTable(rows) {
     if (mix === 'incident') {
       tr.append(
         cellText('Incident critique'),
-        cellText(`${field(r, 'ref')} — ${field(r, 'type')}`),
+        cellText(`${field(r, 'ref')} : ${field(r, 'type')}`),
         cellNode(badgeSeverity(field(r, 'severity'))),
         cellText(fmtDate(field(r, 'createdAt')))
       );
@@ -459,19 +459,24 @@ function buildMixedTable(rows) {
       const pr = inferActionPriority(r);
       tr.append(
         cellText('Action en retard'),
-        cellText(field(r, 'title') || '—'),
+        cellText(field(r, 'title') || 'Non renseigné'),
         cellNode(makeBadge(pr.label, pr.tone)),
         cellText(fmtDate(field(r, 'dueDate')))
       );
     } else if (mix === 'nc') {
       tr.append(
         cellText('NC ouverte'),
-        cellText(field(r, 'title') || '—'),
+        cellText(field(r, 'title') || 'Non renseigné'),
         cellNode(badgeStatus(field(r, 'status'))),
         cellText(fmtDate(field(r, 'createdAt')))
       );
     } else {
-      tr.append(cellText('—'), cellText('—'), cellText('—'), cellText('—'));
+      tr.append(
+        cellText('Non disponible'),
+        cellText('Non disponible'),
+        cellText('Non disponible'),
+        cellText('Non disponible')
+      );
     }
     tbody.append(tr);
   });
@@ -525,7 +530,7 @@ function buildTable(kind, rows) {
     } else if (kind === 'nc') {
       const tit = document.createElement('td');
       tit.className = 'kpi-detail-cell--main';
-      tit.textContent = field(r, 'title') || '—';
+      tit.textContent = field(r, 'title') || 'Non renseigné';
       tr.append(
         tit,
         cellNode(badgeStatus(field(r, 'status'))),
@@ -539,23 +544,23 @@ function buildTable(kind, rows) {
           ? makeBadge('Critique', 'red')
           : tierBucket === 'eleve'
             ? makeBadge('Élevé', 'amber')
-            : makeBadge(String(tierBucket || '—'), 'info');
+            : makeBadge(String(tierBucket || 'Non renseigné'), 'info');
       tr.append(
-        cellText(field(r, 'ref') || field(r, 'id') || '—'),
-        cellText(field(r, 'title') || '—'),
-        cellText(field(r, 'type') || '—'),
-        cellText(field(r, 'meta') || '—'),
+        cellText(field(r, 'ref') || field(r, 'id') || 'Non renseigné'),
+        cellText(field(r, 'title') || 'Non renseigné'),
+        cellText(field(r, 'type') || 'Non renseigné'),
+        cellText(field(r, 'meta') || 'Non renseigné'),
         cellNode(tierLbl),
-        cellText(field(r, 'responsible') || '—'),
+        cellText(field(r, 'responsible') || 'Non renseigné'),
         cellText(fmtDate(field(r, 'updatedAt')))
       );
     } else if (kind === 'action') {
       const pr = inferActionPriority(r);
       tr.append(
-        cellText(field(r, 'title') || '—'),
+        cellText(field(r, 'title') || 'Non renseigné'),
         cellNode(makeBadge(pr.label, pr.tone)),
         cellNode(badgeStatus(field(r, 'status'))),
-        cellText(field(r, 'owner') || '—'),
+        cellText(field(r, 'owner') || 'Non renseigné'),
         cellText(fmtDate(field(r, 'dueDate'))),
         cellText(fmtDate(field(r, 'createdAt')))
       );

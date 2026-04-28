@@ -1,5 +1,5 @@
 /**
- * Suggestion locale (assistant) pour création d’action — à valider terrain.
+ * Suggestion locale (assistant) pour création d’action · à valider terrain.
  */
 
 /**
@@ -27,7 +27,7 @@ export function mockSuggestActionContent(input) {
         : 'corrective';
 
   return {
-    description: `Action ${typeLabel} issue de ${origLabel} (« ${title} »).\n\n— Contexte (à compléter) —\nDécrire la situation, les barrires existantes et l’écart observé.\n\n— Périmètre —\nSite / zone / équipement concerné.\n\n— Critère de clôture —\nIndicateur ou vérification terrain attendue.`,
+    description: `Action ${typeLabel} issue de ${origLabel} (« ${title} »).\n\nContexte (à compléter).\nDécrire la situation, les barrières existantes et l’écart observé.\n\nPérimètre.\nSite / zone / équipement concerné.\n\nCritère de clôture.\nIndicateur ou vérification terrain attendue.`,
     priority: origin === 'incident' || type === 'corrective' ? 'haute' : 'normale',
     progressHint: 0
   };

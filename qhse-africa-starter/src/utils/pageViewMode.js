@@ -1,5 +1,5 @@
 /**
- * Bascule « Vue essentielle / Vue avancée » par page — persistance localStorage.
+ * Bascule « Vue essentielle / Vue avancée » par page : persistance localStorage.
  * Les zones à masquer portent la classe `.qhse-page-advanced-only` sur le conteneur.
  */
 
@@ -36,7 +36,7 @@ export function applyPageViewDataset(pageRoot, mode) {
 }
 
 /**
- * Barre de bascule — à placer en tête de page (après bannières éventuelles).
+ * Barre de bascule : à placer en tête de page (après bannières éventuelles).
  * @param {{
  *   pageId: string;
  *   pageRoot: HTMLElement;
@@ -50,7 +50,7 @@ export function mountPageViewModeSwitch(opts) {
     pageId,
     pageRoot,
     hintEssential =
-      'Essentiel : ce qui compte pour décider vite sur cette page — le reste est masqué (indépendant du mode global en haut à droite).',
+      'Essentiel : ce qui compte pour décider vite sur cette page. Le reste est masqué (indépendant du mode global en haut à droite).',
     hintAdvanced =
       'Expert : filtres étendus, analyses, journaux et blocs avancés visibles sur cette page seulement.',
     onChange

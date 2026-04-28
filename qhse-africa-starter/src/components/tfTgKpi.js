@@ -1,5 +1,5 @@
 /**
- * KPI Taux de Fréquence (TF) et Taux de Gravité (TG) — mining / pétrole.
+ * KPI Taux de Fréquence (TF) et Taux de Gravité (TG) : mining / pétrole.
  * Données : GET /api/incidents/kpi/tf-tg
  */
 
@@ -117,7 +117,7 @@ function normalizePayload(raw) {
     accidentsAvecArret: Number(raw?.accidentsAvecArret) || 0,
     joursPerdus: Number(raw?.joursPerdus) || 0,
     heuresTravaillees: Number(raw?.heuresTravaillees) || 0,
-    periode: String(raw?.periode ?? '—'),
+    periode: String(raw?.periode ?? 'Non disponible'),
     objectifTF: Number(raw?.objectifTF) || 2,
     objectifTG: Number(raw?.objectifTG) || 0.5,
     tfPrev: raw?.tfPrev != null ? Number(raw.tfPrev) : null,
@@ -163,7 +163,7 @@ export function createPerformanceTfTgBlock(opts) {
           <button type="button" class="qhse-tf-tg-card__help" data-tip-tf aria-label="Aide TF">?</button>
         </div>
         <div class="qhse-tf-tg-card__value-row">
-          <span class="qhse-tf-tg-card__value" data-val>—</span>
+          <span class="qhse-tf-tg-card__value" data-val>Non disponible</span>
           <span class="qhse-tf-tg-card__unit">/ million h</span>
           <span class="qhse-tf-tg-card__trend" data-trend></span>
         </div>
@@ -176,7 +176,7 @@ export function createPerformanceTfTgBlock(opts) {
           <button type="button" class="qhse-tf-tg-card__help" data-tip-tg aria-label="Aide TG">?</button>
         </div>
         <div class="qhse-tf-tg-card__value-row">
-          <span class="qhse-tf-tg-card__value" data-val>—</span>
+          <span class="qhse-tf-tg-card__value" data-val>Non disponible</span>
           <span class="qhse-tf-tg-card__unit">/ millier h</span>
           <span class="qhse-tf-tg-card__trend" data-trend></span>
         </div>
@@ -207,7 +207,7 @@ export function createPerformanceTfTgBlock(opts) {
     const trendEl = card.querySelector('[data-trend]');
     const metaEl = card.querySelector('[data-meta]');
     const fill = card.querySelector('[data-fill]');
-    if (valEl) valEl.textContent = Number.isFinite(val) ? val.toFixed(2) : '—';
+    if (valEl) valEl.textContent = Number.isFinite(val) ? val.toFixed(2) : 'Non disponible';
 
     const tone = toneForRate(val, target);
     const ratio = gaugeFillRatio(val, target);
@@ -277,7 +277,7 @@ export function createDashboardTfTgMiniRow() {
       <article class="qhse-tf-tg-card" data-mini-tf>
         <p class="qhse-tf-tg-card__label">TF</p>
         <div class="qhse-tf-tg-card__value-row" style="margin-bottom:4px">
-          <span class="qhse-tf-tg-card__value" data-val>—</span>
+          <span class="qhse-tf-tg-card__value" data-val>Non disponible</span>
           <span class="qhse-tf-tg-card__trend" data-trend style="font-size:11px;padding:2px 6px"></span>
         </div>
         <div class="qhse-tf-tg-gauge"><div class="qhse-tf-tg-gauge__fill" data-fill style="width:0%"></div></div>
@@ -285,7 +285,7 @@ export function createDashboardTfTgMiniRow() {
       <article class="qhse-tf-tg-card" data-mini-tg>
         <p class="qhse-tf-tg-card__label">TG</p>
         <div class="qhse-tf-tg-card__value-row" style="margin-bottom:4px">
-          <span class="qhse-tf-tg-card__value" data-val>—</span>
+          <span class="qhse-tf-tg-card__value" data-val>Non disponible</span>
           <span class="qhse-tf-tg-card__trend" data-trend style="font-size:11px;padding:2px 6px"></span>
         </div>
         <div class="qhse-tf-tg-gauge"><div class="qhse-tf-tg-gauge__fill" data-fill style="width:0%"></div></div>
@@ -308,7 +308,7 @@ export function createDashboardTfTgMiniRow() {
       const valEl = card.querySelector('[data-val]');
       const trendEl = card.querySelector('[data-trend]');
       const fill = card.querySelector('[data-fill]');
-      if (valEl) valEl.textContent = Number.isFinite(val) ? val.toFixed(2) : '—';
+      if (valEl) valEl.textContent = Number.isFinite(val) ? val.toFixed(2) : 'Non disponible';
       const tone = toneForRate(val, target);
       const ratio = gaugeFillRatio(val, target);
       const pct = Math.min(100, (ratio / 1.5) * 100);

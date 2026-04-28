@@ -1,5 +1,5 @@
 /**
- * Barres de filtres et tableaux — mode essentiel / complet (dark-first).
+ * Barres de filtres et tableaux : mode essentiel / complet (dark-first).
  */
 
 .qhse-filter-strip {
@@ -181,7 +181,7 @@ details.risk-register-row__more {
   margin-top: 4px;
 }
 
-/* ISO exigences — grille resserrée sans colonnes secondaires */
+/* ISO exigences : grille resserrée sans colonnes secondaires */
 .iso-req-table.qhse-data-table--essential .iso-table-head,
 .iso-req-table.qhse-data-table--essential .iso-table-row {
   grid-template-columns: minmax(200px, 2.8fr) minmax(88px, 0.85fr) minmax(120px, 1fr);

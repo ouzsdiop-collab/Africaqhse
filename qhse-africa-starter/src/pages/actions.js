@@ -28,8 +28,8 @@ import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 
 const COLUMN_META = {
-  todo: { label: 'À lancer', hint: 'Non démarré — prioriser le cadrage' },
-  doing: { label: 'En cours', hint: 'Suivi actif — tenir les jalons' },
+  todo: { label: 'À lancer', hint: 'Non démarré. Prioriser le cadrage.' },
+  doing: { label: 'En cours', hint: 'Suivi actif. Tenir les jalons.' },
   overdue: { label: 'En retard', hint: 'Relance et escalade' },
   done: { label: 'Terminé', hint: 'Actions clôturées (statut métier)' }
 };
@@ -39,7 +39,7 @@ const COLUMN_ORDER = ['overdue', 'todo', 'doing', 'done'];
 
 const COLUMN_EMPTY_COPY = {
   overdue: 'Aucune fiche en retard sur ce périmètre.',
-  todo: 'Rien en attente de démarrage — ou filtre masque la colonne.',
+  todo: 'Rien en attente de démarrage. Ou un filtre masque la colonne.',
   doing: 'Aucune action suivie en cours.',
   done: 'Aucune action terminée ne correspond aux filtres.'
 };
@@ -176,7 +176,7 @@ function countSansResponsable(rows) {
   if (!Array.isArray(rows)) return 0;
   return rows.filter((r) => {
     const o = String(r.owner || '').trim();
-    return !r.assigneeId && (!o || o === 'À assigner' || o === '—');
+    return !r.assigneeId && (!o || o === 'À assigner' || o === 'Non renseigné');
   }).length;
 }
 
@@ -197,7 +197,7 @@ function countCorrectiveOpen(rows) {
 }
 
 function preventionRatioHint(rows) {
-  if (!Array.isArray(rows)) return '—';
+  if (!Array.isArray(rows)) return 'Non disponible';
   const p = countPreventiveOpen(rows);
   const c = countCorrectiveOpen(rows);
   if (p + c === 0) return 'Pas d’action ouverte prév./corr.';
@@ -225,7 +225,7 @@ function countRisksWithoutOpenPreventiveAction(actionRows) {
 function buildActionsSummaryLine(filteredRows, critiques) {
   const n = Array.isArray(filteredRows) ? filteredRows.length : 0;
   if (n === 0) {
-    return 'Aucune action dans ce périmètre — élargissez le filtre responsable ou créez une fiche.';
+    return 'Aucune action dans ce périmètre : élargissez le filtre responsable ou créez une fiche.';
   }
   const aTraiter = countOpenActions(filteredRows);
   const today = countDueTodayOpen(filteredRows);
@@ -239,7 +239,7 @@ function buildActionsSummaryLine(filteredRows, critiques) {
 }
 
 function mapApiRowToKanbanItem(row, users, onAssign, canAssign, hooks) {
-  const respName = row.assignee?.name ?? row.owner ?? '—';
+  const respName = row.assignee?.name ?? row.owner ?? 'Non renseigné';
   const parts = ['Pilotage QHSE', `Resp. ${respName}`];
   const due = formatDueForDetail(row.dueDate);
   if (due) parts.push(`Échéance ${due}`);
@@ -250,7 +250,7 @@ function mapApiRowToKanbanItem(row, users, onAssign, canAssign, hooks) {
     assigneeId: row.assigneeId ?? null,
     assigneeName: row.assignee?.name ?? null,
     dueDateIso: row.dueDate ?? null,
-    statusLabel: String(row.status || '—').trim() || '—',
+    statusLabel: String(row.status || 'Non renseigné').trim() || 'Non renseigné',
     rawRow: row,
     onOpenDetail: hooks.onOpenDetail,
     onOpenEdit: hooks.onOpenEdit,
@@ -557,7 +557,7 @@ export function renderActions() {
     pageId: 'actions',
     pageRoot: page,
     hintEssential:
-      'Essentiel : synthèse, filtres principaux et kanban — lecture direction / synthèse manager masquée.',
+      'Essentiel : synthèse, filtres principaux et kanban : lecture direction / synthèse manager masquée.',
     hintAdvanced:
       'Expert : synthèse direction, filtres étendus et options d’affichage du tableau.'
   });
@@ -566,7 +566,7 @@ export function renderActions() {
     const banner = document.createElement('div');
     banner.style.cssText =
       'background:#f59e0b22;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#f59e0b;font-size:13px;font-weight:600';
-    banner.textContent = 'Mode hors connexion — affichage des dernieres donnees en cache';
+    banner.textContent = 'Mode hors connexion : affichage des dernières données en cache';
     page.prepend(banner);
   }
 
@@ -577,7 +577,7 @@ export function renderActions() {
   offlineCacheBanner.setAttribute('role', 'status');
   offlineCacheBanner.style.cssText =
     'margin:0 0 14px;padding:12px 16px;font-weight:600;font-size:14px;border:1px solid var(--color-border-info, #38bdf8);';
-  offlineCacheBanner.textContent = '📡 Mode hors connexion — données en cache';
+  offlineCacheBanner.textContent = '📡 Mode hors connexion : données en cache';
 
   const managerHost = document.createElement('div');
   managerHost.className = 'actions-manager-reading-host qhse-page-advanced-only';
@@ -685,7 +685,7 @@ export function renderActions() {
     }
     if (kpiStripFilterKey === 'sans_resp') {
       const o = String(row.owner || '').trim();
-      return !row.assigneeId && (!o || o === 'À assigner' || o === '—');
+      return !row.assigneeId && (!o || o === 'À assigner' || o === 'Non renseigné');
     }
     return true;
   }
@@ -869,7 +869,7 @@ export function renderActions() {
           value: critiques,
           tone: 'red',
           hint: 'Cliquer pour filtrer',
-          hintTitle: 'Urgent (≤ 3 j) ou retard — hors terminé',
+          hintTitle: 'Urgent (≤ 3 j) ou retard : hors terminé',
           kpiKey: 'critiques',
           selected: kpiStripFilterKey === 'critiques',
           onClick: toggleKpiStripFilter
@@ -1079,7 +1079,7 @@ export function renderActions() {
       usersList = await fetchUsers();
     } catch (err) {
       console.error('[actions] GET /api/users', err);
-      showToast('Liste utilisateurs indisponible — assignation désactivée', 'error');
+      showToast('Liste utilisateurs indisponible : assignation désactivée', 'error');
       usersList = [];
     }
 
@@ -1139,7 +1139,7 @@ export function renderActions() {
         activityLogStore.add({
           module: 'actions',
           action: 'Création action',
-          detail: 'Formulaire pilotage — liaisons risque / audit / incident',
+        detail: 'Formulaire pilotage : liaisons risque / audit / incident',
           user: getSessionUser()?.name || 'Responsable QHSE'
         });
         if (payload?.id) {
@@ -1158,7 +1158,7 @@ export function renderActions() {
   }
 
   const actionsModeGuide = createSimpleModeGuide({
-    title: 'Plan d’actions — par où commencer ?',
+    title: 'Plan d’actions : par où commencer ?',
     hint: 'Les filtres avancés sont réduits : gardez « Responsable » et « Statut » pour cadrer votre liste.',
     nextStep: 'Action principale : traiter d’abord les retards, puis les cartes « À lancer ».'
   });
@@ -1175,7 +1175,7 @@ export function renderActions() {
   if (actionsNavLinkedAudit || actionsNavLinkedNc) {
     queueMicrotask(() => {
       showToast(
-        `Contexte : audit ${actionsNavLinkedAudit || '—'}${
+        `Contexte : audit ${actionsNavLinkedAudit || 'Non disponible'}${
           actionsNavLinkedNc
             ? ` · ${actionsNavLinkedNc.slice(0, 120)}${actionsNavLinkedNc.length > 120 ? '…' : ''}`
             : ''

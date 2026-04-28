@@ -5,7 +5,7 @@ export const siteOptions = [
 ];
 
 /**
- * Navigation latérale — 5 familles (usage responsable QHSE : pilotage → risques → conformité → terrain → admin).
+ * Navigation latérale : 5 familles (usage responsable QHSE : pilotage → risques → conformité → terrain → admin).
  * Les `id` de page et l’ordre des items préservent le routage (#hash) et les permissions ; seule l’exposition change.
  * `collapsible` : sections repliables pour réduire le bruit quand un périmètre n’est pas utilisé au quotidien.
  */
@@ -60,17 +60,17 @@ export const navigationGroups = [
 
 /**
  * Entrées hors menu principal pour la palette de recherche shell.
- * Sites / imports : plus proposés ici (hors « modules » métier) — pages toujours joignables via #sites, #imports
+ * Sites / imports : plus proposés ici (hors « modules » métier). Pages toujours joignables via #sites, #imports
  * et cartes Paramètres (mêmes routes et droits).
  */
 const NAV_ORPHAN_SEARCH_ITEMS = [];
 
-/** Métadonnées shell (topbar) — titres, fil d’Ariane perceptif, CTA principal */
+/** Métadonnées shell (topbar) : titres, fil d’Ariane perceptif, CTA principal */
 export const pageTopbarById = {
   'terrain-mode': {
     title: 'Accueil Essentiel',
     kicker: 'Mode global Essentiel',
-    subtitle: 'Raccourcis incident, risque, actions — même bascule « Essentiel » que la barre du haut.',
+    subtitle: 'Raccourcis incident, risque, actions. Même bascule « Essentiel » que la barre du haut.',
     cta: { label: 'Déclarer incident', pageId: 'incidents' }
   },
   dashboard: {
@@ -145,21 +145,21 @@ export const pageTopbarById = {
   imports: {
     title: 'Import de documents',
     kicker: 'Documents',
-    subtitle: 'Chargement et aperçu brut des contenus (CSV, PDF, tableur) — base pour extraction intelligente ultérieure.',
+    subtitle: 'Chargement et aperçu brut des contenus (CSV, PDF, tableur). Base pour extraction intelligente ultérieure.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }
   },
   analytics: {
     title: 'Analyses / Synthèse',
     kicker: 'Pilotage',
     subtitle:
-      'Synthèse consolidée incidents, NC, actions, audits et alertes — base revue direction et rapports périodiques.',
+      'Synthèse consolidée incidents, NC, actions, audits et alertes. Base revue direction et rapports périodiques.',
     cta: { label: 'Tableau de bord', pageId: 'dashboard' }
   },
   performance: {
     title: 'Performance QHSE',
     kicker: 'Pilotage',
     subtitle:
-      'Indicateurs clés, tendances et écarts à l’objectif — données issues des modules existants (synthèse, incidents, audits).',
+      'Indicateurs clés, tendances et écarts à l’objectif. Données issues des modules existants (synthèse, incidents, audits).',
     cta: { label: 'Analyses & synthèse', pageId: 'analytics' }
   },
   'ai-center': {
@@ -179,7 +179,7 @@ export const pageTopbarById = {
     title: 'Paramètres & configuration',
     kicker: 'Administration',
     subtitle:
-      'Organisation, sécurité des accès, alertes, notifications, exports et options d’affichage — centralisez vos préférences métier.',
+      'Organisation, sécurité des accès, alertes, notifications, exports et options d’affichage. Centralisez vos préférences métier.',
     cta: { label: 'Centre IA', pageId: 'ai-center' }
   },
   'saas-clients': {

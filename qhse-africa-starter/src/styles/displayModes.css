@@ -1,4 +1,4 @@
-/* ═══ MODE SIMPLIFIÉ — masquage ciblé (pas de .content-card-lead global) ═══ */
+/* ═══ MODE SIMPLIFIÉ : masquage ciblé (pas de .content-card-lead global) ═══ */
 
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .dashboard-band--analysis,
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .dashboard-band--secondary,
@@ -16,7 +16,7 @@
   display: none;
 }
 
-/* ═══ MODE SIMPLIFIÉ — bloc « Aujourd'hui » ═══ */
+/* ═══ MODE SIMPLIFIÉ : bloc « Aujourd'hui » ═══ */
 
 .dashboard-today-block {
   display: none;
@@ -30,7 +30,7 @@
   display: none;
 }
 
-/* ═══ MODE SIMPLIFIÉ — dashboard : ordre & allègement cockpit premium ═══ */
+/* ═══ MODE SIMPLIFIÉ : dashboard, ordre & allègement cockpit premium ═══ */
 
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .dashboard-page {
   display: flex;
@@ -69,7 +69,7 @@
   display: none !important;
 }
 
-/* ═══ MODE SIMPLIFIÉ — KPI dashboard ═══ */
+/* ═══ MODE SIMPLIFIÉ : KPI dashboard ═══ */
 
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .dashboard-page .metric-value {
   font-size: 36px;
@@ -318,7 +318,7 @@
   height: 22px;
 }
 
-/* —— Sidebar V2 : rail icônes, expérience dédiée au mode simplifié —— */
+/* Sidebar V2 : rail icônes, expérience dédiée au mode simplifié */
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .sidebar-v2 {
   width: 56px;
   min-width: 56px;
@@ -393,7 +393,7 @@
   height: 22px;
 }
 
-/* Compteurs incidents / actions — pastille sur l’icône */
+/* Compteurs incidents / actions : pastille sur l’icône */
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .sidebar-v2 .sidebar-v2__item-badge:not([hidden]) {
   display: inline-flex !important;
   position: absolute;
@@ -553,7 +553,7 @@
   }
 }
 
-/* ═══ MODE SIMPLIFIÉ — incidents et actions (cartes) ═══ */
+/* ═══ MODE SIMPLIFIÉ : incidents et actions (cartes) ═══ */
 
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .incident-description,
 :is([data-display-mode="simple"], [data-display-mode="terrain"]) .activity-log-detail,
@@ -579,7 +579,7 @@
   font-size: 16px;
 }
 
-/* ═══ MODE EXPERT — état par défaut, tout visible ═══ */
+/* ═══ MODE EXPERT : état par défaut, tout visible ═══ */
 
 [data-display-mode="expert"] .dashboard-today-block {
   display: none;

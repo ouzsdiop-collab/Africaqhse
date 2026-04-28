@@ -1,5 +1,5 @@
 /**
- * Interception qhseFetch en mode exploration — réponses JSON locales + mutations légères (sans backend).
+ * Interception qhseFetch en mode exploration · réponses JSON locales + mutations légères (sans backend).
  */
 
 import {
@@ -65,7 +65,7 @@ function jsonResponse(data, status = 200) {
 }
 
 /**
- * @param {string} path — URL absolue ou relative /api/…
+ * @param {string} path · URL absolue ou relative /api/…
  */
 function parseApiPath(path) {
   const href = path.startsWith('http')
@@ -189,7 +189,7 @@ function findDemoIncidentById(id) {
 /**
  * @param {string} path
  * @param {RequestInit} [init]
- * @returns {Promise<Response | null>} null uniquement si hors périmètre (ne plus utiliser en prod démo — voir qhseFetch)
+ * @returns {Promise<Response | null>} null uniquement si hors périmètre (ne plus utiliser en prod démo · voir qhseFetch)
  */
 export async function tryDemoFetchResponse(path, init = {}) {
   const method = String(init.method || 'GET').toUpperCase();
@@ -240,7 +240,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
     const siteLabel =
       typeof body.site === 'string' && body.site.trim()
         ? body.site.trim()
-        : demoSites.find((s) => s.id === siteId)?.name || 'Katiola Mining — Site Yakouro';
+        : demoSites.find((s) => s.id === siteId)?.name || 'Katiola Mining · Site Yakouro';
     const row = {
       id,
       ref,
@@ -325,8 +325,8 @@ export async function tryDemoFetchResponse(path, init = {}) {
         error: null,
         narrative: [
           'Mode démo : lecture pilotage à partir des indicateurs transmis.',
-          overdue ? `${overdue} action(s) en retard — prioriser l’arbitrage et les relances.` : null,
-          crit ? `${crit} incident(s) critique(s) dans les extraits — sécuriser la réponse et la traçabilité.` : null,
+          overdue ? `${overdue} action(s) en retard · prioriser l’arbitrage et les relances.` : null,
+          crit ? `${crit} incident(s) critique(s) dans les extraits · sécuriser la réponse et la traçabilité.` : null,
           'Maintenir la cohérence entre tableau de bord et retours terrain.'
         ]
           .filter(Boolean)
@@ -363,13 +363,13 @@ export async function tryDemoFetchResponse(path, init = {}) {
     const body = await readJsonBody(init.body);
     const ref = String(body?.ref || '').trim() || 'INC';
     const suggestion = [
-      'Analyse exploration (mine / SST) — causes probables :',
+      'Analyse exploration (mine / SST) : causes probables.',
       '• Organisation : coordination engins / piétons, permis de travail, consignes de circulation.',
       '• Matériel : intégrité garde-corps, signalisation dynamique, état des engins blindés.',
       '• Humain : formation SST actualisée, fatigue poste nuit, respect des EPI (casque, chaussures, visibilité).',
       '• Environnement : pluie / boue, poussière silice, éclairage insuffisant en fin de quart.',
       '',
-      `Réf. dossier : ${ref} — valider sur le terrain avant clôture.`
+      `Réf. dossier : ${ref} · valider sur le terrain avant clôture.`
     ].join('\n');
     return jsonResponse({ suggestion });
   }
@@ -521,7 +521,7 @@ export async function tryDemoFetchResponse(path, init = {}) {
       accidentsAvecArret: 2,
       joursPerdus: 12,
       heuresTravaillees: 1080000,
-      periode: `Année ${yLabel} — Katiola (démo)`,
+      periode: `Année ${yLabel} · Katiola (démo)`,
       objectifTF: 2,
       objectifTG: 0.5,
       tfPrev: 2.31,

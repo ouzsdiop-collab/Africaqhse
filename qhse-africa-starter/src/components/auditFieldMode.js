@@ -5,7 +5,7 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 
-const DEFAULT_NC_DETAIL = 'Écart constaté sur le terrain — détail à compléter';
+const DEFAULT_NC_DETAIL = 'Écart constaté sur le terrain : détail à compléter';
 
 let ncSeq = 1;
 
@@ -56,7 +56,7 @@ export function createAuditFieldMode({ points, auditRef = 'AUD-0000', siteId }) 
       empty.style.margin = '0';
       empty.style.fontSize = '13px';
       empty.style.color = 'var(--text3)';
-      empty.textContent = 'Aucun écart pour l’instant — marquez un point « Non conforme » pour voir une NC.';
+      empty.textContent = 'Aucun écart pour l’instant. Marquez un point « Non conforme » pour voir une NC.';
       ncList.append(empty);
       return;
     }
@@ -78,7 +78,7 @@ export function createAuditFieldMode({ points, auditRef = 'AUD-0000', siteId }) 
       txt.className = 'audit-nc-card__text';
       const com = state[p.id].comment?.trim();
       const shownDetail = com || DEFAULT_NC_DETAIL;
-      txt.textContent = `${p.point} — ${shownDetail}`;
+      txt.textContent = `${p.point} : ${shownDetail}`;
 
       const actionNote = document.createElement('p');
       actionNote.style.margin = '10px 0 0';
@@ -86,7 +86,7 @@ export function createAuditFieldMode({ points, auditRef = 'AUD-0000', siteId }) 
       actionNote.style.lineHeight = '1.45';
       actionNote.style.color = 'var(--text2)';
       actionNote.textContent =
-        'Une action corrective a été générée automatiquement — suivi dans le module Actions.';
+        'Une action corrective a été générée automatiquement. Suivi dans le module Actions.';
 
       const actions = document.createElement('div');
       actions.className = 'audit-nc-card__actions';
@@ -179,7 +179,7 @@ export function createAuditFieldMode({ points, auditRef = 'AUD-0000', siteId }) 
         }
         const data = await res.json();
         const id = data?.nonConformity?.id;
-        const ncRefStr = id != null ? `NC-${id}` : p.ncRef || '—';
+        const ncRefStr = id != null ? `NC-${id}` : p.ncRef || 'Non disponible';
         if (id != null) {
           p.ncRef = ncRefStr;
           renderNc();

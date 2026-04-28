@@ -44,7 +44,7 @@ function monthlyIncidentsFromTimeseries(ts) {
   if (!ts || !Array.isArray(ts.incidentsByMonth) || !ts.incidentsByMonth.length) return null;
   if (!ts.incidentsByMonth.every((x) => x && typeof x === 'object')) return null;
   return ts.incidentsByMonth.map((x) => ({
-    label: String(/** @type {{ label?: unknown }} */ (x).label ?? '—'),
+    label: String(/** @type {{ label?: unknown }} */ (x).label ?? 'Non disponible'),
     value: Math.max(0, Number(/** @type {{ value?: unknown }} */ (x).value) || 0)
   }));
 }
@@ -81,7 +81,7 @@ function auditScoreBarsFromTimeseries(ts) {
   return ts.auditsScoreByMonth.map((b) => {
     const x = b && typeof b === 'object' ? b : {};
     return {
-      label: String(/** @type {{ label?: unknown }} */ (x).label ?? '—'),
+      label: String(/** @type {{ label?: unknown }} */ (x).label ?? 'Non disponible'),
       value: Math.max(0, Math.min(100, Number(/** @type {{ value?: unknown }} */ (x).value) || 0))
     };
   });
@@ -178,14 +178,14 @@ export function updateDecisionAlerts(refs, stats, data) {
     ? ncFromTs
     : allowDemo
       ? buildNcMajorMinorMonthlySeries(ncs, 6)
-      : { labels: ['—'], major: [0], minor: [0] };
+      : { labels: ['Non disponible'], major: [0], minor: [0] };
   const riskTypes = buildTopIncidentTypes(incidents).slice(0, 5);
   const auditFromTs = auditScoreBarsFromTimeseries(ts);
   const auditScores = auditFromTs
     ? trimTrailingZeroAuditScores(auditFromTs)
     : allowDemo
       ? trimTrailingZeroAuditScores(buildAuditScoreSeriesFromAudits(audits).slice(-6))
-      : [{ label: '—', value: 0 }];
+      : [{ label: 'Non disponible', value: 0 }];
   const dcTick = getCssVar('--text-secondary', '#64748b');
   const dcGrid = `color-mix(in srgb, ${getCssVar('--border-color', '#e2e8f0')} 50%, transparent)`;
   const sliceBorder = getCssVar('--border-color', '#e2e8f0');
@@ -651,7 +651,7 @@ export function updateDecisionAlerts(refs, stats, data) {
     const top = document.createElement('div');
     top.className = 'dashboard-hab-sitebar-top';
     const sp = document.createElement('span');
-    sp.textContent = '—';
+    sp.textContent = 'Non disponible';
     const strong = document.createElement('strong');
     strong.textContent = '0%';
     top.append(sp, strong);
