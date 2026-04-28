@@ -83,7 +83,7 @@ export async function create(req, res, next) {
         sent: delivery.sent,
         reason: delivery.reason ?? null,
         recipients: delivery.recipients ?? null,
-        detail: delivery.detail ?? null
+        detail: process.env.NODE_ENV === 'production' ? null : (delivery.detail ?? null)
       }
     });
   } catch (err) {
@@ -209,7 +209,7 @@ export async function patch(req, res, next) {
         sent: delivery.sent,
         reason: delivery.reason ?? null,
         recipients: delivery.recipients ?? null,
-        detail: delivery.detail ?? null
+        detail: process.env.NODE_ENV === 'production' ? null : (delivery.detail ?? null)
       }
     });
   } catch (err) {

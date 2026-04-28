@@ -1,5 +1,5 @@
 /**
- * Bloc central « Cockpit direction QHSE » : données issues du chargement dashboard existant (pas d’API dédiée).
+ * Bloc cockpit (détail) : données issues du chargement dashboard existant (pas d’API dédiée).
  */
 
 import { escapeHtml } from '../utils/escapeHtml.js';
@@ -312,7 +312,7 @@ export function createDashboardCockpit() {
     <div class="dashboard-cockpit__inner">
       <header class="dashboard-cockpit__head">
         <span class="dashboard-cockpit__kicker">Pilotage</span>
-        <h2 id="dashboard-cockpit-title" class="dashboard-cockpit__title">Cockpit direction QHSE</h2>
+        <h2 id="dashboard-cockpit-title" class="dashboard-cockpit__title">Cockpit pilotage (détail)</h2>
       </header>
 
       <article class="dashboard-cockpit__card dashboard-cockpit__card--focus" aria-label="Situation">

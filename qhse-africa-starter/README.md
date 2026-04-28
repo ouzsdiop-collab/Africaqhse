@@ -60,6 +60,33 @@ npm run dev
 
 Après le seed, connectez-vous avec un compte du fichier `backend/prisma/seed.js` (ex. `qhse@qhse.local` avec le mot de passe défini dans le seed).
 
+## Initialiser une base client propre (PostgreSQL vierge)
+
+Le dépôt inclut un seed démo (beaucoup de données) **et** un seed client (base vierge).
+
+### Seed démo (inchangé)
+
+```bash
+npm run db:migrate:deploy --prefix backend
+npm run db:seed --prefix backend
+```
+
+### Seed client (vierge)
+
+1) Configurez les variables dans `backend/.env` (ou variables d’environnement du serveur) :
+
+- `DATABASE_URL` (Postgres)
+- `CLIENT_TENANT_SLUG`, `CLIENT_TENANT_NAME`
+- `CLIENT_ADMIN_EMAIL`, `CLIENT_ADMIN_NAME`, `CLIENT_ADMIN_ROLE`, `CLIENT_ADMIN_PASSWORD`
+
+2) Exécutez :
+
+```bash
+npm run db:init:client --prefix backend
+```
+
+Ce script exécute `prisma migrate deploy` puis `prisma/seed.client.js`.
+
 ## Structure du dépôt
 
 | Élément | Rôle |

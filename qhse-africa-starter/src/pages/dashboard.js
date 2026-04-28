@@ -22,6 +22,7 @@ import { createDashboardAuditChartBlock } from '../components/dashboardAuditChar
 import { createDashboardActivitySection } from '../components/dashboardActivity.js';
 import { createDashboardCockpit } from '../components/dashboardCockpit.js';
 import { createDashboardCockpitPremium } from '../components/dashboardCockpitPremium.js';
+import { createDashboardExecutivePanel } from '../components/dashboardExecutivePanel.js';
 import { createDashboardShortcutsSection } from '../components/dashboardShortcuts.js';
 import { createDashboardSystemStatus } from '../components/dashboardSystemStatus.js';
 import { createDashboardVigilancePoints } from '../components/dashboardVigilancePoints.js';
@@ -343,6 +344,7 @@ function ensureDashboardIntelligenceStyles() {
 .intel-alert__btn{font-size:12px;padding:7px 10px;border-radius:10px;border:1px solid color-mix(in srgb,var(--color-border-tertiary) 82%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 92%, transparent);color:var(--text);cursor:pointer}
 .intel-alert__btn:hover{transform:translateY(-1px)}
 .intel-alert__btn--primary{border-color:color-mix(in srgb,#38bdf8 40%, var(--color-border-tertiary));background:color-mix(in srgb,#0ea5e9 14%, var(--color-background-primary));}
+.intel-alert__btn--secondary{border-color:color-mix(in srgb,var(--color-border-tertiary) 88%, transparent);background:transparent}
 .intel-anom{font-size:12px;line-height:1.45;color:var(--text2);padding:10px 12px;border-radius:12px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 86%, transparent);background:color-mix(in srgb,var(--color-background-primary) 92%, transparent)}
 .intel-anom strong{color:var(--text);font-weight:900}
 @media (max-width: 980px){.dashboard-intel__grid{grid-template-columns:1fr}}
@@ -521,6 +523,86 @@ function createDashboardIntelligenceWidget() {
   /** @type {any} */
   let lastIntel = null;
 
+  function resolveSourceNavigation(alert) {
+    const srcModule = safeText(alert?.sourceModule || '', 80) || '';
+    const k = normalizeSourceKey(srcModule);
+    const srcId = alert?.sourceId != null && String(alert.sourceId).trim() ? String(alert.sourceId).trim() : '';
+    const srcRef =
+      alert?.sourceRef != null && String(alert.sourceRef).trim() ? String(alert.sourceRef).trim() : '';
+    const srcTitle =
+      safeText(alert?.sourceTitle || alert?.title || '', 240) ||
+      safeText(alert?.suggestedActionTitle || '', 240) ||
+      '';
+
+    if (k === 'risks') {
+      return {
+        pageId: 'risks',
+        intent: {
+          ...(srcId ? { focusRiskId: srcId } : {}),
+          ...(srcTitle ? { focusRiskTitle: srcTitle } : {}),
+          source: 'dashboard_intelligence_open_source'
+        }
+      };
+    }
+    if (k === 'actions') {
+      return {
+        pageId: 'actions',
+        intent: {
+          skipDefaults: true,
+          ...(srcId ? { focusActionId: srcId } : {}),
+          ...(srcTitle ? { focusActionTitle: srcTitle } : {}),
+          source: 'dashboard_intelligence_open_source'
+        }
+      };
+    }
+    if (k === 'incidents') {
+      return {
+        pageId: 'incidents',
+        intent: {
+          ...(srcRef ? { focusIncidentRef: srcRef } : {}),
+          ...(srcId ? { focusIncidentId: srcId } : {}),
+          ...(srcTitle ? { focusIncidentHintTitle: srcTitle.slice(0, 160) } : {}),
+          source: 'dashboard_intelligence_open_source'
+        }
+      };
+    }
+    if (k === 'audits') {
+      return {
+        pageId: 'audits',
+        intent: {
+          ...(srcId ? { focusAuditId: srcId } : {}),
+          ...(srcRef ? { focusAuditRef: srcRef } : {}),
+          ...(srcTitle ? { focusAuditTitle: srcTitle.slice(0, 200) } : {}),
+          source: 'dashboard_intelligence_open_source'
+        }
+      };
+    }
+    if (k === 'controlled_documents' || k === 'products') {
+      return {
+        pageId: 'products',
+        intent: {
+          productsFdsValidity: 'review',
+          ...(alert?.linkedRiskId ? { linkedRiskId: String(alert.linkedRiskId) } : {}),
+          ...(alert?.linkedRiskTitle ? { linkedRiskTitle: String(alert.linkedRiskTitle) } : {}),
+          source: 'dashboard_intelligence_open_source'
+        }
+      };
+    }
+    return null;
+  }
+
+  function openAlertSource(alert) {
+    const nav = resolveSourceNavigation(alert);
+    const srcLabel = labelSourceModuleFr(alert?.sourceModule);
+    if (!nav) {
+      showToast(`Source indisponible. Ouvrez le module : ${srcLabel}.`, 'info');
+      const fallback = normalizeSourceKey(alert?.sourceModule);
+      if (fallback) qhseNavigate(fallback, { source: 'dashboard_intelligence_open_source_fallback' });
+      return;
+    }
+    qhseNavigate(nav.pageId, nav.intent || {});
+  }
+
   async function openCorrectiveActionFromAlert(alert) {
     const ttl = safeText(alert?.suggestedActionTitle || '', 240);
     if (!ttl) return;
@@ -698,6 +780,11 @@ function createDashboardIntelligenceWidget() {
             ? Math.round(Number(a.confidence) * 100)
             : null;
         const hasSuggested = a?.suggestedActionTitle != null && String(a.suggestedActionTitle).trim() !== '';
+        const hasSource =
+          a?.sourceModule != null &&
+          String(a.sourceModule).trim() !== '' &&
+          a?.sourceId != null &&
+          String(a.sourceId).trim() !== '';
         li.innerHTML = `
           <div class="intel-alert__top">
             <span class="intel-alert__sev intel-alert__sev--${sevKey}">${escapeHtml(labelSeverityFr(sevKey))}</span>
@@ -710,8 +797,15 @@ function createDashboardIntelligenceWidget() {
           </div>
           ${
             hasSuggested
-              ? `<div class="intel-alert__acts"><button type="button" class="intel-alert__btn intel-alert__btn--primary" data-intel-act="1">Créer action</button></div>`
-              : ''
+              ? `<div class="intel-alert__acts">
+                  <button type="button" class="intel-alert__btn intel-alert__btn--primary" data-intel-act="1">Corriger</button>
+                  ${hasSource ? `<button type="button" class="intel-alert__btn intel-alert__btn--secondary" data-intel-open="1">Ouvrir la source</button>` : ''}
+                </div>`
+              : hasSource
+                ? `<div class="intel-alert__acts">
+                    <button type="button" class="intel-alert__btn intel-alert__btn--secondary" data-intel-open="1">Ouvrir la source</button>
+                  </div>`
+                : ''
           }
         `;
         const actBtn = li.querySelector('[data-intel-act]');
@@ -720,6 +814,14 @@ function createDashboardIntelligenceWidget() {
             ev.preventDefault();
             ev.stopPropagation();
             void openCorrectiveActionFromAlert(a);
+          });
+        }
+        const openBtn = li.querySelector('[data-intel-open]');
+        if (openBtn) {
+          openBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            openAlertSource(a);
           });
         }
         alertsHost.append(li);
@@ -795,6 +897,11 @@ function createDashboardIntelligenceWidget() {
             ? Math.round(Number(a.confidence) * 100)
             : null;
         const hasSuggested = a?.suggestedActionTitle != null && String(a.suggestedActionTitle).trim() !== '';
+        const hasSource =
+          a?.sourceModule != null &&
+          String(a.sourceModule).trim() !== '' &&
+          a?.sourceId != null &&
+          String(a.sourceId).trim() !== '';
         li.innerHTML = `
           <div class="intel-alert__top">
             <span class="intel-alert__sev intel-alert__sev--${sev}">${escapeHtml(labelSeverityFr(sev))}</span>
@@ -807,8 +914,15 @@ function createDashboardIntelligenceWidget() {
           </div>
           ${
             hasSuggested
-              ? `<div class="intel-alert__acts"><button type="button" class="intel-alert__btn intel-alert__btn--primary" data-intel-act="1">Créer action</button></div>`
-              : ''
+              ? `<div class="intel-alert__acts">
+                  <button type="button" class="intel-alert__btn intel-alert__btn--primary" data-intel-act="1">Corriger</button>
+                  ${hasSource ? `<button type="button" class="intel-alert__btn intel-alert__btn--secondary" data-intel-open="1">Ouvrir la source</button>` : ''}
+                </div>`
+              : hasSource
+                ? `<div class="intel-alert__acts">
+                    <button type="button" class="intel-alert__btn intel-alert__btn--secondary" data-intel-open="1">Ouvrir la source</button>
+                  </div>`
+                : ''
           }
         `;
         const actBtn = li.querySelector('[data-intel-act]');
@@ -817,6 +931,14 @@ function createDashboardIntelligenceWidget() {
             ev.preventDefault();
             ev.stopPropagation();
             void openCorrectiveActionFromAlert(a);
+          });
+        }
+        const openBtn = li.querySelector('[data-intel-open]');
+        if (openBtn) {
+          openBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            openAlertSource(a);
           });
         }
         alertsList.append(li);
@@ -1105,6 +1227,7 @@ export function renderDashboard() {
   connectivitySlot.hidden = true;
 
   const cockpit = createDashboardCockpit();
+  const executivePanel = createDashboardExecutivePanel(siteName);
 
   const alertsSection = document.createElement('section');
   alertsSection.className = 'dashboard-section';
@@ -1121,6 +1244,10 @@ export function renderDashboard() {
   const bandCriticalAlerts = document.createElement('div');
   bandCriticalAlerts.className = 'dashboard-band dashboard-band--alerts dashboard-band--alerts-first';
   bandCriticalAlerts.append(alertsSection);
+
+  const bandExecutiveSummary = document.createElement('div');
+  bandExecutiveSummary.className = 'dashboard-band dashboard-band--executive-summary';
+  bandExecutiveSummary.append(executivePanel.root);
 
   const decisionAlertsBand = document.createElement('section');
   /* Même métrique que les cartes KPI + sous-lignes « variation » non métier : réservé à la vue Expert (page). */
@@ -1273,7 +1400,7 @@ export function renderDashboard() {
   bandAssistant.append(pilotageAssistant.root);
 
   const bandCockpit = document.createElement('div');
-  bandCockpit.className = 'dashboard-band dashboard-band--cockpit';
+  bandCockpit.className = 'dashboard-band dashboard-band--cockpit qhse-page-advanced-only';
   bandCockpit.append(cockpit.root);
 
   const bandShortcuts = document.createElement('div');
@@ -1628,6 +1755,7 @@ export function renderDashboard() {
   executiveBand.className = 'dashboard-executive-surface';
   executiveBand.append(
     bandCeo,
+    bandExecutiveSummary,
     decisionAlertsBand,
     kpiSection,
     primaryChartSection,
