@@ -72,7 +72,8 @@ export async function create(req, res, next) {
       siteId,
       detail,
       description,
-      incidentId
+      incidentId,
+      riskId
     } = req.body;
     const t = clampTrimString(title, FIELD_LIMITS.actionTitle);
     const st = clampTrimString(status, FIELD_LIMITS.actionStatus);
@@ -116,6 +117,10 @@ export async function create(req, res, next) {
       incidentId != null && incidentId !== ''
         ? String(incidentId).trim()
         : undefined;
+    const rid =
+      riskId != null && riskId !== ''
+        ? String(riskId).trim()
+        : undefined;
     const created = await actionsService.createAction(req.qhseTenantId, {
       title: t,
       detail: det,
@@ -124,7 +129,8 @@ export async function create(req, res, next) {
       dueDate: due,
       assigneeId: aid,
       siteId,
-      incidentId: iid
+      incidentId: iid,
+      riskId: rid
     });
     void emitBusinessEvent('action.created', {
       tenantId: req.qhseTenantId,
@@ -148,11 +154,20 @@ export async function patchById(req, res, next) {
       return res.status(400).json({ error: 'Identifiant action invalide' });
     }
     const status = clampTrimString(req.body?.status, FIELD_LIMITS.actionStatus);
-    if (!status) {
-      return res.status(400).json({ error: 'Champ status requis' });
+    const rawRiskId =
+      req.body?.riskId != null && String(req.body.riskId).trim() !== ''
+        ? String(req.body.riskId).trim()
+        : req.body?.riskId === null
+          ? null
+          : undefined;
+
+    if (!status && !('riskId' in (req.body || {}))) {
+      return res.status(400).json({ error: 'Champ status requis (ou riskId)' });
     }
+
     const updated = await actionsService.updateActionFields(req.qhseTenantId, id, {
-      status
+      ...(status ? { status } : {}),
+      ...('riskId' in (req.body || {}) ? { riskId: rawRiskId } : {})
     });
     void writeAuditLog({
       tenantId: req.qhseTenantId,
@@ -160,12 +175,15 @@ export async function patchById(req, res, next) {
       resource: 'actions',
       resourceId: updated.id,
       action: 'update',
-      metadata: { status: updated.status }
+      metadata: { status: updated.status, riskId: updated.riskId ?? null }
     });
     res.json(updated);
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Action introuvable' });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message || 'Non trouvé' });
     }
     if (err.statusCode === 400) {
       return res.status(400).json({ error: err.message });

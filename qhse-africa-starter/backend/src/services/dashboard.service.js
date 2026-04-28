@@ -316,7 +316,16 @@ export async function getDashboardStats(tenantId, siteId = null) {
     }),
     prisma.action.findMany({
       where: siteFilter,
-      select: { id: true, title: true, detail: true, status: true, owner: true, dueDate: true, siteId: true },
+      select: {
+        id: true,
+        title: true,
+        detail: true,
+        status: true,
+        owner: true,
+        dueDate: true,
+        siteId: true,
+        riskId: true
+      },
       orderBy: { dueDate: 'asc' },
       take: 200
     }),

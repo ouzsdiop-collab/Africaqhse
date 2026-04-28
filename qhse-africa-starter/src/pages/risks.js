@@ -180,6 +180,9 @@ export function renderRisks() {
           linkedRisk: t,
           title: `Prévention — ${t}`
         };
+    if (riskRow?.id) {
+      defaults.linkedRiskId = riskRow.id;
+    }
     openActionCreateDialog({
       users,
       defaults,

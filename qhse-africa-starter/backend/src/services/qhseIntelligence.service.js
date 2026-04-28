@@ -219,12 +219,27 @@ export function detectCriticalSituations(input) {
   const openRisks = risks.filter((r) => isRiskLikelyOpen(r.status));
   const criticalOpenRisks = openRisks.filter((r) => isCriticalRisk(r));
   const actionCorpus = actions
-    .map((a) => `${a?.title || ''} ${a?.status || ''}`)
+    .map((a) => `${a?.title || ''} ${a?.status || ''} ${a?.detail || ''}`)
     .join(' ')
     .toLowerCase();
+
+  /** @type {Set<string>} */
+  const explicitRiskIds = new Set(
+    actions
+      .map((a) => (a?.riskId != null && String(a.riskId).trim() ? String(a.riskId).trim() : ''))
+      .filter(Boolean)
+  );
   for (const r of criticalOpenRisks.slice(0, 30)) {
     const ref = String(r?.ref || '').trim();
     const title = String(r?.title || '').trim();
+    const rid = r?.id != null && String(r.id).trim() ? String(r.id).trim() : '';
+
+    // 1) lien explicite: Action.riskId
+    if (rid && explicitRiskIds.has(rid)) {
+      continue;
+    }
+
+    // 2) fallback heuristique (texte/ref)
     const hit =
       (ref && actionCorpus.includes(ref.toLowerCase())) ||
       (title && title.length >= 6 && actionCorpus.includes(title.toLowerCase().slice(0, 18)));

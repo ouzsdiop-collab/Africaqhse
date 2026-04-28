@@ -20,6 +20,15 @@ describe('qhseIntelligence.service', () => {
     expect(out.alerts.some((a) => a.type === 'critical_risk_without_action')).toBe(true);
   });
 
+  it("ne génère pas d’alerte risque critique sans action si action.riskId explicite existe", () => {
+    const out = detectCriticalSituations({
+      tenantId: 't1',
+      risks: [{ id: 'risk_1', ref: 'RSK-1', title: 'Travail en hauteur', probability: 5, gravity: 4, gp: 20, status: 'open' }],
+      actions: [{ id: 'a1', title: 'Maîtrise travail en hauteur', status: 'À lancer', riskId: 'risk_1' }]
+    });
+    expect(out.alerts.some((a) => a.type === 'critical_risk_without_action')).toBe(false);
+  });
+
   it('détecte incidents répétés', () => {
     const base = { type: 'Chute', site: 'Site A', severity: 'Majeur', createdAt: new Date().toISOString() };
     const out = detectCriticalSituations({

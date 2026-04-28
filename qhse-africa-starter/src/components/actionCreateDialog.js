@@ -38,7 +38,7 @@ function buildActionCreatedPayload(created, formFallback) {
  * @param {(payload?: ActionCreatedPayload) => void} [opts.onCreated]
  * @param {boolean} [opts.builtInSuccessToast=true] — toast « Action créée » si succès (mettre false si le parent gère tout le feedback).
  * @param {Array<{ id: string, name: string, role: string }>} opts.users
- * @param {Partial<{ title: string, origin: string, actionType: string, priority: string, description: string, dueDate: string, assigneeId: string, linkedRisk: string, linkedAudit: string, linkedIncident: string, status: string }>} [opts.defaults]
+ * @param {Partial<{ title: string, origin: string, actionType: string, priority: string, description: string, dueDate: string, assigneeId: string, linkedRisk: string, linkedRiskId: string, linkedAudit: string, linkedIncident: string, status: string }>} [opts.defaults]
  */
 export function openActionCreateDialog(opts) {
   const { onCreated, users = [], defaults = {}, builtInSuccessToast = true } = opts;
@@ -140,6 +140,9 @@ export function openActionCreateDialog(opts) {
   if (d.dueDate) form.querySelector('[name="dueDate"]').value = String(d.dueDate);
   if (d.assigneeId != null) assigneeSel.value = String(d.assigneeId);
   if (d.linkedRisk != null) form.linkedRisk.value = String(d.linkedRisk);
+  // linkedRiskId: utilisé pour créer un lien DB explicite (Action.riskId) quand disponible.
+  const linkedRiskId =
+    d.linkedRiskId != null && String(d.linkedRiskId).trim() ? String(d.linkedRiskId).trim() : '';
   if (d.linkedAudit != null) form.linkedAudit.value = String(d.linkedAudit);
   if (d.linkedIncident != null) form.linkedIncident.value = String(d.linkedIncident);
   if (d.status) form.querySelector('[name="status"]').value = String(d.status);
@@ -186,6 +189,7 @@ export function openActionCreateDialog(opts) {
       status,
       owner
     };
+    if (linkedRiskId) body.riskId = linkedRiskId;
     if (assigneeId) body.assigneeId = assigneeId;
     if (dueRaw) {
       const d = new Date(String(dueRaw));

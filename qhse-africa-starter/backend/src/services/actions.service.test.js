@@ -9,6 +9,9 @@ const { prismaMock, assertSiteMock } = vi.hoisted(() => ({
       update: vi.fn(),
       updateMany: vi.fn()
     },
+    risk: {
+      findFirst: vi.fn()
+    },
     tenantMember: {
       findUnique: vi.fn()
     },
@@ -114,6 +117,34 @@ describe('actions.service', () => {
           data: expect.objectContaining({ incidentId: 'inc-1' })
         })
       );
+    });
+
+    it('accepte riskId si le risque existe dans le tenant', async () => {
+      prismaMock.risk.findFirst.mockResolvedValueOnce({ id: 'risk_1' });
+      prismaMock.action.create.mockResolvedValueOnce({ id: 'a4', risk: { id: 'risk_1', ref: 'RSK-1', title: 'T' } });
+      await actionsService.createAction(TENANT, {
+        title: 'T',
+        status: 'À lancer',
+        riskId: 'risk_1'
+      });
+      expect(prismaMock.risk.findFirst).toHaveBeenCalled();
+      expect(prismaMock.action.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ riskId: 'risk_1' })
+        })
+      );
+    });
+
+    it('rejette riskId si le risque n’existe pas dans le tenant (anti cross-tenant)', async () => {
+      prismaMock.risk.findFirst.mockResolvedValueOnce(null);
+      await expect(
+        actionsService.createAction(TENANT, {
+          title: 'T',
+          status: 'À lancer',
+          riskId: 'risk_other_tenant'
+        })
+      ).rejects.toMatchObject({ statusCode: 404 });
+      expect(prismaMock.action.create).not.toHaveBeenCalled();
     });
   });
 
