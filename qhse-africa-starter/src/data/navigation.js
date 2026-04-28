@@ -186,7 +186,7 @@ export const pageTopbarById = {
     title: 'Clients SaaS',
     kicker: 'Super administration',
     subtitle:
-      'Création d’espaces entreprise, comptes administrateur client et mots de passe provisoires (affichage unique).',
+      'Cockpit entreprises et utilisateurs : statut, modules, rôles et mots de passe provisoires (affichage unique).',
     cta: { label: 'Paramètres', pageId: 'settings' }
   }
 };

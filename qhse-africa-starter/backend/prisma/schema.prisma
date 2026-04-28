@@ -17,6 +17,8 @@ model Tenant {
   name      String
   /// active | suspended — les tenants suspendus ne sont plus proposés à la connexion.
   status    String   @default("active")
+  /// Drapeaux SaaS (ex. modules activés) — géré par SUPER_ADMIN, exploitation future côté API.
+  settings  Json     @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

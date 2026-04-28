@@ -159,6 +159,23 @@ const MATRIX = {
     users: ['read'],
     reports: ['read'],
     imports: ['read']
+  },
+  /** Rôle « utilisateur » standard — aligné sur OPERATEUR (création via cockpit super-admin). */
+  USER: {
+    incidents: ALL,
+    risks: ALL,
+    actions: ['read'],
+    audits: ['read'],
+    nonconformities: ['read'],
+    habilitations: ['read'],
+    sites: ['read'],
+    dashboard: ['read'],
+    compliance: ['read'],
+    conformity: ['read'],
+    notifications: ['read'],
+    users: ['read'],
+    reports: ['read'],
+    imports: ['read']
   }
 };
 
