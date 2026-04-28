@@ -27,6 +27,35 @@ function ensureLoginV2Styles() {
   position: relative;
   overflow: hidden;
 }
+.lv2-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.lv2-fx-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .22;
+  mix-blend-mode: screen;
+}
+.lv2-scan {
+  position: absolute;
+  inset: -20% -40%;
+  opacity: 0;
+  background: linear-gradient(115deg,
+    rgba(34,211,238,0) 0%,
+    rgba(34,211,238,.10) 42%,
+    rgba(34,197,94,.08) 50%,
+    rgba(34,211,238,0) 58%,
+    rgba(34,211,238,0) 100%
+  );
+  transform: translate3d(-30%, -10%, 0) rotate(-8deg);
+  will-change: transform, opacity;
+  animation: lv2-scan-sweep 9.5s ease-in-out infinite;
+}
 .lv2-left {
   width: 42%;
   min-height: 100vh;
@@ -75,6 +104,7 @@ function ensureLoginV2Styles() {
 .lv2-right-inner {
   width: 100%;
   max-width: 380px;
+  position: relative;
 }
 .lv2-logo {
   position: absolute;
@@ -269,6 +299,26 @@ function ensureLoginV2Styles() {
   margin: 0 0 28px;
   line-height: 1.4;
 }
+.lv2-form {
+  position: relative;
+  isolation: isolate;
+}
+.lv2-form::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(380px 260px at var(--lv2-mx, 40%) var(--lv2-my, 35%),
+    rgba(34,211,238,.14),
+    rgba(34,197,94,.08) 32%,
+    rgba(13,17,23,0) 65%
+  );
+  transition: opacity 180ms ease;
+  mix-blend-mode: screen;
+}
+.lv2-form.lv2-card-glow::before { opacity: .95; }
 .lv2-secure-note {
   display: flex;
   align-items: center;
@@ -428,6 +478,14 @@ function ensureLoginV2Styles() {
   .lv2-right { padding: 32px 24px; }
   .lv2-mobile-brand { display: flex; }
   .lv2-screen { background: #0d1117; }
+  .lv2-fx-canvas { opacity: .12; }
+}
+
+@keyframes lv2-scan-sweep {
+  0% { opacity: 0; transform: translate3d(-36%, -10%, 0) rotate(-8deg); }
+  12% { opacity: .20; }
+  52% { opacity: .18; }
+  100% { opacity: 0; transform: translate3d(36%, 12%, 0) rotate(-8deg); }
 }
 
 @keyframes lv2-logo-scan {
@@ -462,9 +520,272 @@ function ensureLoginV2Styles() {
   .lv2-testimonial,
   .lv2-countries { transition: none !important; opacity: 1 !important; transform: none !important; }
   .lv2-form.is-loading .lv2-field::after { animation: none !important; }
+  .lv2-scan { animation: none !important; opacity: 0 !important; }
+  .lv2-fx-canvas { display: none !important; }
 }
 `;
   document.head.append(el);
+}
+
+const LOGIN_V2_FX_ID = 'qhse-loginv2-fx';
+
+function prefersReducedMotion() {
+  return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function isLikelyMobileFx() {
+  return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
+/**
+ * Layer FX: canvas particules + scan overlay.
+ * @param {HTMLElement} screen
+ */
+function attachLoginPremiumFx(screen) {
+  if (!screen || !(screen instanceof HTMLElement)) return null;
+  if (screen.querySelector(`[data-${LOGIN_V2_FX_ID}]`)) return null;
+
+  const fx = document.createElement('div');
+  fx.className = 'lv2-fx';
+  fx.setAttribute(`data-${LOGIN_V2_FX_ID}`, '1');
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'lv2-fx-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+
+  const scan = document.createElement('div');
+  scan.className = 'lv2-scan';
+  scan.setAttribute('aria-hidden', 'true');
+
+  fx.append(canvas, scan);
+  screen.prepend(fx);
+
+  if (!prefersReducedMotion()) {
+    startLoginParticles(canvas, { simplify: isLikelyMobileFx() });
+  }
+
+  return { fx, canvas, scan };
+}
+
+/**
+ * Particules ultra-légères (canvas) + lignes fines.
+ * - n’anime que du canvas (rAF), aucun layout.
+ * - désactivé si reduced-motion, simplifié sur mobile.
+ * @param {HTMLCanvasElement} canvas
+ * @param {{ simplify?: boolean }} opts
+ */
+function startLoginParticles(canvas, opts = {}) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const simplify = opts.simplify === true;
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  /** @type {{ x:number, y:number, vx:number, vy:number, r:number, a:number }[]} */
+  let pts = [];
+  let w = 0;
+  let h = 0;
+  let raf = 0;
+  let last = performance.now();
+  let running = true;
+
+  const mouse = { x: 0.72, y: 0.44, tx: 0.72, ty: 0.44, active: false };
+
+  function pickCount() {
+    const base = w >= 1200 ? 42 : w >= 900 ? 34 : w >= 700 ? 26 : 18;
+    return simplify ? Math.max(10, Math.round(base * 0.55)) : base;
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const nw = Math.max(1, Math.floor(rect.width));
+    const nh = Math.max(1, Math.floor(rect.height));
+    if (nw === w && nh === h) return;
+    w = nw;
+    h = nh;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    seed();
+  }
+
+  function seed() {
+    const count = pickCount();
+    pts = Array.from({ length: count }).map(() => {
+      // Concentration centre + droite (ambiance data discrète)
+      const x = w * (0.42 + Math.random() * 0.56);
+      const y = h * (0.14 + Math.random() * 0.72);
+      const sp = simplify ? 0.05 : 0.09;
+      const vx = (Math.random() - 0.5) * sp;
+      const vy = (Math.random() - 0.5) * sp;
+      return { x, y, vx, vy, r: 1 + Math.random() * 1.4, a: 0.25 + Math.random() * 0.45 };
+    });
+  }
+
+  function tick(now) {
+    if (!running) return;
+    const dt = Math.min(34, now - last);
+    last = now;
+
+    resize();
+
+    // inertie souris (0..1 relatif)
+    mouse.x += (mouse.tx - mouse.x) * 0.08;
+    mouse.y += (mouse.ty - mouse.y) * 0.08;
+    const mx = mouse.x * w;
+    const my = mouse.y * h;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // draw links first
+    const linkDist = simplify ? 92 : 120;
+    const linkDist2 = linkDist * linkDist;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      for (let j = i + 1; j < pts.length; j++) {
+        const q = pts[j];
+        const dx = p.x - q.x;
+        const dy = p.y - q.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > linkDist2) continue;
+        const t = 1 - d2 / linkDist2;
+        const alpha = 0.06 * t;
+        // cyan/blue dominant, green discret
+        ctx.strokeStyle = `rgba(34,211,238,${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
+      }
+    }
+
+    // particles
+    for (const p of pts) {
+      // subtle mouse repulsion/attraction
+      const dx = p.x - mx;
+      const dy = p.y - my;
+      const d2 = dx * dx + dy * dy;
+      if (mouse.active && d2 < 160 * 160) {
+        const f = (simplify ? 0.00035 : 0.0005) * (1 - d2 / (160 * 160));
+        p.vx += dx * f;
+        p.vy += dy * f;
+      }
+
+      // drift + soft bounds
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      if (p.x < 0) (p.x = 0), (p.vx *= -0.9);
+      if (p.x > w) (p.x = w), (p.vx *= -0.9);
+      if (p.y < 0) (p.y = 0), (p.vy *= -0.9);
+      if (p.y > h) (p.y = h), (p.vy *= -0.9);
+
+      // mild damping
+      p.vx *= 0.995;
+      p.vy *= 0.995;
+
+      const a = p.a * (simplify ? 0.9 : 1);
+      ctx.fillStyle = `rgba(82,148,247,${0.18 * a})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // subtle glow dot
+      ctx.fillStyle = `rgba(34,211,238,${0.08 * a})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r + 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  function onPointerMove(e) {
+    if (simplify) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / Math.max(1, rect.width);
+    const y = (e.clientY - rect.top) / Math.max(1, rect.height);
+    mouse.tx = Math.max(0, Math.min(1, x));
+    mouse.ty = Math.max(0, Math.min(1, y));
+    mouse.active = true;
+  }
+
+  function onPointerLeave() {
+    mouse.active = false;
+    mouse.tx = 0.72;
+    mouse.ty = 0.44;
+  }
+
+  function stop() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    canvas.removeEventListener('pointermove', onPointerMove);
+    canvas.removeEventListener('pointerleave', onPointerLeave);
+    window.removeEventListener('resize', resize);
+    document.removeEventListener('visibilitychange', onVisibility);
+  }
+
+  function onVisibility() {
+    if (document.hidden) {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      return;
+    }
+    if (!raf && running) {
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    }
+  }
+
+  // init
+  resize();
+  seed();
+  canvas.addEventListener('pointermove', onPointerMove, { passive: true });
+  canvas.addEventListener('pointerleave', onPointerLeave, { passive: true });
+  window.addEventListener('resize', resize, { passive: true });
+  document.addEventListener('visibilitychange', onVisibility);
+
+  raf = requestAnimationFrame(tick);
+
+  // cleanup if removed
+  const obs = new MutationObserver(() => {
+    if (!document.body.contains(canvas)) {
+      obs.disconnect();
+      stop();
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+}
+
+/**
+ * Glow léger suivant la souris sur la card.
+ * @param {HTMLFormElement} form
+ */
+function attachCardMouseGlow(form) {
+  if (!form) return;
+  if (prefersReducedMotion()) return;
+  // pas d'effet sur touch (évite gêne + perf)
+  if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+  function onMove(e) {
+    const r = form.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / Math.max(1, r.width)) * 100;
+    const y = ((e.clientY - r.top) / Math.max(1, r.height)) * 100;
+    form.style.setProperty('--lv2-mx', `${Math.max(0, Math.min(100, x))}%`);
+    form.style.setProperty('--lv2-my', `${Math.max(0, Math.min(100, y))}%`);
+  }
+  function onEnter() {
+    form.classList.add('lv2-card-glow');
+  }
+  function onLeave() {
+    form.classList.remove('lv2-card-glow');
+  }
+  form.addEventListener('pointermove', onMove, { passive: true });
+  form.addEventListener('pointerenter', onEnter, { passive: true });
+  form.addEventListener('pointerleave', onLeave, { passive: true });
 }
 
 const CHECK_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,.8)" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>`;
@@ -517,6 +838,7 @@ export function createForgotPasswordView({ onNavigate }) {
 
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
+  attachLoginPremiumFx(screen);
   const left = lv2AuthLeftColumnMini(
     'Réinitialiser<br>votre accès',
     'Indiquez l’adresse e-mail du compte. Si elle est connue, un lien valable 1 h vous sera envoyé.'
@@ -617,6 +939,7 @@ export function createResetPasswordView({ onNavigate }) {
 
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
+  attachLoginPremiumFx(screen);
   const left = lv2AuthLeftColumnMini(
     'Nouveau<br>mot de passe',
     'Choisissez un mot de passe solide. Après validation, connectez-vous avec vos nouveaux identifiants.'
@@ -759,6 +1082,7 @@ export function createFirstPasswordChangeView({ onSuccess, onNavigate }) {
   const token = getPasswordSetupToken();
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
+  attachLoginPremiumFx(screen);
   const left = lv2AuthLeftColumnMini(
     'Sécurisez<br>votre accès',
     'Votre administrateur vous a fourni un mot de passe provisoire. Choisissez un mot de passe définitif pour accéder à la plateforme.'
@@ -931,6 +1255,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
 
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
+  attachLoginPremiumFx(screen);
 
   const left = document.createElement('div');
   left.className = 'lv2-left';
@@ -1067,6 +1392,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
   `;
 
   const form = inner.querySelector('.lv2-form');
+  if (form) attachCardMouseGlow(form);
   const emailEl = inner.querySelector('.lv2-email');
   const passEl = inner.querySelector('.lv2-password');
   const submitBtn = inner.querySelector('.lv2-submit');
