@@ -107,5 +107,79 @@ describe('controlledDocument.service tenant isolation', () => {
     expect(svc.normalizeControlledDocumentType('Fiche de données de sécurité')).toBe('fds');
     expect(svc.normalizeControlledDocumentType('fiche de donnees de securite')).toBe('fds');
   });
+
+  it('createControlledDocument: type "FDS" est stocké en "fds"', async () => {
+    prismaMock.controlledDocument.create.mockResolvedValueOnce({
+      id: 'doc_fds',
+      tenantId: 'tA',
+      name: 'Doc',
+      type: 'fds',
+      path: 'p',
+      classification: 'normal'
+    });
+    await svc.createControlledDocument(Buffer.from('x'), {
+      tenantId: 'tA',
+      name: 'Doc',
+      type: 'FDS',
+      mimeType: 'application/pdf'
+    });
+    expect(prismaMock.controlledDocument.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'fds' })
+      })
+    );
+  });
+
+  it('createControlledDocument: "fiche de données de sécurité" est stocké en "fds"', async () => {
+    prismaMock.controlledDocument.create.mockResolvedValueOnce({
+      id: 'doc_fds2',
+      tenantId: 'tA',
+      name: 'Doc',
+      type: 'fds',
+      path: 'p',
+      classification: 'normal'
+    });
+    await svc.createControlledDocument(Buffer.from('x'), {
+      tenantId: 'tA',
+      name: 'Doc',
+      type: 'fiche de données de sécurité',
+      mimeType: 'application/pdf'
+    });
+    expect(prismaMock.controlledDocument.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'fds' })
+      })
+    );
+  });
+
+  it('updateControlledDocumentMeta: patch type FDS normalise en "fds"', async () => {
+    prismaMock.controlledDocument.findFirst.mockResolvedValueOnce({
+      id: 'doc1',
+      tenantId: 'tA',
+      name: 'x',
+      classification: 'normal',
+      path: 'p'
+    });
+    prismaMock.controlledDocument.updateMany.mockResolvedValueOnce({ count: 1 });
+    prismaMock.controlledDocument.findFirst.mockResolvedValueOnce({
+      id: 'doc1',
+      tenantId: 'tA',
+      name: 'x',
+      classification: 'normal',
+      path: 'p',
+      type: 'fds'
+    });
+    await svc.updateControlledDocumentMeta('tA', 'doc1', { type: 'FDS' });
+    expect(prismaMock.controlledDocument.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'fds' })
+      })
+    );
+  });
+
+  it('type non FDS est conservé (trim)', async () => {
+    expect(svc.normalizeControlledDocumentType('procédure')).toBe('procédure');
+    expect(svc.normalizeControlledDocumentType('  plan  ')).toBe('plan');
+  });
 });
 
