@@ -302,7 +302,69 @@ function ensureLoginV2Styles() {
 .lv2-form {
   position: relative;
   isolation: isolate;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border: 1px solid rgba(82,148,247,.18);
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.55),
+    0 0 0 1px rgba(15,23,42,.25) inset;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transform: translate3d(0,0,0);
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease, border-color 220ms ease;
 }
+.lv2-form::after {
+  content: "";
+  position: absolute;
+  inset: -18px -18px -18px -18px;
+  border-radius: 22px;
+  pointer-events: none;
+  opacity: .34;
+  filter: blur(22px);
+  background: radial-gradient(520px 360px at 50% 45%,
+    rgba(82,148,247,.18),
+    rgba(34,211,238,.10) 32%,
+    rgba(34,197,94,.06) 48%,
+    rgba(13,17,23,0) 70%
+  );
+  z-index: -1;
+}
+.lv2-form:hover {
+  transform: translate3d(0,-2px,0);
+  border-color: rgba(34,211,238,.22);
+  box-shadow:
+    0 32px 84px rgba(0,0,0,.62),
+    0 0 0 1px rgba(15,23,42,.25) inset;
+}
+.lv2-form:active { transform: translate3d(0,-1px,0); }
+
+.lv2-form::marker { content: ''; } /* safety for browsers treating form as list item */
+
+.lv2-form .lv2-scanline {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 2px;
+  left: 10%;
+  opacity: .0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(34,211,238,0),
+    rgba(34,211,238,.20),
+    rgba(34,197,94,.12),
+    rgba(34,211,238,0)
+  );
+  box-shadow:
+    0 0 18px rgba(34,211,238,.10),
+    0 0 28px rgba(34,197,94,.06);
+  transform: translate3d(-30px,0,0);
+  will-change: transform, opacity;
+  animation: lv2-card-scan 5.6s ease-in-out infinite;
+}
+.lv2-form.lv2-card-scan .lv2-scanline { opacity: .38; }
+
 .lv2-form::before {
   content: "";
   position: absolute;
@@ -344,6 +406,16 @@ function ensureLoginV2Styles() {
 .lv2-input {
   width: 100%;
   transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.lv2-field:focus-within .lv2-field-label {
+  color: rgba(226,232,240,.86);
+}
+.lv2-field:focus-within .lv2-input {
+  transform: translate3d(0,-1px,0);
+}
+.lv2-field:focus-within .lv2-eye-btn {
+  color: rgba(34,211,238,.85);
+  transform: translateY(-50%) scale(1.06);
 }
 .lv2-input:focus {
   box-shadow:
@@ -428,6 +500,15 @@ function ensureLoginV2Styles() {
   transition: transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease;
   will-change: transform;
 }
+.lv2-submit {
+  background-image: linear-gradient(90deg, rgba(82,148,247,.95), rgba(34,211,238,.85), rgba(34,197,94,.72));
+  background-size: 180% 100%;
+  background-position: 0% 50%;
+  transition:
+    transform 180ms cubic-bezier(.2,.8,.2,1),
+    box-shadow 220ms ease,
+    background-position 650ms ease;
+}
 .lv2-submit::before {
   content: "";
   position: absolute;
@@ -442,6 +523,7 @@ function ensureLoginV2Styles() {
 .lv2-submit:hover {
   transform: translate3d(0,-1px,0) scale(1.01);
   box-shadow: 0 10px 30px rgba(0,0,0,.28);
+  background-position: 100% 50%;
 }
 .lv2-submit:hover::before {
   opacity: .85;
@@ -508,6 +590,12 @@ function ensureLoginV2Styles() {
   60% { transform: translate3d(65%, 0, 0); }
   100% { transform: translate3d(65%, 0, 0); }
 }
+@keyframes lv2-card-scan {
+  0% { opacity: 0; transform: translate3d(-34px,0,0); }
+  18% { opacity: .4; }
+  58% { opacity: .34; }
+  100% { opacity: 0; transform: translate3d(calc(90vw),0,0); }
+}
 @media (prefers-reduced-motion: reduce) {
   .lv2-left::before,
   .lv2-logo::after,
@@ -522,6 +610,8 @@ function ensureLoginV2Styles() {
   .lv2-form.is-loading .lv2-field::after { animation: none !important; }
   .lv2-scan { animation: none !important; opacity: 0 !important; }
   .lv2-fx-canvas { display: none !important; }
+  .lv2-form { transition: none !important; transform: none !important; }
+  .lv2-form .lv2-scanline { animation: none !important; opacity: 0 !important; }
 }
 `;
   document.head.append(el);
@@ -565,6 +655,20 @@ function attachLoginPremiumFx(screen) {
   }
 
   return { fx, canvas, scan };
+}
+
+/**
+ * Scanline verticale subtile sur la card login (effet cockpit IA).
+ * @param {HTMLFormElement} form
+ */
+function attachCardScanline(form) {
+  if (!form) return;
+  if (prefersReducedMotion()) return;
+  const line = document.createElement('div');
+  line.className = 'lv2-scanline';
+  line.setAttribute('aria-hidden', 'true');
+  form.append(line);
+  form.classList.add('lv2-card-scan');
 }
 
 /**
@@ -1393,6 +1497,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
 
   const form = inner.querySelector('.lv2-form');
   if (form) attachCardMouseGlow(form);
+  if (form) attachCardScanline(form);
   const emailEl = inner.querySelector('.lv2-email');
   const passEl = inner.querySelector('.lv2-password');
   const submitBtn = inner.querySelector('.lv2-submit');
