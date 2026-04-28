@@ -100,6 +100,38 @@ function ensureLoginV2Styles() {
   align-items: center;
   justify-content: center;
   padding: 40px 32px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 700px at 70% 40%, rgba(34,211,238,.06), transparent 62%),
+    radial-gradient(900px 700px at 55% 65%, rgba(82,148,247,.06), transparent 66%),
+    #0d1117;
+}
+.lv2-right::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .10;
+  background-image:
+    linear-gradient(rgba(255,255,255,.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(60% 55% at 55% 45%, rgba(0,0,0,.95), transparent 72%);
+}
+.lv2-right::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  opacity: .45;
+  background: radial-gradient(700px 520px at 50% 52%,
+    rgba(34,211,238,.10),
+    rgba(82,148,247,.08) 32%,
+    rgba(13,17,23,0) 68%
+  );
+  filter: blur(28px);
+  transform: translate3d(0,0,0);
 }
 .lv2-right-inner {
   width: 100%;
@@ -631,9 +663,9 @@ function isLikelyMobileFx() {
  * Layer FX: canvas particules + scan overlay.
  * @param {HTMLElement} screen
  */
-function attachLoginPremiumFx(screen) {
-  if (!screen || !(screen instanceof HTMLElement)) return null;
-  if (screen.querySelector(`[data-${LOGIN_V2_FX_ID}]`)) return null;
+function attachLoginPremiumFx(container) {
+  if (!container || !(container instanceof HTMLElement)) return null;
+  if (container.querySelector(`[data-${LOGIN_V2_FX_ID}]`)) return null;
 
   const fx = document.createElement('div');
   fx.className = 'lv2-fx';
@@ -648,7 +680,7 @@ function attachLoginPremiumFx(screen) {
   scan.setAttribute('aria-hidden', 'true');
 
   fx.append(canvas, scan);
-  screen.prepend(fx);
+  container.prepend(fx);
 
   if (!prefersReducedMotion()) {
     startLoginParticles(canvas, { simplify: isLikelyMobileFx() });
@@ -697,7 +729,7 @@ function startLoginParticles(canvas, opts = {}) {
   const mouse = { x: 0.72, y: 0.44, tx: 0.72, ty: 0.44, active: false };
 
   function pickCount() {
-    const base = w >= 1200 ? 42 : w >= 900 ? 34 : w >= 700 ? 26 : 18;
+    const base = w >= 1200 ? 30 : w >= 900 ? 26 : w >= 700 ? 22 : 16;
     return simplify ? Math.max(10, Math.round(base * 0.55)) : base;
   }
 
@@ -942,7 +974,6 @@ export function createForgotPasswordView({ onNavigate }) {
 
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
-  attachLoginPremiumFx(screen);
   const left = lv2AuthLeftColumnMini(
     'Réinitialiser<br>votre accès',
     'Indiquez l’adresse e-mail du compte. Si elle est connue, un lien valable 1 h vous sera envoyé.'
@@ -950,6 +981,7 @@ export function createForgotPasswordView({ onNavigate }) {
 
   const right = document.createElement('div');
   right.className = 'lv2-right';
+  attachLoginPremiumFx(right);
   const inner = document.createElement('div');
   inner.className = 'lv2-right-inner';
   inner.innerHTML = `
@@ -1043,7 +1075,6 @@ export function createResetPasswordView({ onNavigate }) {
 
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
-  attachLoginPremiumFx(screen);
   const left = lv2AuthLeftColumnMini(
     'Nouveau<br>mot de passe',
     'Choisissez un mot de passe solide. Après validation, connectez-vous avec vos nouveaux identifiants.'
@@ -1051,6 +1082,7 @@ export function createResetPasswordView({ onNavigate }) {
 
   const right = document.createElement('div');
   right.className = 'lv2-right';
+  attachLoginPremiumFx(right);
   const inner = document.createElement('div');
   inner.className = 'lv2-right-inner';
 
@@ -1186,13 +1218,13 @@ export function createFirstPasswordChangeView({ onSuccess, onNavigate }) {
   const token = getPasswordSetupToken();
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
-  attachLoginPremiumFx(screen);
   const left = lv2AuthLeftColumnMini(
     'Sécurisez<br>votre accès',
     'Votre administrateur vous a fourni un mot de passe provisoire. Choisissez un mot de passe définitif pour accéder à la plateforme.'
   );
   const right = document.createElement('div');
   right.className = 'lv2-right';
+  attachLoginPremiumFx(right);
   const inner = document.createElement('div');
   inner.className = 'lv2-right-inner';
 
@@ -1359,7 +1391,6 @@ export function createLoginView({ onSuccess, onNavigate }) {
 
   const screen = document.createElement('div');
   screen.className = 'lv2-screen';
-  attachLoginPremiumFx(screen);
 
   const left = document.createElement('div');
   left.className = 'lv2-left';
@@ -1443,6 +1474,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
 
   const right = document.createElement('div');
   right.className = 'lv2-right';
+  attachLoginPremiumFx(right);
 
   const inner = document.createElement('div');
   inner.className = 'lv2-right-inner';
