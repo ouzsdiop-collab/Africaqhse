@@ -99,7 +99,7 @@ export function reconcileDashboardStatsWithLists(apiStats, incidents, actions, n
 
   if (!serverLooksAuthoritative && apiScalarsDead && listsSignal) {
     const d = deriveDashboardStatsFromLists(incidents, actions, ncs);
-    return { ...fromApi, ...d, stats: fromApi.stats };
+    return { ...fromApi, ...d, stats: fromApi.stats, timeseries: fromApi.timeseries };
   }
 
   return fromApi;

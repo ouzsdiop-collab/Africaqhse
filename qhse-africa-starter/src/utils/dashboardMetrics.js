@@ -90,15 +90,13 @@ export function buildOperationalTiles({
     .filter((x) => Number.isFinite(x));
   const complianceMultiSites = auditScores.length
     ? Math.round(auditScores.reduce((a, b) => a + b, 0) / auditScores.length)
-    : 76;
-  const subcontractors = Math.max(
-    3,
-    Math.min(22, Math.round((safeNum(stats?.actions) + safeNum(stats?.incidents)) / 3))
-  );
-  const habilitationsSoon = Math.max(
-    1,
-    Math.min(18, Math.round((Array.isArray(incidents) ? incidents.length : 0) / 2))
-  );
+    : 0;
+  /**
+   * IMPORTANT: pas de chiffres “inventés” sur tenant neuf.
+   * Ces métriques “sous-traitants / habilitations” ne sont fiables que si un backend dédié les calcule.
+   */
+  const subcontractors = 0;
+  const habilitationsSoon = 0;
   return [
     {
       k: 'Incidents',
@@ -166,21 +164,157 @@ export function buildOperationalTiles({
   ];
 }
 
+/** Réduit `stats.timeseries` pour prompts IA (taille maîtrisée). */
+export function compactTimeseriesForAiPayload(timeseries, maxMonths = 6) {
+  if (!timeseries || typeof timeseries !== 'object' || Array.isArray(timeseries)) return null;
+  const cap = Math.min(12, Math.max(1, Math.floor(Number(maxMonths)) || 6));
+  const mc = Math.min(cap, Math.max(1, Number(timeseries.monthCount) || cap));
+  const labels = Array.isArray(timeseries.labels) ? timeseries.labels.slice(-mc) : [];
+  const incidentsByMonth = Array.isArray(timeseries.incidentsByMonth)
+    ? timeseries.incidentsByMonth.slice(-mc).map((x) => ({
+        label: String(/** @type {{ label?: unknown }} */ (x).label ?? ''),
+        value: Math.max(0, Number(/** @type {{ value?: unknown }} */ (x).value) || 0)
+      }))
+    : [];
+  const auditsScoreByMonth = Array.isArray(timeseries.auditsScoreByMonth)
+    ? timeseries.auditsScoreByMonth.slice(-mc).map((x) => ({
+        label: String(/** @type {{ label?: unknown }} */ (x).label ?? ''),
+        avgScore: Math.max(0, Math.min(100, Number(/** @type {{ value?: unknown }} */ (x).value) || 0)),
+        auditCount: Math.max(0, Number(/** @type {{ count?: unknown }} */ (x).count) || 0)
+      }))
+    : [];
+  const nc = timeseries.nonConformitiesByMonth;
+  let ncAgg = null;
+  if (nc && typeof nc === 'object' && Array.isArray(nc.major) && Array.isArray(nc.minor)) {
+    ncAgg = {
+      majorLastN: nc.major.slice(-mc).map((n) => Math.max(0, Number(n) || 0)),
+      minorLastN: nc.minor.slice(-mc).map((n) => Math.max(0, Number(n) || 0))
+    };
+  }
+  return {
+    source: 'api_timeseries',
+    monthCount: mc,
+    labels,
+    incidentsByMonth,
+    auditsScoreByMonth,
+    nonConformitiesMajorMinor: ncAgg
+  };
+}
+
+/**
+ * Moyenne audit pondérée par les buckets ayant au moins un audit (série backend).
+ * @param {unknown} timeseries
+ */
+export function averageAuditScoreFromTimeseries(timeseries) {
+  const rows = timeseries?.auditsScoreByMonth;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  let sum = 0;
+  let w = 0;
+  rows.forEach((b) => {
+    const c = Number(/** @type {{ count?: unknown }} */ (b).count) || 0;
+    const v = Number(/** @type {{ value?: unknown }} */ (b).value);
+    if (c <= 0 || !Number.isFinite(v)) return;
+    sum += v * c;
+    w += c;
+  });
+  if (w <= 0) return null;
+  return Math.round((sum / w) * 10) / 10;
+}
+
+/**
+ * Risques critiques : synthèse serveur d’abord, sinon dérivé liste si nécessaire.
+ * @param {Record<string, unknown> | null | undefined} stats
+ * @param {unknown[]} [risks]
+ */
+export function computeRisksCriticalForPayload(stats, risks) {
+  const nested = stats?.stats?.risks?.critical;
+  if (nested != null && Number.isFinite(Number(nested))) return Number(nested);
+  if (risks === undefined) return null;
+  if (!Array.isArray(risks) || risks.length === 0) return 0;
+  return risks.reduce((acc, raw) => {
+    const ui = mapApiRiskToUi(raw && typeof raw === 'object' ? raw : {});
+    return acc + (riskTierBucket(ui) === 'critique' ? 1 : 0);
+  }, 0);
+}
+
+/**
+ * Indique l’absence de signaux forts (KPI scalaires + extraits) — pour limiter les mocks IA.
+ * @param {Record<string, unknown> | null | undefined} stats
+ */
+/**
+ * Au moins une valeur non nulle dans les séries backend (évite mocks lorsque seuls les KPI scalaires sont à 0).
+ * @param {unknown} ts
+ */
+export function timeseriesHasOperationalSignal(ts) {
+  if (!ts || typeof ts !== 'object' || Array.isArray(ts)) return false;
+  const inc = /** @type {{ incidentsByMonth?: unknown }} */ (ts).incidentsByMonth;
+  if (Array.isArray(inc) && inc.some((x) => Number(/** @type {{ value?: unknown }} */ (x).value) > 0))
+    return true;
+  const aud = /** @type {{ auditsScoreByMonth?: unknown }} */ (ts).auditsScoreByMonth;
+  if (
+    Array.isArray(aud) &&
+    aud.some(
+      (x) =>
+        Number(/** @type {{ count?: unknown }} */ (x).count) > 0 ||
+        Number(/** @type {{ value?: unknown }} */ (x).value) > 0
+    )
+  )
+    return true;
+  const nc = /** @type {{ nonConformitiesByMonth?: unknown }} */ (ts).nonConformitiesByMonth;
+  if (nc && typeof nc === 'object' && !Array.isArray(nc)) {
+    const maj = /** @type {{ major?: unknown }} */ (nc).major;
+    const min = /** @type {{ minor?: unknown }} */ (nc).minor;
+    if (Array.isArray(maj) && maj.some((n) => Number(n) > 0)) return true;
+    if (Array.isArray(min) && min.some((n) => Number(n) > 0)) return true;
+  }
+  return false;
+}
+
+export function isDashboardSignalsTotallyEmpty(stats) {
+  if (!stats || typeof stats !== 'object') return true;
+  const nested = stats.stats && typeof stats.stats === 'object' ? stats.stats : null;
+  const inc = asDashboardCount(stats.incidents);
+  const od = asDashboardCount(stats.overdueActions);
+  const nc = asDashboardCount(stats.nonConformities);
+  const critInc = Array.isArray(stats.criticalIncidents) ? stats.criticalIncidents.length : 0;
+  const rcNested = nested?.risks?.critical;
+  const risksCrit =
+    rcNested != null && Number.isFinite(Number(rcNested)) ? Number(rcNested) : 0;
+  const ts = stats.timeseries && typeof stats.timeseries === 'object' ? stats.timeseries : null;
+  const tsSignal = ts && timeseriesHasOperationalSignal(ts);
+  return (
+    inc === 0 &&
+    od === 0 &&
+    nc === 0 &&
+    critInc === 0 &&
+    risksCrit === 0 &&
+    !tsSignal
+  );
+}
+
 /** @param {unknown} raw */
 export function normalizeDashboardPayload(raw) {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  return {
-    incidents: asDashboardCount(/** @type {any} */ (raw).incidents),
-    actions: asDashboardCount(/** @type {any} */ (raw).actions),
-    overdueActions: asDashboardCount(/** @type {any} */ (raw).overdueActions),
-    nonConformities: asDashboardCount(/** @type {any} */ (raw).nonConformities),
-    criticalIncidents: Array.isArray(/** @type {any} */ (raw).criticalIncidents)
-      ? /** @type {any} */ (raw).criticalIncidents
-      : [],
-    overdueActionItems: Array.isArray(/** @type {any} */ (raw).overdueActionItems)
-      ? /** @type {any} */ (raw).overdueActionItems
-      : []
+  const r = /** @type {Record<string, unknown>} */ (raw);
+  const ts = r.timeseries;
+  const out = {
+    incidents: asDashboardCount(r.incidents),
+    actions: asDashboardCount(r.actions),
+    overdueActions: asDashboardCount(r.overdueActions),
+    nonConformities: asDashboardCount(r.nonConformities),
+    criticalIncidents: Array.isArray(r.criticalIncidents) ? r.criticalIncidents : [],
+    overdueActionItems: Array.isArray(r.overdueActionItems) ? r.overdueActionItems : []
   };
+  if (r.stats != null && typeof r.stats === 'object' && !Array.isArray(r.stats)) {
+    /** @type {any} */ (out).stats = r.stats;
+  }
+  if (ts != null && typeof ts === 'object' && !Array.isArray(ts)) {
+    /** @type {any} */ (out).timeseries = ts;
+  }
+  if (r.siteId != null && r.siteId !== '') {
+    /** @type {any} */ (out).siteId = r.siteId;
+  }
+  return out;
 }
 
 /**
@@ -191,8 +325,14 @@ export function normalizeDashboardPayload(raw) {
 export function buildMistralDashboardStatsPayload(lastStats, audits, risks) {
   const critSrc = lastStats?.criticalIncidents;
   const criticalIncidents = Array.isArray(critSrc) ? critSrc.length : Number(critSrc) || 0;
+  const ts = lastStats?.timeseries;
+  const tsAvg = averageAuditScoreFromTimeseries(
+    ts && typeof ts === 'object' && !Array.isArray(ts) ? ts : null
+  );
   let avgAuditScore = 'N/A';
-  if (Array.isArray(audits) && audits.length) {
+  if (tsAvg != null) {
+    avgAuditScore = String(tsAvg);
+  } else if (Array.isArray(audits) && audits.length) {
     const scores = audits.map((a) => Number(/** @type {any} */ (a).score)).filter((n) => Number.isFinite(n));
     if (scores.length) {
       avgAuditScore = String(Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
@@ -205,13 +345,39 @@ export function buildMistralDashboardStatsPayload(lastStats, audits, risks) {
       return !/clos|ferm|trait|ma[iî]tris/i.test(s);
     }).length;
   }
-  return {
+  const nested = lastStats?.stats && typeof lastStats.stats === 'object' ? lastStats.stats : null;
+  const risksCritical = computeRisksCriticalForPayload(
+    lastStats && typeof lastStats === 'object' ? lastStats : {},
+    Array.isArray(risks) ? risks : undefined
+  );
+  const nonConformities = asDashboardCount(lastStats?.nonConformities);
+  const auditsSummary =
+    nested?.audits && typeof nested.audits === 'object'
+      ? {
+          total: asDashboardCount(/** @type {any} */ (nested.audits).total),
+          planned: asDashboardCount(/** @type {any} */ (nested.audits).planned),
+          done: asDashboardCount(/** @type {any} */ (nested.audits).done)
+        }
+      : null;
+  const timeseriesCompact =
+    ts && typeof ts === 'object' && !Array.isArray(ts) ? compactTimeseriesForAiPayload(ts, 6) : null;
+
+  /** @type {Record<string, unknown>} */
+  const out = {
     incidents: asDashboardCount(lastStats?.incidents),
     criticalIncidents,
     risksOpen,
+    risksCritical: risksCritical != null ? risksCritical : undefined,
     actionsOverdue: asDashboardCount(lastStats?.overdueActions),
-    avgAuditScore
+    nonConformities,
+    avgAuditScore,
+    auditsSummary,
+    avgAuditScoreSource: tsAvg != null ? 'api_timeseries' : avgAuditScore !== 'N/A' ? 'api_list' : 'none',
+    timeseriesCompact,
+    actionsTotal: nested?.actions?.total != null ? asDashboardCount(/** @type {any} */ (nested.actions).total) : undefined,
+    incidentsTotalNested: nested?.incidents?.total != null ? asDashboardCount(/** @type {any} */ (nested.incidents).total) : undefined
   };
+  return out;
 }
 
 export function formatDashboardCount(v) {

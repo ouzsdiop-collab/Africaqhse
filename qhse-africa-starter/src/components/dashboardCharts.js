@@ -7,6 +7,25 @@ import { isActionOverdueDashboardRow } from '../utils/actionOverdueDashboard.js'
 import { interpretIncidentTrend } from '../utils/dashboardIncidentSeriesNarrative.js';
 import { createIncidentsMonthlyLineChartChartJs } from './dashboardIncidentsLineChart.js';
 
+/** Message unifié — tendances issues de `stats.timeseries` uniquement (hors mode démo). */
+export const DASHBOARD_TREND_EMPTY_MSG = 'Aucune donnée disponible';
+
+/**
+ * @param {string} [message]
+ * @returns {HTMLElement}
+ */
+export function createDashboardTrendEmptyState(message = DASHBOARD_TREND_EMPTY_MSG) {
+  const wrap = document.createElement('div');
+  wrap.className = 'dashboard-trend-empty';
+  wrap.setAttribute('role', 'status');
+  const p = document.createElement('p');
+  p.className = 'dashboard-situation-note';
+  p.style.margin = '0';
+  p.textContent = message;
+  wrap.append(p);
+  return wrap;
+}
+
 let qhseDashboardChartJsReady = false;
 
 /**

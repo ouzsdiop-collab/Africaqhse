@@ -92,6 +92,80 @@ export function isActionOverdueDashboardRow(row) {
   return Number.isFinite(t) && t < Date.now();
 }
 
+/**
+ * Seuil GP (gravité × probabilité) pour risque « critique » — aligné dashboard et `getRiskStats`.
+ * @type {number}
+ */
+export const RISK_CRITICAL_GP_MIN = 15;
+
+/**
+ * Palier numérique maximal (échelle 1–5 Prisma / matrice) : équivalent « Critique » même si GP faible.
+ * @type {number}
+ */
+export const RISK_CRITICAL_SEVERITY_NUM_MIN = 5;
+
+/**
+ * Risque « critique » pour KPI : `severity` contient « critique » / « critical » (insensible à la casse),
+ * **ou** palier numérique ≥ {@link RISK_CRITICAL_SEVERITY_NUM_MIN},
+ * **ou** GP effectif ≥ {@link RISK_CRITICAL_GP_MIN}.
+ * GP effectif : `gp` persisté si nombre fini ; sinon `probability × gravité effective`
+ * (gravité = `gravity` si renseignée, sinon `severity` **numérique** seulement).
+ *
+ * @param {{ gp?: unknown; severity?: unknown; probability?: unknown; gravity?: unknown }} row
+ * @returns {boolean}
+ */
+export function isCriticalRisk(row) {
+  if (!row || typeof row !== 'object') return false;
+  const sevStr = String(row.severity ?? '');
+  if (includesInsensitive(sevStr, 'critique') || includesInsensitive(sevStr, 'critical')) return true;
+
+  const sevNum =
+    row.severity != null && row.severity !== '' && typeof row.severity !== 'string'
+      ? Number(row.severity)
+      : typeof row.severity === 'string' && /^\s*\d+\s*$/.test(row.severity)
+        ? Number(row.severity)
+        : NaN;
+
+  if (Number.isFinite(sevNum) && sevNum >= RISK_CRITICAL_SEVERITY_NUM_MIN) return true;
+
+  const storedGp = row.gp != null && row.gp !== '' ? Number(row.gp) : NaN;
+  if (Number.isFinite(storedGp) && storedGp >= RISK_CRITICAL_GP_MIN) return true;
+
+  const p = row.probability != null && row.probability !== '' ? Number(row.probability) : NaN;
+  const grav =
+    row.gravity != null && row.gravity !== ''
+      ? Number(row.gravity)
+      : Number.isFinite(sevNum)
+        ? sevNum
+        : NaN;
+  if (Number.isFinite(p) && Number.isFinite(grav) && p * grav >= RISK_CRITICAL_GP_MIN) return true;
+
+  return false;
+}
+
+/** @deprecated Alias historique — utiliser `isCriticalRisk`. */
+export const isRiskCriticalForKpi = isCriticalRisk;
+
+/**
+ * Compte les risques critiques (même règle que `isCriticalRisk`) sur le périmètre tenant/site.
+ *
+ * @param {string | null | undefined} tenantId
+ * @param {string | null} siteId
+ */
+export async function countRisksCriticalForKpi(tenantId, siteId) {
+  const where = prismaTenantSiteWhere(tenantId, siteId);
+  const rows = await prisma.risk.findMany({
+    where,
+    select: {
+      gp: true,
+      severity: true,
+      probability: true,
+      gravity: true
+    }
+  });
+  return rows.filter(isCriticalRisk).length;
+}
+
 function isActionClosedForDashboardKpiSqlMirror(st) {
   return /termin|clos|ferm|fait|complete|réalis|realis|clôtur|clotur|résolu|resolu|done|effectu|complété/i.test(
     String(st)

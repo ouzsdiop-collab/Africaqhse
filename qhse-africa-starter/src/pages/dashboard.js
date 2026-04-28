@@ -61,8 +61,10 @@ import {
 import { fetchJsonListWithRetry, qhseFetchWithNetworkRetry } from '../utils/dashboardFetchHelpers.js';
 import {
   normalizeDashboardPayload,
-  buildMistralDashboardStatsPayload
+  buildMistralDashboardStatsPayload,
+  isDashboardSignalsTotallyEmpty
 } from '../utils/dashboardMetrics.js';
+import { isDemoMode } from '../services/demoMode.service.js';
 
 const DASH_DECISION_STYLE_ID = 'qhse-dashboard-decision-styles';
 const DASHBOARD_DEMO_LISTS = {
@@ -1188,10 +1190,10 @@ export function renderDashboard() {
       showToast('Certaines listes n’ont pas pu être chargées — affichage partiel.', 'warning');
     }
 
-    const incidents = incR || DASHBOARD_DEMO_LISTS.incidents;
-    const actions = actR || DASHBOARD_DEMO_LISTS.actions;
-    const audits = audR || DASHBOARD_DEMO_LISTS.audits;
-    const ncs = ncR || DASHBOARD_DEMO_LISTS.ncs;
+    const incidents = isDemoMode() ? incR || DASHBOARD_DEMO_LISTS.incidents : incR || [];
+    const actions = isDemoMode() ? actR || DASHBOARD_DEMO_LISTS.actions : actR || [];
+    const audits = isDemoMode() ? audR || DASHBOARD_DEMO_LISTS.audits : audR || [];
+    const ncs = isDemoMode() ? ncR || DASHBOARD_DEMO_LISTS.ncs : ncR || [];
     const docs = docsR || [];
 
     if (fillStatsFromLists) {
@@ -1303,7 +1305,11 @@ export function renderDashboard() {
           stats: lastStats,
           incidents,
           actions,
-          siteLabel: siteName
+          siteLabel: siteName,
+          risks: Array.isArray(risksR) ? risksR : null,
+          // Sur tenant neuf (vraies données vides), on n’affiche pas de recommandations “mockées”.
+          allowGenericPilotageMocks: isDemoMode(),
+          isDemoContext: isDemoMode()
         });
         const ai = await fetchPilotageAiSuggestActions(dashboardContext);
         pilotageAssistant.setAiResult({

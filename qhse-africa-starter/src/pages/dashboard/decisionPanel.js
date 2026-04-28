@@ -3,9 +3,11 @@ import {
   buildIncidentMonthlySeries,
   buildNcMajorMinorMonthlySeries,
   buildTopIncidentTypes,
-  buildAuditScoreSeriesFromAudits
+  buildAuditScoreSeriesFromAudits,
+  DASHBOARD_TREND_EMPTY_MSG
 } from '../../components/dashboardCharts.js';
-import { asDashboardCount, isNcOpen } from '../../utils/reconcileDashboardStats.js';
+import { isDemoMode } from '../../services/demoMode.service.js';
+import { asDashboardCount } from '../../utils/reconcileDashboardStats.js';
 import {
   toneByValue,
   guessImpactedSite,
@@ -34,6 +36,57 @@ function dashboardKpiScopeEmptyLabel() {
   return appState.activeSiteId ? 'Aucun sur ce site' : 'Aucune donnée';
 }
 
+/**
+ * @param {object | null} ts
+ * @returns {{ label: string; value: number }[] | null}
+ */
+function monthlyIncidentsFromTimeseries(ts) {
+  if (!ts || !Array.isArray(ts.incidentsByMonth) || !ts.incidentsByMonth.length) return null;
+  if (!ts.incidentsByMonth.every((x) => x && typeof x === 'object')) return null;
+  return ts.incidentsByMonth.map((x) => ({
+    label: String(/** @type {{ label?: unknown }} */ (x).label ?? '—'),
+    value: Math.max(0, Number(/** @type {{ value?: unknown }} */ (x).value) || 0)
+  }));
+}
+
+/**
+ * @param {object | null} ts
+ * @returns {{ labels: string[]; major: number[]; minor: number[] } | null}
+ */
+function ncStackFromTimeseries(ts) {
+  if (!ts) return null;
+  const nc = ts.nonConformitiesByMonth;
+  if (!nc || typeof nc !== 'object') return null;
+  const major = Array.isArray(nc.major) ? nc.major : [];
+  const minor = Array.isArray(nc.minor) ? nc.minor : [];
+  const m = Math.min(major.length, minor.length);
+  if (m < 1) return null;
+  const labels =
+    Array.isArray(ts.labels) && ts.labels.length >= m
+      ? ts.labels.slice(0, m).map((l) => String(l))
+      : major.slice(0, m).map((_, i) => `M${i + 1}`);
+  return {
+    labels,
+    major: major.slice(0, m).map((n) => Math.max(0, Number(n) || 0)),
+    minor: minor.slice(0, m).map((n) => Math.max(0, Number(n) || 0))
+  };
+}
+
+/**
+ * @param {object | null} ts
+ * @returns {{ label: string; value: number }[] | null}
+ */
+function auditScoreBarsFromTimeseries(ts) {
+  if (!ts || !Array.isArray(ts.auditsScoreByMonth) || !ts.auditsScoreByMonth.length) return null;
+  return ts.auditsScoreByMonth.map((b) => {
+    const x = b && typeof b === 'object' ? b : {};
+    return {
+      label: String(/** @type {{ label?: unknown }} */ (x).label ?? '—'),
+      value: Math.max(0, Math.min(100, Number(/** @type {{ value?: unknown }} */ (x).value) || 0))
+    };
+  });
+}
+
 export function updateDecisionAlerts(refs, stats, data) {
   const {
     decisionAlerts,
@@ -48,10 +101,20 @@ export function updateDecisionAlerts(refs, stats, data) {
   } = refs;
   const { incidents, actions, ncs, audits, docs = [], risks = [] } = data;
 
-  const monthly = buildIncidentMonthlySeries(incidents);
+  const rawTs = stats?.timeseries;
+  const ts =
+    rawTs != null && typeof rawTs === 'object' && !Array.isArray(rawTs) ? rawTs : null;
+  const allowDemo = isDemoMode();
+
+  const monthlyFromApi = monthlyIncidentsFromTimeseries(ts);
+  const monthly = monthlyFromApi
+    ? monthlyFromApi
+    : allowDemo
+      ? buildIncidentMonthlySeries(incidents)
+      : [];
   const crit = Array.isArray(stats?.criticalIncidents) ? stats.criticalIncidents.length : 0;
   const late = asDashboardCount(stats?.overdueActions);
-  const ncOpen = ncs.filter(isNcOpen).length;
+  const ncOpen = asDashboardCount(stats?.nonConformities);
   const scopeEmpty = dashboardKpiScopeEmptyLabel();
   const cards = [
     { k: 'Incidents critiques', v: crit, tone: toneByValue(crit, 1, 2), kpi: 'incidents', impact: guessImpactedSite(incidents) },
@@ -110,9 +173,19 @@ export function updateDecisionAlerts(refs, stats, data) {
   const ncStackCtx = decisionChartCard.querySelector('[data-dc-nc-stack]');
   const riskCtx = decisionChartCard.querySelector('[data-dc-risk]');
   const scoreCtx = decisionChartCard.querySelector('[data-dc-score]');
-  const ncSeries = buildNcMajorMinorMonthlySeries(ncs, 6);
+  const ncFromTs = ncStackFromTimeseries(ts);
+  const ncSeries = ncFromTs
+    ? ncFromTs
+    : allowDemo
+      ? buildNcMajorMinorMonthlySeries(ncs, 6)
+      : { labels: ['—'], major: [0], minor: [0] };
   const riskTypes = buildTopIncidentTypes(incidents).slice(0, 5);
-  const auditScores = trimTrailingZeroAuditScores(buildAuditScoreSeriesFromAudits(audits).slice(-6));
+  const auditFromTs = auditScoreBarsFromTimeseries(ts);
+  const auditScores = auditFromTs
+    ? trimTrailingZeroAuditScores(auditFromTs)
+    : allowDemo
+      ? trimTrailingZeroAuditScores(buildAuditScoreSeriesFromAudits(audits).slice(-6))
+      : [{ label: '—', value: 0 }];
   const dcTick = getCssVar('--text-secondary', '#64748b');
   const dcGrid = `color-mix(in srgb, ${getCssVar('--border-color', '#e2e8f0')} 50%, transparent)`;
   const sliceBorder = getCssVar('--border-color', '#e2e8f0');
@@ -368,10 +441,13 @@ export function updateDecisionAlerts(refs, stats, data) {
 
   const trendDelta =
     monthly.length >= 2 ? monthly[monthly.length - 1].value - monthly[0].value : 0;
+  const noTsTrend = !ts && !allowDemo;
   const iaMsgs = [
-    trendDelta > 1
-      ? `Dérive incidents en hausse (${trendDelta > 0 ? '+' : ''}${trendDelta})`
-      : 'Incidents stables sur la période',
+    noTsTrend
+      ? DASHBOARD_TREND_EMPTY_MSG
+      : trendDelta > 1
+        ? `Dérive incidents en hausse (${trendDelta > 0 ? '+' : ''}${trendDelta})`
+        : 'Incidents stables sur la période',
     late > 0 ? `Recommandation: traiter ${late} action(s) en retard sous 48h.` : 'Aucun retard critique détecté.',
     ncOpen > 2 ? `Recommandation: lancer revue NC ciblée (top ${Math.min(3, ncOpen)}).` : 'Niveau NC sous contrôle.'
   ];
@@ -502,7 +578,7 @@ export function updateDecisionAlerts(refs, stats, data) {
     });
   });
 
-  const habRows = HABILITATIONS_DEMO_ROWS;
+  const habRows = allowDemo ? HABILITATIONS_DEMO_ROWS : [];
   const habKpi = computeHabilitationsKpis(habRows);
   habSummaryCard.replaceChildren();
   const habKick = document.createElement('div');
@@ -511,6 +587,12 @@ export function updateDecisionAlerts(refs, stats, data) {
   const habH3 = document.createElement('h3');
   habH3.style.margin = '4px 0 8px';
   habH3.textContent = 'Postes critiques & conformité';
+  if (!allowDemo) {
+    const note = document.createElement('p');
+    note.className = 'dashboard-chart-foot dashboard-chart-foot--tight';
+    note.textContent = 'Données insuffisantes pour afficher les habilitations (module démo uniquement).';
+    habSummaryCard.append(habKick, habH3, note);
+  }
   const habList = document.createElement('div');
   habList.className = 'dashboard-hab-list';
   function habItem(label, value) {
@@ -546,6 +628,11 @@ export function updateDecisionAlerts(refs, stats, data) {
   b3.dataset.habIntent = 'subcontractors_incomplete';
   b3.textContent = 'Voir sous-traitants';
   habAct1.append(b1, b2, b3);
+  if (!allowDemo) {
+    b1.disabled = true;
+    b2.disabled = true;
+    b3.disabled = true;
+  }
   habSummaryCard.append(habKick, habH3, habList, habAct1);
 
   const bySite = computeHabilitationsBySite(habRows);
@@ -558,6 +645,25 @@ export function updateDecisionAlerts(refs, stats, data) {
   siteH3.textContent = 'Conformité par site';
   const siteBar = document.createElement('div');
   siteBar.className = 'dashboard-hab-sitebar';
+  if (!bySite.length) {
+    const row = document.createElement('div');
+    row.className = 'dashboard-hab-sitebar-row';
+    const top = document.createElement('div');
+    top.className = 'dashboard-hab-sitebar-top';
+    const sp = document.createElement('span');
+    sp.textContent = '—';
+    const strong = document.createElement('strong');
+    strong.textContent = '0%';
+    top.append(sp, strong);
+    const track = document.createElement('div');
+    track.className = 'dashboard-hab-sitebar-track';
+    const fill = document.createElement('div');
+    fill.className = 'dashboard-hab-sitebar-fill';
+    fill.style.width = '0%';
+    track.append(fill);
+    row.append(top, track);
+    siteBar.append(row);
+  }
   for (const s of bySite) {
     const row = document.createElement('div');
     row.className = 'dashboard-hab-sitebar-row';
@@ -585,16 +691,21 @@ export function updateDecisionAlerts(refs, stats, data) {
   bOpen.dataset.habIntent = 'open_module';
   bOpen.textContent = 'Ouvrir Habilitations';
   habAct2.append(bOpen);
+  if (!allowDemo) {
+    bOpen.disabled = true;
+  }
   habSiteCard.append(siteKick, siteH3, siteBar, habAct2);
 
   const openHab = (filter) => {
     pushDashboardIntent({ module: 'habilitations', filter });
     window.location.hash = 'habilitations';
   };
-  [...habSummaryCard.querySelectorAll('[data-hab-intent]'), ...habSiteCard.querySelectorAll('[data-hab-intent]')].forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const intent = btn.getAttribute('data-hab-intent') || 'open_module';
-      openHab(intent);
+  if (allowDemo) {
+    [...habSummaryCard.querySelectorAll('[data-hab-intent]'), ...habSiteCard.querySelectorAll('[data-hab-intent]')].forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const intent = btn.getAttribute('data-hab-intent') || 'open_module';
+        openHab(intent);
+      });
     });
-  });
+  }
 }

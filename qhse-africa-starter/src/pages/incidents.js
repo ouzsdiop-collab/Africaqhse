@@ -203,8 +203,8 @@ function attachMistralIncidentCausesButton(detailRoot, incident) {
     aiBtn.disabled = true;
     try {
       const res = await qhseFetch('/api/ai/incident-causes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(incident)
       });
       if (!res.ok) throw new Error('api');
@@ -670,8 +670,8 @@ export function renderIncidents(onAddLog) {
       const res = await qhseFetch(withSiteQuery('/api/export/incidents'));
       if (!res.ok) {
         showToast('Export impossible', 'error');
-        return;
-      }
+      return;
+    }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -927,9 +927,9 @@ export function renderIncidents(onAddLog) {
   registryShell.append(registryZoneTitle, compactFilters, split);
 
   const incidentsModeGuide = createSimpleModeGuide({
-    title: 'Incidents — lire vite, agir sûr',
-    hint: 'En-tête : pilotage et priorités ; déclarez depuis le bloc action ; le registre sert à parcourir les fiches.',
-    nextStep: 'Déclarer si besoin, sinon parcourir les priorités puis le tableau de consultation.'
+      title: 'Incidents — lire vite, agir sûr',
+      hint: 'En-tête : pilotage et priorités ; déclarez depuis le bloc action ; le registre sert à parcourir les fiches.',
+      nextStep: 'Déclarer si besoin, sinon parcourir les priorités puis le tableau de consultation.'
   });
   incidentsModeGuide.classList.add('qhse-page-advanced-only');
 
@@ -1022,7 +1022,7 @@ export function renderIncidents(onAddLog) {
       return;
     }
 
-    showToast(
+          showToast(
       'Incident introuvable dans la liste affichée — vérifiez filtres ou périmètre.',
       'warning'
     );
@@ -1036,7 +1036,7 @@ export function renderIncidents(onAddLog) {
       isStatusClosed,
       onActivateIncident: (ref) => {
         const fresh = incidentByRef(ref);
-        if (fresh) activateIncidentRow(fresh);
+          if (fresh) activateIncidentRow(fresh);
       }
     });
   }
@@ -1349,8 +1349,8 @@ export function renderIncidents(onAddLog) {
         null;
       if (hit) {
         activateIncidentRow(hit);
-        return;
-      }
+      return;
+    }
       qhseNavigate('incidents', {
         skipDefaults: true,
         focusIncidentRef: payload.ref || undefined,

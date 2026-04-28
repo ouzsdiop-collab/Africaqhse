@@ -642,8 +642,8 @@ export function renderRisks() {
         sl.className = 'risks-proofs-item__label';
         sl.textContent = d.label;
         li.append(sk, sl);
-        ul.append(li);
-      });
+      ul.append(li);
+    });
     }
     art.append(h, ul);
     proofsHost.append(art);
@@ -1283,7 +1283,7 @@ export function renderRisks() {
         localRisks = [];
         const em = err instanceof Error ? err.message : '';
         if (em !== '401' && em !== '403') {
-          showToast(
+      showToast(
             em && !/^HTTP \d+$/.test(em)
               ? em
               : 'Impossible de charger le registre des risques depuis le serveur.',
@@ -1707,9 +1707,9 @@ export function renderRisks() {
   iaHost.classList.add('qhse-page-advanced-only');
 
   const risksModeGuide = createSimpleModeGuide({
-    title: 'Risques — prioriser avant la matrice',
-    hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
-    nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
+      title: 'Risques — prioriser avant la matrice',
+      hint: 'Les indicateurs du haut et le bloc « Risques à surveiller » regroupent l’urgence ; la matrice sert ensuite à affiner.',
+      nextStep: 'Ensuite : cliquez une ligne prioritaire, puis consultez le tableau pour le détail.'
   });
   risksModeGuide.classList.add('qhse-page-advanced-only');
 
