@@ -22,6 +22,7 @@
     "smoke:client": "node scripts/smokeClientFlow.mjs",
     "db:backup": "node scripts/backupPg.mjs",
     "db:restore": "node scripts/restorePg.mjs",
+    "admin:create": "node scripts/createSuperAdmin.mjs",
     "db:studio": "prisma studio",
     "db:docker": "docker compose up -d",
     "db:prepare": "prisma generate",
