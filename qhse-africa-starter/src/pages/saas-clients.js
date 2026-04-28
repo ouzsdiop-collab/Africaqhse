@@ -55,10 +55,10 @@ export function renderSaasClients() {
       </div>
       <div class="sc-list-host stack" style="margin-top:24px"></div>
     </article>
-    <div class="sc-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px">
+    <div class="sc-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title" aria-hidden="true">
       <div class="content-card card-soft sc-modal-inner" style="max-width:480px;width:100%;position:relative">
         <button type="button" class="btn sc-modal-close" style="position:absolute;top:12px;right:12px">Fermer</button>
-        <h3 style="margin-top:0">Mot de passe provisoire</h3>
+        <h3 id="sc-modal-title" style="margin-top:0">Mot de passe provisoire</h3>
         <p class="content-card-lead sc-modal-lead" style="font-size:13px"></p>
         <pre class="sc-modal-secret" style="font-size:14px;padding:12px;border-radius:8px;background:var(--surface2,#1e293b);overflow:auto"></pre>
         <p style="font-size:12px;color:var(--text2)">Ce message ne sera plus affiché après fermeture.</p>
@@ -76,6 +76,23 @@ export function renderSaasClients() {
   const modalLead = page.querySelector('.sc-modal-lead');
   const modalSecret = page.querySelector('.sc-modal-secret');
   const modalClose = page.querySelector('.sc-modal-close');
+  const modalInner = page.querySelector('.sc-modal-inner');
+
+  /** @type {((e: KeyboardEvent) => void) | null} */
+  let provisionalModalEscHandler = null;
+
+  function closeProvisionalModal() {
+    if (!modal) return;
+    modal.hidden = true;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    if (modalLead) modalLead.innerHTML = '';
+    if (modalSecret) modalSecret.textContent = '';
+    if (provisionalModalEscHandler) {
+      document.removeEventListener('keydown', provisionalModalEscHandler);
+      provisionalModalEscHandler = null;
+    }
+  }
 
   function showOnceModal(titleHtml, secret, extraHtml) {
     if (!modal || !modalLead || !modalSecret) return;
@@ -86,15 +103,28 @@ export function renderSaasClients() {
         ? `<p class="content-card-lead" style="font-size:13px;margin-top:10px">${extraHtml}</p>`
         : '');
     modal.hidden = false;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    if (provisionalModalEscHandler) {
+      document.removeEventListener('keydown', provisionalModalEscHandler);
+    }
+    provisionalModalEscHandler = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeProvisionalModal();
+      }
+    };
+    document.addEventListener('keydown', provisionalModalEscHandler);
   }
 
   modalClose?.addEventListener('click', () => {
-    if (modal) modal.hidden = true;
-    if (modalLead) modalLead.innerHTML = '';
-    if (modalSecret) modalSecret.textContent = '';
+    closeProvisionalModal();
   });
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) modalClose?.click();
+  modalInner?.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+  modal?.addEventListener('click', () => {
+    closeProvisionalModal();
   });
 
   async function refreshList() {
