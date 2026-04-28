@@ -6,7 +6,6 @@
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 import {
-  callAiProvider,
   requestJsonCompletion,
   isExternalAiEnabled,
   resolveAiProvider
@@ -191,28 +190,79 @@ export async function generateSuggestion(opts) {
   if (isExternalAiEnabled()) {
     const sys =
       typeKey === 'analytics_quad'
-        ? 'Tu es un analyste QHSE senior. On te fournit un contexte JSON agrégé (actions, incidents, NC, audits, répartition types / statuts) issu du tableau Analytics — pas de données personnelles. Rédige une synthèse en français : 3 à 5 phrases courtes, reliant retards d’actions, volumes relatifs, incidents critiques et statuts d’audits ; ton professionnel, orienté pilotage. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array optionnel de {label,value} pour 2 à 4 pistes), warnings (array of strings), proposedPatch (null).'
-        : 'Tu es un assistant QHSE. Réponds uniquement par un JSON objet avec les clés : summary (string), confidence (0-1), items (array of {label,value}), warnings (array of strings), proposedPatch (object or null). Aucune clé sensible supplémentaire.';
+        ? `Tu es un analyste QHSE senior. On te fournit un contexte JSON agrégé (actions, incidents, NC, audits, répartition types / statuts) issu du tableau Analytics — pas de données personnelles.
+
+CONTRAINTE: Réponds uniquement en JSON valide (pas de markdown).
+
+Format attendu:
+{
+  "type": "audit_analysis",
+  "confidence": 0.0,
+  "content": {
+    "summary": "",
+    "findings": [],
+    "recommendedActions": [],
+    "humanValidationRequired": true,
+    "disclaimer": "Suggestion IA à valider par un responsable habilité.",
+
+    "items": [{ "label": "", "value": "" }],
+    "warnings": [],
+    "proposedPatch": null
+  }
+}
+
+Règles:
+- Ton professionnel, orienté pilotage. 3 à 5 phrases courtes dans summary.
+- confidence ∈ [0,1]. humanValidationRequired=true.`
+        : `Tu es un assistant QHSE.
+
+CONTRAINTE: Réponds uniquement en JSON valide (pas de markdown).
+
+Format attendu:
+{
+  "type": "incident_analysis",
+  "confidence": 0.0,
+  "content": {
+    "summary": "",
+    "findings": [],
+    "recommendedActions": [],
+    "humanValidationRequired": true,
+    "disclaimer": "Suggestion IA à valider par un responsable habilité.",
+
+    "items": [{ "label": "", "value": "" }],
+    "warnings": [],
+    "proposedPatch": null
+  }
+}
+
+Règles:
+- Ne pas inventer de données personnelles.
+- confidence ∈ [0,1]. humanValidationRequired=true.`;
     const user = JSON.stringify({ type: typeKey, context });
     const ext = await requestJsonCompletion({ system: sys, user });
+    if (ext.error) {
+      console.error('[ai] generateSuggestion provider error', {
+        provider: ext.provider,
+        model: ext.model ?? null,
+        error: ext.error
+      });
+    }
     providerMeta = {
       mode: ext.provider || resolveAiProvider(),
       externalAttempted: true,
-      error: ext.error ?? null
+      error: toPublicAiError(ext.error)
     };
-    if (ext.rawText) {
-      try {
-        const parsed = JSON.parse(ext.rawText);
-        structured = buildStructuredContent({
-          summary: parsed.summary,
-          confidence: parsed.confidence,
-          items: parsed.items,
-          proposedPatch: parsed.proposedPatch,
-          warnings: parsed.warnings
-        });
-      } catch {
-        structured.warnings.push('Réponse LLM non JSON exploitable — contenu local conservé.');
-      }
+    if (ext.success && ext.data?.content) {
+      const parsed = /** @type {Record<string, unknown>} */ (ext.data.content);
+      structured = buildStructuredContent({
+        summary: parsed.summary,
+        confidence: parsed.confidence,
+        items: parsed.items,
+        proposedPatch: parsed.proposedPatch,
+        warnings: parsed.warnings
+      });
+    } else if (ext.rawText) {
+      structured.warnings.push('Réponse LLM non JSON exploitable — contenu local conservé.');
     }
   }
 
@@ -288,18 +338,22 @@ export async function analyzeDocument(opts) {
         'Assistant QHSE. JSON uniquement : summary, confidence (0-1), items[{label,value}], warnings[], proposedPatch. Pas de données personnelles dans la sortie.',
       user: excerpt.slice(0, 8000)
     });
+    if (ext.error) {
+      console.error('[ai] analyzeDocument provider error', {
+        provider: ext.provider,
+        model: ext.model ?? null,
+        error: ext.error
+      });
+    }
     providerMeta = {
       mode: ext.provider || resolveAiProvider(),
       externalAttempted: true,
-      error: ext.error ?? null
+      error: toPublicAiError(ext.error)
     };
-    if (ext.rawText) {
-      try {
-        const parsed = JSON.parse(ext.rawText);
-        structured = buildStructuredContent(parsed);
-      } catch {
-        structured.warnings.push('Analyse LLM non structurée — heuristique conservée.');
-      }
+    if (ext.success && ext.data?.content) {
+      structured = buildStructuredContent(ext.data.content);
+    } else if (ext.rawText) {
+      structured.warnings.push('Analyse LLM non structurée — heuristique conservée.');
     }
   }
 
@@ -415,17 +469,25 @@ function clamp01(n) {
   return Math.min(1, Math.max(0, x));
 }
 
-function parseJsonObjectFromLlm(raw) {
-  if (!raw || typeof raw !== 'string') return null;
-  const t = raw.trim();
-  const start = t.indexOf('{');
-  const end = t.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(t.slice(start, end + 1));
-  } catch {
-    return null;
-  }
+function pickCompletionObject(ext) {
+  if (!ext || typeof ext !== 'object') return null;
+  if (!ext.success || !ext.data || typeof ext.data !== 'object') return null;
+  const c = ext.data.content;
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
+  return c;
+}
+
+function publicAiUnavailableError() {
+  return {
+    code: 'AI_UNAVAILABLE',
+    message:
+      "L’analyse IA est momentanément indisponible. Vous pouvez réessayer ou saisir les informations manuellement."
+  };
+}
+
+function toPublicAiError(err) {
+  if (!err) return null;
+  return publicAiUnavailableError();
 }
 
 function mockRootCausesForIncident(inc) {
@@ -504,12 +566,8 @@ function mockRiskAssessment(risk) {
   };
 }
 
-/**
- * @param {string} rawText
- * @returns {{ rootCauses: Array<{ cause: string, category: string, confidence: number }> }}
- */
-function parseRootCausesResponse(rawText) {
-  const obj = parseJsonObjectFromLlm(rawText);
+/** @returns {{ rootCauses: Array<{ cause: string, category: string, confidence: number }> }} */
+function parseRootCausesResponse(obj) {
   const arr = obj?.rootCauses ?? obj?.causes ?? obj?.items;
   if (!Array.isArray(arr)) return { rootCauses: [] };
   const rootCauses = arr
@@ -523,8 +581,7 @@ function parseRootCausesResponse(rawText) {
   return { rootCauses };
 }
 
-function parseActionsResponse(rawText) {
-  const obj = parseJsonObjectFromLlm(rawText);
+function parseActionsResponse(obj) {
   const arr = obj?.actions ?? obj?.correctiveActions;
   if (!Array.isArray(arr)) return { actions: [] };
   const actions = arr
@@ -540,8 +597,7 @@ function parseActionsResponse(rawText) {
   return { actions };
 }
 
-function parseRiskLevelResponse(rawText) {
-  const obj = parseJsonObjectFromLlm(rawText);
+function parseRiskLevelResponse(obj) {
   if (!obj || typeof obj !== 'object') return null;
   return {
     suggestedGp: Math.min(25, Math.max(1, Math.round(Number(obj.suggestedGp ?? obj.gp) || 1))),
@@ -586,10 +642,18 @@ Chaque élément : { "cause": string (court, factuel), "category": "humain" | "m
 Sans texte hors JSON.`;
 
   const userMessage = JSON.stringify({ incident });
-  const res = await callAiProvider(systemPrompt, userMessage, 900);
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] suggestRootCauses provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
   let rootCauses = [];
-  if (res.rawText) {
-    rootCauses = parseRootCausesResponse(res.rawText).rootCauses;
+  if (obj) {
+    rootCauses = parseRootCausesResponse(obj).rootCauses;
   }
   if (rootCauses.length < 3) {
     rootCauses = mockRootCausesForIncident(incident);
@@ -598,8 +662,9 @@ Sans texte hors JSON.`;
   return {
     incidentId: incident.id,
     ref: incident.ref,
-    provider: res.provider,
-    error: res.error ?? null,
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
     rootCauses
   };
 }
@@ -662,10 +727,18 @@ Chaque élément (conserver ces clés EXACTES pour compat): {
 Sans markdown ni texte hors JSON.`;
 
   const userMessage = JSON.stringify({ incident, existingRisks });
-  const res = await callAiProvider(systemPrompt, userMessage, 900);
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] suggestCorrectiveActions provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
   let actions = [];
-  if (res.rawText) {
-    actions = parseActionsResponse(res.rawText).actions;
+  if (obj) {
+    actions = parseActionsResponse(obj).actions;
   }
   if (actions.length < 2) {
     actions = mockCorrectiveActions(incident, existingRisks).slice(0, 3);
@@ -696,10 +769,10 @@ Sans markdown ni texte hors JSON.`;
         summary: `Actions correctives suggérées pour l’incident ${incident.ref}.`,
         warnings: ['Brouillon IA — validation humaine obligatoire avant création d’actions.'],
         providerMeta: {
-          provider: res.provider,
-          model: res.model ?? null,
+          provider: ext.provider,
+          model: ext.model ?? null,
           generatedAt: nowIso(),
-          fallbackUsed: Boolean(actions.length && !res.rawText)
+          fallbackUsed: Boolean(actions.length && !obj)
         },
         userId: userId ?? null,
         targetIncidentId: incident.id
@@ -714,8 +787,9 @@ Sans markdown ni texte hors JSON.`;
   return {
     incidentId: incident.id,
     ref: incident.ref,
-    provider: res.provider,
-    error: res.error ?? null,
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
     actions,
     ...(suggestionId ? { suggestionId } : {})
   };
@@ -798,17 +872,21 @@ Propose jusqu'à 3 actions de pilotage prioritaires (gestion du système QHSE, p
 Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string) et "actions" (tableau, max 3). Sans markdown ni texte hors JSON.`;
 
   const userMessage = JSON.stringify({ dashboardContext });
-  const res = await callAiProvider(systemPrompt, userMessage, 900);
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] suggestDashboardPilotageActions provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
   let narrative = '';
   let actions = [];
   let actionsFromMock = false;
-  if (res.rawText) {
-    const obj = parseJsonObjectFromLlm(res.rawText);
-    if (obj && typeof obj === 'object') {
-      narrative = String(obj.narrative ?? obj.summary ?? '').slice(0, 2500);
-    }
-    const parsed = parseActionsResponse(res.rawText);
-    actions = parsed.actions.slice(0, 3);
+  if (obj) {
+    narrative = String(obj.narrative ?? obj.summary ?? '').slice(0, 2500);
+    actions = parseActionsResponse(obj).actions.slice(0, 3);
   }
   if (!narrative.trim()) {
     narrative = buildHeuristicPilotageNarrative(dashboardContext);
@@ -829,8 +907,9 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
   });
   return {
     mode: 'dashboard',
-    provider: res.provider,
-    error: res.error ?? null,
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
     narrative: narrative.trim(),
     actions
   };
@@ -871,18 +950,36 @@ Réponds UNIQUEMENT par un JSON objet :
 Cohérence : suggestedGp doit être proche de suggestedSeverity * suggestedProbability.`;
 
   const userMessage = JSON.stringify({ risk });
-  const res = await callAiProvider(systemPrompt, userMessage, 600);
-  let assessment = res.rawText ? parseRiskLevelResponse(res.rawText) : null;
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] assessRiskLevel provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
+  let assessment = obj ? parseRiskLevelResponse(obj) : null;
   if (!assessment || !assessment.justification) {
     assessment = mockRiskAssessment(risk);
   }
 
   return {
+    // Contrat standard (toujours exploitable)
+    success: true,
+    data: {
+      type: 'risk_level_assessment',
+      confidence: clamp01(assessment?.confidence),
+      content: { assessment }
+    },
+    rawText: ext.rawText,
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
+    // Compat champs existants (routes/front/tests)
     riskId: risk.id,
     ref: risk.ref,
     title: risk.title,
-    provider: res.provider,
-    error: res.error ?? null,
     assessment
   };
 }

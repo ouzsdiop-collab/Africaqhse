@@ -31,6 +31,12 @@ router.post(
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'Aucun fichier PDF fourni.' });
+      const hvRaw = req.body?.humanValidated;
+      const humanValidated =
+        hvRaw === true || hvRaw === 'true' || hvRaw === '1' || hvRaw === 1;
+      if (!humanValidated) {
+        return res.status(400).json({ error: 'Validation humaine requise avant création.' });
+      }
       const parsed = await parseFdsBuffer(req.file.buffer, req.file.originalname);
       const g = Math.max(1, Math.min(5, Math.round(Number(parsed.severity) || 1)));
       const p = Math.max(1, Math.min(5, Math.round(Number(parsed.probability) || 1)));

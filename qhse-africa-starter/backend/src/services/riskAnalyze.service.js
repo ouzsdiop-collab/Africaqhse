@@ -310,21 +310,41 @@ export async function analyzeRiskDescriptionAsync(description) {
 
   const excerpt = String(description).trim().slice(0, 7500);
   const sys = `Tu es un expert QHSE (ISO 45001, 14001, 9001). On te donne la description d'un risque opérationnel en français.
-Réponds uniquement par un objet JSON (pas de markdown) avec exactement ces clés :
-- "category" : une parmi "Sécurité", "Environnement", "Qualité", "Autre"
-- "severity" : une parmi "élevée", "moyenne", "faible" (gravité potentielle)
-- "probability" : une parmi "élevée", "moyenne", "faible"
-- "suggestedActions" : tableau de 3 à 5 chaînes, mesures concrètes et réalisables
-- "causes" : une chaîne, pistes de causes (à valider en équipe)
-- "impacts" : une chaîne, impacts possibles (à adapter au site)
-Reste factuel, sans inventer de chiffres ni de noms propres non présents dans le texte.`;
+
+CONTRAINTE ABSOLUE:
+- Réponds uniquement en JSON valide (pas de markdown, pas de texte hors JSON).
+- Le résultat doit être exploitable métier et revu par un humain.
+
+Format JSON attendu (respecte exactement ce wrapper, et mets les données métier dans "content"):
+{
+  "type": "risk_analysis",
+  "confidence": 0.0,
+  "content": {
+    "summary": "",
+    "findings": [],
+    "recommendedActions": [],
+    "humanValidationRequired": true,
+    "disclaimer": "Suggestion IA à valider par un responsable habilité.",
+
+    "category": "Sécurité|Environnement|Qualité|Autre",
+    "severity": "élevée|moyenne|faible",
+    "probability": "élevée|moyenne|faible",
+    "suggestedActions": ["..."],
+    "causes": "",
+    "impacts": ""
+  }
+}
+
+Règles:
+- Reste factuel, sans inventer de chiffres ni de noms propres non présents dans le texte.
+- confidence ∈ [0,1] (0.3 si incertain, 0.7+ si très clair).`;
 
   const ext = await requestJsonCompletion({
     system: sys,
     user: excerpt
   });
 
-  if (!ext.rawText) {
+  if (!ext.success || !ext.data?.content) {
     return {
       ...local,
       provider: 'rules',
@@ -332,11 +352,6 @@ Reste factuel, sans inventer de chiffres ni de noms propres non présents dans l
     };
   }
 
-  try {
-    const parsed = JSON.parse(ext.rawText);
-    const merged = mergeLlmRiskAnalysis(parsed, local);
-    return { ...merged, provider: 'openai' };
-  } catch {
-    return { ...local, provider: 'rules', llmError: 'Réponse LLM non JSON' };
-  }
+  const merged = mergeLlmRiskAnalysis(ext.data.content, local);
+  return { ...merged, provider: 'openai' };
 }

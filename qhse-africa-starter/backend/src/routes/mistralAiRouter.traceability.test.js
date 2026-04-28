@@ -42,26 +42,29 @@ describe('/api/ai/* — traçabilité opt-in (persistSuggestion)', () => {
   });
 
   it('incident-causes: crée AiSuggestion pending_review + renvoie suggestionId', async () => {
+    const llm = {
+      summary: 'Incident — plan d’actions à valider.',
+      priority: 'critical',
+      recommendedActions: [
+        {
+          action: 'Balisage zone + séparation flux.',
+          responsibleRole: 'Encadrement',
+          dueInDays: 3,
+          evidenceExpected: ['Photos', 'Briefing signé'],
+          closureCriteria: '0 écart sur 2 rondes.',
+          isoReference: null,
+          confidence: 0.7
+        }
+      ],
+      confidence: 0.65,
+      humanValidationRequired: true
+    };
     mockRequestJsonCompletion.mockResolvedValue({
+      success: true,
+      data: { type: 'incident_causes', confidence: 0.65, content: llm },
       provider: 'mistral',
       model: 'mistral-small-latest',
-      rawText: JSON.stringify({
-        summary: 'Incident — plan d’actions à valider.',
-        priority: 'critical',
-        recommendedActions: [
-          {
-            action: 'Balisage zone + séparation flux.',
-            responsibleRole: 'Encadrement',
-            dueInDays: 3,
-            evidenceExpected: ['Photos', 'Briefing signé'],
-            closureCriteria: '0 écart sur 2 rondes.',
-            isoReference: null,
-            confidence: 0.7
-          }
-        ],
-        confidence: 0.65,
-        humanValidationRequired: true
-      }),
+      rawText: JSON.stringify(llm),
       error: null
     });
 
