@@ -180,6 +180,7 @@ export async function create(req, res, next) {
       createdByUserId: auditUserIdFromRequest(req),
       mimeType: req.file.mimetype || null,
       auditId: body.auditId || null,
+      productId: body.productId || null,
       fdsProductRef: body.fdsProductRef || null,
       isoRequirementRef: body.isoRequirementRef || null,
       riskRef: body.riskRef || null,
@@ -230,6 +231,7 @@ export async function patchMeta(req, res, next) {
       responsible: body.responsible,
       name: body.name,
       type: body.type,
+      productId: 'productId' in body ? body.productId : undefined,
       classification: body.classification
     });
     await writeAuditLog({

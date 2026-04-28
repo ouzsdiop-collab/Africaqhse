@@ -13,7 +13,8 @@ export const createActionSchema = z.object({
   owner: z.string().max(200).optional(),
   assigneeId: z.string().optional(),
   siteId: z.string().optional(),
-  incidentId: z.string().optional()
+  incidentId: z.string().optional(),
+  riskId: z.string().optional()
 });
 
 export const patchActionSchema = z
@@ -24,6 +25,7 @@ export const patchActionSchema = z
     priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
     dueDate: z.string().datetime({ offset: true }).optional().nullable(),
     responsible: z.string().max(200).optional(),
-    assigneeId: z.string().optional()
+    assigneeId: z.string().optional(),
+    riskId: z.string().optional().nullable()
   })
   .strict();

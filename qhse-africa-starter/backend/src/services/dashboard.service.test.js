@@ -7,7 +7,9 @@ const { prismaMock } = vi.hoisted(() => ({
     risk: { count: vi.fn(), findMany: vi.fn() },
     action: { count: vi.fn(), findMany: vi.fn() },
     audit: { groupBy: vi.fn(), findMany: vi.fn() },
-    nonConformity: { findMany: vi.fn() }
+    nonConformity: { findMany: vi.fn() },
+    product: { findMany: vi.fn() },
+    controlledDocument: { findMany: vi.fn() }
   }
 }));
 
@@ -34,6 +36,8 @@ describe('dashboard.service — overdueActionItems', () => {
     prismaMock.incident.findMany.mockResolvedValue([]);
     prismaMock.audit.findMany.mockResolvedValue([]);
     prismaMock.nonConformity.findMany.mockResolvedValue([]);
+    prismaMock.product.findMany.mockResolvedValue([]);
+    prismaMock.controlledDocument.findMany.mockResolvedValue([]);
     prismaMock.action.findMany.mockResolvedValue([
       {
         id: 'action_cuid_1',
@@ -71,6 +75,17 @@ describe('dashboard.service — overdueActionItems', () => {
     expect(out.timeseries.auditsScoreByMonth).toHaveLength(6);
     expect(out.timeseries.nonConformitiesByMonth.major).toHaveLength(6);
     expect(out.timeseries.nonConformitiesByMonth.minor).toHaveLength(6);
+  });
+
+  it('expose intelligence (additif) avec score/alerts/anomalies/insights', async () => {
+    const out = await getDashboardStats('tenant_test', null);
+    expect(out.intelligence).toBeDefined();
+    expect(typeof out.intelligence.score).toBe('number');
+    expect(Array.isArray(out.intelligence.alerts)).toBe(true);
+    expect(Array.isArray(out.intelligence.anomalies)).toBe(true);
+    expect(Array.isArray(out.intelligence.insights)).toBe(true);
+    expect(typeof out.intelligence.generatedAt).toBe('string');
+    expect(out.intelligence.dataSource).toBe('api_stats');
   });
 });
 

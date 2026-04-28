@@ -59,6 +59,25 @@ vi.mock('../db.js', () => ({
       updateMany: vi.fn(),
       deleteMany: vi.fn()
     },
+    product: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn()
+    },
+    aiSuggestion: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn()
+    },
     refreshToken: {
       deleteMany: vi.fn()
     }

@@ -94,6 +94,8 @@ model Risk {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  actions Action[]
+
   @@unique([tenantId, ref])
   @@index([tenantId])
   @@index([siteId])
@@ -218,6 +220,8 @@ model Action {
   incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
   auditId    String?
   audit      Audit?    @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  riskId     String?
+  risk       Risk?     @relation(fields: [riskId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
 
   aiSuggestions AiSuggestion[]
@@ -226,6 +230,8 @@ model Action {
   @@index([incidentId])
   @@index([siteId])
   @@index([auditId])
+  @@index([riskId])
+  @@index([tenantId, riskId])
   @@map("actions")
 }
 
@@ -364,6 +370,8 @@ model ControlledDocument {
   sizeBytes  Int?
   auditId String?
   audit   Audit? @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   fdsProductRef String?
   isoRequirementRef String?
   riskRef String?
@@ -377,6 +385,8 @@ model ControlledDocument {
   @@index([siteId])
   @@index([classification])
   @@index([auditId])
+  @@index([productId])
+  @@index([tenantId, productId])
   @@map("controlled_documents")
 }
 
@@ -398,6 +408,8 @@ model Product {
   siteRecord     Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  fdsDocuments ControlledDocument[]
 
   @@index([tenantId])
   @@index([siteId])

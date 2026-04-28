@@ -6,6 +6,7 @@ export const createControlledDocumentSchema = z
     type: z.string().min(1),
     classification: z.enum(['normal', 'sensible', 'confidentiel']),
     siteId: z.string().optional(),
+    productId: z.string().optional(),
     expiresAt: z.union([z.string().datetime({ offset: true }), z.literal(''), z.null()]).optional()
   })
   .passthrough();
@@ -15,6 +16,7 @@ export const patchControlledDocumentSchema = z
     name: z.string().min(1).optional(),
     type: z.string().min(1).optional(),
     classification: z.enum(['normal', 'sensible', 'confidentiel']).optional(),
+    productId: z.string().optional().nullable(),
     expiresAt: z.union([z.string().datetime({ offset: true }), z.literal(''), z.null()]).optional(),
     responsible: z.union([z.string(), z.literal(''), z.null()]).optional()
   })

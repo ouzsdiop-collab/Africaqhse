@@ -74,6 +74,28 @@ async function assertActionInTenant(tenantId, actionId) {
 
 /**
  * @param {string | null | undefined} tenantId
+ * @param {unknown} riskId
+ * @returns {Promise<string|null>}
+ */
+async function assertRiskExistsOrNull(tenantId, riskId) {
+  if (riskId == null || riskId === '') return null;
+  const id = String(riskId).trim();
+  if (!id) return null;
+  const tf = prismaTenantFilter(tenantId);
+  const row = await prisma.risk.findFirst({
+    where: { id, ...tf },
+    select: { id: true }
+  });
+  if (!row) {
+    const err = new Error('Risque introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  return id;
+}
+
+/**
+ * @param {string | null | undefined} tenantId
  * @param {{ assigneeId?: string|null, unassigned?: boolean, siteId?: string|null, limit?: number }} [filters]
  */
 export async function findAllActions(tenantId, filters = {}) {
@@ -106,7 +128,8 @@ export async function findAllActions(tenantId, filters = {}) {
     orderBy: { createdAt: 'desc' },
     include: {
       assignee: { select: assigneeSelect },
-      incident: { select: { id: true, ref: true } }
+      incident: { select: { id: true, ref: true } },
+      risk: { select: { id: true, ref: true, title: true } }
     }
   });
 }
@@ -146,6 +169,7 @@ export async function createAction(tenantId, data) {
   }
 
   const siteId = await assertSiteExistsOrNull(tenantId, data.siteId);
+  const riskId = await assertRiskExistsOrNull(tenantId, data.riskId);
 
   /** @type {Record<string, unknown>} */
   const createData = {
@@ -156,17 +180,24 @@ export async function createAction(tenantId, data) {
     owner: owner ?? undefined,
     dueDate: data.dueDate ?? null,
     assigneeId,
-    siteId
+    siteId,
+    ...(riskId ? { riskId } : {})
   };
   if (data.incidentId != null && String(data.incidentId).trim() !== '') {
     createData.incidentId = await assertIncidentExistsOrNull(tenantId, data.incidentId);
+  }
+  if (data.auditId != null && String(data.auditId).trim() !== '') {
+    // auditId existant : accepté sans validation forte (module audits gère déjà ses liens),
+    // mais on le normalise.
+    createData.auditId = String(data.auditId).trim();
   }
 
   return prisma.action.create({
     data: createData,
     include: {
       assignee: { select: assigneeSelect },
-      incident: { select: { id: true, ref: true } }
+      incident: { select: { id: true, ref: true } },
+      risk: { select: { id: true, ref: true, title: true } }
     }
   });
 }
@@ -177,6 +208,9 @@ export async function updateActionFields(tenantId, actionId, data) {
   const patch = {};
   if (data.status != null && String(data.status).trim() !== '') {
     patch.status = String(data.status).trim();
+  }
+  if ('riskId' in data) {
+    patch.riskId = await assertRiskExistsOrNull(tenantId, data.riskId);
   }
   if (Object.keys(patch).length === 0) {
     const err = new Error('Aucun champ à mettre à jour');
@@ -194,7 +228,8 @@ export async function updateActionFields(tenantId, actionId, data) {
     where: { id, ...tf },
     include: {
       assignee: { select: assigneeSelect },
-      incident: { select: { id: true, ref: true } }
+      incident: { select: { id: true, ref: true } },
+      risk: { select: { id: true, ref: true, title: true } }
     }
   });
 }
