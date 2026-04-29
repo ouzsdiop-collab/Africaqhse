@@ -103,6 +103,103 @@ export function priorityLabelFromScore(internalScore) {
 }
 
 /**
+ * @typedef {'deterministic' | 'heuristic' | 'ai'} InsightSource
+ * @typedef {'low' | 'medium' | 'high'} InsightConfidence
+ * @typedef {'complete' | 'partial' | 'limited'} InsightDataQuality
+ * @typedef {'low' | 'medium' | 'high' | 'critical'} InsightSeverity
+ */
+
+/**
+ * @param {unknown} dataSource
+ * @returns {InsightSource}
+ */
+function insightSourceFromDataSource(dataSource) {
+  const ds = String(dataSource || '').toLowerCase();
+  if (ds.startsWith('api_')) return 'deterministic';
+  if (ds === 'heuristic' || ds === 'demo' || ds === 'unavailable') return 'heuristic';
+  return 'heuristic';
+}
+
+/**
+ * @param {unknown} dataSource
+ * @returns {InsightDataQuality}
+ */
+function dataQualityFromDataSource(dataSource) {
+  const ds = String(dataSource || '').toLowerCase();
+  if (ds === 'api_stats') return 'complete';
+  if (ds === 'api_list') return 'partial';
+  if (ds === 'heuristic') return 'limited';
+  if (ds === 'demo') return 'limited';
+  return 'limited';
+}
+
+/**
+ * @param {number} internalScore
+ * @param {unknown} dataSource
+ * @returns {InsightConfidence}
+ */
+function confidenceFromInternalScore(internalScore, dataSource) {
+  const ds = String(dataSource || '').toLowerCase();
+  if (ds === 'api_stats' && internalScore >= 70) return 'high';
+  if (ds.startsWith('api_')) return internalScore >= 72 ? 'high' : internalScore >= 38 ? 'medium' : 'low';
+  if (ds === 'heuristic') return internalScore >= 60 ? 'medium' : 'low';
+  return 'low';
+}
+
+/**
+ * Agrège une qualité data "globale" lisible (sans calcul lourd).
+ * @param {{ overdue: number; risksSource: string }} meta
+ * @param {object} stats
+ * @returns {{
+ *  incidents: InsightDataQuality;
+ *  actions: InsightDataQuality;
+ *  risks: InsightDataQuality;
+ *  habilitations: InsightDataQuality;
+ *  audits: InsightDataQuality;
+ * }}
+ */
+function computeGlobalDataQuality(meta, stats) {
+  const incidentsQ = Number.isFinite(Number(stats?.incidents)) ? 'complete' : 'partial';
+  const actionsQ = Number.isFinite(Number(stats?.overdueActions)) ? 'complete' : meta.overdue > 0 ? 'partial' : 'limited';
+  const rs = String(meta?.risksSource || '').toLowerCase();
+  const risksQ = rs === 'api' || rs === 'api_empty' ? 'partial' : rs === 'demo' ? 'limited' : 'limited';
+  const auditsQ =
+    stats?.stats && typeof stats.stats === 'object' && stats.stats.audits && typeof stats.stats.audits === 'object'
+      ? 'partial'
+      : 'limited';
+  // Pas branché sur un KPI habilitations côté dashboard pour l’instant → limited (améliorable plus tard).
+  const habilitationsQ = 'limited';
+  return { incidents: incidentsQ, actions: actionsQ, risks: risksQ, habilitations: habilitationsQ, audits: auditsQ };
+}
+
+/**
+ * @param {number} internalScore
+ * @returns {InsightSeverity}
+ */
+function severityFromInternalScore(internalScore) {
+  if (internalScore >= 85) return 'critical';
+  if (internalScore >= 72) return 'high';
+  if (internalScore >= 38) return 'medium';
+  return 'low';
+}
+
+/**
+ * @param {string} navigateHash
+ * @returns {string}
+ */
+function recommendedActionFromNavigateHash(navigateHash) {
+  const h = String(navigateHash || '').trim().toLowerCase();
+  if (!h) return 'Ouvrir le module concerné et traiter la priorité.';
+  if (h === 'actions') return 'Ouvrir le plan d’actions, traiter les retards, réassigner si nécessaire.';
+  if (h === 'incidents') return 'Ouvrir le registre incidents, vérifier le dossier critique et décider des actions.';
+  if (h === 'risks') return 'Ouvrir le registre risques, confirmer la criticité et lancer une action préventive.';
+  if (h === 'audits') return 'Ouvrir le cockpit audits, prioriser les NC et consolider les preuves.';
+  if (h === 'iso') return 'Ouvrir la conformité ISO, compléter preuves et priorités.';
+  if (h === 'products') return 'Ouvrir Produits/FDS, traiter les FDS expirées ou à revoir.';
+  return 'Ouvrir le module concerné et traiter la priorité.';
+}
+
+/**
  * @param {{
  *   stats: object,
  *   incidents: object[],
@@ -414,7 +511,28 @@ export async function buildAssistantSnapshot(input) {
   recRaw.sort((a, b) => b.internalScore - a.internalScore);
   const recommendations = recRaw.slice(0, 3).map((r) => {
     const pr = priorityLabelFromScore(r.internalScore);
-    return { ...r, priorityKey: pr.key, priorityLabel: pr.label };
+    const src = insightSourceFromDataSource(r.dataSource);
+    const dq = dataQualityFromDataSource(r.dataSource);
+    const conf = confidenceFromInternalScore(Number(r.internalScore) || 0, r.dataSource);
+    const reason = String(r.detail || '').trim() || String(r.title || '').trim();
+    const severity = severityFromInternalScore(Number(r.internalScore) || 0);
+    const label = String(r.title || '').trim() || 'Priorité';
+    const recommendedAction = recommendedActionFromNavigateHash(String(r.navigateHash || ''));
+    return {
+      ...r,
+      // Compat: champs existants conservés
+      priorityKey: pr.key,
+      priorityLabel: pr.label,
+      // Nouveaux champs (audit confiance)
+      source: src,
+      confidence: conf,
+      dataQuality: dq,
+      reason,
+      // Normalisation "priorité principale" (compatible)
+      label,
+      severity,
+      recommendedAction
+    };
   });
 
   const site =
@@ -448,6 +566,11 @@ export async function buildAssistantSnapshot(input) {
     synthesisParts.push(`${auditsSoon} échéance(s) audit à garder en tête sur le planning affiché.`);
   }
 
+  const globalDataQuality = computeGlobalDataQuality(
+    { overdue, risksSource: risksSourceMeta },
+    /** @type {any} */ (stats)
+  );
+
   return {
     enrichedScore: enriched,
     baseScore,
@@ -455,6 +578,7 @@ export async function buildAssistantSnapshot(input) {
     synthesis: synthesisParts.join(' '),
     recommendations,
     anomalies,
+    dataQuality: globalDataQuality,
     meta: {
       overdue,
       expiredDocs: docSum.expire,
@@ -584,6 +708,30 @@ export function buildDashboardPilotageAiContext(input) {
           : 'unavailable'
   };
 
+  /**
+   * @param {Record<string, unknown>} ss
+   * @returns {{
+   *  incidents: InsightDataQuality;
+   *  actions: InsightDataQuality;
+   *  risks: InsightDataQuality;
+   *  habilitations: InsightDataQuality;
+   *  audits: InsightDataQuality;
+   * }}
+   */
+  function dataQualityFromSignalSources(ss) {
+    const inc = ss?.incidentsTotal === 'api_stats' ? 'complete' : ss?.incidentsTotal === 'api_list' ? 'partial' : 'limited';
+    const act = ss?.actionsOverdue === 'api_stats' ? 'complete' : ss?.actionsOverdue === 'api_list' ? 'partial' : 'limited';
+    const rk =
+      ss?.risksCritical === 'api_stats'
+        ? 'complete'
+        : ss?.risksCritical === 'api_list'
+          ? 'partial'
+          : 'limited';
+    const aud = ss?.auditsSummary === 'api_stats' ? 'partial' : 'limited';
+    const hab = 'limited';
+    return { incidents: inc, actions: act, risks: rk, habilitations: hab, audits: aud };
+  }
+
   /** @type {Record<string, unknown>} */
   const ctxOut = {
     siteLabel: site,
@@ -593,6 +741,11 @@ export function buildDashboardPilotageAiContext(input) {
     auditsSummary,
     timeseries,
     signalSources,
+    dataQualityGlobal: dataQualityFromSignalSources(signalSources),
+    // Préparation injection future des packs (non activée)
+    sectorPackUsed: false,
+    compliancePackUsed: false,
+    complianceContext: null,
     allowGenericPilotageMocks: input.allowGenericPilotageMocks === true,
     isDemoContext: input.isDemoContext === true,
     criticalIncidentsPreview: criticalPreview,

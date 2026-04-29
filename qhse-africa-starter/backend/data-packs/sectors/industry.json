@@ -1,0 +1,38 @@
+{
+  "sector": "industry",
+  "label": "Industrie",
+  "risks": [
+    { "title": "Machines en mouvement", "hint": "Habilitations, carters, arrêts d’urgence." },
+    { "title": "Énergie dangereuse", "hint": "Consignation (LOTO), pneumatique, hydraulique, électrique." },
+    { "title": "Produits chimiques", "hint": "Stockage, étiquetage, FDS, incompatibilités." },
+    { "title": "Manutentions", "hint": "TMS, chariots, palettiers, charges instables." }
+  ],
+  "recommendedActions": [
+    { "title": "Déployer la consignation LOTO", "hint": "Procédures + kits + audits terrain." },
+    { "title": "Sécuriser les machines", "hint": "Carter, interverrouillage, zone dangereuse, formation." },
+    { "title": "Contrôler stockage chimique", "hint": "Rétentions, compatibilités, ventilation." }
+  ],
+  "expectedEvidence": [
+    "Registre consignations (LOTO)",
+    "PV vérification arrêts d’urgence / protections",
+    "FDS disponibles et à jour",
+    "Registre chariots / levage"
+  ],
+  "fieldControls": [
+    "Carter en place, pas de bypass",
+    "Consignation avant intervention / nettoyage",
+    "Étiquetage produits + compatibilités",
+    "Allées de circulation dégagées"
+  ],
+  "kpis": [
+    { "key": "lotoCompliance", "label": "Conformité LOTO", "hint": "% interventions consignées." },
+    { "key": "actionsLate", "label": "Actions en retard", "hint": "Risque de dérive." },
+    { "key": "chemIncidents", "label": "Incidents chimiques", "hint": "Déversements / expositions." }
+  ],
+  "dangerousSituations": [
+    "Nettoyage machine sans arrêt/consignation",
+    "Carter retiré / interverrouillage neutralisé",
+    "Stockage acides/bases sans séparation",
+    "Palette instable sur rack endommagé"
+  ]
+}

@@ -905,6 +905,41 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
     actionsFromMock = true;
   }
   const demoCtx = dashboardContext.isDemoContext === true;
+  function confidenceLevelFromNumber(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 'low';
+    if (n >= 0.75) return 'high';
+    if (n >= 0.5) return 'medium';
+    return 'low';
+  }
+
+  function dataQualityFromContext(ctx) {
+    const dq = ctx?.dataQualityGlobal && typeof ctx.dataQualityGlobal === 'object' ? ctx.dataQualityGlobal : null;
+    const v = dq?.actions;
+    if (v === 'complete' || v === 'partial' || v === 'limited') return v;
+    return 'limited';
+  }
+
+  function extractReason(desc) {
+    const s = String(desc || '').trim();
+    if (!s) return 'Priorité de pilotage à traiter.';
+    const first = s.split(/\.\s+/)[0];
+    return String(first || s).slice(0, 180);
+  }
+
+  function severityFromConfidenceLevel(level) {
+    if (level === 'high') return 'high';
+    if (level === 'medium') return 'medium';
+    return 'low';
+  }
+
+  function recommendedActionFromDescription(desc) {
+    const s = String(desc || '').trim();
+    if (!s) return 'Traiter la priorité et consigner la preuve de clôture.';
+    const first = s.split(/\.\s+/)[0];
+    return String(first || s).slice(0, 220);
+  }
+
   actions = actions.map((a) => {
     const row = typeof a === 'object' && a !== null ? { ...a } : {};
     let dataSource = row.dataSource;
@@ -912,7 +947,28 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
       if (actionsFromMock) dataSource = demoCtx ? 'demo' : 'heuristic';
       else dataSource = 'heuristic';
     }
-    return { ...row, dataSource };
+    const source = dataSource.startsWith('api_') ? 'deterministic' : actionsFromMock ? 'heuristic' : 'ai';
+    const confidence = confidenceLevelFromNumber(row.confidence);
+    const dataQuality = dataQualityFromContext(dashboardContext);
+    const reason = row.reason != null && String(row.reason).trim() ? String(row.reason).trim() : extractReason(row.description);
+    const label = String(row.title || '').trim() || 'Priorité';
+    const severity = row.severity != null ? String(row.severity).trim() : severityFromConfidenceLevel(confidence);
+    const recommendedAction =
+      row.recommendedAction != null && String(row.recommendedAction).trim()
+        ? String(row.recommendedAction).trim()
+        : recommendedActionFromDescription(row.description);
+    return {
+      ...row,
+      dataSource,
+      // Champs additionnels (compatibles)
+      source,
+      confidence,
+      dataQuality,
+      reason,
+      label,
+      severity,
+      recommendedAction
+    };
   });
   return {
     mode: 'dashboard',
@@ -920,7 +976,12 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
     model: ext.model ?? null,
     error: toPublicAiError(ext.error),
     narrative: narrative.trim(),
-    actions
+    actions,
+    // Ajout non cassant: état global de qualité des données reçu du front si fourni
+    dataQualityGlobal:
+      dashboardContext?.dataQualityGlobal && typeof dashboardContext.dataQualityGlobal === 'object'
+        ? dashboardContext.dataQualityGlobal
+        : undefined
   };
 }
 

@@ -24,9 +24,16 @@ function isNcOpen(row) {
  * @typedef {{
  *   message: string;
  *   recommendation: string;
+ *   reason: string;
  *   see: InsightLink;
  *   apply: InsightLink;
  *   accent: InsightAccent;
+ *   source: 'heuristic' | 'deterministic' | 'ai';
+ *   confidence: 'low' | 'medium' | 'high';
+ *   dataQuality: 'complete' | 'partial' | 'limited';
+ *   severity?: 'low' | 'medium' | 'high' | 'critical';
+ *   label?: string;
+ *   recommendedAction?: string;
  * }} Insight
  */
 
@@ -141,14 +148,32 @@ export function computeAutoAnalysisInsights(input) {
   /** @type {Insight[]} */
   const items = [];
 
+  const dqOverdue =
+    Array.isArray(stats?.overdueActionItems) && stats.overdueActionItems.length
+      ? 'complete'
+      : Number.isFinite(Number(stats?.overdueActions))
+        ? 'partial'
+        : 'limited';
+  const dqIncidents =
+    Number.isFinite(Number(stats?.incidents)) ? 'complete' : incidents.length ? 'partial' : 'limited';
+  const dqNc =
+    Number.isFinite(Number(stats?.nonConformities)) ? 'partial' : ncs.length ? 'partial' : 'limited';
+
   if (od >= 2) {
     const actIntent = buildOverdueActionsIntent(stats);
     items.push({
       accent: 'actions',
       message: 'Retards',
       recommendation: `${od} actions en retard`,
+      reason: `${od} action(s) dépassent leur échéance. Traitez, réassignez ou replanifiez.`,
       see: { label: 'Actions', pageId: 'actions', intent: actIntent },
-      apply: { label: 'Traiter', pageId: 'actions', intent: actIntent }
+      apply: { label: 'Traiter', pageId: 'actions', intent: actIntent },
+      source: 'heuristic',
+      confidence: od >= 4 ? 'high' : 'medium',
+      dataQuality: dqOverdue,
+      severity: od >= 6 ? 'critical' : od >= 3 ? 'high' : 'medium',
+      label: 'Actions en retard',
+      recommendedAction: 'Ouvrir le plan d’actions et traiter les retards.'
     });
   } else if (od === 1) {
     const actIntent = buildOverdueActionsIntent(stats);
@@ -156,8 +181,15 @@ export function computeAutoAnalysisInsights(input) {
       accent: 'actions',
       message: 'Retard',
       recommendation: '1 action en retard',
+      reason: "Une action a dépassé son échéance. À traiter en priorité pour éviter l’accumulation.",
       see: { label: 'Actions', pageId: 'actions', intent: actIntent },
-      apply: { label: 'Traiter', pageId: 'actions', intent: actIntent }
+      apply: { label: 'Traiter', pageId: 'actions', intent: actIntent },
+      source: 'heuristic',
+      confidence: 'medium',
+      dataQuality: dqOverdue,
+      severity: 'medium',
+      label: 'Action en retard',
+      recommendedAction: 'Ouvrir le plan d’actions et clôturer ou replanifier.'
     });
   }
 
@@ -167,8 +199,17 @@ export function computeAutoAnalysisInsights(input) {
       accent: 'incidents',
       message: spike ? 'Pic' : 'Activité 7 j',
       recommendation: spike ? `${last7} en 7 j` : `${last7} · 7 j`,
+      reason: spike
+        ? `Pic d’incidents sur 7 jours (${last7}). Vérifiez les causes récurrentes.`
+        : `Activité incidents élevée sur 7 jours (${last7}). À analyser.`,
       see: { label: 'Incidents', pageId: 'incidents', intent: incIntent },
-      apply: { label: 'Voir', pageId: 'incidents', intent: incIntent }
+      apply: { label: 'Voir', pageId: 'incidents', intent: incIntent },
+      source: 'heuristic',
+      confidence: spike ? 'high' : 'medium',
+      dataQuality: dqIncidents,
+      severity: spike ? 'high' : 'medium',
+      label: 'Incidents (7 jours)',
+      recommendedAction: 'Ouvrir les incidents récents et vérifier les causes récurrentes.'
     });
   }
 
@@ -180,8 +221,15 @@ export function computeAutoAnalysisInsights(input) {
       accent: 'compliance',
       message: 'NC ouvertes',
       recommendation: openNc >= 3 ? `${openNc} ouvertes` : `${openNc} ouverte`,
+      reason: `Des non-conformités sont ouvertes (${openNc}). Priorisez celles qui bloquent la conformité et la clôture.`,
       see: { label: 'NC', pageId: 'audits', intent: auditsIntent },
-      apply: { label: 'Actions', pageId: 'actions', intent: applyActionsIntent }
+      apply: { label: 'Actions', pageId: 'actions', intent: applyActionsIntent },
+      source: 'heuristic',
+      confidence: openNc >= 3 ? 'high' : 'medium',
+      dataQuality: dqNc,
+      severity: openNc >= 5 ? 'high' : 'medium',
+      label: 'Non-conformités ouvertes',
+      recommendedAction: 'Ouvrir les audits/NC et définir un plan de clôture.'
     });
   }
 
@@ -201,8 +249,12 @@ export function computeAutoAnalysisInsights(input) {
       accent: 'calm',
       message: 'Sous contrôle',
       recommendation: 'RAS sur les seuils',
+      reason: 'Aucun signal fort sur la période (retards, incidents, NC). Maintenez le suivi.',
       see: { label: 'Incidents', pageId: 'incidents', intent: { dashboardIncidentPeriodPreset: '30' } },
-      apply: { label: 'Audits', pageId: 'audits', intent: { scrollToId: 'audit-cockpit-tier-score' } }
+      apply: { label: 'Audits', pageId: 'audits', intent: { scrollToId: 'audit-cockpit-tier-score' } },
+      source: 'heuristic',
+      confidence: 'medium',
+      dataQuality: dqIncidents
     });
   }
 

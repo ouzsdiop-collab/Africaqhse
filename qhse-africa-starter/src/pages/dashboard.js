@@ -30,6 +30,8 @@ import { createDashboardAutoAnalysis } from '../components/dashboardAutoAnalysis
 import { createDashboardPriorityNow } from '../components/dashboardPriorityNow.js';
 import { applyAiSuggestionToForm } from '../utils/aiPrefillIntent.js';
 import { createDashboardPilotageAssistant } from '../components/dashboardPilotageAssistant.js';
+import { createEssentialPilotageUnifiedCockpit } from '../components/essentialPilotageUnifiedCockpit.js';
+import { createDashboardExpertPilotagePanel } from '../components/dashboardExpertPilotagePanel.js';
 import {
   buildAssistantSnapshot,
   buildDashboardPilotageAiContext,
@@ -1303,6 +1305,13 @@ export function renderDashboard() {
   bandPriority.className = 'dashboard-band dashboard-band--priority';
   bandPriority.append(priorityNow.root);
 
+  const essentialCockpit = createEssentialPilotageUnifiedCockpit();
+  const bandEssentialPilotage = document.createElement('div');
+  bandEssentialPilotage.className = 'dashboard-band dashboard-band--essential-pilotage';
+  bandEssentialPilotage.append(essentialCockpit.root);
+  // Placé juste après la ligne "Priorités du jour" (même bandeau Essentiel, pas de nouvelle page).
+  bandPriority.append(bandEssentialPilotage);
+
   const intelligenceWidget = createDashboardIntelligenceWidget();
   intelligenceWidget.update(lastStats.intelligence);
   const bandIntelligence = document.createElement('div');
@@ -1439,6 +1448,9 @@ export function renderDashboard() {
   const bandAnalysisLecture = document.createElement('div');
   bandAnalysisLecture.className = 'dashboard-band dashboard-band--analysis';
   bandAnalysisLecture.append(autoAnalysisSection);
+
+  // Panneau expert (analyse approfondie) : chargé côté UI, données/pack compliance à la demande.
+  const expertPilotage = createDashboardExpertPilotagePanel();
 
   if (!kpiDetailDrawerSingleton) {
     kpiDetailDrawerSingleton = createKpiDetailDrawer({
@@ -1683,6 +1695,7 @@ export function renderDashboard() {
 
   /* Profondeur métier : tout le reste derrière le volet (données & updateDecisionAlerts inchangés). */
   extendedSection.append(
+    expertPilotage.root,
     opsCockpitSection,
     bandShortcuts,
     habilitationsSection,
@@ -1936,6 +1949,8 @@ export function renderDashboard() {
         siteLabel: siteName
       });
       pilotageAssistant.update(snap);
+      essentialCockpit.updateFromSnapshot(snap);
+      expertPilotage.update({ snap, stats: lastStats, ncs, audits, incidents });
     } catch (asstErr) {
       console.warn('[dashboard] assistant snapshot', asstErr);
     }
@@ -1959,6 +1974,8 @@ export function renderDashboard() {
           narrative: typeof ai?.narrative === 'string' ? ai.narrative : '',
           actions: Array.isArray(ai?.actions) ? ai.actions : []
         });
+        essentialCockpit.updateFromAi(ai);
+        expertPilotage.updateAi(ai);
       } catch (aiErr) {
         console.warn('[dashboard] pilotage IA /api/ai-suggestions/suggest/actions', aiErr);
         pilotageAssistant.setAiResult({
@@ -1970,6 +1987,19 @@ export function renderDashboard() {
         pilotageAssistant.setAiLoading(false);
       }
     })();
+
+    // Alertes critiques du cockpit Essentiel (pas de recalcul lourd).
+    // Habilitations via endpoint léger (si autorisé), incidents/NC via listes déjà chargées.
+    void (async () => {
+      try {
+        // Visible uniquement en Essentiel desktop via CSS (essential-desktop.css).
+        await essentialCockpit.refreshHabilitationsAlerts();
+        await expertPilotage.refreshHabilitations();
+      } finally {
+        essentialCockpit.updateAlerts({ stats: lastStats, ncs, incidents });
+      }
+    })();
+
     void loadDashboardInsight(
       buildMistralDashboardStatsPayload(lastStats, audits, risksR || [])
     );

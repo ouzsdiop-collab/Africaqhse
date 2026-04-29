@@ -1,0 +1,38 @@
+{
+  "sector": "logistics",
+  "label": "Logistique",
+  "risks": [
+    { "title": "Chariots / engins", "hint": "Croisements, quais, co-activité, visibilité." },
+    { "title": "Chute de plain-pied", "hint": "Sols glissants, encombrement, rampes." },
+    { "title": "Manutention manuelle", "hint": "TMS, gestes, charges lourdes, répétitivité." },
+    { "title": "Chargement / arrimage", "hint": "Basculement, écrasement, chute de charge." }
+  ],
+  "recommendedActions": [
+    { "title": "Séparer flux piétons/engins", "hint": "Marquage au sol + barriérage + règles." },
+    { "title": "Standardiser arrimage", "hint": "Checklists, points d’ancrage, contrôles." },
+    { "title": "Réduire TMS", "hint": "Aides à la manutention + formation + rotation." }
+  ],
+  "expectedEvidence": [
+    "Plan de circulation entrepôt",
+    "Checklists arrimage / quai",
+    "Registre vérifications chariots",
+    "Briefings sécurité (5 minutes)"
+  ],
+  "fieldControls": [
+    "Quais : cales roues / verrouillage",
+    "Allées dégagées, marquage visible",
+    "Port EPI (HV, chaussures, gants selon poste)",
+    "Vitesse chariots respectée"
+  ],
+  "kpis": [
+    { "key": "nearMiss", "label": "Quasi-accidents", "hint": "Déclarations terrain." },
+    { "key": "actionsLate", "label": "Actions en retard", "hint": "Backlog à réduire." },
+    { "key": "dockIncidents", "label": "Incidents quai", "hint": "Chutes/heurts lors chargement." }
+  ],
+  "dangerousSituations": [
+    "Piéton dans une allée chariot sans séparation",
+    "Remorque non calée au quai",
+    "Arrimage absent ou insuffisant",
+    "Palette cassée manipulée quand même"
+  ]
+}

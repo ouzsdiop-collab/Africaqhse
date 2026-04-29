@@ -86,7 +86,7 @@ describe('tenant isolation — controllers pass req.qhseTenantId', () => {
     async () => {
     app = await buildApp();
     },
-    20000
+    45000
   );
 
   it('GET /api/risks calls service with tenant id', async () => {

@@ -1,0 +1,38 @@
+{
+  "sector": "mining",
+  "label": "Mines",
+  "risks": [
+    { "title": "Chute de hauteur", "hint": "Accès plateformes, trémies, échelles, bords non protégés." },
+    { "title": "Écrasement / heurt par engins", "hint": "Zones de circulation, angles morts, co-activité." },
+    { "title": "Poussières (silice)", "hint": "Forage, concassage, manutentions à sec." },
+    { "title": "Éboulement / instabilité", "hint": "Front de taille, talus, galeries." }
+  ],
+  "recommendedActions": [
+    { "title": "Mettre en place un plan de circulation", "hint": "Séparation piétons/engins + vitesses + zones interdites." },
+    { "title": "Contrôler protections contre les chutes", "hint": "Garde-corps, lignes de vie, harnais, points d’ancrage." },
+    { "title": "Réduire l’exposition aux poussières", "hint": "Arrosage, aspiration, masques adaptés, suivi médical." }
+  ],
+  "expectedEvidence": [
+    "Plan de circulation et affichages",
+    "Registre de vérification engins / levage",
+    "PV de contrôle EPI antichute",
+    "Fiches de poste et briefings sécurité"
+  ],
+  "fieldControls": [
+    "Angles morts engins : présence de signaleur / gilets HV",
+    "Balisage zones interdites / fronts instables",
+    "Port EPI (casque, lunettes, protections respiratoires)",
+    "Propreté / suppression poussières sur postes critiques"
+  ],
+  "kpis": [
+    { "key": "tf", "label": "TF (taux de fréquence)", "hint": "Incidents avec arrêt / heures travaillées." },
+    { "key": "tg", "label": "TG (taux de gravité)", "hint": "Jours perdus / heures travaillées." },
+    { "key": "actionsLate", "label": "Actions en retard", "hint": "Nombre et % en retard sur le plan d’actions." }
+  ],
+  "dangerousSituations": [
+    "Manœuvre d’engin sans guide en zone piétonne",
+    "Travail en hauteur sans ligne de vie ni garde-corps",
+    "Nettoyage d’un convoyeur sans consignation",
+    "Présence sous charge suspendue"
+  ]
+}

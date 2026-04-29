@@ -1,0 +1,38 @@
+{
+  "sector": "construction",
+  "label": "Construction",
+  "risks": [
+    { "title": "Chute de hauteur", "hint": "Échafaudages, toitures, trémies." },
+    { "title": "Chute d’objets", "hint": "Zones sous charge, outils en hauteur, levage." },
+    { "title": "Électrisation", "hint": "Réseaux provisoires, outillage, câbles endommagés." },
+    { "title": "Co-activité", "hint": "Sous-traitants, levage, circulation, travaux simultanés." }
+  ],
+  "recommendedActions": [
+    { "title": "Permis de travail / consignation", "hint": "Pour travaux électriques, espaces confinés, levage." },
+    { "title": "Vérifier échafaudages", "hint": "Montage conforme + étiquetage + contrôle avant usage." },
+    { "title": "Balisage et plan de circulation", "hint": "Couloirs piétons, zones de levage, interdictions." }
+  ],
+  "expectedEvidence": [
+    "PV contrôle échafaudage / nacelle",
+    "Plans de prévention et permis de travail",
+    "Registre de vérification levage",
+    "Briefings / causeries HSE"
+  ],
+  "fieldControls": [
+    "Garde-corps, plinthes, accès sécurisés",
+    "Balisage zones de levage / interdiction de passage",
+    "État câbles, coffrets, différentiels",
+    "Port EPI (casque, HV, chaussures, harnais si besoin)"
+  ],
+  "kpis": [
+    { "key": "actionsToday", "label": "Actions du jour", "hint": "À traiter aujourd’hui (terrain)." },
+    { "key": "actionsLate", "label": "Actions en retard", "hint": "À prioriser." },
+    { "key": "nearMiss", "label": "Quasi-accidents", "hint": "Nombre déclaré sur période." }
+  ],
+  "dangerousSituations": [
+    "Intervention en hauteur sans protection collective",
+    "Travail sous charge ou sous levage",
+    "Rallonge électrique dénudée en zone humide",
+    "Circulation piétonne dans une zone engins"
+  ]
+}

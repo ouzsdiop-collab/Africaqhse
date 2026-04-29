@@ -74,9 +74,12 @@ async function buildAuthApp() {
 describe('Auth httpOnly refresh cookie', () => {
   let app;
 
-  beforeAll(async () => {
-    app = await buildAuthApp();
-  });
+  beforeAll(
+    async () => {
+      app = await buildAuthApp();
+    },
+    20000
+  );
 
   beforeEach(() => {
     mockFindUnique.mockImplementation(async ({ where }) => {

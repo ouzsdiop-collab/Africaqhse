@@ -1,0 +1,101 @@
+{
+  "country": "CI",
+  "label": "Côte d’Ivoire",
+  "domains": [
+    {
+      "id": "occupational_health_safety",
+      "label": "Santé et sécurité au travail",
+      "requirements": [
+        {
+          "id": "ci-ohs-incident-reporting",
+          "title": "Déclaration et traitement des incidents",
+          "summary": "Mettre en place une déclaration simple des incidents et quasi-accidents, avec analyse des causes et actions correctives suivies.",
+          "sourceLabel": "Base indicative (à confirmer selon textes applicables en CI)",
+          "sourceType": "indicative",
+          "priority": "high",
+          "relatedRisks": ["Écrasement / heurt par engins", "Chute de hauteur"],
+          "expectedEvidence": [
+            "Procédure de déclaration incident/quasi-accident",
+            "Registre incidents (dates, faits, causes, actions)",
+            "Preuves de clôture des actions"
+          ],
+          "suggestedControls": [
+            "Bouton terrain 'Incident' et workflow de validation",
+            "Revue hebdomadaire des incidents + actions",
+            "Communication 'le quasi-accident est utile, pas punitif'"
+          ]
+        },
+        {
+          "id": "ci-ohs-risk-assessment",
+          "title": "Évaluation des risques et mesures de maîtrise",
+          "summary": "Identifier les dangers, évaluer les risques et définir des mesures de prévention adaptées aux activités et à la co-activité.",
+          "sourceLabel": "Base indicative (à confirmer selon textes applicables en CI)",
+          "sourceType": "indicative",
+          "priority": "high",
+          "relatedRisks": ["Éboulement / instabilité", "Poussières (silice)"],
+          "expectedEvidence": [
+            "Évaluation des risques (documentée)",
+            "Plan d’actions prévention (priorisé)",
+            "Briefings sécurité / causeries"
+          ],
+          "suggestedControls": [
+            "Contrôles terrain ciblés (poussières, fronts, circulation)",
+            "Balisage et règles de circulation engins/piétons",
+            "Suivi des actions en retard"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "environment",
+      "label": "Environnement",
+      "requirements": [
+        {
+          "id": "ci-env-waste-and-spills",
+          "title": "Gestion des déchets et prévention des déversements",
+          "summary": "Organiser le tri, le stockage sécurisé et la traçabilité des déchets, et prévenir les déversements (hydrocarbures, produits).",
+          "sourceLabel": "Base indicative (à confirmer selon textes applicables en CI)",
+          "sourceType": "indicative",
+          "priority": "medium",
+          "relatedRisks": ["Produits chimiques", "Déversement"],
+          "expectedEvidence": [
+            "Registre déchets / bordereaux (si applicables)",
+            "Plan de stockage (rétentions, zones)",
+            "Registre incidents environnement"
+          ],
+          "suggestedControls": [
+            "Kits anti-pollution accessibles + exercices",
+            "Contrôle rétentions / étiquetage",
+            "Inspection zones de stockage"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "labor",
+      "label": "Travail et obligations employeur",
+      "requirements": [
+        {
+          "id": "ci-labor-competence-and-training",
+          "title": "Compétences, habilitations et formation sécurité",
+          "summary": "S’assurer que les personnes exposées à des risques disposent des compétences/ habilitations nécessaires et sont formées aux consignes.",
+          "sourceLabel": "Base indicative (à confirmer selon textes applicables en CI)",
+          "sourceType": "indicative",
+          "priority": "high",
+          "relatedRisks": ["Machines en mouvement", "Engins / chariots"],
+          "expectedEvidence": [
+            "Registre formations / habilitations",
+            "Accusés de réception consignes",
+            "Vérifications périodiques (engins/équipements)"
+          ],
+          "suggestedControls": [
+            "Vérification habilitation avant poste critique",
+            "Rappels courts terrain (5 minutes)",
+            "Alertes habilitations expirées"
+          ]
+        }
+      ]
+    }
+  ]
+}
+

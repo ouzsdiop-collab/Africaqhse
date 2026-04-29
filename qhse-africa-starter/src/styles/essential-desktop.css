@@ -43,5 +43,96 @@
   [data-display-mode='terrain'] .dashboard-band--alerts-first {
     order: 3;
   }
+
+  /* Cockpit décisionnel Essentiel desktop (pilotage unifié) */
+  [data-display-mode='terrain'] .dashboard-band--essential-pilotage {
+    display: block !important;
+    order: 2;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 14px;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__block {
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 14px;
+    padding: 12px 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__k {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text2, #94a3b8);
+    margin-bottom: 8px;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__score {
+    min-width: 160px;
+    text-align: right;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__score-val {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__score-lbl {
+    font-size: 11px;
+    color: var(--text2, #94a3b8);
+    margin-top: 2px;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__priorities {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 10px;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__prio-top {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__prio-label {
+    font-weight: 900;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__prio-reason {
+    font-size: 12px;
+    color: var(--text2, #94a3b8);
+    line-height: 1.35;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__alerts,
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__actions {
+    margin: 0;
+    padding-left: 16px;
+    display: grid;
+    gap: 8px;
+  }
+
+  [data-display-mode='terrain'] .dashboard-essential-pilotage__empty {
+    list-style: none;
+    padding-left: 0;
+    color: var(--text2, #94a3b8);
+    font-size: 12px;
+  }
+
+  /* Responsive : une colonne si écran rétréci */
+  @media (max-width: 1180px) {
+    [data-display-mode='terrain'] .dashboard-essential-pilotage__grid {
+      grid-template-columns: 1fr;
+    }
+  }
 }
 

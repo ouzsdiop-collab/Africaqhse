@@ -1,0 +1,95 @@
+{
+  "standard": "iso-45001",
+  "label": "ISO 45001 (synthèse)",
+  "requirements": [
+    {
+      "id": "iso45001-context-and-scope",
+      "title": "Contexte, périmètre et parties intéressées",
+      "summary": "Définir le périmètre du système SST, comprendre les enjeux et identifier les parties intéressées pertinentes.",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "relatedRisks": ["Co-activité", "Chute de hauteur"],
+      "expectedEvidence": ["Périmètre SST documenté", "Cartographie parties intéressées (simple)", "Liste enjeux/risques majeurs"],
+      "suggestedControls": ["Revue annuelle du périmètre", "Mise à jour lors changements majeurs"]
+    },
+    {
+      "id": "iso45001-leadership-and-policy",
+      "title": "Leadership et politique SST",
+      "summary": "La direction doit définir une politique SST, des rôles et démontrer l’engagement (objectifs, ressources, priorités).",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "relatedRisks": ["Tous"],
+      "expectedEvidence": ["Politique SST", "Responsabilités définies", "Objectifs SST"],
+      "suggestedControls": ["Rituels terrain (visites sécurité)", "Suivi actions en retard au top management"]
+    },
+    {
+      "id": "iso45001-hazard-identification",
+      "title": "Identification des dangers et évaluation des risques",
+      "summary": "Identifier dangers, évaluer risques/opportunités et mettre en place des mesures de maîtrise adaptées.",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "relatedRisks": ["Écrasement / heurt par engins", "Poussières (silice)", "Éboulement / instabilité"],
+      "expectedEvidence": ["Évaluation risques", "Plan d’actions prévention", "Règles de maîtrise (procédures)"],
+      "suggestedControls": ["Contrôles terrain ciblés", "Mise à jour après incident/changement"]
+    },
+    {
+      "id": "iso45001-legal-and-other-requirements",
+      "title": "Exigences légales et autres exigences (registre)",
+      "summary": "Tenir un registre des exigences applicables et s’assurer d’un suivi de conformité proportionné au risque.",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "relatedRisks": ["Tous"],
+      "expectedEvidence": ["Registre exigences (niveau synthétique)", "Revue conformité périodique", "Plans d’actions si écarts"],
+      "suggestedControls": ["Disclaimers 'indicatif' si sources non intégrées", "Revue avec un référent conformité"]
+    },
+    {
+      "id": "iso45001-competence-and-awareness",
+      "title": "Compétence, sensibilisation et communication",
+      "summary": "Assurer la compétence des personnes exposées et organiser la communication SST (briefings, consignes, remontées).",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "relatedRisks": ["Machines en mouvement", "Engins / chariots"],
+      "expectedEvidence": ["Registre formations", "Habilitations", "Traces briefings"],
+      "suggestedControls": ["Causeries 5 minutes", "Contrôle habilitation avant poste critique"]
+    },
+    {
+      "id": "iso45001-operational-control",
+      "title": "Maîtrise opérationnelle (procédures critiques)",
+      "summary": "Définir et appliquer les contrôles opérationnels nécessaires pour réduire les risques (ex. consignation, levage, circulation).",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "relatedRisks": ["Écrasement / heurt par engins", "Chute de hauteur"],
+      "expectedEvidence": ["Procédures critiques", "Checklists terrain", "Enregistrements inspections"],
+      "suggestedControls": ["Permis de travail pour activités critiques", "Audits terrain courts"]
+    },
+    {
+      "id": "iso45001-incident-investigation",
+      "title": "Incidents : enquête, actions correctives, amélioration",
+      "summary": "Analyser incidents/quasi-accidents et mettre en œuvre des actions correctives suivies jusqu’à clôture.",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "relatedRisks": ["Tous"],
+      "expectedEvidence": ["Enquêtes incidents", "Actions correctives", "Indicateurs tendance"],
+      "suggestedControls": ["Workflow simple terrain", "Revue mensuelle des causes récurrentes"]
+    },
+    {
+      "id": "iso45001-monitoring-and-audit",
+      "title": "Surveillance, audit interne et revue de direction",
+      "summary": "Suivre des indicateurs utiles, auditer et revoir périodiquement l’efficacité du système SST.",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "relatedRisks": ["Tous"],
+      "expectedEvidence": ["KPI SST (TF/TG, actions en retard)", "Programme d’audit", "Revue de direction"],
+      "suggestedControls": ["KPI terrain simples", "Audits courts ciblés sur risques majeurs"]
+    }
+  ]
+}
+
