@@ -18,6 +18,8 @@ import {
   riskTierFromGp
 } from '../utils/riskMatrixCore.js';
 import { sortRisksByPriority } from '../utils/risksSort.js';
+import { qhseFetch } from '../utils/qhseFetch.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
 
 /** @param {unknown} r */
 function riskGpProduct(r) {
@@ -248,6 +250,73 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
     margin: [12, 10, 16, 10],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   });
+}
+
+/**
+ * Export premium: Audit ISO 45001 + pilotage QHSE (backend-only).
+ * Source: GET /api/reports/iso-45001-pilotage-premium
+ *
+ * @param {{ organizationName?: string; siteLabel?: string }} [opts]
+ */
+export async function downloadIso45001PilotagePremiumPdf(opts = {}) {
+  return downloadIsoPremiumPdf('iso-45001', opts, {
+    // Compat: garder l’endpoint historique ISO 45001, mais sans dupliquer la logique front.
+    endpoint: '/api/reports/iso-45001-pilotage-premium',
+    filenameBase: 'rapport-iso-45001-pilotage-premium'
+  });
+}
+
+const ISO_PREMIUM_ALLOWED = new Set(['iso-45001', 'iso-14001', 'iso-9001']);
+
+function assertIsoPremiumStandard(standard) {
+  const s = String(standard || '').trim().toLowerCase();
+  if (!ISO_PREMIUM_ALLOWED.has(s)) {
+    const allowed = [...ISO_PREMIUM_ALLOWED].join(', ');
+    throw new Error(`Norme non supportée. Valeurs possibles : ${allowed}.`);
+  }
+  return s;
+}
+
+/**
+ * Export premium: Audit ISO (45001/14001/9001) + pilotage QHSE (backend-only).
+ * Source (par défaut): GET /api/reports/iso-premium?standard=...
+ *
+ * @param {'iso-45001'|'iso-14001'|'iso-9001'|string} standard
+ * @param {{ organizationName?: string; siteLabel?: string }} [opts]
+ * @param {{ endpoint?: string; filenameBase?: string }} [overrides]
+ */
+export async function downloadIsoPremiumPdf(standard, opts = {}, overrides = {}) {
+  const std = assertIsoPremiumStandard(standard);
+  const org = opts?.organizationName != null ? String(opts.organizationName).trim() : '';
+  const siteLabel = opts?.siteLabel != null ? String(opts.siteLabel).trim() : '';
+
+  const endpoint = overrides?.endpoint
+    ? String(overrides.endpoint)
+    : `/api/reports/iso-premium?standard=${encodeURIComponent(std)}`;
+  const url = withSiteQuery(endpoint);
+  const res = await qhseFetch(url);
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg =
+      typeof payload?.error === 'string' && payload.error.trim() ? payload.error.trim() : `Erreur ${res.status}`;
+    throw new Error(msg);
+  }
+
+  const { buildIsoPilotagePremiumPdfHtml, downloadAuditIsoPdfFromHtml } = await import(
+    '../components/auditPremiumSaaS.pdf.js'
+  );
+
+  const html = buildIsoPilotagePremiumPdfHtml({
+    ...payload,
+    // force standard pour le renderer (utile si endpoint compat ne renvoie pas meta.standard)
+    meta: { ...(payload?.meta || {}), standard: payload?.meta?.standard || std },
+    organizationName: org || payload?.organizationName,
+    siteLabel: siteLabel || payload?.siteLabel,
+    appName: 'QHSE Control Africa'
+  });
+
+  const base = overrides?.filenameBase ? String(overrides.filenameBase) : `rapport-${std}-pilotage-premium`;
+  await downloadAuditIsoPdfFromHtml(html, base);
 }
 
 /**

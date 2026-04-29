@@ -37,6 +37,7 @@ export function createEssentialPilotageUnifiedCockpit() {
           <div class="section-kicker">Cockpit</div>
           <h3 class="content-card-title">Pilotage intelligent (Essentiel)</h3>
           <p class="content-card-lead">Priorités · score · alertes critiques · actions recommandées.</p>
+          <p class="dashboard-essential-pilotage__dq" style="margin:8px 0 0;font-size:12px;color:var(--text2,#94a3b8)"></p>
         </div>
         <div class="dashboard-essential-pilotage__score" aria-label="Score QHSE">
           <div class="dashboard-essential-pilotage__score-val">—</div>
@@ -73,9 +74,107 @@ export function createEssentialPilotageUnifiedCockpit() {
   const summary = root.querySelector('.dashboard-essential-pilotage__summary');
   const alerts = root.querySelector('.dashboard-essential-pilotage__alerts');
   const actions = root.querySelector('.dashboard-essential-pilotage__actions');
+  const dq = root.querySelector('.dashboard-essential-pilotage__dq');
 
   /** @type {{ expiredHab: number; expiringHab: number; lastHabError: string|null }} */
   const state = { expiredHab: 0, expiringHab: 0, lastHabError: null };
+
+  function dataQualityLabelFr(v) {
+    const s = String(v || '').toLowerCase();
+    if (s === 'complete') return 'fiable';
+    if (s === 'partial') return 'partiel';
+    return 'incomplet';
+  }
+
+  /**
+   * Alimentation backend (préférée) : `GET /api/dashboard/stats` → `pilotageEssential`.
+   * @param {any} p
+   */
+  function updateFromBackendPilotage(p) {
+    if (!p || typeof p !== 'object') {
+      setScore(null);
+      if (priorities) {
+        priorities.replaceChildren();
+        const li = document.createElement('li');
+        li.className = 'dashboard-essential-pilotage__empty';
+        li.textContent = 'Cockpit indisponible (données manquantes).';
+        priorities.append(li);
+      }
+      if (summary) summary.textContent = 'Non disponible.';
+      if (dq) dq.textContent = 'Qualité des données: non disponible.';
+      if (actions) {
+        actions.replaceChildren();
+        const li = document.createElement('li');
+        li.className = 'dashboard-essential-pilotage__empty';
+        li.textContent = 'Aucune action recommandée.';
+        actions.append(li);
+      }
+      return;
+    }
+
+    setScore(p.score);
+    if (summary) {
+      const txt = String(p.executiveSummary || '').trim();
+      summary.textContent = txt ? txt.replaceAll('—', '-').replaceAll('–', '-') : 'Non disponible.';
+    }
+    const dqg = p?.dataQuality && typeof p.dataQuality === 'object' ? p.dataQuality : null;
+    if (dq) {
+      if (!dqg) dq.textContent = 'Fiabilité: incomplet.';
+      else {
+        dq.textContent = `Fiabilité: incidents ${dataQualityLabelFr(dqg.incidents)}, actions ${dataQualityLabelFr(
+          dqg.actions
+        )}, audits ${dataQualityLabelFr(dqg.audits)}, risques ${dataQualityLabelFr(dqg.risks)}.`;
+      }
+    }
+
+    const recs = ensureList(p.topPriorities).slice(0, 3);
+    if (priorities) {
+      priorities.replaceChildren();
+      if (!recs.length) {
+        const li = document.createElement('li');
+        li.className = 'dashboard-essential-pilotage__empty';
+        li.textContent = 'Aucune priorité majeure détectée.';
+        priorities.append(li);
+      } else {
+        recs.forEach((r) => {
+          const sev = normalizeSeverity(r?.severity);
+          const li = document.createElement('li');
+          li.className = `dashboard-essential-pilotage__prio dashboard-essential-pilotage__prio--${sev.key}`;
+          li.innerHTML = `
+            <div class="dashboard-essential-pilotage__prio-top">
+              <span class="badge ${sev.key === 'critical' ? 'red' : sev.key === 'high' ? 'amber' : 'blue'}">${escapeHtml(
+                sev.label
+              )}</span>
+              <strong class="dashboard-essential-pilotage__prio-label">${escapeHtml(String(r?.label || 'Priorité'))}</strong>
+            </div>
+            <div class="dashboard-essential-pilotage__prio-reason">${escapeHtml(pickReason(r?.reason))}</div>
+          `;
+          priorities.append(li);
+        });
+      }
+    }
+
+    if (actions) {
+      actions.replaceChildren();
+      const acts = ensureList(p.recommendedActions)
+        .map((t) => String(t || '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      if (!acts.length) {
+        const li = document.createElement('li');
+        li.className = 'dashboard-essential-pilotage__empty';
+        li.textContent = 'Aucune action recommandée.';
+        actions.append(li);
+      } else {
+        acts.forEach((t) => {
+          const li = document.createElement('li');
+          li.className = 'dashboard-essential-pilotage__action';
+          li.textContent = t.replaceAll('—', '-').replaceAll('–', '-').slice(0, 240);
+          actions.append(li);
+        });
+      }
+    }
+  }
 
   function setScore(val) {
     if (!scoreVal) return;
@@ -90,12 +189,22 @@ export function createEssentialPilotageUnifiedCockpit() {
     if (!snap || typeof snap !== 'object') return;
     setScore(snap.enrichedScore);
 
+    const dqg = snap?.dataQualityGlobal && typeof snap.dataQualityGlobal === 'object' ? snap.dataQualityGlobal : null;
+    if (dq) {
+      if (!dqg) dq.textContent = 'Qualité des données: non disponible.';
+      else {
+        dq.textContent = `Qualité des données: incidents ${dqg.incidents || 'unavailable'}, actions ${
+          dqg.actions || 'unavailable'
+        }, audits ${dqg.audits || 'unavailable'}, risques ${dqg.risks || 'unavailable'}.`;
+      }
+    }
+
     if (summary) {
       const txt = String(snap.synthesis || '').trim();
       summary.textContent = txt ? txt.replaceAll('—', '-').replaceAll('–', '-') : 'Non disponible.';
     }
 
-    const recs = ensureList(snap.recommendations).slice(0, 3);
+    const recs = ensureList(snap.topPriorities && Array.isArray(snap.topPriorities) ? snap.topPriorities : snap.recommendations).slice(0, 3);
     if (priorities) {
       priorities.replaceChildren();
       if (!recs.length) {
@@ -223,6 +332,7 @@ export function createEssentialPilotageUnifiedCockpit() {
 
   return {
     root,
+    updateFromBackendPilotage,
     updateFromSnapshot,
     updateFromAi,
     updateAlerts,

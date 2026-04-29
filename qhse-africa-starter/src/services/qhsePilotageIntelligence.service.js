@@ -105,7 +105,7 @@ export function priorityLabelFromScore(internalScore) {
 /**
  * @typedef {'deterministic' | 'heuristic' | 'ai'} InsightSource
  * @typedef {'low' | 'medium' | 'high'} InsightConfidence
- * @typedef {'complete' | 'partial' | 'limited'} InsightDataQuality
+ * @typedef {'complete' | 'partial' | 'unavailable'} InsightDataQuality
  * @typedef {'low' | 'medium' | 'high' | 'critical'} InsightSeverity
  */
 
@@ -128,9 +128,9 @@ function dataQualityFromDataSource(dataSource) {
   const ds = String(dataSource || '').toLowerCase();
   if (ds === 'api_stats') return 'complete';
   if (ds === 'api_list') return 'partial';
-  if (ds === 'heuristic') return 'limited';
-  if (ds === 'demo') return 'limited';
-  return 'limited';
+  if (ds === 'heuristic') return 'unavailable';
+  if (ds === 'demo') return 'unavailable';
+  return 'unavailable';
 }
 
 /**
@@ -159,16 +159,20 @@ function confidenceFromInternalScore(internalScore, dataSource) {
  * }}
  */
 function computeGlobalDataQuality(meta, stats) {
-  const incidentsQ = Number.isFinite(Number(stats?.incidents)) ? 'complete' : 'partial';
-  const actionsQ = Number.isFinite(Number(stats?.overdueActions)) ? 'complete' : meta.overdue > 0 ? 'partial' : 'limited';
+  const incidentsQ = Number.isFinite(Number(stats?.incidents)) ? 'complete' : 'unavailable';
+  const actionsQ = Number.isFinite(Number(stats?.overdueActions))
+    ? 'complete'
+    : meta.overdue > 0
+      ? 'partial'
+      : 'unavailable';
   const rs = String(meta?.risksSource || '').toLowerCase();
-  const risksQ = rs === 'api' || rs === 'api_empty' ? 'partial' : rs === 'demo' ? 'limited' : 'limited';
+  const risksQ = rs === 'api' || rs === 'api_empty' ? 'partial' : 'unavailable';
   const auditsQ =
     stats?.stats && typeof stats.stats === 'object' && stats.stats.audits && typeof stats.stats.audits === 'object'
       ? 'partial'
-      : 'limited';
+      : 'unavailable';
   // Pas branché sur un KPI habilitations côté dashboard pour l’instant → limited (améliorable plus tard).
-  const habilitationsQ = 'limited';
+  const habilitationsQ = 'unavailable';
   return { incidents: incidentsQ, actions: actionsQ, risks: risksQ, habilitations: habilitationsQ, audits: auditsQ };
 }
 
@@ -535,6 +539,18 @@ export async function buildAssistantSnapshot(input) {
     };
   });
 
+  // Couche unifiée (déterministe) : priorités principales explicables, max 3.
+  const topPriorities = recommendations
+    .filter((r) => r && typeof r === 'object' && r.source === 'deterministic')
+    .slice(0, 3)
+    .map((r) => ({
+      label: String(r?.label || r?.title || 'Priorité').trim() || 'Priorité',
+      reason: String(r?.reason || r?.detail || r?.title || '').trim() || 'À traiter en priorité.',
+      severity: r?.severity || severityFromInternalScore(Number(r?.internalScore) || 0),
+      source: r?.source || 'deterministic',
+      confidence: r?.confidence || confidenceFromInternalScore(Number(r?.internalScore) || 0, r?.dataSource)
+    }));
+
   const site =
     input.siteLabel && String(input.siteLabel).trim()
       ? String(input.siteLabel).trim()
@@ -577,8 +593,17 @@ export async function buildAssistantSnapshot(input) {
     docSummary: docSum,
     synthesis: synthesisParts.join(' '),
     recommendations,
+    topPriorities,
     anomalies,
+    // Compat: dataQuality conservé, mais valeurs alignées (complete/partial/unavailable).
     dataQuality: globalDataQuality,
+    // Nouveau: dataQualityGlobal demandé (sans habilitations).
+    dataQualityGlobal: {
+      incidents: globalDataQuality.incidents,
+      actions: globalDataQuality.actions,
+      audits: globalDataQuality.audits,
+      risks: globalDataQuality.risks
+    },
     meta: {
       overdue,
       expiredDocs: docSum.expire,
@@ -719,16 +744,18 @@ export function buildDashboardPilotageAiContext(input) {
    * }}
    */
   function dataQualityFromSignalSources(ss) {
-    const inc = ss?.incidentsTotal === 'api_stats' ? 'complete' : ss?.incidentsTotal === 'api_list' ? 'partial' : 'limited';
-    const act = ss?.actionsOverdue === 'api_stats' ? 'complete' : ss?.actionsOverdue === 'api_list' ? 'partial' : 'limited';
+    const inc =
+      ss?.incidentsTotal === 'api_stats' ? 'complete' : ss?.incidentsTotal === 'api_list' ? 'partial' : 'unavailable';
+    const act =
+      ss?.actionsOverdue === 'api_stats' ? 'complete' : ss?.actionsOverdue === 'api_list' ? 'partial' : 'unavailable';
     const rk =
       ss?.risksCritical === 'api_stats'
         ? 'complete'
         : ss?.risksCritical === 'api_list'
           ? 'partial'
-          : 'limited';
-    const aud = ss?.auditsSummary === 'api_stats' ? 'partial' : 'limited';
-    const hab = 'limited';
+          : 'unavailable';
+    const aud = ss?.auditsSummary === 'api_stats' ? 'partial' : 'unavailable';
+    const hab = 'unavailable';
     return { incidents: inc, actions: act, risks: rk, habilitations: hab, audits: aud };
   }
 

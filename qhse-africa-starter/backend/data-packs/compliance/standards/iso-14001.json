@@ -1,6 +1,239 @@
 {
   "standard": "iso-14001",
-  "label": "ISO 14001 (placeholder)",
-  "requirements": []
+  "label": "ISO 14001 (synthèse terrain)",
+  "requirements": [
+    {
+      "id": "iso14001-context-scope-interested-parties",
+      "chapter": 4,
+      "clause": "4.1 / 4.2 / 4.3",
+      "title": "Contexte, périmètre et parties intéressées (environnement)",
+      "summary": "Définir le périmètre du SME, comprendre les enjeux environnementaux et identifier les parties intéressées pertinentes (riverains, autorités, clients).",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "expectedEvidence": [
+        "Périmètre du SME (sites, activités, prestataires) documenté et versionné",
+        "Liste des parties intéressées + attentes environnementales (fichier simple)",
+        "Registre des changements majeurs (GMC) avec impacts environnement",
+        "Photo(s) affichage consignes environnement aux zones sensibles (si applicable)"
+      ],
+      "suggestedActions": [
+        "Formaliser le périmètre SME sur 1 page (sites/activités/prestataires) et le valider",
+        "Créer une revue trimestrielle (15 min) des parties intéressées et des enjeux",
+        "Déclencher une revue environnement à chaque changement majeur (GMC)"
+      ],
+      "auditQuestions": [
+        "Le périmètre SME est-il défini (sites/activités/prestataires) et versionné (dernière révision, approbation) ?",
+        "Existe-t-il une liste des parties intéressées + attentes environnementales, et une date de dernière revue ?",
+        "Chaque changement majeur (GMC) déclenche-t-il une évaluation d’impact environnement tracée (au moins un échantillon) ?"
+      ]
+    },
+    {
+      "id": "iso14001-leadership-policy-roles",
+      "chapter": 5,
+      "clause": "5.1 / 5.2 / 5.3",
+      "title": "Leadership, politique environnementale et responsabilités",
+      "summary": "La direction définit une politique environnementale, des responsabilités et démontre l’engagement via des objectifs, ressources et revues.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "expectedEvidence": [
+        "Politique environnementale signée + diffusion (affichage, accusés de réception si applicable)",
+        "Rôles/responsabilités (organigramme + fiches de rôle) pour le SME",
+        "Compte-rendus de revues/ réunions environnement avec décisions",
+        "Exemples de décisions direction (ressources, priorités, arbitrages) suite à écarts"
+      ],
+      "suggestedActions": [
+        "Définir 3 objectifs environnement maximum avec un indicateur et un responsable chacun",
+        "Mettre en place une visite terrain management (mensuelle) sur 1 zone sensible",
+        "Créer un rituel de suivi des actions en retard (hebdo) avec arbitrage"
+      ],
+      "auditQuestions": [
+        "La politique environnementale est-elle signée, affichée/diffusée et connue (échantillon terrain: 2–3 personnes) ?",
+        "Les rôles/responsabilités environnement sont-ils définis (qui décide, qui contrôle, qui valide) et appliqués ?",
+        "La direction pilote-t-elle les points critiques (incidents, écarts, actions en retard) avec décisions datées ?"
+      ]
+    },
+    {
+      "id": "iso14001-aspects-impacts-register",
+      "chapter": 6,
+      "clause": "6.1.2",
+      "title": "Aspects environnementaux et impacts (registre)",
+      "summary": "Identifier les aspects environnementaux (déchets, rejets, émissions, eau, énergie), évaluer les impacts et définir les aspects significatifs.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "expectedEvidence": [
+        "Registre aspects/impacts (par activité) avec critères de significativité",
+        "Liste des aspects significatifs + contrôles associés",
+        "Mise à jour après changement, incident environnement ou évolution activité",
+        "Photos terrain des aspects significatifs (zones stockage, effluents, poussières) avec contrôle"
+      ],
+      "suggestedActions": [
+        "Créer/mettre à jour un registre aspects (1 page par activité) avec scoring simple",
+        "Définir 5 aspects significatifs maximum et leurs contrôles terrain associés",
+        "Mettre une règle: mise à jour du registre après tout incident/déversement"
+      ],
+      "auditQuestions": [
+        "Le registre aspects/impacts couvre-t-il toutes les activités du site (incluant sous-traitants) et est-il daté/versionné ?",
+        "Les aspects significatifs sont-ils justifiés par un scoring simple (critères) et des contrôles terrain associés ?",
+        "Le registre est-il mis à jour après incident/déversement/changement (au moins un exemple tracé) ?"
+      ]
+    },
+    {
+      "id": "iso14001-legal-and-other-requirements",
+      "chapter": 6,
+      "clause": "6.1.3",
+      "title": "Conformité réglementaire et autres exigences (registre)",
+      "summary": "Tenir un registre des exigences applicables et organiser une évaluation périodique de conformité, proportionnée aux risques environnement.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "expectedEvidence": [
+        "Registre exigences (légales/autres) avec responsable, fréquence, statut",
+        "Preuves de veille/révision (date, source, impact) ou note d’absence d’évolution",
+        "Évaluations de conformité périodiques (checklist) + actions correctives en cas d’écart",
+        "Registre des contrôles/inspections réglementaires (si applicable) + comptes rendus"
+      ],
+      "suggestedActions": [
+        "Créer un registre exigences minimal (10–30 lignes) avec responsables et périodicité",
+        "Planifier une revue conformité trimestrielle (30 min) et tracer la décision",
+        "Transformer chaque écart de conformité en action corrective avec échéance"
+      ],
+      "auditQuestions": [
+        "Le registre des exigences applicables existe-t-il (propriétaire, fréquence, statut) et est-il à jour (date de revue) ?",
+        "Les évaluations de conformité sont-elles tracées (checklist) avec preuve d’exécution (au moins un échantillon) ?",
+        "Chaque écart de conformité déclenche-t-il une action corrective suivie jusqu’à clôture (preuve) ?"
+      ]
+    },
+    {
+      "id": "iso14001-objectives-planning",
+      "chapter": 6,
+      "clause": "6.2",
+      "title": "Objectifs environnementaux et planification",
+      "summary": "Définir des objectifs environnementaux mesurables (déchets, eau, énergie, incidents) et planifier les actions, ressources et indicateurs.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "expectedEvidence": [
+        "Objectifs environnement (annuels) avec indicateurs et responsables",
+        "Plan d’actions associé (échéances) + suivi d’avancement",
+        "Tableau de bord simple (tendance mensuelle)"
+      ],
+      "suggestedActions": [
+        "Définir 3 indicateurs terrain (déchets, eau/énergie, incidents) et les suivre mensuellement",
+        "Créer un plan d’actions (max 10) avec responsable + échéance + preuve attendue",
+        "Faire une revue mensuelle (30 min) et décider 1–2 actions prioritaires"
+      ],
+      "auditQuestions": [
+        "Les objectifs environnement ont-ils un indicateur, une cible, un responsable et une fréquence de suivi ?",
+        "Les indicateurs sont-ils mis à jour régulièrement (tendance) et utilisés en réunion (preuve: compte rendu) ?",
+        "Les actions associées ont-elles une échéance et une preuve de clôture (photo/doc/enregistrement) ?"
+      ]
+    },
+    {
+      "id": "iso14001-operational-control-waste-spills-chemicals",
+      "chapter": 8,
+      "clause": "8.1",
+      "title": "Maîtrise opérationnelle (déchets, produits, déversements)",
+      "summary": "Définir et appliquer les contrôles opérationnels nécessaires: tri/stockage déchets, stockage produits, prévention des déversements, sous-traitance.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "expectedEvidence": [
+        "Procédures / instructions (tri, stockage, rétentions, transport interne) versionnées",
+        "Registre déchets / traçabilité (si applicable) + bordereaux/bon de collecte",
+        "Photos terrain: bacs étiquetés, zones de stockage, rétentions, kits anti-pollution",
+        "Checklists d’inspection des zones sensibles (stockage, atelier, carburant)"
+      ],
+      "suggestedActions": [
+        "Mettre en place un tri simple (3–5 catégories) avec bacs étiquetés et photos de référence",
+        "Créer une checklist hebdo des zones sensibles (stockage, atelier, carburant) et tracer les écarts",
+        "Déployer un kit anti-pollution par zone critique et vérifier mensuellement l’inventaire"
+      ],
+      "auditQuestions": [
+        "Les zones/flux déchets et produits sont-ils maîtrisés (étiquetage, rétention, séparation) et vérifiables par observation terrain ?",
+        "La traçabilité déchets (si applicable) est-elle tenue (échantillon: 2–3 mouvements) et consultable rapidement ?",
+        "Les inspections terrain détectent-elles les écarts et déclenchent-elles des actions avec preuve de correction ?"
+      ]
+    },
+    {
+      "id": "iso14001-emergency-preparedness-response",
+      "chapter": 8,
+      "clause": "8.2",
+      "title": "Préparation et réponse aux urgences environnementales",
+      "summary": "Préparer la réponse aux situations d’urgence (déversement, incendie, pollution) avec moyens, exercices et retours d’expérience.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "expectedEvidence": [
+        "Plan d’urgence environnement (déversement/incendie) + contacts",
+        "Inventaire des kits et moyens (absorbants, barrages) + localisation",
+        "Exercices / simulations (compte-rendu) + actions d’amélioration",
+        "Photos des kits / affichages consignes d’urgence"
+      ],
+      "suggestedActions": [
+        "Identifier 3 scénarios d’urgence (déversement, incendie, pollution) et définir qui fait quoi",
+        "Planifier 2 exercices/an (10–20 min) et tracer un compte rendu + actions",
+        "Mettre des consignes d’urgence visibles sur chaque zone à risque"
+      ],
+      "auditQuestions": [
+        "Les scénarios d’urgence environnement sont-ils définis (qui fait quoi, quand, comment) et affichés sur zone ?",
+        "Les moyens (kits, absorbants, barrages) sont-ils localisés et vérifiés (inventaire daté) ?",
+        "Des exercices sont-ils réalisés avec compte rendu + actions, et ces actions sont-elles clôturées ?"
+      ]
+    },
+    {
+      "id": "iso14001-performance-evaluation-audit-management-review",
+      "chapter": 9,
+      "clause": "9.1 / 9.2 / 9.3",
+      "title": "Surveillance, audit interne et revue de direction (environnement)",
+      "summary": "Suivre des indicateurs, auditer le SME et faire des revues de direction pour assurer l’efficacité et décider des améliorations.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "expectedEvidence": [
+        "Tableau de bord environnement (déchets, eau, énergie, incidents, inspections) avec tendances",
+        "Programme d’audit interne + rapports + plans d’actions",
+        "Compte-rendu revue de direction (décisions, ressources, objectifs)"
+      ],
+      "suggestedActions": [
+        "Définir 5 KPI maximum (déchets, eau/énergie, incidents, inspections, actions en retard)",
+        "Planifier un audit interne trimestriel ciblé (déchets/déversements/stockage) avec actions",
+        "Faire une revue de direction trimestrielle avec 3 décisions max (priorités/ressources)"
+      ],
+      "auditQuestions": [
+        "Les KPI environnement sont-ils suivis (tendance) et utilisés pour décider (preuve: compte rendu) ?",
+        "Les audits internes produisent-ils des constats factuels (preuves) et des actions suivies jusqu’à clôture ?",
+        "La revue de direction aboutit-elle à des décisions concrètes (priorités, ressources, objectifs) datées ?"
+      ]
+    },
+    {
+      "id": "iso14001-improvement-nonconformity-corrective-action",
+      "chapter": 10,
+      "clause": "10.2 / 10.3",
+      "title": "Non-conformités, actions correctives et amélioration continue",
+      "summary": "Gérer les non-conformités environnement (internes, audits, incidents), analyser les causes et suivre les actions jusqu’à clôture.",
+      "sourceLabel": "ISO 14001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "expectedEvidence": [
+        "Registre non-conformités / incidents environnement + analyse causes",
+        "Actions correctives (responsable, échéance) + preuves de mise en œuvre",
+        "Suivi des actions en retard + décisions d’arbitrage si besoin",
+        "Retours d’expérience (leçons apprises) diffusés"
+      ],
+      "suggestedActions": [
+        "Standardiser une fiche “écart environnement” 1 page (faits + cause + action + preuve)",
+        "Exiger une preuve de clôture (photo/doc) avant de fermer une action corrective",
+        "Faire une revue mensuelle des causes récurrentes et décider 1–2 actions prioritaires"
+      ],
+      "auditQuestions": [
+        "Les incidents/écarts environnement sont-ils enregistrés avec date, lieu, faits et statut de traitement ?",
+        "Les causes sont-elles analysées et les actions suivies jusqu’à clôture avec preuve (photo/doc) ?",
+        "Les causes récurrentes sont-elles revues et traduites en actions structurantes (amélioration continue) ?"
+      ]
+    }
+  ]
 }
 

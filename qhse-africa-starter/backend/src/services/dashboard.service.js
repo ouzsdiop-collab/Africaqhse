@@ -12,6 +12,237 @@ import { buildQhseIntelligenceSnapshot } from './qhseIntelligence.service.js';
 const LIST_MAX = 5;
 const DASHBOARD_TIMESERIES_MONTHS = 6;
 
+function clampScore100(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function stripLongDashes(s) {
+  return String(s || '').replaceAll('—', '-').replaceAll('–', '-');
+}
+
+/**
+ * Cockpit Essentiel: priorités déterministes, explicables, léger.
+ * @param {{
+ *  stats: any;
+ *  nonConformitiesOpen: number;
+ *  criticalIncidents: any[];
+ *  overdueActions: number;
+ *  risksCritical: number;
+ * }} input
+ */
+function buildEssentialPilotageSnapshot(input) {
+  const overdue = Math.max(0, Number(input?.overdueActions) || 0);
+  const ncOpen = Math.max(0, Number(input?.nonConformitiesOpen) || 0);
+  const critInc = Array.isArray(input?.criticalIncidents) ? input.criticalIncidents.length : 0;
+  const risksCrit = Math.max(0, Number(input?.risksCritical) || 0);
+
+  // Score simple (0-100) : pénalités graduelles, explicables.
+  const score = clampScore100(
+    100 - Math.min(overdue * 7, 49) - Math.min(critInc * 20, 60) - Math.min(ncOpen * 6, 36) - Math.min(risksCrit * 5, 35)
+  );
+
+  /** @type {{ label: string; reason: string; severity: 'low'|'medium'|'high'|'critical'; source:'deterministic'; confidence:'low'|'medium'|'high' }[]} */
+  const topPriorities = [];
+  if (critInc > 0) {
+    topPriorities.push({
+      label: 'Incidents critiques',
+      reason: stripLongDashes(`${critInc} incident(s) critique(s) à traiter et sécuriser.`),
+      severity: critInc >= 3 ? 'critical' : 'high',
+      source: 'deterministic',
+      confidence: 'high'
+    });
+  }
+  if (overdue > 0) {
+    topPriorities.push({
+      label: 'Actions en retard',
+      reason: stripLongDashes(`${overdue} action(s) en retard. Débloquer, réassigner ou replanifier.`),
+      severity: overdue >= 6 ? 'critical' : overdue >= 3 ? 'high' : 'medium',
+      source: 'deterministic',
+      confidence: 'high'
+    });
+  }
+  if (ncOpen > 0) {
+    topPriorities.push({
+      label: 'Non-conformités ouvertes',
+      reason: stripLongDashes(`${ncOpen} NC ouverte(s). Prioriser la clôture et la preuve.`),
+      severity: ncOpen >= 5 ? 'high' : 'medium',
+      source: 'deterministic',
+      confidence: 'medium'
+    });
+  }
+  if (risksCrit > 0) {
+    topPriorities.push({
+      label: 'Risques critiques',
+      reason: stripLongDashes(`${risksCrit} risque(s) critique(s) au registre. Vérifier les actions liées.`),
+      severity: risksCrit >= 4 ? 'high' : 'medium',
+      source: 'deterministic',
+      confidence: 'medium'
+    });
+  }
+
+  topPriorities.sort((a, b) => {
+    const rank = { critical: 4, high: 3, medium: 2, low: 1 };
+    return (rank[b.severity] || 0) - (rank[a.severity] || 0);
+  });
+
+  const priorities3 = topPriorities.slice(0, 3);
+
+  const executiveSummaryParts = [];
+  executiveSummaryParts.push(`Score QHSE: ${score}/100.`);
+  if (priorities3.length) {
+    executiveSummaryParts.push(
+      `Priorités: ${priorities3.map((p) => p.label.toLowerCase()).join(', ')}.`
+    );
+  } else {
+    executiveSummaryParts.push('Aucune priorité majeure détectée sur cette vue.');
+  }
+  const executiveSummary = stripLongDashes(executiveSummaryParts.join(' ').trim());
+
+  const recommendedActions = priorities3.map((p) => {
+    if (p.label.toLowerCase().includes('incident')) return 'Ouvrir les incidents critiques et décider des actions.';
+    if (p.label.toLowerCase().includes('retard')) return 'Ouvrir le plan d’actions et traiter les retards.';
+    if (p.label.toLowerCase().includes('non-conform')) return 'Ouvrir les audits/NC et définir un plan de clôture.';
+    if (p.label.toLowerCase().includes('risque')) return 'Ouvrir le registre risques et lier des actions aux risques critiques.';
+    return 'Ouvrir le module concerné et traiter la priorité.';
+  });
+
+  // Qualité données: cette synthèse est basée sur compteurs DB (fiable). Timeseries reste optionnel.
+  const dataQuality = {
+    incidents: 'complete',
+    actions: 'complete',
+    audits: 'complete',
+    risks: 'complete'
+  };
+
+  return { score, topPriorities: priorities3, dataQuality, recommendedActions, executiveSummary };
+}
+
+/**
+ * Pilotage unifié (mode expert) : plus détaillé, toujours déterministe et explicable.
+ * @param {{
+ *  nonConformitiesOpen: number;
+ *  criticalIncidents: any[];
+ *  overdueActions: number;
+ *  risksCritical: number;
+ *  timeseriesPresent: boolean;
+ *  auditsTotal: number;
+ * }} input
+ */
+function buildExpertPilotageSnapshot(input) {
+  const overdue = Math.max(0, Number(input?.overdueActions) || 0);
+  const ncOpen = Math.max(0, Number(input?.nonConformitiesOpen) || 0);
+  const critInc = Array.isArray(input?.criticalIncidents) ? input.criticalIncidents.length : 0;
+  const risksCrit = Math.max(0, Number(input?.risksCritical) || 0);
+  const auditsTotal = Math.max(0, Number(input?.auditsTotal) || 0);
+
+  const subScores = {
+    actions: clampScore100(100 - Math.min(overdue * 7, 49)),
+    incidents: clampScore100(100 - Math.min(critInc * 20, 60)),
+    conformity: clampScore100(100 - Math.min(ncOpen * 6, 36)),
+    risks: clampScore100(100 - Math.min(risksCrit * 7, 49))
+  };
+
+  const score = clampScore100(
+    0.32 * subScores.actions +
+      0.28 * subScores.incidents +
+      0.22 * subScores.conformity +
+      0.18 * subScores.risks
+  );
+
+  /** @type {{ id: string; label: string; reason: string; severity: 'low'|'medium'|'high'|'critical'; source:'deterministic'; confidence:'low'|'medium'|'high'; navigateHash?: string; navigateIntent?: Record<string,unknown> }[]} */
+  const priorities = [];
+
+  if (critInc > 0) {
+    priorities.push({
+      id: 'incidents_critical',
+      label: 'Incidents critiques',
+      reason: stripLongDashes(`${critInc} incident(s) critique(s) détecté(s). Analyse et actions immédiates attendues.`),
+      severity: critInc >= 3 ? 'critical' : 'high',
+      source: 'deterministic',
+      confidence: 'high',
+      navigateHash: 'incidents',
+      navigateIntent: { incidentSeverityFilter: 'critique', dashboardIncidentPeriodPreset: '30', source: 'pilotage_expert' }
+    });
+  }
+  if (overdue > 0) {
+    priorities.push({
+      id: 'actions_overdue',
+      label: 'Actions en retard',
+      reason: stripLongDashes(`${overdue} action(s) en retard. Débloquer, réassigner ou replanifier.`),
+      severity: overdue >= 6 ? 'critical' : overdue >= 3 ? 'high' : 'medium',
+      source: 'deterministic',
+      confidence: 'high',
+      navigateHash: 'actions',
+      navigateIntent: { actionsColumnFilter: 'overdue', scrollToId: 'qhse-actions-col-overdue', source: 'pilotage_expert' }
+    });
+  }
+  if (ncOpen > 0) {
+    priorities.push({
+      id: 'nc_open',
+      label: 'Non-conformités ouvertes',
+      reason: stripLongDashes(`${ncOpen} NC ouverte(s). Prioriser la clôture avec preuve et délais.`),
+      severity: ncOpen >= 5 ? 'high' : 'medium',
+      source: 'deterministic',
+      confidence: 'medium',
+      navigateHash: 'audits',
+      navigateIntent: { scrollToId: 'audit-cockpit-tier-critical', source: 'pilotage_expert' }
+    });
+  }
+  if (risksCrit > 0) {
+    priorities.push({
+      id: 'risks_critical',
+      label: 'Risques critiques',
+      reason: stripLongDashes(`${risksCrit} risque(s) critique(s) au registre. Vérifier les actions liées.`),
+      severity: risksCrit >= 4 ? 'high' : 'medium',
+      source: 'deterministic',
+      confidence: 'medium',
+      navigateHash: 'iso',
+      navigateIntent: { source: 'pilotage_expert' }
+    });
+  }
+
+  priorities.sort((a, b) => {
+    const rank = { critical: 4, high: 3, medium: 2, low: 1 };
+    return (rank[b.severity] || 0) - (rank[a.severity] || 0);
+  });
+
+  const topPriorities = priorities.slice(0, 3);
+
+  const executiveSummary = stripLongDashes(
+    [
+      `Score QHSE: ${score}/100.`,
+      topPriorities.length
+        ? `Priorités: ${topPriorities.map((p) => p.label.toLowerCase()).join(', ')}.`
+        : 'Aucune priorité majeure détectée sur cette vue.',
+      auditsTotal > 0 ? `Audits: ${auditsTotal} au total sur le périmètre.` : ''
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
+  );
+
+  const dataQuality = {
+    incidents: 'complete',
+    actions: 'complete',
+    audits: auditsTotal > 0 ? 'complete' : 'partial',
+    risks: 'complete'
+  };
+
+  // signalSources (lisible + compatible avec le vocabulaire existant côté front)
+  const signalSources = {
+    incidentsTotal: 'api_stats',
+    actionsOverdue: 'api_stats',
+    nonConformities: 'api_stats',
+    risksCritical: 'api_stats',
+    auditsSummary: auditsTotal > 0 ? 'api_stats' : 'unavailable',
+    timeseries: input?.timeseriesPresent ? 'api_timeseries' : 'unavailable'
+  };
+
+  return { score, subScores, priorities, topPriorities, dataQuality, signalSources, executiveSummary };
+}
+
 /**
  * Aligné sur `ncTextIsMajor` (dashboardCharts.js) — heuristique texte titre+détail.
  * @param {{ title?: string | null; detail?: string | null }} nc
@@ -415,6 +646,23 @@ export async function getDashboardStats(tenantId, siteId = null) {
     }
   };
 
+  const pilotageEssential = buildEssentialPilotageSnapshot({
+    stats,
+    nonConformitiesOpen: nonConformities,
+    criticalIncidents,
+    overdueActions: actionsOverdue,
+    risksCritical
+  });
+
+  const pilotageExpert = buildExpertPilotageSnapshot({
+    nonConformitiesOpen: nonConformities,
+    criticalIncidents,
+    overdueActions: actionsOverdue,
+    risksCritical,
+    timeseriesPresent: Boolean(timeseries),
+    auditsTotal
+  });
+
   // Bloc intelligence additif (ne casse pas l’ancien format).
   // Tenant obligatoire pour le calcul : si absent/invalid, on n’expose pas l’intelligence.
   let intelligence = null;
@@ -447,6 +695,8 @@ export async function getDashboardStats(tenantId, siteId = null) {
     siteId: siteFilter?.siteId ?? null,
     stats,
     timeseries,
+    pilotageEssential,
+    pilotageExpert,
     ...(intelligence ? { intelligence } : {})
   };
 }

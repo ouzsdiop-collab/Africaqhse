@@ -4,91 +4,227 @@
   "requirements": [
     {
       "id": "iso45001-context-and-scope",
+      "chapter": 4,
+      "clause": "4.1 / 4.2 / 4.3",
       "title": "Contexte, périmètre et parties intéressées",
       "summary": "Définir le périmètre du système SST, comprendre les enjeux et identifier les parties intéressées pertinentes.",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
       "priority": "medium",
       "relatedRisks": ["Co-activité", "Chute de hauteur"],
-      "expectedEvidence": ["Périmètre SST documenté", "Cartographie parties intéressées (simple)", "Liste enjeux/risques majeurs"],
-      "suggestedControls": ["Revue annuelle du périmètre", "Mise à jour lors changements majeurs"]
+      "expectedEvidence": [
+        "Document périmètre SST (sites, activités, sous-traitants) versionné",
+        "Cartographie / liste des parties intéressées + attentes SST (fichier simple)",
+        "Registre des changements majeurs (GMC) avec impacts SST (entrée datée)",
+        "Photo(s) affichage périmètre/consignes aux points d’accès (si applicable)"
+      ],
+      "suggestedControls": ["Revue annuelle du périmètre", "Mise à jour lors changements majeurs"],
+      "suggestedActions": [
+        "Formaliser le périmètre SST sur 1 page et le valider en direction",
+        "Créer une revue trimestrielle des parties intéressées (15 min, check-list)",
+        "Déclencher une mise à jour du périmètre à chaque changement majeur (GMC)"
+      ],
+      "auditQuestions": [
+        "Le périmètre SST est-il défini (sites/activités/sous-traitants) et versionné (dernière révision, approbation) ?",
+        "Existe-t-il une liste des parties intéressées + attentes SST et une date de dernière revue ?",
+        "Chaque changement majeur (GMC) déclenche-t-il une évaluation d’impact SST tracée (au moins un échantillon) ?"
+      ]
     },
     {
       "id": "iso45001-leadership-and-policy",
+      "chapter": 5,
+      "clause": "5.1 / 5.2 / 5.3",
       "title": "Leadership et politique SST",
       "summary": "La direction doit définir une politique SST, des rôles et démontrer l’engagement (objectifs, ressources, priorités).",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
       "priority": "high",
       "relatedRisks": ["Tous"],
-      "expectedEvidence": ["Politique SST", "Responsabilités définies", "Objectifs SST"],
-      "suggestedControls": ["Rituels terrain (visites sécurité)", "Suivi actions en retard au top management"]
+      "expectedEvidence": [
+        "Politique SST signée (affichée) + accusés de réception / diffusion",
+        "Organigramme + fiche(s) de rôle SST (direction, encadrement, HSE, représentants)",
+        "Objectifs SST (annuels) avec indicateurs + plan d’actions associé",
+        "Compte-rendu(s) revue direction / réunions SST avec décisions (dates, responsables)"
+      ],
+      "suggestedControls": ["Rituels terrain (visites sécurité)", "Suivi actions en retard au top management"],
+      "suggestedActions": [
+        "Définir 3 objectifs SST maximum avec un indicateur et un responsable chacun",
+        "Mettre en place une visite terrain direction (mensuelle) avec checklist courte",
+        "Créer un rituel de suivi des actions en retard (hebdo) avec arbitrage direction"
+      ],
+      "auditQuestions": [
+        "La politique SST est-elle signée, affichée/diffusée et connue (échantillon terrain: 2–3 personnes) ?",
+        "Les rôles/responsabilités SST sont-ils définis (qui décide, qui contrôle, qui valide) et appliqués ?",
+        "La direction pilote-t-elle les points critiques (actions en retard, incidents) avec décisions datées (priorités, ressources) ?"
+      ]
     },
     {
       "id": "iso45001-hazard-identification",
+      "chapter": 6,
+      "clause": "6.1.2",
       "title": "Identification des dangers et évaluation des risques",
       "summary": "Identifier dangers, évaluer risques/opportunités et mettre en place des mesures de maîtrise adaptées.",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
-      "priority": "high",
+      "priority": "critical",
       "relatedRisks": ["Écrasement / heurt par engins", "Poussières (silice)", "Éboulement / instabilité"],
-      "expectedEvidence": ["Évaluation risques", "Plan d’actions prévention", "Règles de maîtrise (procédures)"],
-      "suggestedControls": ["Contrôles terrain ciblés", "Mise à jour après incident/changement"]
+      "expectedEvidence": [
+        "Document d’évaluation des risques (par activité/poste) daté + dernière révision",
+        "Plan d’actions prévention priorisé (avec échéances) + preuves de clôture",
+        "Procédures/règles de maîtrise critiques (circulation, levage, consignation, etc.)",
+        "Photos terrain des mesures (balisage, signalisation, EPI, protections) + checklists"
+      ],
+      "suggestedControls": ["Contrôles terrain ciblés", "Mise à jour après incident/changement"],
+      "suggestedActions": [
+        "Mettre à jour l’évaluation des risques après tout incident/quasi-accident majeur",
+        "Créer une checklist terrain sur les 3 risques majeurs du site et l’appliquer chaque semaine",
+        "Définir une hiérarchie des contrôles (suppression → substitution → technique → organisation → EPI) par risque critique"
+      ],
+      "auditQuestions": [
+        "Les dangers sont-ils identifiés par activité/poste (incluant co-activité et non-routine) et datés (échantillon: 2 postes) ?",
+        "Les risques sont-ils évalués et les mesures de maîtrise définies selon une hiérarchie des contrôles (preuve: plan d’actions) ?",
+        "Les évaluations sont-elles mises à jour après incident/changement (au moins un exemple tracé) ?"
+      ]
     },
     {
       "id": "iso45001-legal-and-other-requirements",
+      "chapter": 6,
+      "clause": "6.1.3",
       "title": "Exigences légales et autres exigences (registre)",
       "summary": "Tenir un registre des exigences applicables et s’assurer d’un suivi de conformité proportionné au risque.",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
       "priority": "high",
       "relatedRisks": ["Tous"],
-      "expectedEvidence": ["Registre exigences (niveau synthétique)", "Revue conformité périodique", "Plans d’actions si écarts"],
-      "suggestedControls": ["Disclaimers 'indicatif' si sources non intégrées", "Revue avec un référent conformité"]
+      "expectedEvidence": [
+        "Registre des exigences (légales/autres) avec propriétaire, fréquence, statut",
+        "Preuves de veille/révision (date, source, impact) ou note d’absence d’évolution",
+        "Évaluations de conformité périodiques (checklist) + plans d’actions en cas d’écart",
+        "Dossiers / enregistrements de contrôles réglementaires (si applicables)"
+      ],
+      "suggestedControls": ["Disclaimers 'indicatif' si sources non intégrées", "Revue avec un référent conformité"],
+      "suggestedActions": [
+        "Créer un registre exigences minimal (10–30 lignes) avec responsables et périodicité",
+        "Planifier une revue conformité trimestrielle (30 min) et tracer la décision",
+        "Transformer chaque écart de conformité en action corrective avec échéance"
+      ],
+      "auditQuestions": [
+        "Le registre des exigences applicables existe-t-il (propriétaire, fréquence, statut) et est-il à jour (date de revue) ?",
+        "Les évaluations de conformité sont-elles tracées (checklist) avec preuve d’exécution (au moins un échantillon) ?",
+        "Chaque écart de conformité déclenche-t-il une action corrective suivie jusqu’à clôture avec preuve ?"
+      ]
     },
     {
       "id": "iso45001-competence-and-awareness",
+      "chapter": 7,
+      "clause": "7.2 / 7.3 / 7.4",
       "title": "Compétence, sensibilisation et communication",
       "summary": "Assurer la compétence des personnes exposées et organiser la communication SST (briefings, consignes, remontées).",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
-      "priority": "high",
+      "priority": "critical",
       "relatedRisks": ["Machines en mouvement", "Engins / chariots"],
-      "expectedEvidence": ["Registre formations", "Habilitations", "Traces briefings"],
-      "suggestedControls": ["Causeries 5 minutes", "Contrôle habilitation avant poste critique"]
+      "expectedEvidence": [
+        "Matrice compétences/habilitations par poste (qui doit avoir quoi)",
+        "Registre formations (dates, participants, thèmes) + attestations / habilitations",
+        "Feuilles d’émargement / photos de causeries sécurité + messages clés",
+        "Contrôles d’accès poste critique (preuve que l’habilitation est vérifiée)"
+      ],
+      "suggestedControls": ["Causeries 5 minutes", "Contrôle habilitation avant poste critique"],
+      "suggestedActions": [
+        "Créer une matrice habilitations (postes critiques) et alerter les expirations",
+        "Mettre un contrôle “habilité / non habilité” avant affectation aux tâches critiques",
+        "Planifier une causerie sécurité hebdo (5–10 min) avec trace simple (photo + thème)"
+      ],
+      "auditQuestions": [
+        "La matrice compétences/habilitations est-elle définie par poste et vérifiée avant affectation (échantillon: 2 postes critiques) ?",
+        "Les formations/briefings sont-ils tracés (dates, participants) et revus (efficacité minimale) ?",
+        "Les remontées SST (alertes/quasi-accidents) sont-elles possibles et traitées (preuve: registre + action) ?"
+      ]
     },
     {
       "id": "iso45001-operational-control",
+      "chapter": 8,
+      "clause": "8.1",
       "title": "Maîtrise opérationnelle (procédures critiques)",
       "summary": "Définir et appliquer les contrôles opérationnels nécessaires pour réduire les risques (ex. consignation, levage, circulation).",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
-      "priority": "high",
+      "priority": "critical",
       "relatedRisks": ["Écrasement / heurt par engins", "Chute de hauteur"],
-      "expectedEvidence": ["Procédures critiques", "Checklists terrain", "Enregistrements inspections"],
-      "suggestedControls": ["Permis de travail pour activités critiques", "Audits terrain courts"]
-    },
-    {
-      "id": "iso45001-incident-investigation",
-      "title": "Incidents : enquête, actions correctives, amélioration",
-      "summary": "Analyser incidents/quasi-accidents et mettre en œuvre des actions correctives suivies jusqu’à clôture.",
-      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
-      "sourceType": "standard",
-      "priority": "high",
-      "relatedRisks": ["Tous"],
-      "expectedEvidence": ["Enquêtes incidents", "Actions correctives", "Indicateurs tendance"],
-      "suggestedControls": ["Workflow simple terrain", "Revue mensuelle des causes récurrentes"]
+      "expectedEvidence": [
+        "Procédures critiques signées (LOTO/consignation, levage, circulation, travaux en hauteur, etc.)",
+        "Permis de travail (si applicable) + enregistrements de contrôle avant démarrage",
+        "Checklists terrain complétées (échantillons) + photos de contrôles/écarts corrigés",
+        "Registre inspections/maintenance équipements critiques (dates, anomalies, actions)"
+      ],
+      "suggestedControls": ["Permis de travail pour activités critiques", "Audits terrain courts"],
+      "suggestedActions": [
+        "Déployer 3 procédures critiques en priorité (levage, circulation, hauteur) avec briefing équipes",
+        "Mettre une checklist “start-of-shift” sur engins/équipements critiques (10 points)",
+        "Créer une routine d’audit terrain court (15 min) sur un risque critique chaque semaine"
+      ],
+      "auditQuestions": [
+        "Les procédures critiques sont-elles disponibles au poste et appliquées (observation terrain + échantillon checklist) ?",
+        "Les contrôles opérationnels (permis/consignation/levage/circulation) sont-ils vérifiés et tracés avant démarrage ?",
+        "Les inspections/checklists déclenchent-elles des actions avec preuve de correction et clôture ?"
+      ]
     },
     {
       "id": "iso45001-monitoring-and-audit",
+      "chapter": 9,
+      "clause": "9.1 / 9.2 / 9.3",
       "title": "Surveillance, audit interne et revue de direction",
       "summary": "Suivre des indicateurs utiles, auditer et revoir périodiquement l’efficacité du système SST.",
       "sourceLabel": "ISO 45001 (intitulés synthétiques)",
       "sourceType": "standard",
       "priority": "medium",
       "relatedRisks": ["Tous"],
-      "expectedEvidence": ["KPI SST (TF/TG, actions en retard)", "Programme d’audit", "Revue de direction"],
-      "suggestedControls": ["KPI terrain simples", "Audits courts ciblés sur risques majeurs"]
+      "expectedEvidence": [
+        "Tableau de bord SST (KPI) avec tendances (ex: incidents, quasi-accidents, actions en retard, contrôles terrain)",
+        "Programme d’audit interne (planning) + rapports d’audit + plans d’actions",
+        "Compte-rendu revue de direction SST (décisions, ressources, objectifs) daté",
+        "Échantillons d’actions issues d’audits (preuve de suivi/clôture)"
+      ],
+      "suggestedControls": ["KPI terrain simples", "Audits courts ciblés sur risques majeurs"],
+      "suggestedActions": [
+        "Définir 5 KPI maximum et les revoir mensuellement (tendance + décisions)",
+        "Planifier un audit interne trimestriel ciblé (un thème risque majeur) avec actions",
+        "Institutionnaliser une revue de direction SST (trimestrielle) avec compte-rendu"
+      ],
+      "auditQuestions": [
+        "Les KPI SST sont-ils suivis (tendance) et utilisés pour décider (preuve: compte rendu) ?",
+        "Le programme d’audit interne produit-il des constats factuels (preuves) et des actions suivies jusqu’à clôture ?",
+        "La revue de direction aboutit-elle à des décisions concrètes datées (ressources, priorités, objectifs) ?"
+      ]
+    },
+    {
+      "id": "iso45001-incident-investigation",
+      "chapter": 10,
+      "clause": "10.2 / 10.3",
+      "title": "Incidents : enquête, actions correctives, amélioration",
+      "summary": "Analyser incidents/quasi-accidents et mettre en œuvre des actions correctives suivies jusqu’à clôture.",
+      "sourceLabel": "ISO 45001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "relatedRisks": ["Tous"],
+      "expectedEvidence": [
+        "Fiches d’incident / quasi-accident avec analyse causes (5 pourquoi, arbre des causes) datées",
+        "Actions correctives (responsable, échéance) + preuves de mise en œuvre (photos, docs)",
+        "Indicateurs de tendance incidents/quasi-accidents + causes récurrentes",
+        "Enregistrements de communication des leçons apprises (briefing, affichage, mail)"
+      ],
+      "suggestedControls": ["Workflow simple terrain", "Revue mensuelle des causes récurrentes"],
+      "suggestedActions": [
+        "Standardiser un formulaire incident 1 page (faits + causes + actions + validation)",
+        "Mettre une revue mensuelle des causes récurrentes avec 3 actions maximum",
+        "Exiger une preuve de clôture (photo/doc) avant de fermer une action corrective"
+      ],
+      "auditQuestions": [
+        "Les incidents/quasi-accidents sont-ils enregistrés avec date/lieu/faits et une analyse causes (méthode) ?",
+        "Les actions correctives sont-elles assignées, datées et clôturées avec preuve (photo/doc) ?",
+        "Les causes récurrentes sont-elles revues et traduites en actions structurantes (leçons apprises) ?"
+      ]
     }
   ]
 }

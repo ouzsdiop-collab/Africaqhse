@@ -229,6 +229,64 @@ async function openDocUpdateAction(row, onAddLog) {
   });
 }
 
+function activeSiteLabel() {
+  const u = getSessionUser();
+  const name = u?.defaultSite?.name || u?.siteName || appState?.currentSite;
+  const s = name != null ? String(name).trim() : '';
+  return s || 'Tous sites';
+}
+
+function normHeaderLabel() {
+  // Écran ISO consolidé: on affiche les 3 normes, sans changer la navigation.
+  return 'ISO 45001 / ISO 14001 / ISO 9001';
+}
+
+/**
+ * Action directe depuis une exigence ISO (sans IA, sans backend spécifique).
+ * @param {{ id: string; clause: string; title: string; summary?: string; normId: string; owner?: string; evidence?: string; status?: string }} req
+ * @param {(entry: { module: string; action: string; detail?: string; user?: string }) => void} [onAddLog]
+ */
+async function openIsoRequirementActionCreate(req, onAddLog) {
+  const [{ openActionCreateDialog }, { fetchUsers }] = await Promise.all([
+    import('../components/actionCreateDialog.js'),
+    import('../services/users.service.js')
+  ]);
+  const users = await fetchUsers().catch(() => []);
+  const norm = getNormById(req.normId);
+  const normCode = norm ? norm.code : req.normId;
+  const stKey = isoRequirementStatusNormKey(req.status);
+  openActionCreateDialog({
+    users,
+    defaults: {
+      title: `ISO ${normCode} - ${req.clause} ${req.title}`,
+      origin: 'other',
+      actionType: 'corrective',
+      priority: stKey === 'non_conforme' ? 'haute' : stKey === 'partiel' ? 'moyenne' : 'basse',
+      description: [
+        `Exigence: ${req.clause} - ${req.title} (${normCode}).`,
+        req.summary ? `Résumé: ${req.summary}` : '',
+        req.owner ? `Pilote: ${req.owner}.` : '',
+        req.evidence ? `Preuves attendues (référentiel): ${req.evidence}.` : ''
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .replaceAll('—', '-')
+        .replaceAll('–', '-')
+    },
+    builtInSuccessToast: true,
+    onCreated: () => {
+      if (typeof onAddLog === 'function') {
+        onAddLog({
+          module: 'iso',
+          action: 'Action créée depuis exigence',
+          detail: `${req.clause} - ${req.title}`,
+          user: getSessionUser()?.name || 'Utilisateur'
+        });
+      }
+    }
+  });
+}
+
 /**
  * @param {(entry: { module: string; action: string; detail?: string; user?: string }) => void} [onAddLog]
  */
@@ -839,6 +897,18 @@ function createNormCardLite(norm) {
     rowAud.append(lblAud, valAud);
     m.append(rowScore, rowStat, rowNc, rowDoc, rowAud);
     card.append(m);
+  }
+  if (typeof norm?.onExportPremium === 'function') {
+    const actions = document.createElement('div');
+    actions.className = 'iso-norm-card-actions';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary btn-sm';
+    btn.textContent = 'Exporter PDF premium';
+    btn.title = norm?.exportPremiumTitle || 'Rapport premium (backend) : pilotage + exigences + preuves';
+    btn.addEventListener('click', () => void norm.onExportPremium());
+    actions.append(btn);
+    card.append(actions);
   }
   return card;
 }
@@ -1552,6 +1622,9 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
 
   importBtn.addEventListener('click', () => fileInput.click());
 
+  /** @type {string} */
+  let preferredRequirementId = '';
+
   function runImportPipeline(file) {
     if (!file) return;
     preview.hidden = false;
@@ -1561,7 +1634,11 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
     showToast('Traitement du document en cours (analyse locale)…', 'info');
     window.setTimeout(() => {
       importBtn.disabled = false;
-      const analysis = simulateIsoImportAnalysis(file.name);
+    const analysis = simulateIsoImportAnalysis(file.name);
+    if (preferredRequirementId) {
+      analysis.requirementId = preferredRequirementId;
+      preferredRequirementId = '';
+    }
       openIsoImportReviewOverlay({
         fileName: file.name,
         analysis,
@@ -1703,7 +1780,18 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
   });
 
   root.append(importBar, listWrap, toggleFull, fullWrap);
-  return { root, renderAttention };
+  return {
+    root,
+    renderAttention,
+    /**
+     * Ouvre le flux "Joindre une preuve" en pré-sélectionnant une exigence.
+     * @param {string} requirementId
+     */
+    openAttachProofForRequirement(requirementId) {
+      preferredRequirementId = String(requirementId || '').trim();
+      fileInput.click();
+    }
+  };
 }
 
 function createComplianceCycleStrip() {
@@ -2082,6 +2170,7 @@ export function renderIso(onAddLog) {
         <button type="button" class="btn btn-secondary iso-hero-scroll-prio">Voir les priorités</button>
         <button type="button" class="btn btn-secondary iso-auditor-view-btn" title="Focus écarts, preuves et statuts">Vue auditeur</button>
         <button type="button" class="btn btn-secondary iso-export-conformity-pdf" title="Rapport PDF multi-pages (vue cockpit)">Exporter PDF conformité</button>
+        <button type="button" class="btn btn-secondary iso-export-iso45001-premium-pdf" title="Rapport premium (backend) : ISO 45001 + pilotage">Exporter PDF premium ISO 45001</button>
         <button type="button" class="btn btn-secondary iso-generate-audit-report" title="Synthèse globale : conformités, écarts, preuves, actions, risques">Générer rapport audit</button>
         <button type="button" class="btn btn-primary btn--pilotage-cta iso-prep-audit">Préparer l’audit</button>
       </div>
@@ -2121,6 +2210,27 @@ export function renderIso(onAddLog) {
           action: 'Export PDF conformité ISO',
           detail: 'Rapport multi-pages : cockpit',
           user: getSessionUser()?.name || 'Utilisateur'
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  heroCard.querySelector('.iso-export-iso45001-premium-pdf')?.addEventListener('click', async () => {
+    try {
+      const { downloadIsoPremiumPdf } = await import('../services/qhseReportsPdf.service.js');
+      const user = getSessionUser();
+      await downloadIsoPremiumPdf('iso-45001', {
+        organizationName: user?.companyName || user?.tenantName || '',
+        siteLabel: user?.defaultSite?.name || user?.siteName || ''
+      });
+      if (typeof onAddLog === 'function') {
+        onAddLog({
+          module: 'iso',
+          action: 'Export PDF premium ISO 45001',
+          detail: 'Rapport cabinet : pilotage + exigences + preuves (backend)',
+          user: user?.name || 'Utilisateur'
         });
       }
     } catch (e) {
@@ -2422,6 +2532,239 @@ export function renderIso(onAddLog) {
   const proofStripBundle = createDocProofStrip(getIsoDocRows);
   const docsSection = createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection);
 
+  function hasImportedProof(requirementId) {
+    const rid = String(requirementId || '').trim();
+    if (!rid) return false;
+    const links = getImportedDocumentProofs().filter((p) => p.requirementId === rid);
+    if (!links.length) return false;
+    // "present" = preuve réellement disponible, "verify" = à vérifier mais au moins une pièce existe
+    return links.some((p) => p.proofStatus === 'present' || p.proofStatus === 'verify');
+  }
+
+  function isHighPriorityRequirement(req) {
+    // Pas de champ priority natif côté registre ISO → heuristique simple sur le texte existant.
+    const hay = `${req?.title || ''} ${req?.summary || ''} ${req?.evidence || ''}`.toLowerCase();
+    if (hay.includes('critique')) return true;
+    if (hay.includes('majeur') || hay.includes('majeure')) return true;
+    if (hay.includes('fatal') || hay.includes('mortel')) return true;
+    return false;
+  }
+
+  /**
+   * Vue centrale décision (lecture 5 secondes) : score + readiness + explication + exigences critiques (max 5).
+   */
+  function createIsoDecisionCenter() {
+    const card = document.createElement('article');
+    card.className = 'content-card card-soft iso-decision-center';
+    card.setAttribute('aria-label', 'Vue centrale ISO - décision');
+    card.innerHTML = `
+      <div class="content-card-head">
+        <div>
+          <div class="section-kicker">Décision</div>
+          <h3>ISO en 5 secondes</h3>
+          <p class="content-card-lead">Score, readiness et 5 exigences critiques à traiter maintenant.</p>
+        </div>
+      </div>
+      <div class="iso-decision-grid">
+        <section class="iso-decision-block">
+          <div class="iso-decision-k">Score global</div>
+          <div class="iso-decision-score" data-score>Non disponible</div>
+          <div class="iso-decision-muted" data-readiness>Audit readiness: non disponible</div>
+          <div class="iso-decision-muted" data-message></div>
+          <details class="iso-decision-details">
+            <summary>Explication du score</summary>
+            <div class="iso-decision-explain" data-explain></div>
+          </details>
+        </section>
+        <section class="iso-decision-block">
+          <div class="iso-decision-k">Top exigences critiques</div>
+          <div class="iso-decision-list" data-critical></div>
+        </section>
+      </div>
+    `;
+
+    const elScore = card.querySelector('[data-score]');
+    const elReadiness = card.querySelector('[data-readiness]');
+    const elMessage = card.querySelector('[data-message]');
+    const elExplain = card.querySelector('[data-explain]');
+    const elCritical = card.querySelector('[data-critical]');
+
+    function refresh() {
+      const s = computeIsoScore(getIsoScoreInput());
+      const ar = computeAuditReadiness(getIsoScoreInput());
+
+      if (elScore) {
+        const pct = Number(s?.pct);
+        elScore.textContent = Number.isFinite(pct) ? `${Math.round(pct)}/100` : 'Non disponible';
+      }
+      if (elReadiness) {
+        const r = String(ar?.readiness || 'non_pret');
+        elReadiness.textContent = `Audit readiness: ${r}`;
+      }
+      if (elMessage) {
+        elMessage.textContent = String(ar?.message || '').replaceAll('—', '-').replaceAll('–', '-');
+      }
+      if (elExplain) {
+        elExplain.replaceChildren();
+        const bits = Array.isArray(s?.breakdown) ? s.breakdown : [];
+        if (!bits.length) {
+          const p = document.createElement('p');
+          p.className = 'iso-decision-muted';
+          p.textContent = 'Non disponible.';
+          elExplain.append(p);
+        } else {
+          const ul = document.createElement('ul');
+          ul.className = 'iso-decision-ul';
+          bits.forEach((b) => {
+            const li = document.createElement('li');
+            const pctLabel =
+              typeof b?.pct === 'number' && Number.isFinite(b.pct) ? `${Math.round(b.pct)} %` : '';
+            li.innerHTML = `<strong>${escapeHtml(String(b?.label || 'Indicateur'))}</strong> ${
+              pctLabel ? `<span class="iso-decision-pill">${escapeHtml(pctLabel)}</span>` : ''
+            } <span class="iso-decision-muted">${escapeHtml(String(b?.detail || '').replaceAll('—', '-').replaceAll('–', '-'))}</span>`;
+            ul.append(li);
+          });
+          elExplain.append(ul);
+        }
+      }
+      if (elCritical) {
+        elCritical.replaceChildren();
+        const crit = getRequirements()
+          .filter((r) => r && typeof r === 'object')
+          .map((r) => {
+            const st = isoRequirementStatusNormKey(r.status);
+            const noProof = !hasImportedProof(r.id);
+            const high = isHighPriorityRequirement(r);
+            const nc = st === 'non_conforme';
+            return { r, nc, noProof, high };
+          })
+          .filter((x) => x.nc || x.noProof || x.high)
+          .sort((a, b) => {
+            // Ordre: NC d'abord, puis sans preuve, puis high priority, puis clause.
+            const w = (x) => (x.nc ? 100 : 0) + (x.noProof ? 10 : 0) + (x.high ? 1 : 0);
+            const dw = w(b) - w(a);
+            if (dw !== 0) return dw;
+            return String(a.r?.clause || '').localeCompare(String(b.r?.clause || ''), 'fr');
+          })
+          .slice(0, 5);
+
+        if (!crit.length) {
+          const p = document.createElement('p');
+          p.className = 'iso-decision-muted';
+          p.textContent = 'Aucune exigence critique détectée.';
+          elCritical.append(p);
+        } else {
+          crit.forEach(({ r, nc, noProof, high }) => {
+            const row = document.createElement('div');
+            row.className = 'iso-decision-crit';
+            const problemBits = [];
+            if (nc) problemBits.push('non conforme');
+            if (noProof) problemBits.push('sans preuve');
+            if (high) problemBits.push('priorité high');
+            const problem = problemBits.length ? problemBits.join(' · ') : 'à traiter';
+            row.innerHTML = `
+              <div class="iso-decision-crit-main">
+                <strong>${escapeHtml(`${r.clause} - ${r.title}`)}</strong>
+                <div class="iso-decision-muted">${escapeHtml(String(r.summary || '').replaceAll('—', '-').replaceAll('–', '-').slice(0, 180))}</div>
+                <div class="iso-decision-muted">Problème: ${escapeHtml(problem)}</div>
+              </div>
+              <div class="iso-decision-crit-actions"></div>
+            `;
+            const actions = row.querySelector('.iso-decision-crit-actions');
+            const b1 = document.createElement('button');
+            b1.type = 'button';
+            b1.className = 'btn btn-secondary';
+            b1.textContent = 'Créer action';
+            b1.addEventListener('click', () => void openIsoRequirementActionCreate(r, onAddLog));
+            const b2 = document.createElement('button');
+            b2.type = 'button';
+            b2.className = 'btn btn-primary';
+            b2.textContent = 'Ajouter preuve';
+            b2.addEventListener('click', () => {
+              ensureIsoDocsPanelOpen();
+              document.getElementById('iso-docs-priority-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              docsSection.openAttachProofForRequirement(r.id);
+            });
+            actions?.append(b1, b2);
+            elCritical.append(row);
+          });
+        }
+      }
+    }
+
+    refresh();
+    return { root: card, refresh };
+  }
+
+  const decisionCenter = createIsoDecisionCenter();
+
+  function createIsoTopHeader() {
+    const wrap = document.createElement('section');
+    wrap.className = 'content-card card-soft iso-top-header';
+    wrap.setAttribute('aria-label', 'En-tête ISO');
+    wrap.innerHTML = `
+      <div class="content-card-head" style="padding-bottom:10px">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div>
+            <div class="section-kicker">ISO</div>
+            <h3 style="margin:0">${escapeHtml(normHeaderLabel())}</h3>
+            <p class="content-card-lead" style="margin-top:6px">
+              <strong>Site :</strong> <span data-site></span>
+            </p>
+          </div>
+          <div style="text-align:right;min-width:220px">
+            <div style="font-weight:900;font-size:22px;letter-spacing:-.02em" data-score>—</div>
+            <div style="font-size:11px;color:var(--text2,#94a3b8)">Score global</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text2,#94a3b8)">
+              Audit readiness: <strong data-readiness>—</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 18px 16px">
+        <div style="font-size:12px;color:var(--text2,#94a3b8)" data-message></div>
+        <ul style="margin:10px 0 0;padding-left:18px;display:grid;gap:6px;font-size:12px;color:var(--text2,#94a3b8)" data-blockers></ul>
+      </div>
+    `;
+
+    const elSite = wrap.querySelector('[data-site]');
+    const elScore = wrap.querySelector('[data-score]');
+    const elReady = wrap.querySelector('[data-readiness]');
+    const elMsg = wrap.querySelector('[data-message]');
+    const elBlock = wrap.querySelector('[data-blockers]');
+
+    function update(scoreState, readinessState) {
+      if (elSite) elSite.textContent = activeSiteLabel();
+      const pct = Number(scoreState?.pct);
+      if (elScore) elScore.textContent = Number.isFinite(pct) ? `${Math.round(pct)}/100` : 'Non disponible';
+      const r = String(readinessState?.readiness || 'non_pret');
+      if (elReady) elReady.textContent = r;
+      if (elMsg) {
+        elMsg.textContent = String(readinessState?.message || '').replaceAll('—', '-').replaceAll('–', '-');
+      }
+      if (elBlock) {
+        elBlock.replaceChildren();
+        const nc = Math.max(0, Number(readinessState?.ncCount) || 0);
+        const partial = Math.max(0, Number(readinessState?.partialCount) || 0);
+        const miss = Math.max(0, Number(readinessState?.missingDocsCount) || 0);
+        const blockers = [];
+        if (nc > 0) blockers.push(`${nc} non-conformité(s) ouverte(s)`);
+        if (partial > 0) blockers.push(`${partial} exigence(s) partielle(s)`);
+        if (miss > 0) blockers.push(`${miss} document(s) manquant(s)`);
+        if (!blockers.length) blockers.push('Aucun point bloquant majeur détecté sur cette vue.');
+        blockers.slice(0, 5).forEach((t) => {
+          const li = document.createElement('li');
+          li.textContent = t;
+          elBlock.append(li);
+        });
+      }
+    }
+
+    return { root: wrap, update };
+  }
+
+  const isoTopHeader = createIsoTopHeader();
+
   async function syncControlledDocumentsFromApi() {
     try {
       const api = await fetchControlledDocumentsFromApi();
@@ -2531,7 +2874,29 @@ export function renderIso(onAddLog) {
           cockpitLevelLabel: pilot.label,
           cockpitLevelClass: pilot.cls,
           docsMissingCount: docCounts[idx % 3],
-          auditLine
+          auditLine,
+          ...(sn.id === 'iso45001' || sn.id === 'iso14001' || sn.id === 'iso9001'
+            ? {
+                exportPremiumTitle: `Rapport premium (backend) : ${sn.title} + pilotage`,
+                onExportPremium: async () => {
+                  const { downloadIsoPremiumPdf } = await import('../services/qhseReportsPdf.service.js');
+                  const u = getSessionUser();
+                  const standard = sn.id === 'iso45001' ? 'iso-45001' : sn.id === 'iso14001' ? 'iso-14001' : 'iso-9001';
+                  await downloadIsoPremiumPdf(standard, {
+                    organizationName: u?.companyName || u?.tenantName || '',
+                    siteLabel: u?.defaultSite?.name || u?.siteName || ''
+                  });
+                  if (typeof onAddLog === 'function') {
+                    onAddLog({
+                      module: 'iso',
+                      action: 'Export PDF premium ISO',
+                      detail: `Rapport premium ${sn.title}`,
+                      user: u?.name || 'Utilisateur'
+                    });
+                  }
+                }
+              }
+            : {})
         })
       );
     });
@@ -2572,16 +2937,22 @@ export function renderIso(onAddLog) {
     }
     isRefreshingPilotage = true;
     try {
-      updateGlobalSnapshot(globalSnapshotEl, computeIsoScore(getIsoScoreInput()));
+      const scoreNow = computeIsoScore(getIsoScoreInput());
+      const readinessNow = computeAuditReadiness(getIsoScoreInput());
+      isoTopHeader.update(scoreNow, readinessNow);
+      updateGlobalSnapshot(globalSnapshotEl, scoreNow);
       updateHeroQuickStats();
-      updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
+      updateAuditReadinessBanner(auditReadinessEl, readinessNow);
       void getIsoTerrainSnapshot()
         .then((snap) => {
           isoScoreDataRef.actions = snap.actions;
           isoScoreDataRef.audits = snap.audits;
-          updateGlobalSnapshot(globalSnapshotEl, computeIsoScore(getIsoScoreInput()));
+          const score2 = computeIsoScore(getIsoScoreInput());
+          const readiness2 = computeAuditReadiness(getIsoScoreInput());
+          isoTopHeader.update(score2, readiness2);
+          updateGlobalSnapshot(globalSnapshotEl, score2);
           updateHeroQuickStats();
-          updateAuditReadinessBanner(auditReadinessEl, buildReadinessState());
+          updateAuditReadinessBanner(auditReadinessEl, readiness2);
         })
         .catch(() => {});
       renderNormsGrid();
@@ -2589,6 +2960,7 @@ export function renderIso(onAddLog) {
       refreshCopilot();
       tableCtx.refreshTable();
       docsSection.renderAttention();
+      decisionCenter.refresh();
       proofStripBundle.refresh();
       docStateSummary.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
       registryDocImpact.update(computeDocumentRegistrySummary(isoMergedDocsRef.rows));
@@ -2759,8 +3131,10 @@ export function renderIso(onAddLog) {
 
   page.append(
     isoPageViewBar,
+    isoTopHeader.root,
     auditReadinessEl,
     heroCard,
+    decisionCenter.root,
     priorityShell,
     focusWrap,
     insightsDisclosure,

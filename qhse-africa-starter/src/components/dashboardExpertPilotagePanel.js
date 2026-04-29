@@ -1,6 +1,7 @@
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
+import { withSiteQuery } from '../utils/siteFilter.js';
 
 function clamp01(n) {
   const v = Number(n);
@@ -98,6 +99,8 @@ export function createDashboardExpertPilotagePanel() {
           <div class="section-kicker" style="opacity:.9">Détail du score</div>
           <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px" data-subscores></div>
           <p style="margin:10px 0 0;font-size:12px;color:var(--text2,#94a3b8);line-height:1.4" data-score-reasons></p>
+          <div style="margin-top:10px;font-size:12px;color:var(--text2,#94a3b8)" data-data-quality></div>
+          <div style="margin-top:8px;font-size:12px;color:var(--text2,#94a3b8)" data-signal-sources></div>
         </section>
 
         <section style="border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px 12px 14px">
@@ -117,13 +120,38 @@ export function createDashboardExpertPilotagePanel() {
         </section>
       </div>
 
+      <section style="margin-top:14px;border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px 12px 14px">
+        <div class="section-kicker" style="opacity:.9">Explications (toutes)</div>
+        <div data-all-reasons style="display:grid;gap:10px;margin-top:10px"></div>
+      </section>
+
+      <section style="margin-top:14px;border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px 12px 14px">
+        <div class="section-kicker" style="opacity:.9">SMI</div>
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:6px">
+          <div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+              <div style="font-weight:900;font-size:16px">SMI Overview</div>
+              <button type="button" class="btn btn-secondary" data-smi-reload style="font-size:11px;padding:4px 10px">Recharger</button>
+            </div>
+            <div style="margin-top:4px;font-size:12px;color:var(--text2,#94a3b8)" data-smi-status>Non chargé.</div>
+          </div>
+          <div style="text-align:right;min-width:190px">
+            <div style="font-weight:900;font-size:22px;letter-spacing:-.02em" data-smi-score>—</div>
+            <div style="font-size:11px;color:var(--text2,#94a3b8)">Score global SMI / 100</div>
+          </div>
+        </div>
+
+        <div data-smi-host style="margin-top:10px;display:none"></div>
+      </section>
+
       <details style="margin-top:14px" data-compliance-details>
-        <summary style="cursor:pointer;font-weight:900">Compliance (CI · ISO 45001 · mines) — charger à la demande</summary>
+        <summary style="cursor:pointer;font-weight:900">Compliance (CI · ISO 45001 · mines) - charger à la demande</summary>
         <div style="margin-top:10px;border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px 12px 14px">
           <p style="margin:0 0 10px;font-size:12px;color:var(--text2,#94a3b8)" data-compliance-disclaimer></p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
             <button type="button" class="btn btn-secondary" data-load-compliance>Charger</button>
             <button type="button" class="btn btn-secondary" data-open-iso>Ouvrir ISO</button>
+            <button type="button" class="btn btn-secondary" data-export-premium>Exporter PDF premium</button>
           </div>
           <div data-compliance-status style="font-size:12px;color:var(--text2,#94a3b8)">Non chargé.</div>
           <div data-compliance-host style="display:none;margin-top:10px"></div>
@@ -135,20 +163,32 @@ export function createDashboardExpertPilotagePanel() {
   const elScore = root.querySelector('[data-score]');
   const elSub = root.querySelector('[data-subscores]');
   const elReasons = root.querySelector('[data-score-reasons]');
+  const elDQ = root.querySelector('[data-data-quality]');
+  const elSS = root.querySelector('[data-signal-sources]');
   const elDrill = root.querySelector('[data-drill]');
   const elHistory = root.querySelector('[data-history]');
   const elAiNarr = root.querySelector('[data-ai-narrative]');
   const elAiActs = root.querySelector('[data-ai-actions]');
+  const elAll = root.querySelector('[data-all-reasons]');
   const complianceDetails = root.querySelector('[data-compliance-details]');
   const complianceStatus = root.querySelector('[data-compliance-status]');
   const complianceHost = root.querySelector('[data-compliance-host]');
   const complianceDisclaimer = root.querySelector('[data-compliance-disclaimer]');
+  const smiStatus = root.querySelector('[data-smi-status]');
+  const smiScore = root.querySelector('[data-smi-score]');
+  const smiHost = root.querySelector('[data-smi-host]');
+  const smiReloadBtn = root.querySelector('[data-smi-reload]');
 
-  /** @type {{ snap: any; stats: any; ncs: any[]; audits: any[]; incidents: any[]; hab: {expired:number, expiring:number}|null }} */
-  const state = { snap: null, stats: null, ncs: [], audits: [], incidents: [], hab: null };
+  /** @type {{ pilotage: any; stats: any; hab: {expired:number, expiring:number}|null }} */
+  const state = { pilotage: null, stats: null, hab: null };
   /** @type {any|null} */
   let cachedCompliance = null;
   let complianceLoading = false;
+  /** @type {any|null} */
+  let cachedSmi = null;
+  let smiLoading = false;
+  /** @type {string} */
+  let smiCacheKey = '';
 
   function renderSubScoreCard(label, value) {
     const v = value == null ? '—' : String(value);
@@ -162,63 +202,244 @@ export function createDashboardExpertPilotagePanel() {
     `;
   }
 
+  function dataQualityLabel(v) {
+    const s = String(v || '').toLowerCase();
+    if (s === 'complete') return 'complete';
+    if (s === 'partial') return 'partial';
+    return 'unavailable';
+  }
+
+  function normLabelFr(code) {
+    const s = String(code || '').toLowerCase();
+    if (s === 'iso-45001') return 'ISO 45001';
+    if (s === 'iso-14001') return 'ISO 14001';
+    if (s === 'iso-9001') return 'ISO 9001';
+    return s.toUpperCase();
+  }
+
+  function readinessBadge(status) {
+    const s = String(status || '').toLowerCase();
+    const label = s === 'pret' ? 'Prêt' : s === 'fragile' ? 'Fragile' : 'Non prêt';
+    const cls = s === 'pret' ? 'green' : s === 'fragile' ? 'amber' : 'red';
+    return `<span class="badge ${escapeHtml(cls)}">${escapeHtml(label)}</span>`;
+  }
+
+  function renderSmi() {
+    if (!smiHost || !smiStatus || !smiScore) return;
+    if (smiReloadBtn) smiReloadBtn.disabled = !!smiLoading;
+    if (smiLoading) {
+      smiHost.style.display = 'none';
+      smiStatus.textContent = 'Chargement…';
+      smiScore.textContent = '—';
+      return;
+    }
+    if (!cachedSmi || typeof cachedSmi !== 'object') {
+      smiHost.style.display = 'none';
+      smiStatus.textContent = 'Non disponible.';
+      smiScore.textContent = '—';
+      return;
+    }
+
+    const scoreGlobal = clampScore100(cachedSmi?.scoreGlobal);
+    smiScore.textContent = scoreGlobal == null ? '—' : String(scoreGlobal);
+
+    const ar = cachedSmi?.auditReadiness && typeof cachedSmi.auditReadiness === 'object' ? cachedSmi.auditReadiness : null;
+    const arStatus = String(ar?.status || '').trim();
+    const arMsg = stripLongDashes(String(ar?.message || '').trim());
+    smiStatus.textContent = arMsg ? arMsg : 'SMI chargé.';
+
+    const scores = cachedSmi?.scoresParNorme && typeof cachedSmi.scoresParNorme === 'object' ? cachedSmi.scoresParNorme : {};
+    const scoreRows = ['iso-45001', 'iso-14001', 'iso-9001']
+      .map((k) => {
+        const v = clampScore100(scores?.[k]);
+        return `<div style="display:flex;justify-content:space-between;gap:10px">
+          <span style="color:var(--text2,#94a3b8)">${escapeHtml(normLabelFr(k))}</span>
+          <strong>${escapeHtml(v == null ? '—' : String(v))}</strong>
+        </div>`;
+      })
+      .join('');
+
+    const top = ensureList(cachedSmi?.topPriorities).slice(0, 3);
+    const topHtml = top.length
+      ? `<ul style="margin:8px 0 0;padding-left:16px;display:grid;gap:8px">
+          ${top
+            .map((p) => {
+              const n = String(p?.normLabel || normLabelFr(p?.norm || '')).trim();
+              const lbl = stripLongDashes(String(p?.label || '').trim());
+              const rs = stripLongDashes(String(p?.reason || '').trim());
+              return `<li>
+                <strong>${escapeHtml(n)}</strong> - ${escapeHtml(lbl || 'Priorité')}
+                ${rs ? `<div style="margin-top:2px;color:var(--text2,#94a3b8);font-size:12px">${escapeHtml(rs)}</div>` : ''}
+              </li>`;
+            })
+            .join('')}
+        </ul>`
+      : `<p style="margin:8px 0 0;color:var(--text2,#94a3b8);font-size:12px">Aucune priorité critique détectée.</p>`;
+
+    const acts = ensureList(cachedSmi?.recommendedActions).slice(0, 10);
+    const actsHtml = acts.length
+      ? `<ul style="margin:8px 0 0;padding-left:16px;display:grid;gap:8px">
+          ${acts.map((t) => `<li>${escapeHtml(stripLongDashes(String(t)).slice(0, 220))}</li>`).join('')}
+        </ul>`
+      : `<p style="margin:8px 0 0;color:var(--text2,#94a3b8);font-size:12px">Aucune action recommandée.</p>`;
+
+    smiHost.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px">
+        <div style="border:1px solid rgba(148,163,184,.10);border-radius:12px;padding:10px 10px 12px;background:rgba(255,255,255,.02)">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+            <div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--text2,#94a3b8)">Audit readiness</div>
+            ${readinessBadge(arStatus)}
+          </div>
+          <div style="margin-top:10px;display:grid;gap:6px">${scoreRows}</div>
+        </div>
+        <div style="border:1px solid rgba(148,163,184,.10);border-radius:12px;padding:10px 10px 12px;background:rgba(255,255,255,.02)">
+          <div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--text2,#94a3b8)">Priorités principales</div>
+          ${topHtml}
+        </div>
+      </div>
+      <div style="margin-top:12px;border:1px solid rgba(148,163,184,.10);border-radius:12px;padding:10px 10px 12px;background:rgba(255,255,255,.02)">
+        <div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--text2,#94a3b8)">Actions recommandées</div>
+        ${actsHtml}
+      </div>
+    `;
+    smiHost.style.display = '';
+  }
+
+  async function loadSmiOverview(force = false) {
+    if (smiLoading) return;
+    const nextKey = String(state?.stats?.siteId || '');
+    if (!force && cachedSmi && smiCacheKey === nextKey) {
+      renderSmi();
+      return;
+    }
+    smiLoading = true;
+    smiCacheKey = nextKey;
+    renderSmi();
+    try {
+      const res = await qhseFetch(withSiteQuery('/api/smi/overview'));
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof payload?.error === 'string' && payload.error.trim()
+            ? payload.error.trim()
+            : `Erreur ${res.status}`;
+        throw new Error(msg);
+      }
+      cachedSmi = payload && typeof payload === 'object' ? payload : null;
+    } catch (e) {
+      cachedSmi = null;
+      if (smiStatus) {
+        smiStatus.textContent = stripLongDashes(
+          `SMI indisponible pour le moment. ${e && typeof e === 'object' && 'message' in e ? String(e.message || '') : ''}`.trim()
+        );
+      }
+    } finally {
+      smiLoading = false;
+      renderSmi();
+    }
+  }
+
   function updateScoreAndReasons() {
-    const snap = state.snap;
+    const pilotage = state.pilotage;
     const stats = state.stats;
-    if (!snap || !stats) return;
-    if (elScore) elScore.textContent = snap.enrichedScore != null ? String(snap.enrichedScore) : '—';
+    if (!pilotage || !stats) return;
 
-    const ncOpen = Array.isArray(state.ncs)
-      ? state.ncs.filter((r) => {
-          const s = String(r?.status || '').toLowerCase();
-          if (/(clos|ferm|done|termin|clôtur|résolu|resolu|complete)/i.test(s)) return false;
-          return true;
-        }).length
-      : 0;
+    if (elScore) elScore.textContent = pilotage.score != null ? String(pilotage.score) : '—';
 
-    const subs = computeSubScores({
-      stats,
-      snapMeta: snap.meta,
-      docSummary: snap.docSummary,
-      ncOpenCount: ncOpen,
-      hab: state.hab
-    });
-
+    const subs = pilotage?.subScores && typeof pilotage.subScores === 'object' ? pilotage.subScores : null;
     if (elSub) {
       elSub.innerHTML = [
-        renderSubScoreCard('Actions', subs.actions),
-        renderSubScoreCard('Incidents', subs.incidents),
-        renderSubScoreCard('Conformité', subs.conformity),
-        renderSubScoreCard('Habilitations', subs.habilitations)
+        renderSubScoreCard('Actions', subs?.actions ?? null),
+        renderSubScoreCard('Incidents', subs?.incidents ?? null),
+        renderSubScoreCard('Conformité', subs?.conformity ?? null),
+        renderSubScoreCard('Risques', subs?.risks ?? null)
       ].join('');
     }
 
-    const recs = ensureList(snap.recommendations).slice(0, 3);
-    const reasons = recs.map((r) => String(r?.reason || r?.detail || '').trim()).filter(Boolean);
+    const top = ensureList(pilotage.topPriorities).slice(0, 3);
+    const reasons = top.map((r) => String(r?.reason || '').trim()).filter(Boolean);
     if (elReasons) {
       elReasons.textContent = reasons.length
         ? stripLongDashes(reasons.join(' '))
-        : 'Aucune raison principale (vue actuelle).';
+        : 'Aucune raison principale.';
+    }
+
+    const dq = pilotage?.dataQuality && typeof pilotage.dataQuality === 'object' ? pilotage.dataQuality : null;
+    if (elDQ) {
+      if (!dq) elDQ.textContent = 'Data quality: unavailable.';
+      else {
+        elDQ.textContent = `Data quality: incidents ${dataQualityLabel(dq.incidents)}, actions ${dataQualityLabel(
+          dq.actions
+        )}, audits ${dataQualityLabel(dq.audits)}, risks ${dataQualityLabel(dq.risks)}.`;
+      }
+    }
+
+    const ss = pilotage?.signalSources && typeof pilotage.signalSources === 'object' ? pilotage.signalSources : null;
+    if (elSS) {
+      if (!ss) elSS.textContent = 'signalSources: unavailable.';
+      else {
+        elSS.textContent = `signalSources: incidentsTotal ${String(ss.incidentsTotal || 'unavailable')}, actionsOverdue ${String(
+          ss.actionsOverdue || 'unavailable'
+        )}, auditsSummary ${String(ss.auditsSummary || 'unavailable')}, risksCritical ${String(
+          ss.risksCritical || 'unavailable'
+        )}.`;
+      }
+    }
+
+    if (elAll) {
+      elAll.replaceChildren();
+      const all = ensureList(pilotage.priorities);
+      if (!all.length) {
+        const p = document.createElement('p');
+        p.style.cssText = 'margin:0;color:var(--text2,#94a3b8);font-size:12px';
+        p.textContent = 'Aucune explication disponible.';
+        elAll.append(p);
+      } else {
+        all.forEach((r) => {
+          const box = document.createElement('div');
+          box.style.cssText =
+            'border:1px solid rgba(148,163,184,.10);border-radius:12px;padding:12px;background:rgba(0,0,0,.06)';
+          box.innerHTML = `
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
+              <strong style="font-weight:900">${escapeHtml(String(r?.label || 'Priorité').slice(0, 140))}</strong>
+              <span class="badge blue">${escapeHtml(String(r?.severity || 'medium'))}</span>
+              <span style="font-size:11px;color:var(--text2,#94a3b8)">${escapeHtml(
+                String(r?.source || 'deterministic')
+              )} · ${escapeHtml(String(r?.confidence || 'low'))}</span>
+            </div>
+            <p style="margin:8px 0 0;font-size:12px;color:var(--text2,#94a3b8);line-height:1.4">${escapeHtml(
+              stripLongDashes(String(r?.reason || '')).slice(0, 420) || 'Non disponible.'
+            )}</p>
+          `;
+          elAll.append(box);
+        });
+      }
     }
   }
 
   function updateDrillDown() {
-    const snap = state.snap;
-    if (!snap || !elDrill) return;
+    const pilotage = state.pilotage;
+    if (!pilotage || !elDrill) return;
     elDrill.replaceChildren();
-    const recs = ensureList(snap.recommendations).slice(0, 3);
-    if (!recs.length) {
+    const recs = ensureList(pilotage.topPriorities).slice(0, 3);
+    const defaults = [
+      { label: 'Actions', navigateHash: 'actions', navigateIntent: { source: 'dashboard_expert_pilotage' } },
+      { label: 'Incidents', navigateHash: 'incidents', navigateIntent: { source: 'dashboard_expert_pilotage' } },
+      { label: 'Conformité ISO', navigateHash: 'iso', navigateIntent: { source: 'dashboard_expert_pilotage' } }
+    ];
+    const items = recs.length ? recs : defaults;
+    if (!items.length) {
       const p = document.createElement('p');
       p.style.cssText = 'margin:0;color:var(--text2,#94a3b8);font-size:12px';
       p.textContent = 'Aucun drill-down disponible.';
       elDrill.append(p);
       return;
     }
-    recs.forEach((r) => {
+    items.forEach((r) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn btn-secondary';
-      btn.textContent = String(r?.label || r?.title || 'Ouvrir').slice(0, 120);
+      btn.textContent = String(r?.label || 'Ouvrir').slice(0, 120);
       btn.addEventListener('click', () => {
         const pageId = String(r?.navigateHash || '').trim();
         const intent = r?.navigateIntent && typeof r.navigateIntent === 'object' ? r.navigateIntent : {};
@@ -355,8 +576,20 @@ export function createDashboardExpertPilotagePanel() {
     }
   }
 
+  smiReloadBtn?.addEventListener('click', () => void loadSmiOverview(true));
+
   root.querySelector('[data-load-compliance]')?.addEventListener('click', () => void loadCompliance());
   root.querySelector('[data-open-iso]')?.addEventListener('click', () => qhseNavigate('iso', { source: 'dashboard_expert_compliance' }));
+  root.querySelector('[data-export-premium]')?.addEventListener('click', () => {
+    void (async () => {
+      try {
+        const { downloadIso45001PilotagePremiumPdf } = await import('../services/qhseReportsPdf.service.js');
+        await downloadIso45001PilotagePremiumPdf({});
+      } catch (e) {
+        console.warn('[dashboard expert] export premium pdf', e);
+      }
+    })();
+  });
 
   complianceDetails?.addEventListener('toggle', () => {
     const open = /** @type {HTMLDetailsElement} */ (complianceDetails).open;
@@ -383,15 +616,13 @@ export function createDashboardExpertPilotagePanel() {
     /**
      * @param {{ snap: any; stats: any; ncs: any[]; audits: any[]; incidents: any[] }} input
      */
-    update(input) {
-      state.snap = input?.snap || null;
+    updateFromBackendPilotage(input) {
+      state.pilotage = input?.pilotage || null;
       state.stats = input?.stats || null;
-      state.ncs = ensureList(input?.ncs);
-      state.audits = ensureList(input?.audits);
-      state.incidents = ensureList(input?.incidents);
       updateScoreAndReasons();
       updateDrillDown();
       updateHistory();
+      void loadSmiOverview(false);
     },
     updateAi,
     async refreshHabilitations() {

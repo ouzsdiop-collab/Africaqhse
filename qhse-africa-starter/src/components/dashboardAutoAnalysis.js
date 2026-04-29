@@ -30,7 +30,7 @@ function isNcOpen(row) {
  *   accent: InsightAccent;
  *   source: 'heuristic' | 'deterministic' | 'ai';
  *   confidence: 'low' | 'medium' | 'high';
- *   dataQuality: 'complete' | 'partial' | 'limited';
+ *   dataQuality: 'complete' | 'partial' | 'unavailable';
  *   severity?: 'low' | 'medium' | 'high' | 'critical';
  *   label?: string;
  *   recommendedAction?: string;
@@ -153,11 +153,11 @@ export function computeAutoAnalysisInsights(input) {
       ? 'complete'
       : Number.isFinite(Number(stats?.overdueActions))
         ? 'partial'
-        : 'limited';
+        : 'unavailable';
   const dqIncidents =
-    Number.isFinite(Number(stats?.incidents)) ? 'complete' : incidents.length ? 'partial' : 'limited';
+    Number.isFinite(Number(stats?.incidents)) ? 'complete' : incidents.length ? 'partial' : 'unavailable';
   const dqNc =
-    Number.isFinite(Number(stats?.nonConformities)) ? 'partial' : ncs.length ? 'partial' : 'limited';
+    Number.isFinite(Number(stats?.nonConformities)) ? 'partial' : ncs.length ? 'partial' : 'unavailable';
 
   if (od >= 2) {
     const actIntent = buildOverdueActionsIntent(stats);

@@ -1352,7 +1352,32 @@ export function renderDashboard() {
   });
   const bandAssistant = document.createElement('div');
   bandAssistant.className = 'dashboard-band dashboard-band--assistant';
-  bandAssistant.append(pilotageAssistant.root);
+  const noAiWrap = document.createElement('div');
+  noAiWrap.style.cssText =
+    'display:flex;justify-content:flex-end;gap:10px;align-items:center;margin:0 0 10px';
+  noAiWrap.innerHTML = `
+    <label style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text2,#94a3b8);user-select:none">
+      <input type="checkbox" data-no-ai-toggle />
+      <span>Mode sans IA (règles déterministes uniquement)</span>
+    </label>
+  `;
+  const noAiToggle = noAiWrap.querySelector('[data-no-ai-toggle]');
+  const NO_AI_KEY = 'qhse_pilotage_no_ai';
+  const isNoAiEnabled = () => localStorage.getItem(NO_AI_KEY) === 'true';
+  if (noAiToggle) {
+    /** @type {HTMLInputElement} */ (noAiToggle).checked = isNoAiEnabled();
+    noAiToggle.addEventListener('change', () => {
+      localStorage.setItem(NO_AI_KEY, /** @type {HTMLInputElement} */ (noAiToggle).checked ? 'true' : 'false');
+      showToast(
+        /** @type {HTMLInputElement} */ (noAiToggle).checked
+          ? 'Mode sans IA activé: l’IA est désactivée, les priorités restent déterministes.'
+          : 'Mode sans IA désactivé: l’IA peut enrichir l’analyse (sans remplacer les règles).',
+        'info'
+      );
+      // Recharge douce: on relance uniquement la partie IA au prochain refresh (ou F5 si besoin).
+    });
+  }
+  bandAssistant.append(noAiWrap, pilotageAssistant.root);
 
   const bandCockpit = document.createElement('div');
   bandCockpit.className = 'dashboard-band dashboard-band--cockpit qhse-page-advanced-only';
@@ -1949,44 +1974,57 @@ export function renderDashboard() {
         siteLabel: siteName
       });
       pilotageAssistant.update(snap);
-      essentialCockpit.updateFromSnapshot(snap);
-      expertPilotage.update({ snap, stats: lastStats, ncs, audits, incidents });
+      // Cockpit Essentiel : d’abord le snapshot backend (pas de recalcul front).
+      essentialCockpit.updateFromBackendPilotage(lastStats?.pilotageEssential);
+      // Pilotage expert : uniquement backend (score/priorités/qualité/sources/résumé).
+      expertPilotage.updateFromBackendPilotage({ pilotage: lastStats?.pilotageExpert, stats: lastStats });
     } catch (asstErr) {
       console.warn('[dashboard] assistant snapshot', asstErr);
     }
 
     pilotageAssistant.setAiLoading(true);
     pilotageAssistant.setAiResult(null);
-    void (async () => {
-      try {
-        const dashboardContext = buildDashboardPilotageAiContext({
-          stats: lastStats,
-          incidents,
-          actions,
-          siteLabel: siteName,
-          risks: Array.isArray(risksR) ? risksR : null,
-          // Sur tenant neuf (vraies données vides), on n’affiche pas de recommandations “mockées”.
-          allowGenericPilotageMocks: isDemoMode(),
-          isDemoContext: isDemoMode()
-        });
-        const ai = await fetchPilotageAiSuggestActions(dashboardContext);
-        pilotageAssistant.setAiResult({
-          narrative: typeof ai?.narrative === 'string' ? ai.narrative : '',
-          actions: Array.isArray(ai?.actions) ? ai.actions : []
-        });
-        essentialCockpit.updateFromAi(ai);
-        expertPilotage.updateAi(ai);
-      } catch (aiErr) {
-        console.warn('[dashboard] pilotage IA /api/ai-suggestions/suggest/actions', aiErr);
-        pilotageAssistant.setAiResult({
-          narrative:
-            'Analyse IA momentanément indisponible (réseau, droits ou configuration). Les recommandations ci-dessus restent basées sur les règles métier.',
-          actions: []
-        });
-      } finally {
-        pilotageAssistant.setAiLoading(false);
-      }
-    })();
+    const NO_AI_KEY = 'qhse_pilotage_no_ai';
+    const noAiOn = localStorage.getItem(NO_AI_KEY) === 'true';
+    if (noAiOn) {
+      pilotageAssistant.setAiLoading(false);
+      pilotageAssistant.setAiResult({
+        narrative:
+          'Mode sans IA activé: l’analyse affichée est basée uniquement sur des règles déterministes (plus explicables).',
+        actions: []
+      });
+    } else {
+      void (async () => {
+        try {
+          const dashboardContext = buildDashboardPilotageAiContext({
+            stats: lastStats,
+            incidents,
+            actions,
+            siteLabel: siteName,
+            risks: Array.isArray(risksR) ? risksR : null,
+            // Sur tenant neuf (vraies données vides), on n’affiche pas de recommandations “mockées”.
+            allowGenericPilotageMocks: isDemoMode(),
+            isDemoContext: isDemoMode()
+          });
+          const ai = await fetchPilotageAiSuggestActions(dashboardContext);
+          pilotageAssistant.setAiResult({
+            narrative: typeof ai?.narrative === 'string' ? ai.narrative : '',
+            actions: Array.isArray(ai?.actions) ? ai.actions : []
+          });
+          essentialCockpit.updateFromAi(ai);
+          expertPilotage.updateAi(ai);
+        } catch (aiErr) {
+          console.warn('[dashboard] pilotage IA /api/ai-suggestions/suggest/actions', aiErr);
+          pilotageAssistant.setAiResult({
+            narrative:
+              'Analyse IA momentanément indisponible (réseau, droits ou configuration). Les recommandations ci-dessus restent basées sur les règles métier.',
+            actions: []
+          });
+        } finally {
+          pilotageAssistant.setAiLoading(false);
+        }
+      })();
+    }
 
     // Alertes critiques du cockpit Essentiel (pas de recalcul lourd).
     // Habilitations via endpoint léger (si autorisé), incidents/NC via listes déjà chargées.

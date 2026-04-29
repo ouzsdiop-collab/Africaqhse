@@ -235,6 +235,205 @@ export function buildIsoConformityPdfHtml(data) {
 }
 
 /**
+ * Rapport premium "Audit ISO 45001 + pilotage QHSE".
+ * Données: payload backend-only depuis `GET /api/reports/iso-45001-pilotage-premium`.
+ *
+ * @param {{
+ *  meta?: { standard?: string; generatedAt?: string; siteId?: string|null };
+ *  pilotage?: {
+ *    score?: number|null;
+ *    topPriorities?: { label?: string; reason?: string; severity?: string }[];
+ *    executiveSummary?: string;
+ *    recommendedActions?: string[];
+ *    subScores?: { actions?: number; incidents?: number; conformity?: number; risks?: number } | null;
+ *    dataQuality?: { incidents?: string; actions?: string; audits?: string; risks?: string };
+ *  };
+ *  iso45001?: {
+ *    label?: string;
+ *    mainRequirements?: { id?: string; title?: string; summary?: string; priority?: string; status?: string; evidence?: { validatedCount?: number; pendingCount?: number } }[];
+ *    criticalRequirements?: { id?: string; title?: string; summary?: string; priority?: string; status?: string; evidence?: { validatedCount?: number; pendingCount?: number } }[];
+ *  };
+ *  disclaimer?: string;
+ *  organizationName?: string;
+ *  siteLabel?: string;
+ *  appName?: string;
+ * }} payload
+ */
+export function buildIso45001PilotagePremiumPdfHtml(payload) {
+  return buildIsoPilotagePremiumPdfHtml(payload);
+}
+
+/**
+ * Rapport premium "Audit ISO (45001/14001/9001) + pilotage QHSE".
+ * Données: payload backend-only depuis `GET /api/reports/iso-premium?standard=...` (ou compat ISO 45001).
+ *
+ * @param {{
+ *  meta?: { standard?: string; domainLabel?: string; generatedAt?: string; siteId?: string|null };
+ *  pilotage?: {
+ *    score?: number|null;
+ *    topPriorities?: { label?: string; reason?: string; severity?: string }[];
+ *    executiveSummary?: string;
+ *    recommendedActions?: string[];
+ *    subScores?: { actions?: number; incidents?: number; conformity?: number; risks?: number } | null;
+ *    dataQuality?: { incidents?: string; actions?: string; audits?: string; risks?: string };
+ *  };
+ *  iso?: {
+ *    standard?: string;
+ *    label?: string;
+ *    mainRequirements?: { id?: string; title?: string; summary?: string; priority?: string; status?: string; evidence?: { validatedCount?: number; pendingCount?: number } }[];
+ *    criticalRequirements?: { id?: string; title?: string; summary?: string; priority?: string; status?: string; evidence?: { validatedCount?: number; pendingCount?: number } }[];
+ *  };
+ *  // compat ISO 45001 existant
+ *  iso45001?: {
+ *    label?: string;
+ *    mainRequirements?: { id?: string; title?: string; summary?: string; priority?: string; status?: string; evidence?: { validatedCount?: number; pendingCount?: number } }[];
+ *    criticalRequirements?: { id?: string; title?: string; summary?: string; priority?: string; status?: string; evidence?: { validatedCount?: number; pendingCount?: number } }[];
+ *  };
+ *  disclaimer?: string;
+ *  organizationName?: string;
+ *  siteLabel?: string;
+ *  appName?: string;
+ * }} payload
+ */
+export function buildIsoPilotagePremiumPdfHtml(payload) {
+  const esc = (s) =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const strip = (s) => String(s || '').replaceAll('—', '-').replaceAll('–', '-');
+
+  const appName = String(payload?.appName || 'QHSE Control Africa');
+  const org = String(payload?.organizationName || '').trim();
+  const site = String(payload?.siteLabel || '').trim();
+
+  const pilotage = payload?.pilotage && typeof payload.pilotage === 'object' ? payload.pilotage : {};
+  const score = pilotage?.score;
+  const scoreLabel = Number.isFinite(Number(score)) ? `${Math.round(Number(score))} / 100` : 'Non disponible';
+  const top = Array.isArray(pilotage?.topPriorities) ? pilotage.topPriorities.slice(0, 3) : [];
+  const execSum = strip(String(pilotage?.executiveSummary || '').trim());
+  const recActions = Array.isArray(pilotage?.recommendedActions) ? pilotage.recommendedActions.slice(0, 5) : [];
+  const sub = pilotage?.subScores && typeof pilotage.subScores === 'object' ? pilotage.subScores : null;
+  const dq = pilotage?.dataQuality && typeof pilotage.dataQuality === 'object' ? pilotage.dataQuality : null;
+
+  const dqLine = dq
+    ? `Incidents: ${esc(String(dq.incidents || 'unavailable'))}, Actions: ${esc(String(dq.actions || 'unavailable'))}, Audits: ${esc(
+        String(dq.audits || 'unavailable')
+      )}, Risks: ${esc(String(dq.risks || 'unavailable'))}.`
+    : 'Non disponible.';
+
+  const summaryHtml = `
+    <p><strong>Application :</strong> ${esc(appName)}</p>
+    ${org ? `<p><strong>Entreprise :</strong> ${esc(org)}</p>` : ''}
+    ${site ? `<p><strong>Site / périmètre :</strong> ${esc(site)}</p>` : ''}
+    <p><strong>Score global :</strong> ${esc(scoreLabel)}</p>
+    <h3 class="qhse-premium-h3">Résumé exécutif</h3>
+    <p class="qhse-premium-muted">${esc(execSum || 'Non disponible')}</p>
+    <h3 class="qhse-premium-h3">Top priorités</h3>
+    ${
+      top.length
+        ? `<ul class="qhse-premium-ul">${top
+            .map((p) => `<li><strong>${esc(strip(p?.label || 'Priorité'))}</strong> - ${esc(strip(p?.reason || ''))}</li>`)
+            .join('')}</ul>`
+        : '<p class="qhse-premium-muted">Aucune priorité majeure détectée.</p>'
+    }
+  `;
+
+  const prioritiesSection = top.length
+    ? `<ul class="qhse-premium-ul">${top
+        .map((p) => `<li><strong>${esc(strip(p?.label || 'Priorité'))}</strong><br/><span class="qhse-premium-muted">${esc(strip(p?.reason || 'Non disponible'))}</span></li>`)
+        .join('')}</ul>`
+    : '<p class="qhse-premium-muted">Non disponible.</p>';
+
+  const subScoresSection = sub
+    ? `<div class="qhse-premium-kpi-grid">
+        <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${esc(Math.round(Number(sub.actions) || 0))}</div><div class="qhse-premium-kpi-lbl">Actions</div></div>
+        <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${esc(Math.round(Number(sub.incidents) || 0))}</div><div class="qhse-premium-kpi-lbl">Incidents</div></div>
+        <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${esc(Math.round(Number(sub.conformity) || 0))}</div><div class="qhse-premium-kpi-lbl">Conformité</div></div>
+        <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${esc(Math.round(Number(sub.risks) || 0))}</div><div class="qhse-premium-kpi-lbl">Risks</div></div>
+      </div>`
+    : '<p class="qhse-premium-muted">Sous-scores non disponibles.</p>';
+
+  const meta = payload?.meta && typeof payload.meta === 'object' ? payload.meta : {};
+  const standard =
+    String(meta?.standard || payload?.iso?.standard || 'iso-45001').trim().toLowerCase() || 'iso-45001';
+  const domainLabel = String(meta?.domainLabel || '').trim();
+
+  const iso =
+    payload?.iso && typeof payload.iso === 'object'
+      ? payload.iso
+      : payload?.iso45001 && typeof payload.iso45001 === 'object'
+        ? payload.iso45001
+        : {};
+  const mainReqs = Array.isArray(iso?.mainRequirements) ? iso.mainRequirements.slice(0, 20) : [];
+  const critReqs = Array.isArray(iso?.criticalRequirements) ? iso.criticalRequirements.slice(0, 5) : [];
+
+  const reqRow = (r) => {
+    const st = String(r?.status || 'non conforme');
+    const bg = st === 'conforme' ? '#dcfce7' : st === 'partiel' ? '#fef9c3' : '#fee2e2';
+    const fg = st === 'conforme' ? '#166534' : st === 'partiel' ? '#854d0e' : '#991b1b';
+    const ev = r?.evidence && typeof r.evidence === 'object' ? r.evidence : {};
+    const v = Number(ev?.validatedCount) || 0;
+    const p = Number(ev?.pendingCount) || 0;
+    return `<tr>
+      <td>${esc(String(r?.title || 'Exigence'))}</td>
+      <td><span class="qhse-premium-badge" style="background:${bg};color:${fg}">${esc(st)}</span></td>
+      <td>${esc(String(r?.priority || 'medium'))}</td>
+      <td>${esc(String(v))} validée(s), ${esc(String(p))} en attente</td>
+    </tr>`;
+  };
+
+  const isoMainSection = mainReqs.length
+    ? `<table class="qhse-premium-table">
+        <tr><th>Exigence</th><th>Statut</th><th>Priorité</th><th>Preuves</th></tr>
+        ${mainReqs.map(reqRow).join('')}
+      </table>`
+    : '<p class="qhse-premium-muted">Aucune exigence disponible.</p>';
+
+  const isoCriticalSection = critReqs.length
+    ? `<table class="qhse-premium-table">
+        <tr><th>Exigence critique</th><th>Statut</th><th>Priorité</th><th>Preuves</th></tr>
+        ${critReqs.map(reqRow).join('')}
+      </table>`
+    : '<p class="qhse-premium-muted">Aucune exigence critique détectée.</p>';
+
+  const actionsSection = recActions.length
+    ? `<ul class="qhse-premium-ul">${recActions.map((t) => `<li>${esc(strip(t).slice(0, 220))}</li>`).join('')}</ul>`
+    : '<p class="qhse-premium-muted">Aucune action recommandée.</p>';
+
+  const dataQualitySection = `<p class="qhse-premium-muted" style="margin:0">${dqLine}</p>`;
+
+  const disclaimer = strip(String(payload?.disclaimer || '').trim());
+  const disclaimerHtml = `<p class="qhse-premium-disclaimer" style="margin:0">${esc(
+    disclaimer || 'Document indicatif. Validation humaine recommandée.'
+  )}</p>`;
+
+  const isoLabel = String(iso?.label || '').trim() || standard.toUpperCase();
+  const domainSuffix = domainLabel ? ` — ${domainLabel}` : '';
+  const title = `Rapport Audit ${isoLabel}${domainSuffix} et Pilotage QHSE`;
+
+  return generatePremiumPdf({
+    title,
+    organizationName: org || undefined,
+    siteLabel: site || undefined,
+    subtitle: 'Synthèse premium - cabinet',
+    includeCover: true,
+    summary: summaryHtml,
+    sections: [
+      { title: 'Priorités', html: prioritiesSection },
+      { title: 'Score détaillé', html: `<p><strong>Score global :</strong> ${esc(scoreLabel)}</p>${subScoresSection}` },
+      { title: `Conformité ${esc(isoLabel)} (exigences principales)`, html: isoMainSection },
+      { title: 'Exigences critiques (max 5)', html: isoCriticalSection },
+      { title: 'Recommandations', html: actionsSection },
+      { title: 'Data quality', html: dataQualitySection },
+      { title: 'Disclaimer', html: disclaimerHtml }
+    ],
+    footer: `${esc(appName)}. Confidentiel. Généré le ${esc(new Date().toLocaleString('fr-FR'))}.`
+  });
+}
+
+/**
  * Rapport « audit IA » : synthèse multi-blocs (même pipeline PDF que la conformité ISO).
  * @param {ReturnType<typeof import('../services/isoAuditReport.service.js').buildIsoAuditReport>} report
  * @param {{ narrative?: { summary?: string; strengths?: string[]; weaknesses?: string[]; priorityActions?: string[]; confidence?: number } | null; narrativeSource?: 'ai' | 'fallback' | '' }} [opts]

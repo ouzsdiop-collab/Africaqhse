@@ -916,8 +916,8 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
   function dataQualityFromContext(ctx) {
     const dq = ctx?.dataQualityGlobal && typeof ctx.dataQualityGlobal === 'object' ? ctx.dataQualityGlobal : null;
     const v = dq?.actions;
-    if (v === 'complete' || v === 'partial' || v === 'limited') return v;
-    return 'limited';
+    if (v === 'complete' || v === 'partial' || v === 'unavailable') return v;
+    return 'unavailable';
   }
 
   function extractReason(desc) {
@@ -981,6 +981,11 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
     dataQualityGlobal:
       dashboardContext?.dataQualityGlobal && typeof dashboardContext.dataQualityGlobal === 'object'
         ? dashboardContext.dataQualityGlobal
+        : undefined,
+    // Transparence: sources de signaux (si fourni)
+    signalSources:
+      dashboardContext?.signalSources && typeof dashboardContext.signalSources === 'object'
+        ? dashboardContext.signalSources
         : undefined
   };
 }

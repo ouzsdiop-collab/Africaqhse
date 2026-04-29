@@ -1,6 +1,239 @@
 {
   "standard": "iso-9001",
-  "label": "ISO 9001 (placeholder)",
-  "requirements": []
+  "label": "ISO 9001 (synthèse terrain)",
+  "requirements": [
+    {
+      "id": "iso9001-context-scope-interested-parties",
+      "chapter": 4,
+      "clause": "4.1 / 4.2 / 4.3",
+      "title": "Contexte, périmètre et parties intéressées (qualité)",
+      "summary": "Définir le périmètre du SMQ, comprendre les enjeux et identifier les attentes des parties intéressées (clients, autorités, équipes, fournisseurs).",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "expectedEvidence": [
+        "Périmètre SMQ (sites, produits/services, processus) documenté et versionné",
+        "Liste parties intéressées + attentes qualité (fichier simple)",
+        "Registre des changements majeurs (GMC) et impacts sur la qualité",
+        "Photo(s) affichage des exigences qualité clés au poste (si applicable)"
+      ],
+      "suggestedActions": [
+        "Formaliser le périmètre SMQ sur 1 page (processus + produits/services) et le valider",
+        "Créer une revue trimestrielle (15 min) des attentes clients et des risques qualité",
+        "Déclencher une revue qualité à chaque changement majeur (GMC)"
+      ],
+      "auditQuestions": [
+        "Le périmètre SMQ est-il défini (sites/produits/services/processus) et versionné (dernière révision, approbation) ?",
+        "Existe-t-il une liste des attentes clients/parties intéressées et une date de dernière revue ?",
+        "Chaque changement majeur (GMC) déclenche-t-il une évaluation d’impact qualité tracée (au moins un échantillon) ?"
+      ]
+    },
+    {
+      "id": "iso9001-leadership-policy-roles",
+      "chapter": 5,
+      "clause": "5.1 / 5.2 / 5.3",
+      "title": "Leadership, politique qualité et responsabilités",
+      "summary": "La direction définit une politique qualité, des responsabilités et démontre l’engagement via objectifs, ressources et revues.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "expectedEvidence": [
+        "Politique qualité signée + diffusion (affichage, communication interne)",
+        "Rôles/responsabilités (organigramme + fiches de rôle) pour le SMQ",
+        "Compte-rendus de revues de direction avec décisions (priorités, ressources, risques)",
+        "Exemples de décisions direction suite à écarts qualité (retours clients, NC, retards)"
+      ],
+      "suggestedActions": [
+        "Définir 3 objectifs qualité maximum (ex: taux NC, délai, retours) avec responsables",
+        "Mettre en place une revue hebdo des non-conformités et actions en retard (30 min)",
+        "Créer une visite terrain management (mensuelle) orientée qualité opérationnelle"
+      ],
+      "auditQuestions": [
+        "La politique qualité est-elle signée, diffusée et connue (échantillon terrain: 2–3 personnes) ?",
+        "Les responsabilités qualité (qui enregistre NC, qui valide, qui clôture) sont-elles définies et appliquées ?",
+        "La direction pilote-t-elle les indicateurs et les écarts avec décisions datées (priorités, ressources) ?"
+      ]
+    },
+    {
+      "id": "iso9001-process-approach-kpis",
+      "chapter": 4,
+      "clause": "4.4",
+      "title": "Approche processus, cartographie et indicateurs",
+      "summary": "Définir les processus, leurs interactions et des indicateurs simples pour piloter la performance et la conformité des processus.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "expectedEvidence": [
+        "Cartographie des processus (schéma simple) + fiches processus (objectifs, pilotes)",
+        "Indicateurs par processus (qualité, délai, conformité) avec tendance",
+        "Revue périodique des performances (réunion, compte rendu)",
+        "Exemples d’actions décidées suite aux indicateurs (avec suivi/clôture)"
+      ],
+      "suggestedActions": [
+        "Cartographier 6–10 processus maximum et nommer un pilote par processus",
+        "Définir 1–3 KPI par processus (qualité/délai/coût) et les revoir mensuellement",
+        "Transformer chaque dérive KPI en action avec responsable + échéance"
+      ],
+      "auditQuestions": [
+        "Les processus clés ont-ils un pilote, un objectif et des interfaces identifiées (cartographie + fiche processus) ?",
+        "Les KPI sont-ils mis à jour régulièrement (tendance) et revus en réunion (preuve: compte rendu) ?",
+        "Chaque dérive KPI déclenche-t-elle une action avec responsable, échéance et preuve de clôture ?"
+      ]
+    },
+    {
+      "id": "iso9001-documented-information-control",
+      "chapter": 7,
+      "clause": "7.5",
+      "title": "Maîtrise de l’information documentée",
+      "summary": "Contrôler la création, la mise à jour, l’accès, la diffusion et l’archivage des documents et enregistrements du SMQ.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "expectedEvidence": [
+        "Procédure de gestion documentaire (versions, validation, diffusion)",
+        "Registre documents (liste maîtresse) + preuves de mise à jour",
+        "Échantillons d’enregistrements qualité (audits, contrôles, NC) correctement archivés",
+        "Preuve de retrait/identification des versions obsolètes (terrain/bureaux)"
+      ],
+      "suggestedActions": [
+        "Créer une liste maîtresse (documents critiques) avec propriétaires et fréquences de revue",
+        "Mettre une règle: aucun document non approuvé ne doit être utilisé au poste",
+        "Faire un audit documentaire trimestriel (10 docs au hasard) et corriger les écarts"
+      ],
+      "auditQuestions": [
+        "Les documents critiques sont-ils versionnés/approuvés et disponibles au poste (échantillon: 3 documents) ?",
+        "Les versions obsolètes sont-elles retirées/identifiées (terrain + bureaux) ?",
+        "Les enregistrements (audits, contrôles, NC) sont-ils retrouvables rapidement et protégés (accès) ?"
+      ]
+    },
+    {
+      "id": "iso9001-customer-requirements-and-satisfaction",
+      "chapter": 8,
+      "clause": "8.2 / 9.1.2",
+      "title": "Exigences clients, revue de commande et satisfaction",
+      "summary": "Comprendre les exigences clients, vérifier la capacité à les satisfaire et surveiller la satisfaction via retours, réclamations et indicateurs.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "high",
+      "expectedEvidence": [
+        "Process de revue de commande/contrat (checklist) + enregistrements",
+        "Registre réclamations/retours clients + analyse causes + actions",
+        "Indicateurs satisfaction (délais, taux de retours, qualité perçue) avec tendances",
+        "Exemples de communications client (réponse réclamation) et engagement de traitement"
+      ],
+      "suggestedActions": [
+        "Mettre une checklist de revue de commande (5–10 points) avant chaque engagement",
+        "Classifier les réclamations (critique/majeure/mineure) et définir des délais de traitement",
+        "Revoir mensuellement 3 réclamations et décider des actions correctives récurrentes"
+      ],
+      "auditQuestions": [
+        "La revue de commande/contrat est-elle réalisée avant engagement (échantillon: 2 dossiers) ?",
+        "Les réclamations sont-elles enregistrées avec cause, action et statut, et traitées dans les délais ?",
+        "La satisfaction est-elle mesurée via 2–3 indicateurs et revue mensuellement (tendance + décision) ?"
+      ]
+    },
+    {
+      "id": "iso9001-operational-control-and-release",
+      "chapter": 8,
+      "clause": "8.5 / 8.6",
+      "title": "Maîtrise opérationnelle et libération du produit/service",
+      "summary": "Définir des contrôles opérationnels, critères d’acceptation et validations avant libération pour garantir la conformité du produit/service.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "expectedEvidence": [
+        "Instructions opératoires / checklists de contrôle qualité (échantillons remplis) + photos si utile",
+        "Critères d’acceptation (spécifs, tolérances) accessibles aux opérateurs",
+        "Preuves de validation/libération (signature, date, lot, résultat contrôle)",
+        "Gestion des produits/services non conformes (isolement, étiquetage, décision)"
+      ],
+      "suggestedActions": [
+        "Définir des points de contrôle critiques (CTQ) et les vérifier à chaque lot/jour",
+        "Mettre un système simple d’identification: conforme / en attente / non conforme",
+        "Interdire toute libération sans preuve de contrôle et validation par rôle habilité"
+      ],
+      "auditQuestions": [
+        "Les critères d’acceptation/CTQ sont-ils disponibles au poste et appliqués (observation + échantillon enregistrement) ?",
+        "La libération est-elle autorisée uniquement avec preuve de contrôle et par une personne habilitée ?",
+        "Les non-conformes sont-ils identifiés/isolés et empêchent-ils la libération (trace décision) ?"
+      ]
+    },
+    {
+      "id": "iso9001-nonconformity-and-corrective-actions",
+      "chapter": 10,
+      "clause": "10.2",
+      "title": "Non-conformités et actions correctives",
+      "summary": "Enregistrer les non-conformités, analyser les causes, mettre en œuvre des actions correctives et vérifier l’efficacité.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "critical",
+      "expectedEvidence": [
+        "Registre non-conformités (internes/clients) avec statut et classification",
+        "Analyses causes (5 pourquoi, Ishikawa) et décisions",
+        "Actions correctives (responsable, échéance) + preuves de clôture + vérification efficacité",
+        "Échantillons d’actions clôturées avec preuve avant/après (photo/doc)"
+      ],
+      "suggestedActions": [
+        "Standardiser une fiche NC 1 page (fait → cause → action → preuve → validation)",
+        "Exiger une preuve de clôture (photo/doc) avant de fermer une action corrective",
+        "Faire une revue mensuelle des causes récurrentes et décider 1–2 actions structurantes"
+      ],
+      "auditQuestions": [
+        "Les non-conformités sont-elles enregistrées avec date, produit/service, cause présumée et statut ?",
+        "Les causes sont-elles analysées (méthode) et les actions suivies jusqu’à clôture avec preuve (photo/doc) ?",
+        "L’efficacité est-elle vérifiée (absence de récurrence, KPI) et tracée après clôture ?"
+      ]
+    },
+    {
+      "id": "iso9001-internal-audit-program",
+      "chapter": 9,
+      "clause": "9.2",
+      "title": "Audit interne (programme et exécution)",
+      "summary": "Planifier et réaliser des audits internes, documenter les constats et suivre les actions jusqu’à clôture.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "expectedEvidence": [
+        "Programme d’audit (planning) couvrant processus clés",
+        "Rapports d’audit avec constats, preuves, conclusions",
+        "Plans d’actions issus des audits + suivi (retards, clôture)"
+      ],
+      "suggestedActions": [
+        "Planifier un audit interne trimestriel ciblé sur un processus critique (vente, prod, logistique)",
+        "Utiliser une checklist d’audit courte (preuves + critères) et tracer les constats",
+        "Suivre les actions d’audit chaque semaine jusqu’à clôture (retards visibles)"
+      ],
+      "auditQuestions": [
+        "Le programme d’audit est-il basé sur les risques/performance et couvre-t-il les processus prioritaires ?",
+        "Les audits produisent-ils des constats factuels (preuves) et des actions avec échéances ?",
+        "Les retards d’actions issues d’audit sont-ils visibles et arbitrés (décision) ?"
+      ]
+    },
+    {
+      "id": "iso9001-improvement-and-continuous-improvement",
+      "chapter": 10,
+      "clause": "10.3",
+      "title": "Amélioration continue",
+      "summary": "Améliorer en continu le SMQ via analyse de performance, retours clients, audits, non-conformités et opportunités d’amélioration.",
+      "sourceLabel": "ISO 9001 (intitulés synthétiques)",
+      "sourceType": "standard",
+      "priority": "medium",
+      "expectedEvidence": [
+        "Registre opportunités d’amélioration (issues audits, retours clients, indicateurs) + décisions",
+        "Exemples d’améliorations mises en œuvre (avant/après) avec preuve",
+        "Revue périodique des améliorations et priorisation"
+      ],
+      "suggestedActions": [
+        "Tenir un backlog d’améliorations (max 20) et en clôturer 2–3 par mois",
+        "Prioriser par impact client + risque + effort (simple scoring 1–5)",
+        "Montrer au moins 1 amélioration opérationnelle par trimestre (preuve avant/après)"
+      ],
+      "auditQuestions": [
+        "Les sources d’amélioration (audits, clients, KPI, NC) sont-elles consolidées dans un backlog unique ?",
+        "Les améliorations sont-elles décidées, mises en œuvre et démontrées (preuve avant/après) ?",
+        "La priorisation est-elle tracée (impact client, risque, effort) et revue périodiquement ?"
+      ]
+    }
+  ]
 }
 
