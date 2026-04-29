@@ -38,7 +38,7 @@ export function formatHabilitationsFiltersSummary(state) {
   if (state.type) parts.push(`Type : ${state.type}`);
   if (state.statut) parts.push(`Statut : ${HABILITATIONS_STATUS_LABEL[state.statut] || state.statut}`);
   if (state.expiration) {
-    const m = { expired: 'Expirées', lt30: 'Expiration < 30 j', '30_90': '30–90 j', gt90: '> 90 j' };
+    const m = { expired: 'Expirées', lt30: 'Expiration < 30 j', '30_90': '30-90 j', gt90: '> 90 j' };
     parts.push(`Échéance : ${m[state.expiration] || state.expiration}`);
   }
   if (state.subcontractorOnly) parts.push('Sous-traitants : filtre actif');
@@ -297,7 +297,7 @@ export async function downloadHabilitationsPdf(opts) {
   const html = await buildHabilitationsPdfHtml(opts, pdf);
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
   await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   });
 }
@@ -401,7 +401,7 @@ export async function downloadHabilitationsConformitePdf({
   const html = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
   await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   });
 }

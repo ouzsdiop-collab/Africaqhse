@@ -4,14 +4,18 @@
  * `qhsePdfChrome` est importé dynamiquement à l’export pour ne pas lier ce chunk lourd au parse du module.
  */
 
-import { generatePremiumPdf } from '../utils/pdfPremiumTemplate.js';
+import {
+  generatePremiumPdf,
+  normalizePdfTypography,
+  QHSE_PDF_FOOTER_TAGLINE
+} from '../utils/pdfPremiumTemplate.js';
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
   const { downloadQhseChromePdf } = await import('../utils/qhsePdfChrome.js');
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w.-]+/g, '_');
   const pdfName = safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`;
   await downloadQhseChromePdf(htmlString, pdfName, {
-    margin: [14, 12, 18, 12],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   });
 }
@@ -33,7 +37,7 @@ export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
  */
 export function buildAuditIsoPdfHtml(data) {
   const esc = (s) =>
-    String(s ?? '')
+    String(normalizePdfTypography(s ?? ''))
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
@@ -162,7 +166,7 @@ export function buildAuditIsoPdfHtml(data) {
     title: "Rapport d'audit QHSE",
     company: String(data.site || ''),
     date: String(data.date || ''),
-    subtitle: 'Synthèse terrain et exigences ISO',
+    subtitle: 'Synthèse terrain et exigences référentielles (SST / ISO 45001)',
     summary: summaryHtml,
     narrative: null,
     compliancePct: Number.isFinite(score) ? score : null,
@@ -297,12 +301,12 @@ export function buildIso45001PilotagePremiumPdfHtml(payload) {
  */
 export function buildIsoPilotagePremiumPdfHtml(payload) {
   const esc = (s) =>
-    String(s ?? '')
+    String(normalizePdfTypography(s ?? ''))
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-  const strip = (s) => String(s || '').replaceAll('—', '-').replaceAll('–', '-');
+  const strip = (s) => normalizePdfTypography(s || '');
 
   const appName = String(payload?.appName || 'QHSE Control Africa');
   const org = String(payload?.organizationName || '').trim();
@@ -317,10 +321,16 @@ export function buildIsoPilotagePremiumPdfHtml(payload) {
   const sub = pilotage?.subScores && typeof pilotage.subScores === 'object' ? pilotage.subScores : null;
   const dq = pilotage?.dataQuality && typeof pilotage.dataQuality === 'object' ? pilotage.dataQuality : null;
 
+  const dqFr = (v) => {
+    const x = String(v || '').toLowerCase();
+    if (x === 'unavailable') return 'non disponible';
+    if (x === 'limited') return 'partiel';
+    if (x === 'complete') return 'complet';
+    if (x === 'partial') return 'partiel';
+    return String(v || 'non disponible');
+  };
   const dqLine = dq
-    ? `Incidents: ${esc(String(dq.incidents || 'unavailable'))}, Actions: ${esc(String(dq.actions || 'unavailable'))}, Audits: ${esc(
-        String(dq.audits || 'unavailable')
-      )}, Risks: ${esc(String(dq.risks || 'unavailable'))}.`
+    ? `Incidents : ${esc(dqFr(dq.incidents))}, actions : ${esc(dqFr(dq.actions))}, audits : ${esc(dqFr(dq.audits))}, risques : ${esc(dqFr(dq.risks))}.`
     : 'Non disponible.';
 
   const summaryHtml = `
@@ -410,14 +420,14 @@ export function buildIsoPilotagePremiumPdfHtml(payload) {
   )}</p>`;
 
   const isoLabel = String(iso?.label || '').trim() || standard.toUpperCase();
-  const domainSuffix = domainLabel ? ` — ${domainLabel}` : '';
-  const title = `Rapport Audit ${isoLabel}${domainSuffix} et Pilotage QHSE`;
+  const domainSuffix = domainLabel ? ` - ${strip(domainLabel)}` : '';
+  const title = strip(`Rapport audit ${isoLabel}${domainSuffix} et pilotage QHSE`);
 
   return generatePremiumPdf({
     title,
     organizationName: org || undefined,
     siteLabel: site || undefined,
-    subtitle: 'Synthèse premium - cabinet',
+    subtitle: 'Synthèse conseil SST - management intégré (réf. ISO 45001)',
     includeCover: true,
     summary: summaryHtml,
     sections: [
@@ -426,10 +436,10 @@ export function buildIsoPilotagePremiumPdfHtml(payload) {
       { title: `Conformité ${esc(isoLabel)} (exigences principales)`, html: isoMainSection },
       { title: 'Exigences critiques (max 5)', html: isoCriticalSection },
       { title: 'Recommandations', html: actionsSection },
-      { title: 'Data quality', html: dataQualitySection },
-      { title: 'Disclaimer', html: disclaimerHtml }
+      { title: 'Qualité des données (sources applicatives)', html: dataQualitySection },
+      { title: 'Mentions et limites', html: disclaimerHtml }
     ],
-    footer: `${esc(appName)}. Confidentiel. Généré le ${esc(new Date().toLocaleString('fr-FR'))}.`
+    footer: `${QHSE_PDF_FOOTER_TAGLINE} · ${esc(appName)} · Généré le ${esc(new Date().toLocaleString('fr-FR'))}.`
   });
 }
 
@@ -440,7 +450,7 @@ export function buildIsoPilotagePremiumPdfHtml(payload) {
  */
 export function buildIsoAuditReportPdfHtml(report, opts = {}) {
   const esc = (s) =>
-    String(s ?? '')
+    String(normalizePdfTypography(s ?? ''))
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
@@ -456,14 +466,14 @@ export function buildIsoAuditReportPdfHtml(report, opts = {}) {
   const conform = ul(
     report.conformingPoints || [],
     (x) =>
-      `<strong>${esc(x.clause)}</strong> (${esc(x.normCode)}) - ${esc(x.title)}. <span class="qhse-premium-muted">${esc(x.detail)}</span>`,
+      `<strong>${esc(x.clause)}</strong> (${esc(x.normCode)}) : ${esc(x.title)}. <span class="qhse-premium-muted">${esc(x.detail)}</span>`,
     35
   );
-  const nc = ul(report.nonConformities || [], (x) => `<strong>${esc(x.clause)}</strong> - ${esc(x.title)}. ${esc(x.detail)}`, 35);
-  const partial = ul(report.partialGaps || [], (x) => `<strong>${esc(x.clause)}</strong> - ${esc(x.title)}. ${esc(x.detail)}`, 25);
+  const nc = ul(report.nonConformities || [], (x) => `<strong>${esc(x.clause)}</strong> : ${esc(x.title)}. ${esc(x.detail)}`, 35);
+  const partial = ul(report.partialGaps || [], (x) => `<strong>${esc(x.clause)}</strong> : ${esc(x.title)}. ${esc(x.detail)}`, 25);
   const miss = ul(
     report.missingEvidence || [],
-    (x) => `<strong>${esc(x.clause)}</strong> - ${esc(x.title)} : ${esc(x.detail)}`,
+    (x) => `<strong>${esc(x.clause)}</strong> : ${esc(x.title)} : ${esc(x.detail)}`,
     35
   );
   const acts = ul(
@@ -474,7 +484,7 @@ export function buildIsoAuditReportPdfHtml(report, opts = {}) {
   );
   const risks = ul(
     report.criticalRisks || [],
-    (x) => `${esc(x.ref || 'N/A')} - ${esc(x.title)} <span class="qhse-premium-muted">(${esc(x.label)})</span>`,
+    (x) => `${esc(x.ref || 'N/A')} : ${esc(x.title)} <span class="qhse-premium-muted">(${esc(x.label)})</span>`,
     25
   );
 
@@ -511,6 +521,6 @@ export function buildIsoAuditReportPdfHtml(report, opts = {}) {
     actions: acts,
     conclusion:
       '<p class="qhse-premium-muted" style="margin:0">Document de travail. À valider par l\'auditeur ou la direction avant toute décision.</p>',
-    footer: 'QHSE Control Africa. Confidentiel. Usage interne.'
+    footer: 'QHSE Control Africa · Document confidentiel · Usage interne'
   });
 }

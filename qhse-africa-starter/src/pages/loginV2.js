@@ -10,7 +10,7 @@ import { persistTokensFromLoginResponse } from '../utils/auth.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { setCurrentPage, setActiveSiteContext } from '../utils/state.js';
-import { setDemoMode } from '../services/demoMode.service.js';
+import { setDemoMode, isDemoModeAllowed } from '../services/demoMode.service.js';
 import { DEMO_SITE_ID, DEMO_SITE_LABEL } from '../data/demoModeFixtures.js';
 
 const LOGIN_V2_STYLE_ID = 'qhse-loginv2-styles';
@@ -1479,6 +1479,15 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const inner = document.createElement('div');
   inner.className = 'lv2-right-inner';
 
+  const showDemoEntry = isDemoModeAllowed();
+  const demoCtaBlock = showDemoEntry
+    ? `
+      <div class="lv2-sep lv2-demo-sep" style="margin:20px 0" aria-hidden="true"></div>
+      <button type="button" class="lv2-demo-link" title="Scénario indicatif secteur minier. Données de démonstration uniquement.">
+        Essayer la démonstration terrain (sans compte)
+      </button>`
+    : '';
+
   inner.innerHTML = `
     <div class="lv2-mobile-brand">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
@@ -1522,8 +1531,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
         </label>
         <button type="button" class="btn btn-primary lv2-org-continue" style="margin-top:12px;width:100%">Continuer</button>
       </div>
-      <div class="lv2-sep" style="margin:20px 0" aria-hidden="true"></div>
-      <button type="button" class="lv2-demo-link">Accéder à la démo mines →</button>
+      ${demoCtaBlock}
     </form>
   `;
 

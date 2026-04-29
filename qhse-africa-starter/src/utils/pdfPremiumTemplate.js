@@ -9,6 +9,29 @@ import { formatQhsePdfGenerationDate, QHSE_PDF_BRAND } from './qhsePdfChrome.js'
 
 export { QHSE_PDF_BRAND as PREMIUM_PDF_BRAND };
 
+/** Pied de page standard livrables (cohérent tous exports premium). */
+export const QHSE_PDF_FOOTER_TAGLINE = 'QHSE Control Africa · Document confidentiel · Usage interne';
+
+/**
+ * Supprime tirets typographiques et espaces insécables problématiques pour l'impression PDF.
+ * @param {unknown} s
+ */
+export function normalizePdfTypography(s) {
+  if (s == null) return '';
+  return String(s)
+    .replaceAll('\u2014', '-')
+    .replaceAll('\u2013', '-')
+    .replaceAll('\u00a0', ' ');
+}
+
+/**
+ * Texte PDF : normalisation typographique puis échappement HTML.
+ * @param {unknown} s
+ */
+export function escapePdfText(s) {
+  return escapeHtml(normalizePdfTypography(s));
+}
+
 /** Couleurs secondaires sobres (bleu / cyan) en complément du vert marque */
 const PREMIUM_ACCENT = '#0e7490';
 const PREMIUM_ACCENT_SOFT = '#e0f2fe';
@@ -41,6 +64,10 @@ export function premiumPdfStyles() {
       width: 100%;
       max-width: 100%;
       overflow: visible;
+    }
+    .qhse-premium-body {
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .qhse-premium-page-shell { page-break-after: always; padding-bottom: 18px; }
     .qhse-premium-page-shell:last-child { page-break-after: auto; }
@@ -78,6 +105,8 @@ export function premiumPdfStyles() {
       margin: 0 0 6px 0;
       letter-spacing: 0.01em;
       line-height: 1.25;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .qhse-premium-sub { font-size: 9pt; color: #64748b; margin: 0 0 8px 0; }
     .qhse-premium-date { font-size: 9pt; color: #64748b; text-align: right; }
@@ -166,7 +195,16 @@ export function premiumPdfStyles() {
     }
     .qhse-premium-table td { border: 1px solid #e2e8f0; padding: 8px 6px; vertical-align: top; color: #1e293b; }
     .qhse-premium-td-n { width: 32px; text-align: center; font-weight: 700; background: #f8fafc; color: #64748b; }
-    .qhse-premium-badge { font-size: 7.5pt; font-weight: 700; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+    .qhse-premium-badge {
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: normal;
+      max-width: 100%;
+      word-break: break-word;
+      display: inline-block;
+    }
     .qhse-premium-foot {
       margin-top: 20px;
       padding-top: 12px;
@@ -200,7 +238,14 @@ export function premiumPdfStyles() {
     }
     .qhse-premium-check-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
     .qhse-premium-check-no { font-weight: 800; color: ${brand}; min-width: 22px; }
-    .qhse-premium-check-title { flex: 1; font-weight: 700; color: #0f172a; }
+    .qhse-premium-check-title {
+      flex: 1;
+      font-weight: 700;
+      color: #0f172a;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
     .qhse-premium-preuve, .qhse-premium-obs { margin: 4px 0; font-size: 9pt; color: #334155; }
     .qhse-premium-photo img { max-width: 160px; max-height: 120px; border-radius: 4px; border: 1px solid #e2e8f0; margin-top: 6px; }
     .qhse-premium-matrix-table td, .qhse-premium-matrix-table th { text-align: center; padding: 4px; font-size: 7.5pt; }
@@ -217,8 +262,24 @@ export function premiumPdfStyles() {
     .qhse-premium-cover-product { font-size: 9pt; font-weight: 700; color: ${brand}; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
     .qhse-premium-cover-logo { margin-bottom: 12px; }
     .qhse-premium-cover-logo img { max-height: 56px; max-width: 200px; object-fit: contain; }
-    .qhse-premium-cover-title { font-size: 22pt; font-weight: 800; color: #0f172a; margin: 0 0 12px 0; line-height: 1.2; max-width: 100%; }
-    .qhse-premium-cover-sub { font-size: 10.5pt; color: #475569; margin: 0 0 20px 0; max-width: 520px; }
+    .qhse-premium-cover-title {
+      font-size: 22pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 12px 0;
+      line-height: 1.2;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .qhse-premium-cover-sub {
+      font-size: 10.5pt;
+      color: #475569;
+      margin: 0 0 20px 0;
+      max-width: 520px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
     .qhse-premium-cover-meta { font-size: 10pt; color: #334155; text-align: left; width: 100%; max-width: 400px; margin: 0 auto; }
     .qhse-premium-cover-meta p { margin: 6px 0; }
     .qhse-premium-cover-confid { font-size: 9pt; color: #94a3b8; margin-top: 28px; }
@@ -232,7 +293,8 @@ export function premiumPdfStyles() {
       .qhse-premium-head,
       .qhse-premium-compliance { break-inside: avoid; page-break-inside: avoid; }
       .qhse-premium-table thead { display: table-header-group; }
-      .qhse-premium-table tr { break-inside: avoid; page-break-inside: avoid; }
+      .qhse-premium-table tr { break-inside: auto; page-break-inside: auto; }
+      .qhse-premium-table td, .qhse-premium-table th { break-inside: avoid; page-break-inside: avoid; }
     }
   </style>`;
 }
@@ -254,25 +316,27 @@ export function premiumPdfCoverSection(p) {
     p.logoUrl && String(p.logoUrl).trim()
       ? `<div class="qhse-premium-cover-logo"><img src="${escapeHtml(p.logoUrl)}" alt="" /></div>`
       : '';
-  const org = p.organizationName ? `<p><strong>Organisation :</strong> ${escapeHtml(p.organizationName)}</p>` : '';
-  const site = p.siteLabel ? `<p><strong>Site / périmètre :</strong> ${escapeHtml(p.siteLabel)}</p>` : '';
-  const sub = p.subtitle ? `<p class="qhse-premium-cover-sub">${escapeHtml(p.subtitle)}</p>` : '';
+  const org = p.organizationName
+    ? `<p><strong>Organisation :</strong> ${escapePdfText(p.organizationName)}</p>`
+    : '';
+  const site = p.siteLabel ? `<p><strong>Site / périmètre :</strong> ${escapePdfText(p.siteLabel)}</p>` : '';
+  const sub = p.subtitle ? `<p class="qhse-premium-cover-sub">${escapePdfText(p.subtitle)}</p>` : '';
   return `<section class="qhse-premium-page-shell qhse-premium-cover-wrap">
     <div class="qhse-premium-topbar"></div>
     <div class="qhse-premium-cover">
       ${logo}
       <div class="qhse-premium-cover-product">QHSE Control Africa</div>
-      <h1 class="qhse-premium-cover-title">${escapeHtml(p.documentTitle)}</h1>
+      <h1 class="qhse-premium-cover-title">${escapePdfText(p.documentTitle)}</h1>
       ${sub}
       <div class="qhse-premium-cover-meta">
         ${org}
         ${site}
-        <p><strong>Date d'édition :</strong> ${escapeHtml(p.editionDate)}</p>
+        <p><strong>Date d'édition :</strong> ${escapePdfText(p.editionDate)}</p>
       </div>
-      <p class="qhse-premium-cover-confid">Document confidentiel</p>
-      <p class="qhse-premium-cover-page">Page ${p.pageIndex} / ${p.totalPages}</p>
+      <p class="qhse-premium-cover-confid">Document confidentiel - usage interne</p>
+      <p class="qhse-premium-cover-page">Section couverture (${escapePdfText(String(p.pageIndex))} / ${escapePdfText(String(p.totalPages))})</p>
     </div>
-    <footer class="qhse-premium-foot">QHSE Control Africa. Usage restreint.</footer>
+    <footer class="qhse-premium-foot">${QHSE_PDF_FOOTER_TAGLINE}</footer>
   </section>`;
 }
 
@@ -293,7 +357,7 @@ export function buildPremiumComplianceBlock(compliancePct) {
       <span class="qhse-premium-compliance-pct">${escapeHtml(String(pct))}%</span>
     </div>
     <div style="flex:1;min-width:200px">
-      <div class="qhse-premium-muted" style="margin-bottom:6px;font-size:8.5pt">Vue synthétique à partir des données du rapport</div>
+      <div class="qhse-premium-muted" style="margin-bottom:6px;font-size:8.5pt">Lecture consolidée des indicateurs exportés (pilotage interne)</div>
       <div class="qhse-premium-gauge-track"><div class="qhse-premium-gauge-fill" style="width:${pct}%"></div></div>
     </div>
   </div>`;
@@ -313,28 +377,28 @@ export function buildPremiumNarrativeBlock(narrative, narrativeSource = '') {
   }
   const aiNote =
     narrativeSource === 'ai'
-      ? `<p class="qhse-premium-disclaimer">Analyse générée à partir des données disponibles. Validation humaine recommandée.</p>`
+      ? `<p class="qhse-premium-disclaimer">Éléments d'analyse issus du traitement des données du rapport. Revue et validation par le responsable QHSE recommandées.</p>`
       : narrativeSource === 'fallback'
-        ? `<p class="qhse-premium-disclaimer">Synthèse automatique à partir des indicateurs agrégés. Validation humaine recommandée.</p>`
+        ? `<p class="qhse-premium-disclaimer">Synthèse construite à partir des indicateurs agrégés du rapport. Revue et validation par le responsable QHSE recommandées.</p>`
         : '';
   const conf =
     typeof narrative.confidence === 'number' && Number.isFinite(narrative.confidence)
-      ? `<p class="qhse-premium-muted" style="margin:0 0 8px">Indicateur de confiance (indicatif) : ${Math.round(narrative.confidence * 100)} %.</p>`
+      ? `<p class="qhse-premium-muted" style="margin:0 0 8px">Complétude indicative des données sources : ${Math.round(narrative.confidence * 100)} % (non interprétable comme score statistique).</p>`
       : '';
   const list = (label, items) => {
     const rows = Array.isArray(items) ? items.filter(Boolean).slice(0, 12) : [];
     if (!rows.length) return '';
-    return `<p class="qhse-premium-muted" style="margin:10px 0 4px"><strong>${escapeHtml(label)}</strong></p>
-      <ul class="qhse-premium-ul">${rows.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`;
+    return `<p class="qhse-premium-muted" style="margin:10px 0 4px"><strong>${escapePdfText(label)}</strong></p>
+      <ul class="qhse-premium-ul">${rows.map((t) => `<li>${escapePdfText(t)}</li>`).join('')}</ul>`;
   };
   return `<h2 class="qhse-premium-h2">Analyse globale</h2>
     <div class="qhse-premium-card">
       ${aiNote}
       ${conf}
-      <p style="margin:0;color:#1e293b">${escapeHtml(String(narrative.summary).trim())}</p>
+      <p style="margin:0;color:#1e293b">${escapePdfText(String(narrative.summary).trim())}</p>
       ${list('Points forts', narrative.strengths)}
       ${list('Points de vigilance', narrative.weaknesses)}
-      ${list('Actions prioritaires (rédactionnel)', narrative.priorityActions)}
+      ${list('Actions prioritaires', narrative.priorityActions)}
     </div>`;
 }
 
@@ -355,7 +419,7 @@ export function premiumPdfPageShell(p) {
   const company = p.company != null ? String(p.company) : '';
   const org = p.organizationName != null ? String(p.organizationName) : '';
   const dateStr = p.reportDate != null ? String(p.reportDate) : formatQhsePdfGenerationDate();
-  const sub = p.subtitle ? `<p class="qhse-premium-sub">${escapeHtml(p.subtitle)}</p>` : '';
+  const sub = p.subtitle ? `<p class="qhse-premium-sub">${escapePdfText(p.subtitle)}</p>` : '';
   const logo =
     p.logoUrl && String(p.logoUrl).trim()
       ? `<img class="qhse-premium-logo-img" src="${escapeHtml(p.logoUrl)}" alt="" />`
@@ -369,19 +433,19 @@ export function premiumPdfPageShell(p) {
             ${logo}
             <span class="qhse-premium-logo">QHSE Control Africa</span>
           </div>
-          ${org ? `<div class="qhse-premium-client"><strong>Organisation :</strong> ${escapeHtml(org)}</div>` : ''}
-          ${company ? `<div class="qhse-premium-client"><strong>Site / périmètre :</strong> ${escapeHtml(company)}</div>` : ''}
-          <h1 class="qhse-premium-title" style="margin-top:10px">${escapeHtml(p.reportTitle)}</h1>
+          ${org ? `<div class="qhse-premium-client"><strong>Organisation :</strong> ${escapePdfText(org)}</div>` : ''}
+          ${company ? `<div class="qhse-premium-client"><strong>Site / périmètre :</strong> ${escapePdfText(company)}</div>` : ''}
+          <h1 class="qhse-premium-title" style="margin-top:10px">${escapePdfText(p.reportTitle)}</h1>
           ${sub}
         </div>
         <div class="qhse-premium-date">
-          <div>${escapeHtml(dateStr)}</div>
-          <div class="qhse-premium-muted" style="margin-top:6px">Page ${p.pageIndex} / ${p.totalPages}</div>
+          <div>${escapePdfText(dateStr)}</div>
+          <div class="qhse-premium-muted" style="margin-top:6px">Section ${escapePdfText(String(p.pageIndex))} / ${escapePdfText(String(p.totalPages))}</div>
         </div>
       </div>
     </header>
     <div class="qhse-premium-body">${p.bodyHtml}</div>
-    <footer class="qhse-premium-foot">QHSE Control Africa. Document confidentiel. Généré le ${escapeHtml(formatQhsePdfGenerationDate())}</footer>
+    <footer class="qhse-premium-foot">${QHSE_PDF_FOOTER_TAGLINE} · Édition ${escapePdfText(dateStr)}</footer>
     <div class="qhse-premium-brand-foot">QHSE Control Africa</div>
   </section>`;
 }
@@ -465,12 +529,12 @@ export function assemblePremiumPdfDocument(reportTitle, pageBodies, meta = {}) {
  */
 export function generatePremiumPdf(opts) {
   const includeCover = opts.includeCover !== false;
-  const title = String(opts.title || 'Rapport QHSE');
-  const company = opts.company != null ? String(opts.company) : '';
-  const org = opts.organizationName != null ? String(opts.organizationName) : '';
-  const site = opts.siteLabel != null ? String(opts.siteLabel) : '';
-  const dateStr = opts.date != null ? String(opts.date) : formatQhsePdfGenerationDate();
-  const subtitle = opts.subtitle != null ? String(opts.subtitle) : '';
+  const title = normalizePdfTypography(String(opts.title || 'Rapport QHSE'));
+  const company = opts.company != null ? normalizePdfTypography(String(opts.company)) : '';
+  const org = opts.organizationName != null ? normalizePdfTypography(String(opts.organizationName)) : '';
+  const site = opts.siteLabel != null ? normalizePdfTypography(String(opts.siteLabel)) : '';
+  const dateStr = opts.date != null ? normalizePdfTypography(String(opts.date)) : formatQhsePdfGenerationDate();
+  const subtitle = opts.subtitle != null ? normalizePdfTypography(String(opts.subtitle)) : '';
   const summary = String(opts.summary || '');
   const sections = Array.isArray(opts.sections) ? opts.sections : [];
   const actions = String(opts.actions || '');
@@ -486,7 +550,7 @@ export function generatePremiumPdf(opts) {
 
   let sectionsHtml = '';
   for (const s of sections) {
-    const t = String(s.title || '');
+    const t = normalizePdfTypography(String(s.title || ''));
     const h = String(s.html || '');
     if (!t && !h) continue;
     sectionsHtml += `<h2 class="qhse-premium-h2">${escapeHtml(t)}</h2><div class="qhse-premium-card">${h || '<p class="qhse-premium-muted">N/A</p>'}</div>`;
@@ -512,9 +576,10 @@ export function generatePremiumPdf(opts) {
       ? `<h2 class="qhse-premium-h2">Indicateurs clés</h2><div class="qhse-premium-card">${kpisBlock}</div>`
       : '';
 
-  const foot = footerExtra
-    ? `<footer class="qhse-premium-foot">${footerExtra}</footer>`
-    : `<footer class="qhse-premium-foot">Document confidentiel. Usage interne.</footer>`;
+  const footNorm = footerExtra ? normalizePdfTypography(footerExtra) : '';
+  const foot = footNorm
+    ? `<footer class="qhse-premium-foot">${escapeHtml(footNorm)}</footer>`
+    : `<footer class="qhse-premium-foot">${QHSE_PDF_FOOTER_TAGLINE} · ${escapePdfText(dateStr)}</footer>`;
 
   const totalPages = includeCover ? 2 : 1;
 
@@ -539,14 +604,20 @@ export function generatePremiumPdf(opts) {
           ${logo}
           <div>
             <div class="qhse-premium-logo">QHSE Control Africa</div>
-            ${org ? `<div class="qhse-premium-client"><strong>Organisation :</strong> ${escapeHtml(org)}</div>` : ''}
-            ${site || company ? `<div class="qhse-premium-client"><strong>Site / périmètre :</strong> ${escapeHtml(site || company)}</div>` : ''}
-            <h1 class="qhse-premium-title" style="margin-top:8px;font-size:13pt">${escapeHtml(title)}</h1>
+            ${org ? `<div class="qhse-premium-client"><strong>Organisation :</strong> ${escapePdfText(org)}</div>` : ''}
+            ${site || company
+              ? `<div class="qhse-premium-client"><strong>Site / périmètre :</strong> ${escapePdfText(site || company)}</div>`
+              : ''}
+            <h1 class="qhse-premium-title" style="margin-top:8px;font-size:13pt">${escapePdfText(title)}</h1>
           </div>
         </div>
         <div class="qhse-premium-date">
           ${escapeHtml(dateStr)}
-          ${includeCover ? `<div class="qhse-premium-muted" style="margin-top:6px">Page 2 / 2</div>` : ''}
+          ${
+            includeCover
+              ? `<div class="qhse-premium-muted" style="margin-top:6px">Corps du document - pagination PDF automatique</div>`
+              : ''
+          }
         </div>
       </div>
     </header>

@@ -67,18 +67,54 @@ export function qhsePdfSharedStyles() {
     .qhse-chrome-right { text-align: right; flex: 1; min-width: 140px; }
     .qhse-chrome-report { font-weight: 700; font-size: 10pt; }
     .qhse-chrome-date { font-size: 8pt; opacity: 0.95; margin-top: 4px; }
-    .qhse-chrome-body { padding: 0; }
+    .qhse-chrome-body { padding: 0; overflow-wrap: anywhere; word-break: break-word; }
     .qhse-chrome-foot {
       margin-top: 14px; padding-top: 8px; border-top: 1px solid #e2e8f0;
       font-size: 8pt; color: #64748b; text-align: center;
     }
-    .qhse-chrome-h1 { font-size: 16pt; font-weight: 800; margin: 0 0 8px; color: #0f172a; }
+    .qhse-chrome-h1 {
+      font-size: 16pt;
+      font-weight: 800;
+      margin: 0 0 8px;
+      color: #0f172a;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
     .qhse-chrome-h2 { font-size: 11pt; font-weight: 800; margin: 14px 0 8px; color: #0f172a; border-bottom: 2px solid ${QHSE_PDF_BRAND}; padding-bottom: 4px; }
     .qhse-chrome-muted { color: #64748b; font-size: 9pt; }
-    .qhse-chrome-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-top: 6px; }
-    .qhse-chrome-table th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 5px; text-align: left; font-weight: 700; }
-    .qhse-chrome-table td { border: 1px solid #e2e8f0; padding: 6px 5px; vertical-align: top; }
-    .qhse-chrome-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 7.5pt; white-space: nowrap; }
+    .qhse-chrome-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin-top: 6px;
+      table-layout: fixed;
+    }
+    .qhse-chrome-table th {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      padding: 6px 5px;
+      text-align: left;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .qhse-chrome-table td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 5px;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .qhse-chrome-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 7.5pt;
+      white-space: normal;
+      max-width: 100%;
+      word-break: break-word;
+    }
     .qhse-chrome-gauge-track { height: 16px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; max-width: 280px; overflow: hidden; display: inline-block; vertical-align: middle; width: 70%; }
     .qhse-chrome-gauge-fill { height: 100%; background: ${QHSE_PDF_BRAND}; border-radius: 3px; }
     .qhse-chrome-kpi-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
@@ -115,7 +151,7 @@ export function qhsePdfPageHtml(p) {
     </div>
   </header>
   <div class="qhse-chrome-body">${p.bodyHtml}</div>
-  <footer class="qhse-chrome-foot">QHSE Control Africa · Confidentiel · Page ${p.pageIndex} / ${p.totalPages}</footer>
+  <footer class="qhse-chrome-foot">QHSE Control Africa · Document confidentiel · Usage interne · Section ${p.pageIndex} / ${p.totalPages}</footer>
 </section>`;
 }
 

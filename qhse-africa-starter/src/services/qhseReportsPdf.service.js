@@ -11,7 +11,7 @@ import {
   formatQhsePdfGenerationDate,
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
-import { assemblePremiumPdfDocument } from '../utils/pdfPremiumTemplate.js';
+import { assemblePremiumPdfDocument, normalizePdfTypography } from '../utils/pdfPremiumTemplate.js';
 import {
   parseRiskMatrixGp,
   riskCriticalityFromMeta,
@@ -20,6 +20,11 @@ import {
 import { sortRisksByPriority } from '../utils/risksSort.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
+
+/** Texte cellule PDF : tirets normalisés puis échappement. */
+function pdfCell(s) {
+  return escapeHtml(normalizePdfTypography(String(s ?? '')));
+}
 
 /** @param {unknown} r */
 function riskGpProduct(r) {
@@ -82,7 +87,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   const counts = countRiskTiersPdf(list);
   const docTitle = 'Registre des risques QHSE';
   const siteNote = opts.siteLabel
-    ? `<p class="qhse-premium-muted"><strong>Périmètre :</strong> ${escapeHtml(opts.siteLabel)}</p>`
+    ? `<p class="qhse-premium-muted"><strong>Périmètre :</strong> ${pdfCell(opts.siteLabel)}</p>`
     : '';
 
   const summary = `
@@ -180,7 +185,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     coverSubtitle: 'Export registre risques'
   });
   await downloadQhseChromePdf(html, 'registre-risques.pdf', {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   });
 }
@@ -193,7 +198,7 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   const list = Array.isArray(incidents) ? incidents : [];
   const docTitle = 'Registre des incidents QHSE';
   const fil = opts.filtersSummary
-    ? `<p class="qhse-premium-muted"><strong>Filtres :</strong> ${escapeHtml(opts.filtersSummary)}</p>`
+    ? `<p class="qhse-premium-muted"><strong>Filtres :</strong> ${pdfCell(opts.filtersSummary)}</p>`
     : '';
 
   const crit = list.filter((i) => String(i?.severity || '').toLowerCase().includes('crit')).length;
@@ -214,20 +219,20 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   `;
 
   function rowHtml(inc) {
-    const ref = escapeHtml(String(inc?.ref ?? inc?.id ?? 'Non disponible'));
+    const ref = pdfCell(String(inc?.ref ?? inc?.id ?? 'Non disponible'));
     const date = inc?.createdAtMs
       ? new Date(inc.createdAtMs).toLocaleDateString('fr-FR')
       : inc?.createdAt
         ? new Date(String(inc.createdAt)).toLocaleDateString('fr-FR')
         : 'Non disponible';
-    const desc = String(inc?.description || inc?.title || 'Non disponible').slice(0, 120);
+    const desc = normalizePdfTypography(String(inc?.description || inc?.title || 'Non disponible')).slice(0, 120);
     return `<tr>
       <td>${ref}</td>
-      <td>${escapeHtml(String(inc?.type || 'Non renseigné'))}</td>
-      <td>${escapeHtml(String(inc?.status || 'Non disponible'))}</td>
-      <td>${escapeHtml(String(inc?.severity || 'Non renseigné'))}</td>
-      <td>${escapeHtml(String(inc?.site || 'Non renseigné'))}</td>
-      <td>${escapeHtml(date)}</td>
+      <td>${pdfCell(String(inc?.type || 'Non renseigné'))}</td>
+      <td>${pdfCell(String(inc?.status || 'Non disponible'))}</td>
+      <td>${pdfCell(String(inc?.severity || 'Non renseigné'))}</td>
+      <td>${pdfCell(String(inc?.site || 'Non renseigné'))}</td>
+      <td>${pdfCell(date)}</td>
       <td>${escapeHtml(desc)}</td>
     </tr>`;
   }
@@ -247,7 +252,7 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
     coverSubtitle: 'Export registre incidents'
   });
   await downloadQhseChromePdf(html, 'registre-incidents.pdf', {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   });
 }
@@ -394,7 +399,7 @@ export async function downloadPerformanceQhsePdf(ctx) {
     coverSubtitle: 'Pilotage performance'
   });
   await downloadQhseChromePdf(html, 'rapport-performance-qhse.pdf', {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   });
 }
@@ -446,7 +451,7 @@ export async function downloadAnalyticsSummaryPdf(data) {
     coverSubtitle: 'Cockpit analytique'
   });
   await downloadQhseChromePdf(html, 'analytics-synthese-qhse.pdf', {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   });
 }
@@ -502,7 +507,7 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
     coverSubtitle: 'Reporting périodique'
   });
   await downloadQhseChromePdf(html, 'reporting-periodique-qhse.pdf', {
-    margin: [12, 10, 16, 10],
+    margin: [12, 12, 16, 12],
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   });
 }

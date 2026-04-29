@@ -817,7 +817,7 @@ export function renderPermits() {
           coverSubtitle: 'Sécurité des interventions'
         });
         await downloadQhseChromePdf(html, `permis-${it.id}.pdf`, {
-          margin: [12, 10, 16, 10],
+          margin: [12, 12, 16, 12],
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         });
       } catch (e) {

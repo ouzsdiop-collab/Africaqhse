@@ -16,6 +16,13 @@ test.describe('Smoke QHSE', () => {
     await expect(page.getByRole('heading', { name: 'Incidents terrain' })).toBeVisible();
   });
 
+  test('écran login : parcours démonstration visible en dev Vite (aligné sur isDemoModeAllowed)', async ({ page }) => {
+    await page.goto('/#login');
+    await expect(page.locator('.lv2-form')).toBeVisible({ timeout: 30_000 });
+    // Sous `npm run dev`, le CTA est affiché. Build prod sans VITE_ALLOW_DEMO_MODE=true : pas de `.lv2-demo-link`.
+    await expect(page.locator('.lv2-demo-link')).toBeVisible();
+  });
+
   test('connexion JWT puis tableau de bord', async ({ page, request }) => {
     const apiBase = process.env.E2E_API_BASE || 'http://127.0.0.1:3001';
     const health = await request.get(`${apiBase}/api/health`).catch(() => null);

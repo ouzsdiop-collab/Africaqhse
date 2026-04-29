@@ -133,7 +133,7 @@ export function buildHtml2PdfOptions(filename, overrides = {}) {
 
   const safeName = filename || 'rapport-qhse.pdf';
   const base = {
-    margin: [10, 10, 10, 10],
+    margin: [12, 11, 14, 11],
     filename: safeName,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: mergedCanvas,
