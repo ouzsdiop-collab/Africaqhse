@@ -1,6 +1,7 @@
 /**
  * Gestion des preuves ISO : module isolé (store + UI modal + colonne registre).
- * Persistance serveur (API) avec repli localStorage si indisponible.
+ * Persistance serveur (API) uniquement en production.
+ * En mode démo uniquement, repli localStorage autorisé si l’API est indisponible.
  */
 import './isoProofsModule.css';
 import {
@@ -12,9 +13,42 @@ import { showToast } from './toast.js';
 import { ensureSensitiveAccess } from './sensitiveAccessGate.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { isDemoMode } from '../services/demoMode.service.js';
 
 const STORAGE_KEY = 'qhse-iso-proof-docs-module-v1';
 const TOUCHED_KEY = 'qhse-iso-proof-touched-reqs-v1';
+
+/** Etat d'erreur si l'API preuve ISO n'est pas joignable. */
+let evidenceApiError = null;
+
+function canUseLocalEvidenceFallback() {
+  return Boolean(isDemoMode());
+}
+
+function setEvidenceApiError(message) {
+  evidenceApiError = message;
+}
+
+function renderEvidenceApiErrorUi(isoRoot) {
+  const scope = isoRoot || document;
+  // Ne pas afficher d'erreur de manière bloquante en mode démo : on peut replier sur le local.
+  if (!evidenceApiError || canUseLocalEvidenceFallback()) {
+    scope.querySelector?.('.iso-evidence-api-error')?.remove();
+    return;
+  }
+
+  let el = scope.querySelector?.('.iso-evidence-api-error');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'iso-evidence-api-error';
+    el.style.cssText =
+      'border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:8px;padding:10px 12px;margin:10px 0 14px;page-break-inside:avoid;';
+    const table = scope.querySelector?.('.iso-req-table');
+    if (table?.parentNode) table.parentNode.insertBefore(el, table);
+    else scope.prepend?.(el);
+  }
+  el.innerHTML = `<strong>Problème serveur</strong> : ${escapeHtml(evidenceApiError)}`;
+}
 
 /** @typedef {'preuve' | 'procedure' | 'audit_doc'} IsoProofDocCategory */
 /** @typedef {'exigence' | 'nc' | 'audit'} IsoProofLinkKind */
@@ -101,9 +135,9 @@ async function hydrateFromApi() {
     if (!res.ok) throw new Error('iso evidence api');
     const data = await res.json();
     const list = Array.isArray(data.evidences) ? data.evidences : [];
-    const locals = documentsStore.filter((d) => d.source !== 'api');
+    const locals = canUseLocalEvidenceFallback() ? documentsStore.filter((d) => d.source !== 'api') : [];
     documentsStore.length = 0;
-    locals.forEach((d) => documentsStore.push(d));
+    if (locals.length) locals.forEach((d) => documentsStore.push(d));
     for (const e of list) {
       documentsStore.push(mapApiRowToDoc(e));
     }
@@ -112,14 +146,21 @@ async function hydrateFromApi() {
       touchedReqs.add(rid);
       syncRequirementStatusFromProofs(rid);
     }
-    saveTouched();
+    if (canUseLocalEvidenceFallback()) saveTouched();
+    setEvidenceApiError(null);
     return true;
   } catch {
+    documentsStore.length = 0;
+    touchedReqs = new Set();
+    if (!canUseLocalEvidenceFallback()) {
+      setEvidenceApiError('Impossible de charger les preuves ISO depuis le serveur. Réessayez plus tard.');
+    }
     return false;
   }
 }
 
 function loadTouched() {
+  if (!canUseLocalEvidenceFallback()) return new Set();
   try {
     const raw = localStorage.getItem(TOUCHED_KEY);
     if (!raw) return new Set();
@@ -131,6 +172,7 @@ function loadTouched() {
 }
 
 function saveTouched() {
+  if (!canUseLocalEvidenceFallback()) return;
   try {
     localStorage.setItem(TOUCHED_KEY, JSON.stringify([...touchedReqs]));
   } catch {
@@ -140,6 +182,7 @@ function saveTouched() {
 
 function loadDocuments() {
   documentsStore.length = 0;
+  if (!canUseLocalEvidenceFallback()) return;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -159,6 +202,7 @@ function loadDocuments() {
 }
 
 function persistDocuments() {
+  if (!canUseLocalEvidenceFallback()) return;
   try {
     const localOnly = documentsStore.filter((d) => d.source !== 'api');
     localStorage.setItem(STORAGE_KEY, JSON.stringify(localOnly));
@@ -168,7 +212,7 @@ function persistDocuments() {
   saveTouched();
 }
 
-loadDocuments();
+if (canUseLocalEvidenceFallback()) loadDocuments();
 
 /**
  * @param {Omit<IsoProofDocument, 'id' | 'createdAt'> & { id?: string; createdAt?: string }} entry
@@ -253,7 +297,7 @@ function getProofVisual(requirementId) {
     return { icon: '📎', label: 'Preuve validée', tone: 'ok' };
   }
   if (sts.some((s) => s === 'pending')) {
-    return { icon: '🟡', label: 'En attente validation', tone: 'verify' };
+    return { icon: '🟡', label: 'Preuve en attente', tone: 'verify' };
   }
   if (sts.some((s) => s === 'rejected')) {
     return { icon: '⛔', label: 'Preuve rejetée', tone: 'rejected' };
@@ -349,8 +393,7 @@ export function updateUI(root = document) {
       evList.style.marginTop = '6px';
       for (const d of evs) {
         const st = normEvidenceStatus(d);
-        const stLabel =
-          st === 'validated' ? 'Validé' : st === 'rejected' ? 'Rejeté' : 'Attente validation';
+        const stLabel = st === 'validated' ? 'Preuve validée' : st === 'rejected' ? 'Preuve rejetée' : 'Preuve en attente';
         const rowEv = document.createElement('div');
         rowEv.className = 'iso-proof-server-row';
         rowEv.style.cssText =
@@ -478,7 +521,14 @@ function openProofModal(opts = {}) {
   panel.innerHTML = `
     <div class="iso-proof-modal__head">
       <h3 id="iso-proof-modal-title">Joindre une preuve ISO</h3>
-      <p>Enregistrement prioritaire sur le serveur (traçabilité) ; repli navigateur si l’API est indisponible.</p>
+      <p>
+        Enregistrement sur le serveur (traçabilité).
+        ${
+          canUseLocalEvidenceFallback()
+            ? 'En mode démo uniquement, un repli local est possible si l’API est indisponible.'
+            : 'En production, si le serveur est indisponible, l’enregistrement échoue.'
+        }
+      </p>
     </div>
     <div class="iso-proof-modal__body">
       <div class="iso-proof-drop" tabindex="0">
@@ -757,9 +807,37 @@ function openProofModal(opts = {}) {
           triggerPageRefresh();
           return;
         }
+
+        // POST effectué mais non accepté par le serveur (droits, validation, payload, ...).
+        if (!canUseLocalEvidenceFallback()) {
+          const msg = "API indisponible ou requête refusée. La preuve ISO n’a pas été enregistrée.";
+          setEvidenceApiError(msg);
+          renderEvidenceApiErrorUi(document);
+          showToast(msg, 'error');
+          return;
+        }
       } catch {
-        showToast('API indisponible — enregistrement local.', 'warning');
+        if (canUseLocalEvidenceFallback()) {
+          showToast('API indisponible - enregistrement local autorisé en mode démo.', 'warning');
+        } else {
+          const msg = "API indisponible. La preuve ISO n’a pas été enregistrée.";
+          setEvidenceApiError(msg);
+          renderEvidenceApiErrorUi(document);
+          showToast(msg, 'error');
+        }
+        if (!canUseLocalEvidenceFallback()) return;
       }
+    }
+
+    // Dans les exports production, toute preuve ISO doit être enregistrée côté backend.
+    // Le repli local est autorisé uniquement en mode démo.
+    if (!canUseLocalEvidenceFallback()) {
+      const msg =
+        'Enregistrement serveur requis. Sélectionnez une exigence ISO à lier à la preuve.';
+      setEvidenceApiError(msg);
+      renderEvidenceApiErrorUi(document);
+      showToast(msg, 'error');
+      return;
     }
 
     const id = addDocument({
@@ -809,8 +887,9 @@ function enhanceDocsSection(isoRoot) {
 function mountIsoProofsModule(isoRoot) {
   enhanceDocsSection(isoRoot);
   updateUI(isoRoot);
-  void hydrateFromApi().then((ok) => {
-    if (ok) updateUI(isoRoot);
+  void hydrateFromApi().then(() => {
+    renderEvidenceApiErrorUi(isoRoot);
+    updateUI(isoRoot);
   });
 
   const table = isoRoot.querySelector('.iso-req-table');
