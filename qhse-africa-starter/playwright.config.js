@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * E2E : démarrez `npm run dev` (API + Vite) ou définissez E2E_SKIP_WEBSERVER=1 si déjà lancé.
  * Comptes seed : voir backend/prisma/seed.js (ex. admin@qhse.local / Demo2026!).
- * Démo login : le bouton « démonstration terrain » n’apparaît en prod que si VITE_ALLOW_DEMO_MODE=true au build (voir demoMode.service.js).
+ * La page login ne propose plus de CTA démo mines ; le parcours reste accessible via `/#mines-demo` ou les réglages (voir demoMode.service.js).
  */
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 

@@ -12,7 +12,7 @@ export const MODULE_META = {
   products: { label: 'Produits / FDS', short: 'PRD', className: 'mod-products' },
   context: { label: 'Contexte site', short: 'CTX', className: 'mod-context' },
   system: { label: 'Système', short: 'SYS', className: 'mod-system' },
-  'ai-center': { label: 'Centre IA', short: 'IA', className: 'mod-ai-center' }
+  'ai-center': { label: 'Synthèse et assist.', short: 'Synth.', className: 'mod-ai-center' }
 };
 
 export function moduleMeta(moduleId) {

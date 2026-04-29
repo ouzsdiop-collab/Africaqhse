@@ -67,9 +67,9 @@ export function createTopbar({
       <div class="app-topbar__trailing">
         <div class="app-topbar__trailing-actions" aria-label="Actions rapides">
           <button type="button" class="app-btn-ghost app-topbar__multisites">Multi-sites</button>
-          <button type="button" class="ghost-chip topbar-ai-btn" aria-label="Ouvrir le Centre IA">
+          <button type="button" class="ghost-chip topbar-ai-btn" aria-label="Ouvrir synthèse et assistance">
             <span class="ghost-chip-icon" aria-hidden="true">✦</span>
-            <span>Centre IA</span>
+            <span>Synthèse</span>
           </button>
           ${
             cta

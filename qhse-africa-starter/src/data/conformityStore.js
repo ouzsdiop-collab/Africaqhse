@@ -372,7 +372,7 @@ function saveImportedProofsRaw(/** @type {ImportedDocumentProof[]} */ list) {
 }
 
 /**
- * Preuves issues de l’import intelligent ISO (persistées localement, sans API).
+ * Preuves issues de l’import assisté ISO (persistées localement, sans API).
  * @returns {ImportedDocumentProof[]}
  */
 export function getImportedDocumentProofs() {

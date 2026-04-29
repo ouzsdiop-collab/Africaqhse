@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireSuperAdmin } from '../middleware/requireSuperAdmin.middleware.js';
 import * as controller from '../controllers/admin.controller.js';
 
+/** Toutes les routes : JWT Bearer + rôle SUPER_ADMIN (pas d’impersonation X-User-Id). */
 const router = Router();
 
 router.use(requireSuperAdmin);

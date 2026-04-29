@@ -79,20 +79,24 @@ function matrixCellStyle(g, p) {
 
 /**
  * @param {unknown[]} risks : lignes UI registre (title, meta, type, status, responsible…)
- * @param {{ siteLabel?: string }} [opts]
+ * @param {{ siteLabel?: string, organizationName?: string }} [opts]
  */
 export async function downloadRisksRegisterPdf(risks, opts = {}) {
   const list = Array.isArray(risks) ? [...risks] : [];
   const sorted = sortRisksByPriority(list);
   const counts = countRiskTiersPdf(list);
   const docTitle = 'Registre des risques QHSE';
+  const orgNote = opts.organizationName
+    ? `<p class="qhse-premium-muted"><strong>Organisation :</strong> ${pdfCell(opts.organizationName)}</p>`
+    : '';
   const siteNote = opts.siteLabel
-    ? `<p class="qhse-premium-muted"><strong>Périmètre :</strong> ${pdfCell(opts.siteLabel)}</p>`
+    ? `<p class="qhse-premium-muted"><strong>Site :</strong> ${pdfCell(opts.siteLabel)}</p>`
     : '';
 
   const summary = `
     <h2 class="qhse-premium-h2">Résumé exécutif</h2>
     <p class="qhse-premium-muted">Vue agrégée du registre des risques pour le périmètre exporté.</p>
+    ${orgNote}
     ${siteNote}
     <h2 class="qhse-premium-h2">Indicateurs clés</h2>
     <div class="qhse-premium-kpi-grid">
@@ -179,6 +183,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   }
 
   const html = assemblePremiumPdfDocument(docTitle, pages, {
+    organizationName: opts.organizationName || '',
     company: opts.siteLabel || '',
     siteLabel: opts.siteLabel || '',
     reportDate: formatQhsePdfGenerationDate(),

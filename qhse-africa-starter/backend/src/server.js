@@ -54,7 +54,9 @@ import { startAutomationScheduler } from './automationScheduler.js';
 import { scheduleWeeklyEmailReport } from './services/periodicReporting.service.js';
 import {
   isRequireAuthEnabled,
-  isXUserIdAllowed
+  isXUserIdAllowed,
+  isManagedCloudRuntime,
+  formatRequireAuthDisabledBanner
 } from './lib/securityConfig.js';
 
 /** Logs de démarrage sur stderr : souvent non bufferisés, visibles tout de suite sur Railway. */
@@ -135,12 +137,52 @@ function validateProductionEnvOrExit() {
   }
 }
 
+/**
+ * Même si NODE_ENV≠production (ex. preview Railway), on impose auth + pas de X-User-Id sur hébergeurs managés.
+ */
+function validateManagedCloudSecurityOrExit() {
+  if (process.env.VITEST === 'true') return;
+  if (!isManagedCloudRuntime()) return;
+
+  /** @type {string[]} */
+  const problems = [];
+
+  const reqAuth = process.env.REQUIRE_AUTH;
+  if (reqAuth !== 'true' && reqAuth !== '1') {
+    problems.push(
+      'REQUIRE_AUTH doit être "true" sur hébergeur cloud (Railway, Render, Fly, Cloud Run, etc.).'
+    );
+  }
+
+  const allowX = process.env.ALLOW_X_USER_ID;
+  if (allowX !== 'false' && allowX !== '0') {
+    problems.push(
+      'ALLOW_X_USER_ID doit être explicitement "false" sur hébergeur cloud (développement local uniquement).'
+    );
+  }
+
+  if (problems.length) {
+    console.error('[security] verrouillage hébergeur cloud : configuration refusée');
+    for (const p of problems) console.error(`- ${p}`);
+    process.exit(1);
+  }
+}
+
+function warnIfRequireAuthDisabledOnTrustedDevHost() {
+  if (process.env.VITEST === 'true') return;
+  if (isRequireAuthEnabled()) return;
+  if (isManagedCloudRuntime()) return;
+  console.error(formatRequireAuthDisabledBanner());
+}
+
 /* En ESM, ce code s’exécute après tous les imports ci-dessus (ordre de chargement du module). */
 bootErrLine(
   `modules importés pid=${process.pid} NODE_ENV=${process.env.NODE_ENV ?? '(absent)'} VITEST=${process.env.VITEST ?? 'absent'}`
 );
 
 validateProductionEnvOrExit();
+validateManagedCloudSecurityOrExit();
+warnIfRequireAuthDisabledOnTrustedDevHost();
 
 try {
   bootErrLine('registerBusinessEventListeners()…');

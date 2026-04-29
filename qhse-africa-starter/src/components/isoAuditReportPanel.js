@@ -138,7 +138,7 @@ export function openIsoAuditReportModal(report) {
   narrativeBox.setAttribute('aria-busy', 'true');
   narrativeBox.innerHTML = `
     <div class="iso-ar-narrative-head">
-      <span class="iso-ar-narrative-badge">IA assistée — validation humaine recommandée</span>
+      <span class="iso-ar-narrative-badge">Texte assisté : relecture et validation requises</span>
       <div class="iso-ar-narrative-actions">
         <button type="button" class="btn btn-secondary iso-ar-narrative-regen" disabled>Régénérer</button>
       </div>
@@ -233,25 +233,25 @@ export function openIsoAuditReportModal(report) {
       'Points conformes',
       report.conformingPoints,
       (x) =>
-        `<strong>${escapeHtml(x.clause)}</strong> (${escapeHtml(x.normCode)}) — ${escapeHtml(x.title)}. <span class="iso-ar-muted">${escapeHtml(x.detail)}</span>`
+        `<strong>${escapeHtml(x.clause)}</strong> (${escapeHtml(x.normCode)}) : ${escapeHtml(x.title)}. <span class="iso-ar-muted">${escapeHtml(x.detail)}</span>`
     ),
     sectionList(
       'Non-conformités',
       report.nonConformities,
       (x) =>
-        `<strong>${escapeHtml(x.clause)}</strong> — ${escapeHtml(x.title)}. ${escapeHtml(x.detail)}`
+        `<strong>${escapeHtml(x.clause)}</strong> : ${escapeHtml(x.title)}. ${escapeHtml(x.detail)}`
     ),
     sectionList(
       'Écarts partiels',
       report.partialGaps,
       (x) =>
-        `<strong>${escapeHtml(x.clause)}</strong> — ${escapeHtml(x.title)}. ${escapeHtml(x.detail)}`
+        `<strong>${escapeHtml(x.clause)}</strong> : ${escapeHtml(x.title)}. ${escapeHtml(x.detail)}`
     ),
     sectionList(
       'Preuves à renforcer',
       report.missingEvidence,
       (x) =>
-        `<strong>${escapeHtml(x.clause)}</strong> — ${escapeHtml(x.title)} : ${escapeHtml(x.detail)}`
+        `<strong>${escapeHtml(x.clause)}</strong> : ${escapeHtml(x.title)} : ${escapeHtml(x.detail)}`
     ),
     sectionList(
       'Actions prioritaires (ouvertes)',
@@ -263,7 +263,7 @@ export function openIsoAuditReportModal(report) {
       'Risques critiques / très élevés',
       report.criticalRisks,
       (x) =>
-        `${escapeHtml(x.ref || '—')} — ${escapeHtml(x.title)} <span class="iso-ar-muted">(${escapeHtml(x.label)})</span>`
+        `${escapeHtml(x.ref || 'n/r')} : ${escapeHtml(x.title)} <span class="iso-ar-muted">(${escapeHtml(x.label)})</span>`
     )
   );
 

@@ -224,10 +224,10 @@ function createCopilotBlock() {
   host.innerHTML = `
     <div class="iso-copilot-conformite-premium__head">
       <div>
-        <p class="iso-copilot-conformite-premium__kicker">Pilotage intelligent</p>
-        <h2 class="iso-copilot-conformite-premium__title" id="iso-copilot-conformite-title">Assistant conformité</h2>
+        <p class="iso-copilot-conformite-premium__kicker">Appui conformité</p>
+        <h2 class="iso-copilot-conformite-premium__title" id="iso-copilot-conformite-title">Pistes d’actions</h2>
       </div>
-      <span class="iso-copilot-conformite-premium__badge">2–3 actions</span>
+      <span class="iso-copilot-conformite-premium__badge">2 à 3 actions</span>
     </div>
     <ul class="iso-copilot-conformite-premium__list" role="list"></ul>
   `;

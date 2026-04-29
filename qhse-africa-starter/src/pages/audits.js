@@ -256,23 +256,23 @@ function buildAuditSmartNotifications() {
   const imminent = items.some((i) => i.key.startsWith('soon-') || i.key.startsWith('late-'));
   const enCours = items.some((i) => i.key.startsWith('run-'));
   let suggestNotifyHint =
-    'Suggestion IA : notifier après validation humaine du périmètre et des participants (aucun envoi automatique).';
+    'Suggestion assistée : notifier après validation humaine du périmètre et des participants (aucun envoi automatique).';
   if (imminent) {
     suggestNotifyHint =
-      'Suggestion IA : envoyer un rappel aux participants et au site dans les 48 h. L’audit est imminent ou l’échéance est passée.';
+      'Suggestion assistée : envoyer un rappel aux participants et au site dans les 48 h. L’audit est imminent ou l’échéance est passée.';
   } else if (enCours) {
     suggestNotifyHint =
-      'Suggestion IA : notifier pour point d’étape mi-parcours (constats provisoires). À valider avec l’auditeur.';
+      'Suggestion assistée : notifier pour point d’étape mi-parcours (constats provisoires). À valider avec l’auditeur.';
   } else if (NC_OUVERTES_COUNT > 0 || ACTIONS_RETARD_COUNT > 0) {
     suggestNotifyHint =
-      'Suggestion IA : notifier les pilotes d’actions et la direction sur les NC et retards. Message à personnaliser avant envoi.';
+      'Suggestion assistée : notifier les pilotes d’actions et la direction sur les NC et retards. Message à personnaliser avant envoi.';
   }
 
   return { items, suggestNotifyHint };
 }
 
 /**
- * Carte notifications intelligentes + CTA participants (interface locale).
+ * Carte notifications contextuelles et CTA participants (interface locale).
  * @param {{ canAuditWrite: boolean; su: ReturnType<typeof getSessionUser>; model: ReturnType<typeof buildAuditSmartNotifications> }} opts
  */
 function createAuditIntelligentNotificationsCard(opts) {
@@ -1758,7 +1758,7 @@ export async function renderAudits() {
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         activityLogStore.add({
           module: 'audits',
-          action: 'Suggestion IA : fenêtre de notification',
+          action: 'Suggestion assistée : fenêtre de notification',
           detail: 'Quand notifier les participants',
           user: 'Utilisateur'
         });
@@ -1781,7 +1781,7 @@ export async function renderAudits() {
         return;
       }
       showToast(
-        `Suggestion IA « ${label} ». Connectez votre moteur ou API pour une analyse produite côté serveur.`,
+        `Suggestion assistée « ${label} ». Connectez votre moteur ou API pour une analyse produite côté serveur.`,
         'info'
       );
       activityLogStore.add({

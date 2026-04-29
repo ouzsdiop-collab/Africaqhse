@@ -71,6 +71,12 @@ function moduleEnabled(m, key) {
   return m[key] !== false;
 }
 
+/** @param {string} key */
+function moduleLabelForKey(key) {
+  const def = MODULE_DEFS.find((d) => d.key === key);
+  return def ? def.label : key;
+}
+
 export function renderSaasClients() {
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas saas-clients-page';
@@ -135,7 +141,7 @@ export function renderSaasClients() {
           <div class="section-kicker">SaaS</div>
           <h3 style="margin:0 0 6px">Cockpit clients</h3>
           <p class="content-card-lead" style="margin:0;max-width:64ch;font-size:13px">
-            Vue par entreprise : utilisateurs, rôles, statut et modules (référentiel support — application progressive côté produit).
+            Par entreprise : utilisateurs, rôles, statut et modules activés. Création d’admin client et mot de passe provisoire à communiquer une seule fois.
           </p>
         </div>
       </div>
@@ -359,6 +365,15 @@ export function renderSaasClients() {
               const key = inp.getAttribute('data-key');
               if (!key || !tid) return;
               const enabled = inp.checked;
+              if (
+                !enabled &&
+                !window.confirm(
+                  `Désactiver le module « ${moduleLabelForKey(key)} » pour cette entreprise ? Les utilisateurs peuvent perdre l’accès à cette fonctionnalité.`
+                )
+              ) {
+                inp.checked = true;
+                return;
+              }
               try {
                 const r = await qhseFetch(`/api/admin/clients/${encodeURIComponent(tid)}`, {
                   method: 'PATCH',
@@ -384,6 +399,15 @@ export function renderSaasClients() {
           const sel = statusSel;
           const v = String(sel.value || 'active');
           const prev = String(sel.dataset.last || 'active');
+          if (
+            v !== prev &&
+            !window.confirm(
+              `Modifier le statut de l’entreprise (${prev} → ${v}) ? Cela peut suspendre l’accès client ou passer en essai selon le choix.`
+            )
+          ) {
+            sel.value = prev;
+            return;
+          }
           try {
             const r = await qhseFetch(`/api/admin/clients/${encodeURIComponent(tid)}`, {
               method: 'PATCH',
@@ -408,6 +432,13 @@ export function renderSaasClients() {
         card.querySelector('.sc-btn-reset-admin')?.addEventListener('click', async () => {
           const btn = card.querySelector('.sc-btn-reset-admin');
           if (!btn || !tid) return;
+          if (
+            !window.confirm(
+              'Réinitialiser le mot de passe de l’administrateur client principal ? Un mot de passe provisoire sera généré ; l’ancien ne fonctionnera plus.'
+            )
+          ) {
+            return;
+          }
           const prev = btn.textContent;
           btn.setAttribute('disabled', 'true');
           btn.textContent = '…';
@@ -482,6 +513,13 @@ export function renderSaasClients() {
               showToast('Rôle inchangé.', 'error');
               return;
             }
+            if (
+              !window.confirm(
+                `Appliquer le rôle « ${role} » à cet utilisateur ? Les permissions dans cette organisation seront mises à jour immédiatement.`
+              )
+            ) {
+              return;
+            }
             btn.setAttribute('disabled', 'true');
             try {
               const r = await qhseFetch(`/api/admin/users/${encodeURIComponent(uid)}`, {
@@ -509,6 +547,13 @@ export function renderSaasClients() {
             const uid = btn.getAttribute('data-user');
             const tenant = btn.getAttribute('data-tenant');
             if (!uid || !tenant) return;
+            if (
+              !window.confirm(
+                'Réinitialiser le mot de passe de cet utilisateur ? Un mot de passe provisoire sera affiché ; l’ancien ne fonctionnera plus.'
+              )
+            ) {
+              return;
+            }
             btn.setAttribute('disabled', 'true');
             try {
               const r2 = await qhseFetch(`/api/admin/users/${encodeURIComponent(uid)}/reset-password`, {
@@ -542,6 +587,15 @@ export function renderSaasClients() {
             const tenant = btn.getAttribute('data-tenant');
             const was = btn.getAttribute('data-active') === '1';
             if (!uid || !tenant) return;
+            if (
+              !window.confirm(
+                was
+                  ? 'Suspendre cet utilisateur ? Il ne pourra plus se connecter tant qu’il n’est pas réactivé.'
+                  : 'Réactiver cet utilisateur ? Il pourra à nouveau se connecter.'
+              )
+            ) {
+              return;
+            }
             btn.setAttribute('disabled', 'true');
             try {
               const r = await qhseFetch(`/api/admin/users/${encodeURIComponent(uid)}`, {

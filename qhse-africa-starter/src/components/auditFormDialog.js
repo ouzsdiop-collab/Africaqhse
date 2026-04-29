@@ -155,7 +155,7 @@ export function openAuditDialog(audit = null, opts = {}) {
       <label class="field"><span>Date prévue</span><input type="text" class="control-input qhse-audit-f-date" placeholder="JJ/MM/AAAA" autocomplete="off" /></label>
       <label class="field"><span>Statut</span><input type="text" class="control-input qhse-audit-f-status" value="en cours" autocomplete="off" /></label>
       <label class="field field-full"><span>Notes</span><textarea class="control-input qhse-audit-f-notes" rows="2" autocomplete="off"></textarea></label>
-      <label class="field field-full"><span>Grille IA (modifiable)</span><textarea class="control-input qhse-audit-f-ai-grid" rows="3" autocomplete="off" placeholder="Générée via le bouton IA, puis relue/éditée avant enregistrement."></textarea></label>
+      <label class="field field-full"><span>Grille assistée (modifiable)</span><textarea class="control-input qhse-audit-f-ai-grid" rows="3" autocomplete="off" placeholder="Générée via le bouton d’assistance, puis relue et éditée avant enregistrement."></textarea></label>
       <label class="field"><span>Score (0–100)</span><input type="number" min="0" max="100" class="control-input qhse-audit-f-score" value="70" /></label>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
@@ -167,11 +167,11 @@ export function openAuditDialog(audit = null, opts = {}) {
         <div>
           <div style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-size:12px;font-weight:900">
             <span style="width:7px;height:7px;border-radius:999px;background:#38bdf8"></span>
-            Suggestion IA à valider
+            Suggestion assistée à valider
           </div>
           <p class="qhse-audit-form-ai__hint">Optionnel : générer des questions / points de contrôle selon le type d’audit. Rien n’est créé tant que vous n’enregistrez pas.</p>
         </div>
-        <button type="button" class="btn btn-secondary btn-sm qhse-audit-f-ai">Générer grille IA</button>
+        <button type="button" class="btn btn-secondary btn-sm qhse-audit-f-ai">Générer grille assistée</button>
       </div>
     </div>
   `;
@@ -220,7 +220,7 @@ export function openAuditDialog(audit = null, opts = {}) {
   aiBtn?.addEventListener('click', async () => {
     const type = typeIn.value.trim() || 'interne';
     aiBtn.disabled = true;
-    aiBtn.textContent = 'IA…';
+    aiBtn.textContent = 'Assist…';
     try {
       const res = await qhseFetch('/api/ai/audit-questions', {
         method: 'POST',
@@ -229,24 +229,24 @@ export function openAuditDialog(audit = null, opts = {}) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        showToast('IA indisponible pour ce type. Relancez ou renseignez manuellement.', 'warning');
+        showToast('Assistance indisponible pour ce type. Relancez ou renseignez manuellement.', 'warning');
         return;
       }
       const structured = body?.structured && typeof body.structured === 'object' ? body.structured : null;
       const suggestion = typeof body?.suggestion === 'string' ? body.suggestion : '';
       if (!structured && !suggestion) {
-        showToast('Réponse IA vide. Relancez ou renseignez manuellement.', 'warning');
+        showToast('Réponse vide. Relancez ou renseignez manuellement.', 'warning');
         return;
       }
       const { openAiStructuredValidationDialog } = await import('./aiStructuredValidationDialog.js');
       openAiStructuredValidationDialog({
-        title: `Audit (${type}) — grille suggérée`,
+        title: `Audit (${type}) : grille suggérée`,
         ai: { structured: structured || { type: 'audit_analysis', confidence: 0.5, content: {} }, suggestionText: suggestion },
         onValidate: async ({ summary, recommendedActionsText }) => {
           // Validation humaine: on injecte dans "Grille IA" (édition possible avant Enregistrer).
           const block = [
             '---',
-            'Grille / questions IA (à valider):',
+            'Grille ou questions assistées (à valider) :',
             summary ? `Résumé: ${summary}` : '',
             recommendedActionsText ? `Points:\n${recommendedActionsText}` : '',
             '---'
@@ -255,7 +255,7 @@ export function openAuditDialog(audit = null, opts = {}) {
             .join('\n');
           const prev = String(aiGridIn.value || '').trim();
           aiGridIn.value = prev ? `${prev}\n\n${block}` : block;
-          showToast('Grille IA copiée. Relisez avant enregistrement.', 'info');
+          showToast('Grille assistée copiée. Relisez avant enregistrement.', 'info');
         }
       });
     } catch (e) {
@@ -263,7 +263,7 @@ export function openAuditDialog(audit = null, opts = {}) {
       showToast('IA indisponible. Relancez ou saisissez manuellement.', 'error');
     } finally {
       aiBtn.disabled = false;
-      aiBtn.textContent = 'Générer grille IA';
+      aiBtn.textContent = 'Générer grille assistée';
     }
   });
 

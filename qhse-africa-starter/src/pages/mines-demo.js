@@ -300,7 +300,7 @@ export function renderMinesDemo() {
   ptwHost.className = 'mines-demo-list';
   ptwCard.append(ptwHost);
 
-  const auditCard = card('Audits / actions / NC majeures', 'Exécution du plan d’amélioration continue.');
+  const auditCard = card('Audits / actions / NC majeures', 'Suivi des constats, plans d’actions et levées de NC.');
   const auditHost = document.createElement('div');
   auditHost.className = 'mines-demo-list';
   auditCard.append(auditHost);

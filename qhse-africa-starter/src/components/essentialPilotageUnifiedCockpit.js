@@ -35,7 +35,7 @@ export function createEssentialPilotageUnifiedCockpit() {
       <div class="content-card-head content-card-head--split">
         <div>
           <div class="section-kicker">Cockpit</div>
-          <h3 class="content-card-title">Pilotage intelligent (Essentiel)</h3>
+          <h3 class="content-card-title">Pilotage Essentiel</h3>
           <p class="content-card-lead">Priorités · score · alertes critiques · actions recommandées.</p>
           <p class="dashboard-essential-pilotage__dq" style="margin:8px 0 0;font-size:12px;color:var(--text2,#94a3b8)"></p>
         </div>

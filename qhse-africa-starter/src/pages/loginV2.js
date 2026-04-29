@@ -9,9 +9,8 @@ import {
 import { persistTokensFromLoginResponse } from '../utils/auth.js';
 import { showToast } from '../components/toast.js';
 import { ensureDashboardStyles } from '../components/dashboardStyles.js';
-import { setCurrentPage, setActiveSiteContext } from '../utils/state.js';
-import { setDemoMode, isDemoModeAllowed } from '../services/demoMode.service.js';
-import { DEMO_SITE_ID, DEMO_SITE_LABEL } from '../data/demoModeFixtures.js';
+import { setCurrentPage } from '../utils/state.js';
+import { setDemoMode } from '../services/demoMode.service.js';
 
 const LOGIN_V2_STYLE_ID = 'qhse-loginv2-styles';
 
@@ -1220,7 +1219,7 @@ export function createFirstPasswordChangeView({ onSuccess, onNavigate }) {
   screen.className = 'lv2-screen';
   const left = lv2AuthLeftColumnMini(
     'Sécurisez<br>votre accès',
-    'Votre administrateur vous a fourni un mot de passe provisoire. Choisissez un mot de passe définitif pour accéder à la plateforme.'
+    'Votre administrateur vous a attribué un mot de passe provisoire. Définissez un mot de passe définitif pour accéder à votre espace.'
   );
   const right = document.createElement('div');
   right.className = 'lv2-right';
@@ -1351,6 +1350,7 @@ export function createFirstPasswordChangeView({ onSuccess, onNavigate }) {
         showToast('Réponse serveur invalide', 'error');
         return;
       }
+      setDemoMode(false);
       clearPasswordSetupContext();
       persistTokensFromLoginResponse(body);
       setAuthSession(
@@ -1404,28 +1404,28 @@ export function createLoginView({ onSuccess, onNavigate }) {
     </div>
 
     <div class="lv2-left-main">
-    <h1 class="lv2-headline">Pilotez votre QHSE.<br>Depuis le terrain.</h1>
+    <h1 class="lv2-headline">Incidents, risques, ISO et plans d’actions.<br>Même outil, périmètre par site.</h1>
     <p class="lv2-tagline">
-      La plateforme digitale conçue pour les entreprises africaines.
+      Registre unique : événements terrain, exigences, actions correctives et pièces justificatives rattachées au site.
     </p>
       <div class="lv2-sep" aria-hidden="true"></div>
 
       <div class="lv2-benefits">
         <div class="lv2-benefit">
           <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-        <span>Déclaration terrain en <strong>moins de 2 minutes</strong>, même sans connexion</span>
+        <span>Déclaration incident guidée en <strong>moins de deux minutes</strong>, saisie possible sans réseau</span>
       </div>
       <div class="lv2-benefit">
         <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-        <span>Conformité <strong>ISO 45001 · ISO 14001 · ISO 9001</strong> intégrée</span>
+        <span>Référentiels <strong>45001, 14001 et 9001</strong> : exigences, preuves et campagnes d’audit</span>
         </div>
         <div class="lv2-benefit">
           <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-        <span>Rapports PDF et alertes <strong>automatisés</strong> par email</span>
+        <span>Exports PDF et <strong>rappels</strong> par e-mail sur les échéances suivies</span>
         </div>
         <div class="lv2-benefit">
           <span style="flex-shrink:0;margin-top:2px">${CHECK_SVG}</span>
-        <span>Analyse des risques chimiques par <strong>IA</strong> (FDS en 1 clic)</span>
+        <span>Extraction des champs clés des <strong>FDS</strong> pour préparer le registre produits (relecture obligatoire)</span>
       </div>
     </div>
 
@@ -1435,21 +1435,20 @@ export function createLoginView({ onSuccess, onNavigate }) {
         <span class="lv2-stat-label">Pays couverts</span>
       </div>
       <div class="lv2-stat">
-        <span class="lv2-stat-num" data-count="100" data-suffix="%">0%</span>
-        <span class="lv2-stat-label">Hors connexion</span>
+        <span class="lv2-stat-num" data-count="12" data-suffix="+">0+</span>
+        <span class="lv2-stat-label">Modules QHSE couverts</span>
         </div>
       <div class="lv2-stat">
-        <span class="lv2-stat-num" data-text="IA">IA</span>
-        <span class="lv2-stat-label">Intégrée</span>
+        <span class="lv2-stat-num" data-text="FDS">FDS</span>
+        <span class="lv2-stat-label">Lecture assistée</span>
       </div>
     </div>
 
     <div class="lv2-testimonial">
       <p class="lv2-testimonial-text">
-        "Nous avons réduit notre temps de reporting QHSE de 60 %
-        dès le premier mois d'utilisation."
+        « Moins de ressaisie : incidents, actions et extraits PDF partent d’une seule base. Les revues mensuelles sont plus rapides. »
       </p>
-      <p class="lv2-testimonial-author">Responsable QHSE · industrie minière · Sénégal</p>
+      <p class="lv2-testimonial-author">Responsable QHSE, industrie extractive, Sénégal</p>
     </div>
 
     <div class="lv2-countries">
@@ -1463,7 +1462,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
     </div>
   </div>
 
-  <p class="lv2-gdpr">Sécurité des accès · Journal d'audit · Multi-organisations</p>
+  <p class="lv2-gdpr">Contrôle d’accès, journal des connexions, données isolées par organisation</p>
   `;
 
   const leftMain = left.querySelector('.lv2-left-main');
@@ -1479,15 +1478,6 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const inner = document.createElement('div');
   inner.className = 'lv2-right-inner';
 
-  const showDemoEntry = isDemoModeAllowed();
-  const demoCtaBlock = showDemoEntry
-    ? `
-      <div class="lv2-sep lv2-demo-sep" style="margin:20px 0" aria-hidden="true"></div>
-      <button type="button" class="lv2-demo-link" title="Scénario indicatif secteur minier. Données de démonstration uniquement.">
-        Essayer la démonstration terrain (sans compte)
-      </button>`
-    : '';
-
   inner.innerHTML = `
     <div class="lv2-mobile-brand">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(82,148,247,.9)" stroke-width="1.75" aria-hidden="true">
@@ -1497,7 +1487,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
     </div>
     <form class="lv2-form" novalidate>
       <p class="lv2-form-title">Connexion à votre espace</p>
-      <p class="lv2-form-sub">Bienvenue sur QHSE Control : la plateforme QHSE dédiée à l'Afrique.</p>
+      <p class="lv2-form-sub">Connexion chiffrée (TLS). Après authentification, sélection de l’organisation si plusieurs accès.</p>
       <label class="lv2-field">
         <span class="lv2-field-label">E-mail ou identifiant client</span>
         <input type="text" name="identifier" class="control-input lv2-input lv2-email" autocomplete="username" placeholder="vous@entreprise.com ou cli-…" />
@@ -1522,7 +1512,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
              stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
-        Connexion sécurisée · Données chiffrées
+        Connexion chiffrée (HTTPS). Session protégée.
       </p>
       <div class="lv2-org-panel" style="display:none;margin-top:16px;padding:12px;border-radius:10px;background:rgba(15,23,42,.06);border:1px solid rgba(15,23,42,.1)">
         <label class="lv2-field">
@@ -1531,7 +1521,6 @@ export function createLoginView({ onSuccess, onNavigate }) {
         </label>
         <button type="button" class="btn btn-primary lv2-org-continue" style="margin-top:12px;width:100%">Continuer</button>
       </div>
-      ${demoCtaBlock}
     </form>
   `;
 
@@ -1541,7 +1530,6 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const emailEl = inner.querySelector('.lv2-email');
   const passEl = inner.querySelector('.lv2-password');
   const submitBtn = inner.querySelector('.lv2-submit');
-  const skipBtn = inner.querySelector('.lv2-demo-link');
   const forgotBtn = inner.querySelector('.lv2-forgot-btn');
   const lv2EyeBtn = inner.querySelector('.lv2-eye-btn');
   const orgPanel = inner.querySelector('.lv2-org-panel');
@@ -1697,6 +1685,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
         return;
       }
       if (body.mustChangePassword === true && body.changePasswordToken) {
+        setDemoMode(false);
         setPasswordSetupContext(body.changePasswordToken, {
           name: body.user?.name,
           email: body.user?.email,
@@ -1711,6 +1700,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
         showToast('Réponse serveur invalide', 'error');
         return;
       }
+      setDemoMode(false);
       persistTokensFromLoginResponse(body);
       setAuthSession(
         {
@@ -1770,14 +1760,6 @@ export function createLoginView({ onSuccess, onNavigate }) {
   forgotBtn?.addEventListener('click', () => {
     window.location.hash = 'forgot-password';
     onNavigate?.();
-  });
-
-  skipBtn?.addEventListener('click', () => {
-    setDemoMode(true);
-    setActiveSiteContext(DEMO_SITE_ID, DEMO_SITE_LABEL);
-    setCurrentPage('mines-demo');
-    window.location.hash = 'mines-demo';
-    onSuccess();
   });
 
   form?.addEventListener('submit', async (e) => {

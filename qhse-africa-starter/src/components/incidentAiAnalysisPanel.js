@@ -47,7 +47,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
   panel.id = 'qhse-ia-panel';
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'true');
-  panel.setAttribute('aria-label', 'Analyse IA : incident');
+  panel.setAttribute('aria-label', 'Lecture assistée : incident');
 
   const header = document.createElement('div');
   header.className = 'inc-slideover__head';
@@ -224,11 +224,11 @@ export function openIncidentAiAnalysis(inc, ctx) {
               findings: [],
               recommendedActions: [String(a.description || '').trim()].filter(Boolean),
               humanValidationRequired: true,
-              disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+              disclaimer: 'Suggestion assistée à valider par un responsable habilité.'
             }
           };
           openAiStructuredValidationDialog({
-            title: `Incident ${escapeHtml(String(inc.ref || '').trim())} — action suggérée`,
+            title: `Incident ${escapeHtml(String(inc.ref || '').trim())} : action suggérée`,
             ai: { structured, suggestionText: String(a.description || '').trim() },
             primaryLabel: 'Appliquer au formulaire',
             secondaryLabel: 'Ignorer',
@@ -241,7 +241,7 @@ export function openIncidentAiAnalysis(inc, ctx) {
                 description: [
                   String(recommendedActionsText || a.description || '').trim(),
                   '',
-                  `[Suggestion IA à valider · confiance ~${Math.round((Number(confidence) || 0.5) * 100)} %]`,
+                  `[Suggestion assistée à valider · confiance ~${Math.round((Number(confidence) || 0.5) * 100)} %]`,
                   `Délai indicatif : ${Number(a.delayDays) || 0} j · rôle type : ${String(a.ownerRole || 'Non renseigné')}`
                 ]
                   .filter(Boolean)

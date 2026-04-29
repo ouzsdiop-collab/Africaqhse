@@ -52,6 +52,20 @@ import './styles/ui-density-saas.css';
 ensureProductionDemoModeOff();
 initTheme();
 
+/** Feedback utilisateur si l’API signale un tenant JWT / contexte absent (ex. session partielle). */
+let qhseTenantContextListenerInstalled = false;
+function ensureQhseTenantContextListener() {
+  if (qhseTenantContextListenerInstalled || typeof window === 'undefined') return;
+  qhseTenantContextListenerInstalled = true;
+  window.addEventListener('qhse:tenant-context-required', () => {
+    showToast(
+      'Organisation active introuvable pour cette session. Déconnectez-vous puis reconnectez-vous pour rétablir le contexte.',
+      'error'
+    );
+  });
+}
+ensureQhseTenantContextListener();
+
 function scheduleProductOnboardingTour() {
   if (!getSessionUser() || appState.currentPage === 'login') return;
   if (!shouldShowOnboarding()) return;

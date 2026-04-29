@@ -1079,7 +1079,7 @@ export function renderAnalytics() {
   lead.className = 'analytics-page-lead';
   lead.textContent =
     aMeta?.subtitle ||
-    'Lecture décisionnelle : conformité, incidents, exécution du plan d’actions et qualité des audits. Même périmètre que la synthèse API.';
+    'Conformité ISO, incidents, plan d’actions et résultats d’audits sur la période. Même périmètre que l’agrégation serveur.';
   const metaHero = document.createElement('p');
   metaHero.className = 'analytics-page-meta';
   metaHero.setAttribute('aria-live', 'polite');

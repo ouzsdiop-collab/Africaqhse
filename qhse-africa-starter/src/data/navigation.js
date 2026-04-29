@@ -19,7 +19,7 @@ export const navigationGroups = [
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
       { id: 'activity-log', label: 'Journal', icon: '≣' },
       /* IA regroupée au pilotage : aide à la revue / synthèse, pas un « silo » produit séparé. */
-      { id: 'ai-center', label: 'Centre IA', icon: '✦' }
+      { id: 'ai-center', label: 'Synthèse et assist.', icon: '✦' }
     ]
   },
   {
@@ -76,7 +76,7 @@ export const pageTopbarById = {
   dashboard: {
     title: 'Tableau de bord',
     kicker: 'Pilotage',
-    subtitle: 'Indicateurs critiques, alertes et priorités du jour, par organisation et par site.',
+    subtitle: 'Retards d’actions, incidents récents, NC et audits : vue du jour par organisation et par site.',
     cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
   'mines-demo': {
@@ -96,7 +96,7 @@ export const pageTopbarById = {
   incidents: {
     title: 'Incidents terrain',
     kicker: 'Opérations terrain',
-    subtitle: 'Suivi des événements, investigations et plans de correction.',
+    subtitle: 'Fiches événement, gravité, causes et actions liées jusqu’à clôture.',
     cta: { label: 'Aller au plan d’actions', pageId: 'actions' }
   },
   permits: {
@@ -109,19 +109,19 @@ export const pageTopbarById = {
   risks: {
     title: 'Registre des risques',
     kicker: 'Maîtrise des risques',
-    subtitle: 'Cartographie, criticité et traitements associés.',
+    subtitle: 'Cotation G×P, mesures de maîtrise et liens vers les actions ouvertes.',
     cta: { label: 'Plan d’actions', pageId: 'actions' }
   },
   actions: {
     title: 'Plan d’actions',
     kicker: 'Maîtrise des risques',
-    subtitle: 'Pilotez les actions correctives, préventives et le suivi des échéances.',
-    cta: { label: 'Centre IA', pageId: 'ai-center' }
+    subtitle: 'Suivi des actions correctives et préventives, responsables et dates cibles.',
+    cta: { label: 'Synthèse et assist.', pageId: 'ai-center' }
   },
   iso: {
     title: 'ISO & Conformité',
     kicker: 'Conformité',
-    subtitle: 'Pilotage du SMS QHSE, référentiels, exigences et preuves pour audits et revue de direction.',
+    subtitle: 'Exigences par norme, statuts, pièces jointes et historique pour audit interne ou revue de direction.',
     cta: { label: 'Audits terrain', pageId: 'audits' }
   },
   audits: {
@@ -145,42 +145,43 @@ export const pageTopbarById = {
   imports: {
     title: 'Import de documents',
     kicker: 'Documents',
-    subtitle: 'Chargement et aperçu brut des contenus (CSV, PDF, tableur). Base pour extraction intelligente ultérieure.',
-    cta: { label: 'Centre IA', pageId: 'ai-center' }
+    subtitle:
+      'Import de fichiers (CSV, PDF, tableur) et contrôle visuel avant traitement ou reprise manuelle.',
+    cta: { label: 'Synthèse et assist.', pageId: 'ai-center' }
   },
   analytics: {
     title: 'Analyses / Synthèse',
     kicker: 'Pilotage',
     subtitle:
-      'Synthèse consolidée incidents, NC, actions, audits et alertes. Base revue direction et rapports périodiques.',
+      'Incidents, NC, actions et audits sur une même période. Utile pour un rapport mensuel ou une revue de direction.',
     cta: { label: 'Tableau de bord', pageId: 'dashboard' }
   },
   performance: {
     title: 'Performance QHSE',
     kicker: 'Pilotage',
     subtitle:
-      'Indicateurs clés, tendances et écarts à l’objectif. Données issues des modules existants (synthèse, incidents, audits).',
+      'Tendances et écarts par rapport aux objectifs affichés (saisis côté interface, pas de cible serveur imposée).',
     cta: { label: 'Analyses & synthèse', pageId: 'analytics' }
   },
   'ai-center': {
-    title: 'Centre IA',
+    title: 'Synthèse et assistance',
     kicker: 'Pilotage',
-    subtitle: 'Assistants et analyses pilotées pour accélérer vos revues QHSE.',
+    subtitle: 'Textes et brouillons à relire avant envoi. Rien n’est enregistré dans les modules sans validation explicite.',
     cta: { label: 'Retour tableau de bord', pageId: 'dashboard' }
   },
   'activity-log': {
     title: 'Journal',
     kicker: 'Pilotage',
     subtitle:
-      'Traçabilité : piste session navigateur (filtres, exports) et journal serveur (API) dans un seul écran.',
+      'Filtres et exports sur l’activité en session, plus extraits du journal serveur lorsque l’API est disponible.',
     cta: { label: 'Audits', pageId: 'audits' }
   },
   settings: {
     title: 'Paramètres & configuration',
     kicker: 'Administration',
     subtitle:
-      'Organisation, sécurité des accès, alertes, notifications, exports et options d’affichage. Centralisez vos préférences métier.',
-    cta: { label: 'Centre IA', pageId: 'ai-center' }
+      'Organisation, rôles, alertes, e-mail, exports et préférences d’affichage pour votre périmètre.',
+    cta: { label: 'Synthèse et assist.', pageId: 'ai-center' }
   },
   'saas-clients': {
     title: 'Clients SaaS',

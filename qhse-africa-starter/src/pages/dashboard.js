@@ -488,10 +488,10 @@ function createDashboardIntelligenceWidget() {
   root.innerHTML = `
     <div class="dashboard-intel__head">
       <div>
-        <div class="dashboard-intel__kicker">Signaux intelligents</div>
-        <h3 class="dashboard-intel__title">Cockpit QHSE intelligent</h3>
+        <div class="dashboard-intel__kicker">Priorités du périmètre</div>
+        <h3 class="dashboard-intel__title">Écarts et alertes à traiter</h3>
         <p class="dashboard-intel__sub">
-          Lecture automatique des risques, actions, audits et documents, sans action automatique.
+          Retards d’actions, NC, documents manquants et pics d’incidents croisés sur le périmètre choisi. Alertes à traiter manuellement.
         </p>
       </div>
       <div class="dashboard-intel__score" aria-label="Score QHSE">
@@ -502,10 +502,10 @@ function createDashboardIntelligenceWidget() {
     </div>
     <div class="dashboard-intel__body">
       <div class="dashboard-intel__grid">
-        <section class="dashboard-intel__panel" aria-label="Alertes intelligentes">
+        <section class="dashboard-intel__panel" aria-label="Alertes de pilotage">
           <h4 class="dashboard-intel__h">Alertes</h4>
           <ul class="dashboard-intel__list" data-intel-alerts></ul>
-          <p class="dashboard-intel__empty" data-intel-empty hidden>Aucune alerte intelligente détectée.</p>
+          <p class="dashboard-intel__empty" data-intel-empty hidden>Aucune alerte pour le périmètre sélectionné.</p>
         </section>
         <section class="dashboard-intel__panel" aria-label="Anomalies" data-intel-anoms-panel hidden>
           <h4 class="dashboard-intel__h">Anomalies</h4>
@@ -621,7 +621,7 @@ function createDashboardIntelligenceWidget() {
     const ctxLines = [
       safeText(alert?.description || '', 600) || 'Non disponible',
       '',
-      `Contexte : alerte intelligence QHSE (lecture seule).`,
+      `Contexte : alerte pilotage assisté (lecture seule).`,
       `Source : ${srcModule}${srcId ? ` · ${srcId}` : ''}.`,
       `Validation humaine requise avant application terrain.`
     ];
@@ -654,7 +654,7 @@ function createDashboardIntelligenceWidget() {
     d.innerHTML = `
       <div class="intel-modal__head">
         <div>
-          <h3 class="intel-modal__title">Alertes et anomalies : intelligence QHSE</h3>
+          <h3 class="intel-modal__title">Alertes et anomalies</h3>
           <p class="intel-modal__sub">Filtrez par sévérité et source. Les actions restent sous validation humaine.</p>
         </div>
         <button type="button" class="intel-modal__close" data-close>Fermer</button>
@@ -746,7 +746,7 @@ function createDashboardIntelligenceWidget() {
       if (alertsEmpty) {
         alertsEmpty.hidden = false;
         alertsEmpty.textContent =
-          'Aucune alerte intelligente détectée. Les signaux apparaîtront avec vos données QHSE.';
+          'Aucune alerte pour l’instant. Les écarts apparaissent lorsque les modules sont alimentés.';
       }
     } else {
       if (alertsEmpty) alertsEmpty.hidden = true;
@@ -863,7 +863,7 @@ function createDashboardIntelligenceWidget() {
       if (empty) empty.hidden = false;
       if (empty) {
         empty.textContent =
-          'Aucune alerte intelligente détectée. Les signaux apparaîtront avec vos données QHSE.';
+          'Aucune alerte pour l’instant. Les écarts apparaissent lorsque les modules sont alimentés.';
       }
     } else {
       if (empty) empty.hidden = true;
@@ -1011,14 +1011,14 @@ async function loadDashboardInsight(stats) {
     if (!res.ok) throw new Error('api');
     const { insight } = await res.json();
     zone.innerHTML = `
-      <article class="content-card card-soft dashboard-ai-insight__card" aria-label="Analyse IA de la semaine">
+      <article class="content-card card-soft dashboard-ai-insight__card" aria-label="Synthèse hebdomadaire">
         <div class="dashboard-ai-insight__shell">
           <div class="dashboard-ai-insight__rail" aria-hidden="true"></div>
           <div class="dashboard-ai-insight__content">
             <header class="dashboard-ai-insight__head">
               <div class="dashboard-ai-insight__head-text">
-                <p class="section-kicker dashboard-ai-insight__kicker">Analyse IA de la semaine</p>
-                <p class="dashboard-ai-insight__lede">Synthèse à partir des indicateurs et événements récents.</p>
+                <p class="section-kicker dashboard-ai-insight__kicker">Synthèse de la semaine</p>
+                <p class="dashboard-ai-insight__lede">Commentaire court sur les KPI et événements saisis sur les sept derniers jours.</p>
               </div>
               <span class="dashboard-ai-insight__chip">Hebdo</span>
             </header>
@@ -1358,7 +1358,7 @@ export function renderDashboard() {
   noAiWrap.innerHTML = `
     <label style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text2,#94a3b8);user-select:none">
       <input type="checkbox" data-no-ai-toggle />
-      <span>Mode sans IA (règles déterministes uniquement)</span>
+      <span>Règles métier uniquement (sans modèle génératif)</span>
     </label>
   `;
   const noAiToggle = noAiWrap.querySelector('[data-no-ai-toggle]');
@@ -1370,8 +1370,8 @@ export function renderDashboard() {
       localStorage.setItem(NO_AI_KEY, /** @type {HTMLInputElement} */ (noAiToggle).checked ? 'true' : 'false');
       showToast(
         /** @type {HTMLInputElement} */ (noAiToggle).checked
-          ? 'Mode sans IA activé: l’IA est désactivée, les priorités restent déterministes.'
-          : 'Mode sans IA désactivé: l’IA peut enrichir l’analyse (sans remplacer les règles).',
+          ? 'Modèle génératif désactivé : les priorités reposent sur les règles métier.'
+          : 'Modèle génératif autorisé : lecture enrichie possible, sous votre validation.',
         'info'
       );
       // Recharge douce: on relance uniquement la partie IA au prochain refresh (ou F5 si besoin).
@@ -2017,7 +2017,7 @@ export function renderDashboard() {
           console.warn('[dashboard] pilotage IA /api/ai-suggestions/suggest/actions', aiErr);
           pilotageAssistant.setAiResult({
             narrative:
-              'Analyse IA momentanément indisponible (réseau, droits ou configuration). Les recommandations ci-dessus restent basées sur les règles métier.',
+              'Synthèse assistée momentanément indisponible (réseau, droits ou configuration). Les recommandations affichées restent issues des règles métier.',
             actions: []
           });
         } finally {

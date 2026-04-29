@@ -72,11 +72,11 @@ export function attachRiskMistralMitigationSection(inner, risk) {
       const confTone = c >= 0.8 ? '#10b981' : c >= 0.5 ? '#f59e0b' : '#ef4444';
       const mode = providerMeta?.mode && providerMeta.mode !== 'openai' ? ` · fallback (${providerMeta.mode})` : '';
       status.innerHTML = `<span style="display:inline-flex;align-items:center;gap:10px">
-        <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-weight:900">Suggestion IA à valider</span>
+        <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-weight:900">Suggestion assistée à valider</span>
         <span style="font-weight:900;color:${confTone}">${confLabel}</span>
         <span style="opacity:.9">(${Math.round(c * 100)}%${mode})</span>
       </span>
-      <div style="margin-top:6px">L’IA propose une aide à la décision. La validation finale reste humaine.</div>`;
+      <div style="margin-top:6px">Lecture assistée à titre indicatif. La validation finale reste humaine.</div>`;
 
       const box = document.createElement('div');
       box.style.cssText =
@@ -99,13 +99,13 @@ export function attachRiskMistralMitigationSection(inner, risk) {
             findings: [],
             recommendedActions: [],
             humanValidationRequired: true,
-            disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+            disclaimer: 'Suggestion assistée à valider par un responsable habilité.'
           }
         };
 
         const { openAiStructuredValidationDialog } = await import('./aiStructuredValidationDialog.js');
         openAiStructuredValidationDialog({
-          title: `Risque — mesures de maîtrise`,
+          title: `Risque : mesures de maîtrise`,
           ai: { structured: structuredFallback, providerMeta, suggestionText: suggestion },
           primaryLabel: 'Appliquer au formulaire',
           secondaryLabel: 'Ignorer',
@@ -121,7 +121,7 @@ export function attachRiskMistralMitigationSection(inner, risk) {
               description: [
                 String(recommendedActionsText || '').trim() || String(suggestion || '').trim(),
                 '',
-                `[Suggestion IA à valider · confiance ~${Math.round((Number(confidence) || 0.35) * 100)} %]`,
+                `[Suggestion assistée à valider · confiance ~${Math.round((Number(confidence) || 0.35) * 100)} %]`,
                 `Risque lié : ${riskTitle}`
               ]
                 .filter(Boolean)

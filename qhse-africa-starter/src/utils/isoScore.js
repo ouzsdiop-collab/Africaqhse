@@ -237,7 +237,7 @@ export function computeIsoScore(input = {}) {
     `Score fusionné ${pct} % (exigences ${legacy.pct} % × ${Math.round(100 * WEIGHT_LEGACY_STATUS)} % + terrain ~${operationalPct} %).`,
     ...breakdown
       .filter((b) => b.pct != null)
-      .map((b) => `${b.label} : ${b.pct} % — ${b.detail}`)
+      .map((b) => `${b.label} : ${b.pct} % · ${b.detail}`)
   ];
 
   return {

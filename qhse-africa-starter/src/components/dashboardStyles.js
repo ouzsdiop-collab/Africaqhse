@@ -4563,7 +4563,7 @@ html[data-theme='light'] .kpi-perf-timeline-empty {
   background:color-mix(in srgb,rgba(245,158,11,.12) 30%,var(--color-background-primary));
   color:#fde68a;
 }
-/* Analyse IA hebdo : carte « executive brief » */
+/* Synthèse hebdo : carte type executive brief */
 .dashboard-ai-insight{
   margin-top:0;
   width:100%;

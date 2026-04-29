@@ -232,7 +232,7 @@ function attachMistralIncidentCausesButton(detailRoot, incident) {
       const confTone = c >= 0.8 ? '#10b981' : c >= 0.5 ? '#f59e0b' : '#ef4444';
       const mode = providerMeta?.mode && providerMeta.mode !== 'openai' ? ` · fallback (${providerMeta.mode})` : '';
       status.innerHTML = `<span style="display:inline-flex;align-items:center;gap:10px">
-        <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-weight:900">Suggestion IA à valider</span>
+        <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-weight:900">Suggestion assistée à valider</span>
         <span style="font-weight:900;color:${confTone}">${confLabel}</span>
         <span style="opacity:.9">(${Math.round(c * 100)}%${mode})</span>
       </span>
@@ -255,7 +255,7 @@ function attachMistralIncidentCausesButton(detailRoot, incident) {
         applyBtn.addEventListener('click', async () => {
           const { openAiStructuredValidationDialog } = await import('../components/aiStructuredValidationDialog.js');
           openAiStructuredValidationDialog({
-            title: `Incident ${String(incident?.ref || '').trim() || ''} — analyse IA`,
+            title: `Incident ${String(incident?.ref || '').trim() || ''} : analyse assistée`,
             ai: { structured, providerMeta, suggestionText: suggestion },
             onValidate: async ({ summary, findings }) => {
               // P2+: pré-remplissage d’un formulaire (assistant déclaration) plutôt qu’un patch immédiat.

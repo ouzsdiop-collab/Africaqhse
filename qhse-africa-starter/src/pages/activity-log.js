@@ -287,7 +287,7 @@ export function renderActivityLog(opts = {}) {
           <option value="products">Produits / FDS</option>
           <option value="context">Contexte site</option>
           <option value="system">Système</option>
-          <option value="ai-center">Centre IA</option>
+          <option value="ai-center">Synthèse et assist.</option>
         </select>
       </label>
       <label class="activity-log-filter-field"><span>Période</span>

@@ -12,9 +12,17 @@ Objectif : valider en 30–60 min que l’application est **utilisable** (démo 
 
 - `DATABASE_URL`
 - `JWT_SECRET` (prod : fort)
-- `ALLOWED_ORIGINS` (prod : obligatoire)
-- `REQUIRE_AUTH=true` (prod recommandé)
-- `ALLOW_X_USER_ID=false` (prod recommandé)
+- `CORS_ORIGINS` ou `ALLOWED_ORIGINS` (prod : liste explicite, pas de `*`)
+- `REQUIRE_AUTH=true` (obligatoire en prod et sur hébergeur cloud détecté)
+- `ALLOW_X_USER_ID=false` (obligatoire en prod et sur cloud ; les routes `/api/admin/*` n’acceptent jamais X-User-Id, uniquement JWT Bearer + SUPER_ADMIN)
+
+### Lot A — garde-fous (avant vente)
+
+- **Démarrage** : avec `REQUIRE_AUTH=false` en local uniquement, vérifier qu’un bandeau d’avertissement apparaît dans les logs stderr au boot.
+- **Cloud** : sur un environnement type Railway (ou `MANAGED_CLOUD=true`), vérifier que l’API refuse de démarrer si `REQUIRE_AUTH` n’est pas `true` ou si `ALLOW_X_USER_ID` n’est pas explicitement `false`.
+- **Super-admin** : appeler `GET /api/admin/clients` sans header `Authorization: Bearer …` → 401 ; avec `X-User-Id` seul (si autorisé ailleurs en dev) → 401 `SUPER_ADMIN_BEARER_REQUIRED`.
+- **UI cockpit SaaS** : actions sensibles (reset MDP, rôle, suspension, statut entreprise, désactivation module) doivent demander une confirmation navigateur avant envoi.
+- **Documents / preuves / FDS** : pas d’action de suppression exposée dans l’UI actuelle ; rien à confirmer côté front pour ce périmètre.
 
 ### Variables seed client
 

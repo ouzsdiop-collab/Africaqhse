@@ -37,7 +37,7 @@ function createImportContextBanner() {
   const map = {
     risks: {
       title: 'Contexte actif : risques',
-      desc: 'Import orienté vers le registre risques. Extraction IA indicative, validation humaine requise avant enregistrement.'
+      desc: 'Import orienté vers le registre risques. Extraction assistée indicative, validation humaine requise avant enregistrement.'
     },
     fds: {
       title: 'Contexte actif : FDS / produits',
@@ -215,7 +215,7 @@ export function renderImports() {
     <div class="content-card-head">
       <div>
         <div class="section-kicker">Documents</div>
-        <h3>Import intelligent : phase 1</h3>
+        <h3>Import assisté : phase 1</h3>
         <p class="content-card-lead" style="margin:0;max-width:58ch;font-size:14px;line-height:1.5;color:var(--text2)">
           CSV recommandé (modèle ci-dessous), PDF et tableur acceptés : aperçu brut, pré-analyse et brouillon indicatif. Aucune création en base tant que vous ne validez pas explicitement sur le module cible.
         </p>

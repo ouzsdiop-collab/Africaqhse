@@ -957,7 +957,7 @@ function renderProductDetail(product, host) {
   const secIa = document.createElement('section');
   secIa.className = 'products-detail-block products-detail-block--ia';
   const h4ia = document.createElement('h4');
-  h4ia.textContent = 'Analyse IA (indicative)';
+  h4ia.textContent = 'Lecture assistée (indicative)';
   const pNote = document.createElement('p');
   pNote.className = 'products-detail-note';
   pNote.textContent = 'Pistes proposées par l’assistant. Recoupez avec la FDS, aucune décision automatique.';
@@ -1080,7 +1080,7 @@ function renderProductDetail(product, host) {
         savePersistedProducts(rows);
         const merged = { ...rows[ix] };
         renderProductDetail(merged, host);
-        showToast('Analyse IA régénérée. Validation humaine toujours requise avant toute décision.', 'info');
+        showToast('Synthèse régénérée. Validation humaine requise avant toute décision.', 'info');
       } finally {
         rb.disabled = false;
         rb.textContent = 'Régénérer l’analyse (locale)';
@@ -1427,7 +1427,7 @@ export function renderProducts() {
       <strong>Validation requise :</strong> contrôlez chaque champ contre la FDS officielle avant confirmation.
     </p>
     <div class="products-ia-preview" aria-live="polite">
-      <h4 class="products-ia-preview-title">Analyse IA, à vérifier</h4>
+      <h4 class="products-ia-preview-title">Lecture assistée, à vérifier</h4>
       <div class="products-ia-preview-cols">
         <div>
           <p class="products-ia-preview-sub">Incohérences détectées</p>

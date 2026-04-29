@@ -12,6 +12,7 @@ import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import { createRiskManagerReadingCard } from '../components/riskManagerReading.js';
 import { activityLogStore } from '../data/activityLog.js';
+import { getActiveTenant } from '../data/sessionUser.js';
 import { appState } from '../utils/state.js';
 import { createSimpleModeGuide } from '../utils/simpleModeGuide.js';
 import { mountPageViewModeSwitch } from '../utils/pageViewMode.js';
@@ -1472,7 +1473,7 @@ export function renderRisks() {
         <div style="margin-bottom:10px">
           <span style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08);font-size:12px;font-weight:800;color:#0f172a">
             <span style="width:7px;height:7px;border-radius:999px;background:#38bdf8"></span>
-            Suggestion IA à valider
+            Suggestion assistée à valider
           </span>
           <span style="margin-left:8px;font-weight:900;color:${confTone};font-size:12px">${confLabel}</span>
           <span style="margin-left:6px;color:#334155;font-size:12px">(${Math.round(c * 100)}%${mode})</span>
@@ -1519,11 +1520,11 @@ export function renderRisks() {
                 ? parsedData.episRequired.map((x) => `EPI: ${x}`)
                 : [],
               humanValidationRequired: true,
-              disclaimer: 'Suggestion IA à valider par un responsable habilité.'
+              disclaimer: 'Suggestion assistée à valider par un responsable habilité.'
             }
           };
           openAiStructuredValidationDialog({
-            title: 'FDS — extraction & pré-remplissage',
+            title: 'FDS : extraction et pré-remplissage',
             ai: { structured: structuredFallback, providerMeta, suggestionText: null },
             onValidate: async ({ summary, findings, recommendedActionsText }) => {
               const createBtn = dialog.querySelector('#fds-create');
@@ -1730,10 +1731,20 @@ export function renderRisks() {
   exportBtnRisks.textContent = 'Export CSV';
   exportBtnRisks.className = 'btn btn-secondary btn-sm';
   exportBtnRisks.addEventListener('click', async () => {
+    const prev = exportBtnRisks.textContent;
+    exportBtnRisks.disabled = true;
+    exportBtnRisks.textContent = 'Export…';
     try {
       const res = await qhseFetch(withSiteQuery('/api/export/risks'));
       if (!res.ok) {
-        showToast('Export impossible', 'error');
+        let msg = 'Export CSV impossible. Vérifiez vos droits et le contexte organisation.';
+        try {
+          const b = await res.json();
+          if (typeof b?.error === 'string' && b.error.trim()) msg = b.error.trim();
+        } catch {
+          /* ignore */
+        }
+        showToast(msg, 'error');
         return;
       }
       const blob = await res.blob();
@@ -1745,8 +1756,12 @@ export function renderRisks() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      showToast('Export CSV des risques téléchargé.', 'success');
     } catch {
-      showToast('Erreur réseau', 'error');
+      showToast('Réseau indisponible : export CSV annulé.', 'error');
+    } finally {
+      exportBtnRisks.disabled = false;
+      exportBtnRisks.textContent = prev;
     }
   });
   register.querySelector('.risks-page__panel-actions')?.append(exportBtnRisks);
@@ -1757,13 +1772,26 @@ export function renderRisks() {
   exportPdfRisks.className = 'btn btn-secondary btn-sm';
   exportPdfRisks.setAttribute('aria-label', 'Exporter le registre risques en PDF');
     exportPdfRisks.addEventListener('click', async () => {
+    const prevPdf = exportPdfRisks.textContent;
+    exportPdfRisks.disabled = true;
+    exportPdfRisks.textContent = 'Génération…';
     try {
       const { downloadRisksRegisterPdf } = await import('../services/qhseReportsPdf.service.js');
+      const tenant = getActiveTenant();
       await downloadRisksRegisterPdf(localRisks, {
+        organizationName: tenant?.name || undefined,
         siteLabel: appState.currentSite || undefined
       });
+      showToast('PDF du registre risques généré.', 'success');
     } catch (e) {
       console.error(e);
+      showToast(
+        'Impossible de générer le PDF (données ou navigateur). Réessayez ou utilisez l’export CSV.',
+        'error'
+      );
+    } finally {
+      exportPdfRisks.disabled = false;
+      exportPdfRisks.textContent = prevPdf;
     }
   });
   register.querySelector('.risks-page__panel-actions')?.append(exportPdfRisks);

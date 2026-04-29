@@ -48,30 +48,30 @@ const USE_CASES = [
   {
     id: 'summary',
     label: 'Résumé incident',
-    title: 'Synthèse terrain exploitable immédiatement',
-    body: 'Structuration automatique : faits, lieu, personnes exposées, mesures immédiates et périmètre. Prête pour compte rendu HSE et déclarations internes.',
-    foot: 'Livrable type : paragraphe unique + puces pour les suites.'
+    title: 'Compte rendu incident prêt à relire',
+    body: 'Faits, lieu, personnes exposées, mesures prises et périmètre. Format utilisable pour diffusion interne après validation du responsable.',
+    foot: 'Livrable type : paragraphe court et liste des suites à traiter.'
   },
   {
     id: 'actions',
     label: 'Suggestions d’actions',
-    title: 'Plan d’actions aligné criticité & ISO',
-    body: 'Propositions de mesures correctives / préventives, séquencement logique, rattachement aux plans d’actions et aux échéances déjà suivies sur le site.',
-    foot: 'Priorisation type : santé-sécurité → environnement → conformité documentaire.'
+    title: 'Mesures correctives et préventives proposées',
+    body: 'Mesures proposées avec ordre logique, rattachement au plan d’actions du site et rappel des échéances déjà saisies.',
+    foot: 'Priorisation indicative : SST, environnement, puis dossiers documentaires.'
   },
   {
     id: 'analysis',
     label: 'Analyse simple',
     title: 'Facteurs et causes contributives',
-    body: 'Lecture structurée (technique + organisation) pour nourrir l’enquête sans la remplacer. Points de vigilance pour auditeur ou comité.',
-    foot: 'Sortie : sections prêtes à copier dans le rapport d’investigation.'
+    body: 'Structuration technique et organisationnelle pour appuyer l’enquête, sans se substituer au recueil de témoignages.',
+    foot: 'Sortie : blocs de texte à intégrer au rapport d’investigation.'
   },
   {
     id: 'exec',
     label: 'Synthèse direction',
-    title: 'Brief décisionnel QHSE',
-    body: 'Vue condensée : état du risque, tendance, décision attendue et message clé pour la revue de direction ou le comité trimestriel.',
-    foot: 'Ton adapté à une lecture exécutive (2–3 minutes).'
+    title: 'Note courte pour instance de pilotage',
+    body: 'Niveau de risque, tendance observée, décision attendue et message clé pour revue de direction ou comité trimestriel.',
+    foot: 'Volume cible : lecture en deux à trois minutes.'
   }
 ];
 
@@ -211,9 +211,9 @@ function createSimulationZone(onAddLog) {
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
-        action: 'Analyse scénario IA (terrain)',
+        action: 'Analyse scénario assistée (terrain)',
         detail: `${lastResult.ref} : ${scenarioLabel}`,
-        user: 'Copilote IA'
+        user: 'Synthèse assistée'
       });
     }
   }
@@ -222,7 +222,7 @@ function createSimulationZone(onAddLog) {
     void (async () => {
       if (
         !(await ensureSensitiveAccess('security_zone', {
-          contextLabel: 'lancement d’une analyse IA sur scénario (sortie locale)'
+          contextLabel: 'lancement d’une analyse assistée sur scénario (sortie locale)'
         }))
       ) {
         return;
@@ -244,11 +244,11 @@ function createSimulationZone(onAddLog) {
 
   saveBtn.addEventListener('click', () => {
     if (!lastResult) return;
-    showToast('Brouillon enregistré dans le journal. Export vers votre GED activable sur demande.', 'info');
+    showToast('Brouillon enregistré dans le journal. Export vers votre GED : selon paramétrage serveur.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
-        action: 'Enregistrement analyse IA',
+        action: 'Enregistrement brouillon synthèse assistée',
         detail: `${lastResult.ref} : ${lastResult.title}`,
         user: 'Responsable QHSE'
       });
@@ -286,17 +286,17 @@ export function renderAiCenter(onAddLog) {
     <div class="content-card-head content-card-head--split">
       <div>
         <div class="section-kicker">Assistants</div>
-        <h3>Centre IA : aide à la décision QHSE</h3>
+        <h3>Synthèse et assistance QHSE</h3>
         <p class="content-card-lead content-card-lead--narrow" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px">
-          <span style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:8px;border:1px solid var(--color-primary-border);color:var(--color-primary-text);background:var(--color-primary-bg)">Suggestion IA</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text2)">Toujours : humain = validation · jamais d’auto-décision</span>
+          <span style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:8px;border:1px solid var(--color-primary-border);color:var(--color-primary-text);background:var(--color-primary-bg)">Proposition</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text2)">Le responsable valide. Aucune décision ni enregistrement sans action utilisateur.</span>
         </p>
         <p class="content-card-lead content-card-lead--narrow">
-          Assistants orientés terrain et audit : résumés d’incidents, plans d’actions, analyses structurées et briefs direction.
-          Les scénarios ci-dessous restent locaux ; l’API suggestions (causes / actions / criticité risque) s’active côté serveur selon <code style="font-size:12px">AI_PROVIDER</code>, avec validation humaine systématique.
+          Brouillons de synthèses, plans d’action et analyses structurées pour le terrain et l’audit.
+          Les scénarios locaux complètent l’API serveur (<code style="font-size:12px">AI_PROVIDER</code>) lorsqu’elle est activée : relecture obligatoire avant usage officiel.
         </p>
         <p class="content-card-lead content-card-lead--narrow ai-center-human-trust">
-          <strong class="ai-center-human-trust__strong">Validation humaine</strong> : chaque proposition reste une suggestion. Copiez, adaptez ou ignorez avant toute décision ou enregistrement officiel.
+          <strong class="ai-center-human-trust__strong">Relecture</strong> : chaque sortie est indicative. Ajustez ou écartez-la avant engagement contractuel ou réglementaire.
         </p>
       </div>
       <button type="button" class="btn btn-primary btn--pilotage-cta ai-quick-run">Enregistrer un brouillon d’analyse</button>
@@ -304,12 +304,12 @@ export function renderAiCenter(onAddLog) {
   `;
 
   intro.querySelector('.ai-quick-run').addEventListener('click', () => {
-    showToast('Brouillon pris en compte. Intégration SI / workflow HSE selon votre déploiement.', 'info');
+    showToast('Brouillon enregistré. Raccordement SI ou workflow : selon votre déploiement.', 'info');
     if (typeof onAddLog === 'function') {
       onAddLog({
         module: 'ai-center',
-        action: 'Brouillon analyse IA',
-        detail: 'Action utilisateur : brouillon enregistré depuis le Centre IA',
+        action: 'Brouillon synthèse assistée',
+        detail: 'Brouillon enregistré depuis la page Synthèse et assistance',
         user: 'Responsable QHSE'
       });
     }

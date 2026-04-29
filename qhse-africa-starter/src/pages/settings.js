@@ -101,12 +101,12 @@ const STATUS_OPTIONS = [
 const USAGE_FLOW_ROWS = [
   {
     key: 'aiExtract',
-    title: 'Extraction IA (document)',
+    title: 'Extraction assistée (document)',
     hint: 'Exemple : sortie structurée à valider avant publication au référentiel.'
   },
   {
     key: 'iaSuggest',
-    title: 'Suggestion IA',
+    title: 'Suggestion assistée',
     hint: 'Exemple : proposition à corriger ou reformuler avant application.'
   },
   {
@@ -536,8 +536,8 @@ export function renderSettings() {
   secB.id = 'settings-anchor-alerts';
   secB.innerHTML = `
     <header class="settings-section__head">
-      <p class="settings-section__kicker">B · Alertes intelligentes</p>
-      <h4 class="settings-section__title">Alertes intelligentes</h4>
+      <p class="settings-section__kicker">B · Règles d’alerte</p>
+      <h4 class="settings-section__title">Règles d’alerte</h4>
       <p class="settings-section__lead">
         Règles et niveaux de criticité affichés ici. L’évaluation réelle des conditions restera côté serveur.
       </p>
@@ -692,7 +692,7 @@ export function renderSettings() {
         </label>
         <label class="field">
           <span>SMTP_FROM / EMAIL_FROM</span>
-          <input type="text" class="control-input" readonly placeholder="AfricaQHSE &lt;noreply@…&gt;" data-email-from-masked />
+          <input type="text" class="control-input" readonly placeholder="QHSE Control &lt;noreply@…&gt;" data-email-from-masked />
         </label>
         <label class="field">
           <span>Resend (optionnel)</span>
@@ -861,7 +861,7 @@ export function renderSettings() {
       <h4 class="settings-section__title">Code de vérification (accès renforcé)</h4>
       <p class="settings-section__lead">
         Optionnel : code à 6 chiffres sur les actions que vous cochez. Par défaut : une demande par session navigateur (recommandé pour limiter les interruptions).
-        Le Centre IA peut être exclu (décoché par défaut). Stockage local, à remplacer par une politique serveur / SSO en production.
+        La synthèse et l’assistance peuvent être exclues (décoché par défaut). Stockage local, à remplacer par une politique serveur ou SSO en production.
       </p>
     </header>
     <div class="settings-sensitive-access-toolbar">
@@ -1093,12 +1093,12 @@ export function renderSettings() {
       <p class="settings-section__kicker">F · IA &amp; validation humaine</p>
       <h4 class="settings-section__title">IA &amp; validation humaine</h4>
       <p class="settings-section__lead">
-        L’IA propose ; l’humain valide, ajuste ou rejette. Les flux métiers (imports, NC, audits) restent sur leurs écrans.
-        ce bloc fixe la politique affichée côté configuration.
+        L’assistance propose ; l’humain valide, ajuste ou rejette. Les flux métiers (imports, NC, audits) restent sur leurs écrans.
+        Ce bloc fixe la politique affichée côté configuration.
       </p>
     </header>
     <div class="settings-ia-human-pattern">
-      <span class="settings-badge-ia">Suggestion IA</span>
+      <span class="settings-badge-ia">Suggestion assistée</span>
       <span class="settings-ia-human-pattern__cta">Valider · Modifier · Rejeter</span>
       <div class="settings-ia-state-strip">
         <span class="settings-ia-state-chip">En attente</span>
@@ -1124,7 +1124,7 @@ export function renderSettings() {
     { key: 'imports', label: 'Import documents (extraction)' },
     { key: 'audits', label: 'Audits & constats' },
     { key: 'risks', label: 'Risques' },
-    { key: 'aiCenter', label: 'Centre IA (scénarios & assistant)' }
+    { key: 'aiCenter', label: 'Synthèse et assistance (scénarios, assistant)' }
   ];
   function renderIaModules() {
     if (!iaHost) return;
@@ -1144,13 +1144,13 @@ export function renderSettings() {
       h.textContent = label;
       const badge = document.createElement('span');
       badge.className = 'settings-badge-ia';
-      badge.textContent = 'Suggestion IA';
+      badge.textContent = 'Suggestion assistée';
       const sw = document.createElement('button');
       sw.type = 'button';
       sw.className = 'settings-switch';
       sw.setAttribute('role', 'switch');
       sw.setAttribute('aria-checked', cfg.enabled ? 'true' : 'false');
-      sw.setAttribute('aria-label', `Activer IA ${label}`);
+      sw.setAttribute('aria-label', `Activer assistance ${label}`);
       sw.addEventListener('click', () => {
         iaCfg = {
           ...iaCfg,

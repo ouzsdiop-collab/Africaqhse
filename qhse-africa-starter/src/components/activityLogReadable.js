@@ -190,7 +190,7 @@ export function getAuditReadableJournalParts(entry) {
   const actionClear = buildActionClear(entry, kind, actionRaw);
   const { objectText, resultText } = splitObjectResult(entry, meta, detailRaw, actionRaw);
 
-  const narrative = `${user} : ${actionClear} — ${objectText}${
+  const narrative = `${user} : ${actionClear} · ${objectText}${
     resultText && resultText !== '—' ? `. ${resultText}` : ''
   }`;
 

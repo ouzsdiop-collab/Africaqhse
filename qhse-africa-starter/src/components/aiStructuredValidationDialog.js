@@ -94,11 +94,11 @@ export function openAiStructuredValidationDialog(opts) {
   inner.innerHTML = `
     <div class="qhse-ai-val-dlg__head">
       <div>
-        <div class="qhse-ai-badge" title="Suggestion IA à valider avant création">
+        <div class="qhse-ai-badge" title="Suggestion assistée à valider avant création">
           <span class="qhse-ai-badge__dot" aria-hidden="true"></span>
-          Suggestion IA à valider
+          Suggestion assistée à valider
         </div>
-        <h2 class="qhse-ai-val-dlg__title">${escapeHtml(String(opts?.title || 'Suggestion IA'))}</h2>
+        <h2 class="qhse-ai-val-dlg__title">${escapeHtml(String(opts?.title || 'Suggestion assistée'))}</h2>
       </div>
       <button type="button" class="btn btn-secondary qhse-ai-val-close">Fermer</button>
     </div>
@@ -107,9 +107,9 @@ export function openAiStructuredValidationDialog(opts) {
     </p>
 
     <div class="qhse-ai-chips">
-      <span class="qhse-ai-chip qhse-ai-chip--ok" title="Analyse réussie">
+      <span class="qhse-ai-chip qhse-ai-chip--ok" title="Réponse du moteur reçue">
         <span class="qhse-ai-chip__dot" aria-hidden="true"></span>
-        Analyse réussie
+        Sortie reçue
       </span>
       <span class="qhse-ai-chip qhse-ai-chip--${confUi.tone}" title="Niveau de confiance">
         <span class="qhse-ai-chip__dot" aria-hidden="true"></span>

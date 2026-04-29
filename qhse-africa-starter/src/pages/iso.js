@@ -940,7 +940,7 @@ function paintIsoRequirementHistory(host, row) {
     meta.textContent = `${new Date(it.at).toLocaleString('fr-FR', {
       dateStyle: 'short',
       timeStyle: 'short'
-    })} — ${it.user}`;
+    })} · ${it.user}`;
     const det = document.createElement('span');
     det.className = 'iso-req-history-detail';
     det.textContent = it.detail;
@@ -961,7 +961,7 @@ function fallbackIsoAnalysisPayload(data) {
     confidence: 0.42,
     content: {
       statusAnalysis: String(
-        data?.explanation || 'Réponse sans champ isoAnalysis — serveur à mettre à jour ou mode dégradé.'
+        data?.explanation || 'Réponse sans champ isoAnalysis : serveur à mettre à jour ou mode dégradé.'
       ),
       missingEvidence: [],
       recommendedActions: Array.isArray(data?.recommendedActions) ? [...data.recommendedActions] : [],
@@ -976,7 +976,7 @@ function fallbackIsoAnalysisPayload(data) {
 }
 
 /**
- * Bloc « Analyse IA » par ligne (appel moteur interne + JSON structuré isoAnalysis).
+ * Bloc lecture assistée par ligne (appel moteur interne + JSON structuré isoAnalysis).
  * @param {HTMLElement} exigenceHost
  * @param {Record<string, unknown>} row
  * @param {string} normCode
@@ -993,7 +993,7 @@ function mountIsoRowAiAnalysis(exigenceHost, row, normCode, ctx) {
   head.className = 'iso-req-ai-head';
   const title = document.createElement('span');
   title.className = 'iso-req-ai-title';
-  title.textContent = 'Analyse IA';
+  title.textContent = 'Lecture assistée';
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.className = 'btn btn-secondary btn-sm iso-req-ai-run';
@@ -1166,7 +1166,7 @@ function mountIsoRowAiAnalysis(exigenceHost, row, normCode, ctx) {
         if (typeof ctx.onAddLog === 'function') {
           ctx.onAddLog({
             module: 'iso',
-            action: 'Statut exigence appliqué depuis analyse IA (ligne)',
+            action: 'Statut exigence appliqué depuis lecture assistée (ligne)',
             detail: `${row.id} → ${suggested}`,
             user: getSessionUser()?.name || 'Utilisateur',
             entityType: ENTITY_ISO_REQUIREMENT,
@@ -1323,7 +1323,7 @@ function createRequirementsTable(ctx, registryDocImpact) {
   const isoToolbarMeta = document.createElement('span');
   isoToolbarMeta.className = 'qhse-table-toolbar__meta';
   isoToolbarMeta.textContent =
-    'Par défaut : exigence, statut, action. Sous chaque exigence : liens terrain, historique, bloc Analyse IA (JSON structuré côté API). Responsable et preuve dans « Colonnes complètes » ou au détail.';
+    'Par défaut : exigence, statut, action. Sous chaque exigence : liens terrain, historique, bloc lecture assistée (JSON structuré côté API). Responsable et preuve dans « Colonnes complètes » ou au détail.';
   const isoColBtn = document.createElement('button');
   isoColBtn.type = 'button';
   isoColBtn.className = 'btn btn-secondary btn-sm';
@@ -2716,7 +2716,7 @@ export function renderIso(onAddLog) {
             <div style="font-weight:900;font-size:22px;letter-spacing:-.02em" data-score>—</div>
             <div style="font-size:11px;color:var(--text2,#94a3b8)">Score global</div>
             <div style="margin-top:8px;font-size:12px;color:var(--text2,#94a3b8)">
-              Audit readiness: <strong data-readiness>—</strong>
+              Préparation audit : <strong data-readiness>—</strong>
             </div>
           </div>
         </div>
@@ -2733,12 +2733,20 @@ export function renderIso(onAddLog) {
     const elMsg = wrap.querySelector('[data-message]');
     const elBlock = wrap.querySelector('[data-blockers]');
 
+    const readinessLabelFr = (key) => {
+      const k = String(key || '').toLowerCase();
+      if (k === 'pret') return 'Prêt';
+      if (k === 'fragile') return 'Fragile';
+      if (k === 'non_pret') return 'Non prêt';
+      return key ? String(key) : 'Non disponible';
+    };
+
     function update(scoreState, readinessState) {
       if (elSite) elSite.textContent = activeSiteLabel();
       const pct = Number(scoreState?.pct);
       if (elScore) elScore.textContent = Number.isFinite(pct) ? `${Math.round(pct)}/100` : 'Non disponible';
       const r = String(readinessState?.readiness || 'non_pret');
-      if (elReady) elReady.textContent = r;
+      if (elReady) elReady.textContent = readinessLabelFr(r);
       if (elMsg) {
         elMsg.textContent = String(readinessState?.message || '').replaceAll('—', '-').replaceAll('–', '-');
       }

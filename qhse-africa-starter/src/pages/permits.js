@@ -219,7 +219,7 @@ export function renderPermits() {
   aiCard.className = 'content-card card-soft ptw-card';
   aiCard.innerHTML = `
     <div class="ptw-ai-strip">
-      <strong>Suggestion IA sécurité</strong>
+      <strong>Suggestion assistée (sécurité)</strong>
       <p class="ptw-mini">Vérifier EPI complet + autorisation signée avant démarrage. Priorité renforcée si échéance aujourd'hui.</p>
     </div>
   `;

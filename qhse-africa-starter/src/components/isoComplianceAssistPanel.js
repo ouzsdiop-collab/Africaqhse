@@ -71,7 +71,7 @@ export function openComplianceAssistModal(opts) {
     </div>
     <div class="iso-ca-result" data-iso-ca-result hidden>
       <div class="iso-ca-proposed">
-        <span class="iso-ca-ia-badge" aria-hidden="true">Suggestion IA</span>
+        <span class="iso-ca-ia-badge" aria-hidden="true">Suggestion assistée</span>
         <span class="iso-ca-proposed-label">Proposition automatique</span>
         <span class="iso-ca-status-pill" data-iso-ca-pill></span>
       </div>
@@ -144,7 +144,7 @@ export function openComplianceAssistModal(opts) {
       meta.textContent = `${new Date(it.at).toLocaleString('fr-FR', {
         dateStyle: 'short',
         timeStyle: 'short'
-      })} — ${it.user}`;
+      })} · ${it.user}`;
       const det = document.createElement('span');
       det.className = 'iso-req-history-detail';
       det.textContent = it.detail;
@@ -242,7 +242,7 @@ export function openComplianceAssistModal(opts) {
         aiTraceType: 'suggestion_generated',
         requirementId: String(req.id),
         suggestedStatus: j.suggestedStatus,
-        detail: `${req.normCode} ${req.clause} — ${req.title}`.trim()
+        detail: `${req.normCode} ${req.clause} : ${req.title}`.trim()
       });
     } catch (err) {
       console.warn('[iso compliance assist]', err);

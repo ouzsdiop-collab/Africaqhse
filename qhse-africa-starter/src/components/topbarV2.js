@@ -885,7 +885,7 @@ export function createTopbar({
   const aiCenterBtn = document.createElement('button');
   aiCenterBtn.type = 'button';
   aiCenterBtn.className = 'topbar-v2__ai topbar-ai-btn topbar-v2__ai--subtle';
-  aiCenterBtn.setAttribute('aria-label', 'Centre IA');
+  aiCenterBtn.setAttribute('aria-label', 'Synthèse et assistance');
   const aiGlyph = document.createElement('span');
   aiGlyph.setAttribute('aria-hidden', 'true');
   aiGlyph.textContent = '✦';

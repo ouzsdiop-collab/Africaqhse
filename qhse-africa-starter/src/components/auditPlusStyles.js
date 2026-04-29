@@ -217,7 +217,7 @@ const CSS = `
     content:attr(data-label);display:block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:2px;
   }
 }
-/* Notifications intelligentes cockpit */
+/* Notifications cockpit (contextuelles) */
 .audit-cockpit-notifs{
   border-radius:16px;border:1px solid rgba(56,189,248,.2);
   background:linear-gradient(165deg,rgba(56,189,248,.07),rgba(255,255,255,.025) 38%,rgba(8,12,20,.4) 100%);

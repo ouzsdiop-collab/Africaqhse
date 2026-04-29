@@ -478,10 +478,20 @@ function buildFilterToolbar(users, refs, opts = {}) {
   exportBtnAct.textContent = 'Export CSV';
   exportBtnAct.className = 'btn btn-secondary btn-sm';
   exportBtnAct.addEventListener('click', async () => {
+    const prev = exportBtnAct.textContent;
+    exportBtnAct.disabled = true;
+    exportBtnAct.textContent = 'Export…';
     try {
       const res = await qhseFetch(withSiteQuery('/api/export/actions'));
       if (!res.ok) {
-        showToast('Export impossible', 'error');
+        let msg = 'Export CSV impossible. Vérifiez vos droits et le contexte organisation.';
+        try {
+          const b = await res.json();
+          if (typeof b?.error === 'string' && b.error.trim()) msg = b.error.trim();
+        } catch {
+          /* ignore */
+        }
+        showToast(msg, 'error');
         return;
       }
       const blob = await res.blob();
@@ -493,8 +503,12 @@ function buildFilterToolbar(users, refs, opts = {}) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      showToast('Export CSV des actions téléchargé.', 'success');
     } catch {
-      showToast('Erreur réseau', 'error');
+      showToast('Réseau indisponible : export CSV annulé.', 'error');
+    } finally {
+      exportBtnAct.disabled = false;
+      exportBtnAct.textContent = prev;
     }
   });
   gExp.append(exportBtnAct);

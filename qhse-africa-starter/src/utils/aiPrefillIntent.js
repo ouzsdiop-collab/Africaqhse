@@ -113,12 +113,12 @@ export function buildRiskDefaultsFromStructured(structured) {
       const tail = [role && `resp: ${role}`, due && `échéance: ${due}`, ev, cc && `clôture: ${cc}`]
         .filter(Boolean)
         .join(' | ');
-      return tail ? `${act} — ${tail}` : act;
+      return tail ? `${act} : ${tail}` : act;
     })
     .filter(Boolean);
 
   const blocks = [];
-  blocks.push(`[Suggestion IA à valider] Confiance: ${Math.round(conf * 100)}%`);
+  blocks.push(`[Suggestion assistée à valider] Confiance: ${Math.round(conf * 100)}%`);
   if (summary) blocks.push(`Synthèse\n${summary}`);
   if (danger) blocks.push(`Danger\n${danger}`);
   if (haz) blocks.push(`Situation dangereuse\n${haz}`);
@@ -177,7 +177,7 @@ export function buildIncidentPrefillFromStructured(structured) {
   const rec = Array.isArray(c.recommendedActions) ? c.recommendedActions : [];
 
   const blocks = [];
-  blocks.push(`[Suggestion IA à valider] Confiance: ${Math.round(conf * 100)}%`);
+  blocks.push(`[Suggestion assistée à valider] Confiance: ${Math.round(conf * 100)}%`);
   if (summary) blocks.push(`Résumé\n${summary}`);
   if (findings.length) blocks.push(`Constats\n${joinLines(findings)}`);
   if (rec.length) blocks.push(`Actions proposées\n${joinLines(rec)}`);
@@ -211,7 +211,7 @@ export function buildAuditDefaultsFromStructured(structured) {
   const rec = Array.isArray(c.recommendedActions) ? c.recommendedActions : [];
 
   const blocks = [];
-  blocks.push(`[Suggestion IA à valider] Confiance: ${Math.round(conf * 100)}%`);
+  blocks.push(`[Suggestion assistée à valider] Confiance: ${Math.round(conf * 100)}%`);
   if (summary) blocks.push(`Synthèse\n${summary}`);
   if (findings.length) blocks.push(`Constats / écarts\n${joinLines(findings)}`);
   if (rec.length) blocks.push(`Actions recommandées\n${joinLines(rec)}`);

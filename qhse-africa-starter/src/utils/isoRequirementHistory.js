@@ -132,8 +132,8 @@ export function buildIsoRequirementHistoryTimeline(requirementId, row) {
             e.detail
           ]
             .filter(Boolean)
-            .join(' — ')
-        : [e.action, e.detail].filter(Boolean).join(' — ');
+            .join(' · ')
+        : [e.action, e.detail].filter(Boolean).join(' · ');
     out.push({
       at: entrySortKey(e),
       kind,

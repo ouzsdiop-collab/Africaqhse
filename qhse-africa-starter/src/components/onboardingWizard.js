@@ -172,25 +172,25 @@ export function createOnboardingWizard(opts) {
     updateDots();
 
     if (screen === 0) {
-      title.textContent = 'Bienvenue sur AfricaQHSE';
+      title.textContent = 'Bienvenue sur QHSE Control';
       sub.textContent =
-        'Parcours de démarrage : environ 30 secondes pour les fondamentaux. AfricaQHSE centralise QHSE, conformité et terrain.';
+        'Environ trente secondes pour poser les bases : sites, invitations, puis vos premiers enregistrements terrain.';
 
       const values = el('div', 'qhse-onboarding-wizard__values');
       const v1 = el('div', 'qhse-onboarding-wizard__value');
       v1.append(
-        el('strong', '', 'Une vision unique'),
-        document.createTextNode(' : incidents, risques, audits et documents au même endroit.')
+        el('strong', '', 'Registre unique'),
+        document.createTextNode(' : incidents, risques, audits et pièces au même endroit.')
       );
       const v2 = el('div', 'qhse-onboarding-wizard__value');
       v2.append(
-        el('strong', '', 'Conformité pilotée'),
-        document.createTextNode(' : traçabilité et indicateurs pour vos référentiels.')
+        el('strong', '', 'ISO et preuves'),
+        document.createTextNode(' : statuts d’exigences et documents rattachés pour l’audit interne.')
       );
       const v3 = el('div', 'qhse-onboarding-wizard__value');
       v3.append(
-        el('strong', '', 'Équipe alignée'),
-        document.createTextNode(' : sites, rôles et actions partagés en temps réel.')
+        el('strong', '', 'Rôles et sites'),
+        document.createTextNode(' : chaque utilisateur voit le périmètre qui lui est attribué.')
       );
       values.append(v1, v2, v3);
       const hint = el('p', 'qhse-onboarding-wizard__muted', 'Lecture indicative : ~30 s. Passez à l’étape suivante quand vous êtes prêt.');
@@ -432,8 +432,8 @@ export function createOnboardingWizard(opts) {
       return;
     }
 
-    title.textContent = 'Vous êtes prêt !';
-    sub.textContent = 'Récapitulatif de votre démarrage sur AfricaQHSE.';
+    title.textContent = 'Démarrage prêt';
+    sub.textContent = 'Récapitulatif de votre configuration initiale sur QHSE Control.';
 
     const ul = el('ul', 'qhse-onboarding-wizard__checklist');
     const items = [
@@ -488,36 +488,36 @@ const PRODUCT_TOUR_STEPS = [
   {
     id: 'welcome',
     icon: '👋',
-    title: 'Bienvenue sur AfricaQHSE',
-    desc: 'Votre plateforme de pilotage QHSE est prete. Decouvrez les fonctionnalites cles en 4 etapes.',
+    title: 'Bienvenue sur QHSE Control',
+    desc: 'Quatre étapes pour sécuriser le démarrage : incident, risque, audit, puis la suite à votre rythme.',
     action: null
   },
   {
     id: 'incident',
     icon: '⚠️',
-    title: 'Declarez votre premier incident',
-    desc: "Signalez tout evenement SST : accident, quasi-accident, situation dangereuse. Chaque declaration ameliore la prevention.",
+    title: 'Enregistrer un incident',
+    desc: 'Accident, quasi-accident ou situation dangereuse : une fiche datée alimente le suivi et les actions correctives.',
     action: { label: 'Aller aux incidents', page: 'incidents' }
   },
   {
     id: 'risk',
     icon: '🎯',
-    title: 'Evaluez vos risques',
-    desc: "Construisez votre registre des risques avec cotation probabilite × gravite. L'IA vous suggere des mesures de prevention.",
+    title: 'Structurer le registre des risques',
+    desc: 'Cotation probabilité et gravité, mesures associées. Des propositions de prévention peuvent être générées à titre d’aide, sous votre validation.',
     action: { label: 'Voir les risques', page: 'risks' }
   },
   {
     id: 'audit',
     icon: '✅',
-    title: 'Planifiez un audit',
-    desc: 'Programmez vos audits internes et suivez les scores de conformite dans le temps.',
+    title: 'Préparer un audit interne',
+    desc: 'Planifiez la visite, collectez les constats et reliez-les aux preuves et plans d’action.',
     action: { label: 'Planifier un audit', page: 'audits' }
   },
   {
     id: 'done',
     icon: '🚀',
-    title: 'Vous etes pret !',
-    desc: 'AfricaQHSE est configure. Consultez le guide utilisateur pour aller plus loin.',
+    title: 'Démarrage prêt',
+    desc: 'Le guide utilisateur PDF résume les flux courants et les bonnes pratiques de saisie.',
     action: { label: 'Télécharger le guide PDF', href: '/guide-utilisateur-africaqhse.pdf' }
   }
 ];

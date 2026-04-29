@@ -36,14 +36,14 @@ export function createDashboardPilotageAssistant(opts = {}) {
           <h4 class="dashboard-pilotage-assistant__h">Synthèse</h4>
           <p class="dashboard-pilotage-assistant__synthesis-text">Chargement…</p>
         </section>
-        <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__ia" aria-label="Avis IA pilotage">
-          <h4 class="dashboard-pilotage-assistant__h">Avis IA : pilotage</h4>
-          <p class="dashboard-pilotage-assistant__ia-loading" hidden>Analyse IA en cours…</p>
+        <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__ia" aria-label="Lecture assistée du pilotage">
+          <h4 class="dashboard-pilotage-assistant__h">Lecture assistée</h4>
+          <p class="dashboard-pilotage-assistant__ia-loading" hidden>Synthèse en cours…</p>
           <p class="dashboard-pilotage-assistant__ia-text" hidden></p>
           <ul class="dashboard-pilotage-assistant__ia-actions" hidden></ul>
         </section>
         <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__recs" aria-label="Recommandations">
-          <h4 class="dashboard-pilotage-assistant__h">Recommandations intelligentes</h4>
+          <h4 class="dashboard-pilotage-assistant__h">Recommandations (à valider)</h4>
           <ul class="dashboard-pilotage-assistant__rec-list"></ul>
         </section>
         <section class="dashboard-pilotage-assistant__panel dashboard-pilotage-assistant__anomalies" hidden aria-label="Anomalies">

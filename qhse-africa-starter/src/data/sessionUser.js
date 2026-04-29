@@ -1,4 +1,5 @@
 import { getApiBase } from '../config.js';
+import { setDemoMode } from '../services/demoMode.service.js';
 
 const STORAGE_KEY = 'qhseSessionUser';
 const TOKEN_KEY = 'qhseAuthToken';
@@ -358,6 +359,8 @@ export async function restoreSessionFromToken() {
       if (data.tenant) {
         persistTenantContext(data.tenant, data.tenants);
       }
+      /* Connexion réelle : ne pas laisser le mode exploration intercepter qhseFetch. */
+      setDemoMode(false);
     } else {
       clearAuthSession();
     }

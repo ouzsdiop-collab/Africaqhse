@@ -16,11 +16,16 @@ test.describe('Smoke QHSE', () => {
     await expect(page.getByRole('heading', { name: 'Incidents terrain' })).toBeVisible();
   });
 
-  test('écran login : parcours démonstration visible en dev Vite (aligné sur isDemoModeAllowed)', async ({ page }) => {
+  test('écran login : pas de CTA démo mines ; accès direct #mines-demo toujours disponible', async ({ page }) => {
     await page.goto('/#login');
     await expect(page.locator('.lv2-form')).toBeVisible({ timeout: 30_000 });
-    // Sous `npm run dev`, le CTA est affiché. Build prod sans VITE_ALLOW_DEMO_MODE=true : pas de `.lv2-demo-link`.
-    await expect(page.locator('.lv2-demo-link')).toBeVisible();
+    await expect(page.locator('.lv2-form-title')).toHaveText(/Connexion à votre espace/);
+    await expect(
+      page.getByRole('button', { name: /Essayer la démonstration terrain/i })
+    ).toHaveCount(0);
+
+    await page.goto('/#mines-demo');
+    await expect(page.locator('.mines-demo-page')).toBeVisible({ timeout: 30_000 });
   });
 
   test('connexion JWT puis tableau de bord', async ({ page, request }) => {

@@ -454,7 +454,7 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   aiSec.className = 'incidents-detail-section incidents-detail-section--ai';
   const aiH = document.createElement('h3');
   aiH.className = 'incidents-detail-section__title';
-  aiH.textContent = 'Suggestions IA (assistance)';
+  aiH.textContent = 'Suggestions assistées (lecture indicative)';
   const aiDisclaimer = document.createElement('p');
   aiDisclaimer.className = 'incidents-detail-muted';
   aiDisclaimer.textContent =

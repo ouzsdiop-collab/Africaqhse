@@ -11,6 +11,7 @@ import { isXUserIdAllowed } from '../lib/securityConfig.js';
 export async function attachRequestUser(req, res, next) {
   req.qhseTenant = null;
   req.qhseTenantId = null;
+  req.qhseAuthSource = null;
 
   const authHeader = req.get('authorization') || req.get('Authorization') || '';
   const bearerMatch = /^Bearer\s+(\S+)/i.exec(authHeader);
@@ -51,6 +52,7 @@ export async function attachRequestUser(req, res, next) {
       }
 
       const role = String(user.role ?? '').trim().toUpperCase();
+      req.qhseAuthSource = 'bearer';
       req.qhseUser = {
         id: user.id,
         name: user.name,
@@ -127,6 +129,7 @@ export async function attachRequestUser(req, res, next) {
       });
     }
 
+    req.qhseAuthSource = 'x-user-id';
     req.qhseUser = {
       id: user.id,
       name: user.name,

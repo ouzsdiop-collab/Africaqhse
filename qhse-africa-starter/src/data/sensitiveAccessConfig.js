@@ -53,8 +53,8 @@ export const SENSITIVE_ACCESS_ACTION_META = [
   },
   {
     key: 'security_zone',
-    label: 'Zones « sécurité » (IA, analyses)',
-    hint: 'Lancement d’analyses / scénarios au Centre IA : désactivé par défaut (usage fréquent).'
+    label: 'Zones synthèse et analyses',
+    hint: 'Lancement d’analyses ou de scénarios depuis Synthèse et assistance : désactivé par défaut (usage fréquent).'
   },
   {
     key: 'sensitive_mutation',
