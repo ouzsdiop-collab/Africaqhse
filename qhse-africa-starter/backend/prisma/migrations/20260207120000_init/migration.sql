@@ -95,7 +95,7 @@ CREATE TABLE "actions" (
     "tenantId" TEXT,
     "title" TEXT NOT NULL,
     "detail" TEXT,
-    "status" TEXT NOT NULL DEFAULT '├Ç lancer',
+    "status" TEXT NOT NULL DEFAULT 'À lancer',
     "owner" TEXT,
     "dueDate" TIMESTAMP(3),
     "siteId" TEXT,

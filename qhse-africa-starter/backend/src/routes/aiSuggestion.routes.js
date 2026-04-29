@@ -6,14 +6,12 @@ import {
   suggestRootCauses,
   suggestCorrectiveActions,
   suggestDashboardPilotageActions,
-  assessRiskLevel
-} from '../services/aiSuggestion.service.js';
-import {
+  assessRiskLevel,
   suggestIncidentCauses,
   suggestRiskMitigation,
   suggestAuditQuestions,
   generateDashboardInsight
-} from '../services/aiSuggestions.service.js';
+} from '../services/aiSuggestion.service.js';
 
 const router = Router();
 

@@ -22,6 +22,23 @@ export async function getAll(req, res, next) {
   }
 }
 
+export async function getAlerts(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const days = Number(req.query?.daysAhead ?? req.query?.days ?? 30);
+    const limit = Number(req.query?.limit ?? 50);
+    const alerts = await habilitationsService.getHabilitationAlerts(req.qhseTenantId, {
+      daysAhead: Number.isFinite(days) ? days : 30,
+      limit: Number.isFinite(limit) ? limit : 50,
+      siteId
+    });
+    res.json({ alerts });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function create(req, res, next) {
   try {
     const row = await habilitationsService.createHabilitation(req.qhseTenantId, req.body ?? {});

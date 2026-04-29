@@ -57,6 +57,88 @@ export async function getExpiringHabilitations(tenantId, daysAhead) {
 }
 
 /**
+ * Alertes habilitations (expired + expiring soon), sans charger tout l’historique.
+ * Format : { type, severity, message, date }
+ *
+ * @param {string | null | undefined} tenantId
+ * @param {{ daysAhead?: number, limit?: number, siteId?: string | null }} [opts]
+ */
+export async function getHabilitationAlerts(tenantId, opts = {}) {
+  const d = Math.max(1, Math.min(365, Math.floor(Number(opts.daysAhead) || 30)));
+  const limit = Math.max(1, Math.min(200, Math.floor(Number(opts.limit) || 50)));
+  const now = new Date();
+  const end = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+  const tf = prismaTenantFilter(tenantId);
+  const sid =
+    opts.siteId != null && String(opts.siteId).trim() !== '' ? String(opts.siteId).trim() : null;
+
+  const baseWhere = { ...tf, ...(sid ? { siteId: sid } : {}) };
+
+  const [expired, expiring] = await Promise.all([
+    prisma.habilitation.findMany({
+      where: {
+        ...baseWhere,
+        validUntil: { not: null, lt: now }
+      },
+      select: {
+        id: true,
+        type: true,
+        level: true,
+        validUntil: true,
+        user: { select: { id: true, name: true, email: true } },
+        siteRecord: { select: { id: true, name: true, code: true } }
+      },
+      orderBy: { validUntil: 'desc' },
+      take: limit
+    }),
+    prisma.habilitation.findMany({
+      where: {
+        ...baseWhere,
+        validUntil: { not: null, gte: now, lte: end }
+      },
+      select: {
+        id: true,
+        type: true,
+        level: true,
+        validUntil: true,
+        user: { select: { id: true, name: true, email: true } },
+        siteRecord: { select: { id: true, name: true, code: true } }
+      },
+      orderBy: { validUntil: 'asc' },
+      take: limit
+    })
+  ]);
+
+  const alerts = [];
+
+  for (const h of expired) {
+    const who = h.user?.name || h.user?.email || 'Utilisateur';
+    const site = h.siteRecord?.name || h.siteRecord?.code || null;
+    const date = h.validUntil ? h.validUntil.toISOString() : null;
+    alerts.push({
+      type: 'habilitation.expired',
+      severity: 'high',
+      message: `Habilitation expirée : ${who}${site ? ` (${site})` : ''} - ${String(h.type || '').trim() || 'habilitation'}`,
+      date
+    });
+  }
+
+  for (const h of expiring) {
+    const who = h.user?.name || h.user?.email || 'Utilisateur';
+    const site = h.siteRecord?.name || h.siteRecord?.code || null;
+    const date = h.validUntil ? h.validUntil.toISOString() : null;
+    alerts.push({
+      type: 'habilitation.expiring',
+      severity: 'medium',
+      message: `Habilitation proche expiration : ${who}${site ? ` (${site})` : ''} - ${String(h.type || '').trim() || 'habilitation'}`,
+      date
+    });
+  }
+
+  return alerts.slice(0, limit);
+}
+
+/**
  * @param {string | null | undefined} tenantId
  * @param {Record<string, unknown>} data
  */

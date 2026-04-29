@@ -1,5 +1,44 @@
+import { prisma } from '../db.js';
+import { normalizeTenantId } from '../lib/tenantScope.js';
 import { requestJsonCompletion } from './aiProvider.service.js';
-import { persistSuggestionDraft } from './aiSuggestion.service.js';
+
+/**
+ * Persistance minimale d’une suggestion (pour garder le workflow pending_review),
+ * sans dépendre de `aiSuggestion.service.js` (évite les imports circulaires).
+ */
+async function persistSuggestionDraftLocal(opts) {
+  const tenantRow = normalizeTenantId(opts.tenantId);
+  if (!tenantRow) return null;
+  const typeKey = String(opts.type || 'generic').slice(0, 64);
+  const content = {
+    schemaVersion: 1,
+    summary: String(opts.summary || 'Suggestion IA - revue obligatoire.').slice(0, 2000),
+    confidence: 0.55,
+    humanValidationRequired: true,
+    disclaimer: 'Suggestion IA à valider par un responsable habilité.',
+    response: opts.response && typeof opts.response === 'object' ? opts.response : {},
+    context: opts.context && typeof opts.context === 'object' ? opts.context : {},
+    warnings: Array.isArray(opts.warnings) ? opts.warnings : []
+  };
+  try {
+    return await prisma.aiSuggestion.create({
+      data: {
+        tenantId: tenantRow,
+        type: typeKey,
+        content,
+        status: 'pending_review',
+        createdBySource: opts.userId ? 'user' : 'system',
+        createdByUserId: opts.userId,
+        targetIncidentId: opts.targetIncidentId ?? null,
+        targetAuditId: opts.targetAuditId ?? null,
+        riskRef: opts.riskRef ? String(opts.riskRef).slice(0, 200) : null,
+        providerMeta: opts.providerMeta && typeof opts.providerMeta === 'object' ? opts.providerMeta : null
+      }
+    });
+  } catch {
+    return null;
+  }
+}
 
 const SYSTEM_PROMPT = `Tu es un expert QHSE spécialisé (ISO 45001, ISO 9001, ISO 14001) orienté industrie/mines/énergie en Afrique.
 Tu réponds en français, de façon concise, opérationnelle, vérifiable.
@@ -419,7 +458,7 @@ Objectif:
   let suggestionId = null;
   if (persistSuggestion) {
     try {
-      const created = await persistSuggestionDraft({
+      const created = await persistSuggestionDraftLocal({
         tenantId,
         type: 'incident_root_cause',
         context: { incident: cleanIncident },
@@ -570,7 +609,7 @@ Objectif:
   let suggestionId = null;
   if (persistSuggestion) {
     try {
-      const created = await persistSuggestionDraft({
+      const created = await persistSuggestionDraftLocal({
         tenantId,
         type: 'risk_mitigation',
         context: { risk: cleanRisk },
@@ -774,7 +813,7 @@ Objectif:
   let suggestionId = null;
   if (persistSuggestion) {
     try {
-      const created = await persistSuggestionDraft({
+      const created = await persistSuggestionDraftLocal({
         tenantId,
         type: 'dashboard_insight',
         context: { stats: cleanStats },

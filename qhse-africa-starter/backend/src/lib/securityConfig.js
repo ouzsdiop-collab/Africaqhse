@@ -9,7 +9,8 @@ function envFalsy(name) {
 }
 
 export function getCorsMiddlewareOptions() {
-  const raw = process.env.ALLOWED_ORIGINS || '';
+  // Priorité : CORS_ORIGINS (nouvelle variable). ALLOWED_ORIGINS reste en fallback.
+  const raw = process.env.CORS_ORIGINS || process.env.ALLOWED_ORIGINS || '';
   const whitelist = raw
     .split(',')
     .map((o) => o.trim())
@@ -20,7 +21,7 @@ export function getCorsMiddlewareOptions() {
 
   if (process.env.NODE_ENV === 'production' && whitelist.length === 0) {
     throw new Error(
-      '[CORS] ALLOWED_ORIGINS est vide en production — definissez-la dans les variables Railway.'
+      '[CORS] CORS_ORIGINS/ALLOWED_ORIGINS est vide en production — definissez-la dans les variables Railway.'
     );
   }
 

@@ -46,7 +46,7 @@ function escapeHtml(s) {
 export function getFrontendBaseUrl() {
   const u = process.env.FRONTEND_URL?.trim();
   if (u) return u.replace(/\/$/, '');
-  const cors = process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim();
+  const cors = (process.env.CORS_ORIGINS || process.env.ALLOWED_ORIGINS)?.split(',')[0]?.trim();
   if (cors) return cors.replace(/\/$/, '');
   return 'http://localhost:5173';
 }

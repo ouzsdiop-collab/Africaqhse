@@ -142,36 +142,50 @@ const INCIDENT_CAUSE_CATEGORIES = new Set(['humain', 'materiel', 'organisation',
 /**
  * @param {unknown} raw
  * @param {number} maxLen
- * @returns {{ ok: true, value: string | null } | { ok: false, error: string }}
+ * @returns {{ ok: true, value: string[] | null } | { ok: false, error: string }}
  */
 export function parseIncidentPhotosJson(raw, maxLen) {
   if (raw == null || raw === '') {
     return { ok: true, value: null };
   }
-  const s = typeof raw === 'string' ? raw.trim() : '';
-  if (!s) {
-    return { ok: true, value: null };
-  }
-  if (s.length > maxLen) {
-    return { ok: false, error: 'Données photo trop volumineuses (réduire taille ou nombre)' };
-  }
-  try {
-    const j = JSON.parse(s);
-    if (!Array.isArray(j)) {
-      return { ok: false, error: 'photosJson : attendu un tableau' };
+
+  /** @type {unknown} */
+  let parsed;
+
+  if (Array.isArray(raw)) {
+    parsed = raw;
+    const approx = JSON.stringify(raw);
+    if (approx.length > maxLen) {
+      return { ok: false, error: 'Données photo trop volumineuses (réduire taille ou nombre)' };
     }
-    if (j.length > 4) {
-      return { ok: false, error: 'Maximum 4 photos par incident' };
+  } else if (typeof raw === 'string') {
+    const s = raw.trim();
+    if (!s) return { ok: true, value: null };
+    if (s.length > maxLen) {
+      return { ok: false, error: 'Données photo trop volumineuses (réduire taille ou nombre)' };
     }
-    for (const x of j) {
-      if (typeof x !== 'string' || x.length < 20 || !x.startsWith('data:image/')) {
-        return { ok: false, error: 'Chaque photo doit être une data URL image' };
-      }
+    try {
+      parsed = JSON.parse(s);
+    } catch {
+      return { ok: false, error: 'photosJson invalide (JSON)' };
     }
-    return { ok: true, value: s };
-  } catch {
-    return { ok: false, error: 'photosJson invalide (JSON)' };
+  } else {
+    return { ok: false, error: 'photosJson : attendu une chaîne JSON ou un tableau' };
   }
+
+  if (!Array.isArray(parsed)) {
+    return { ok: false, error: 'photosJson : attendu un tableau' };
+  }
+  if (parsed.length > 4) {
+    return { ok: false, error: 'Maximum 4 photos par incident' };
+  }
+  for (const x of parsed) {
+    if (typeof x !== 'string' || x.length < 20 || !x.startsWith('data:image/')) {
+      return { ok: false, error: 'Chaque photo doit être une data URL image' };
+    }
+  }
+
+  return { ok: true, value: parsed };
 }
 
 /**

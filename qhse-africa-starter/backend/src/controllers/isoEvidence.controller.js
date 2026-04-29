@@ -120,8 +120,8 @@ export async function create(req, res, next) {
     res.status(201).json({ ok: true, evidence: row });
   } catch (err) {
     const code = /** @type {{ statusCode?: number }} */ (err)?.statusCode;
-    if (code === 400) {
-      return res.status(400).json({ error: err.message || 'Requête invalide' });
+    if (code && (code === 400 || code === 413 || code === 415)) {
+      return res.status(code).json({ error: err.message || 'Requête invalide' });
     }
     next(err);
   }

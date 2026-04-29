@@ -16,7 +16,7 @@ const { prismaMock } = vi.hoisted(() => ({
 
 vi.mock('../db.js', () => ({ prisma: prismaMock }));
 
-vi.mock('./documentStorage.service.js', () => ({
+vi.mock('./storage.service.js', () => ({
   deleteControlledFile: vi.fn(async () => {}),
   readControlledFileBuffer: vi.fn(async () => Buffer.from('x')),
   saveControlledFile: vi.fn(async () => ({ relativePath: 'p', sizeBytes: 1 })),

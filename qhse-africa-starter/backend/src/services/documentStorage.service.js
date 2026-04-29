@@ -1,6 +1,12 @@
 /**
- * Stockage fichier — S3 compatible (Scaleway, MinIO, AWS) si S3_BUCKET est défini,
- * sinon disque local sous DOCUMENT_STORAGE_PATH (ou répertoire par défaut backend/storage).
+ * Stockage fichier — local en dev, S3 compatible en production (Railway).
+ *
+ * Driver via `STORAGE_DRIVER` :
+ * - local : force stockage disque (DOCUMENT_STORAGE_PATH)
+ * - s3 : force stockage S3 (S3_BUCKET + identifiants)
+ *
+ * Compatibilité :
+ * - si STORAGE_DRIVER absent : repli ancien (S3 si S3_BUCKET présent, sinon local).
  */
 
 import fs from 'fs/promises';
@@ -19,12 +25,24 @@ function getBackendRoot() {
 }
 
 /**
- * S3 actif uniquement si le bucket est renseigné (priorité sur le mode local).
- * Repli local si S3_BUCKET absent — y compris lorsque DOCUMENT_STORAGE_PATH est défini.
+ * Driver actif de stockage.
+ */
+export function getStorageBackend() {
+  const raw = process.env.STORAGE_DRIVER;
+  const d = raw == null ? '' : String(raw).trim().toLowerCase();
+  if (d === 'local') return 'local';
+  if (d === 's3') return 's3';
+
+  // Legacy fallback : S3 si bucket présent, sinon local.
+  const legacyBucket = process.env.S3_BUCKET;
+  return legacyBucket && String(legacyBucket).trim() ? 's3' : 'local';
+}
+
+/**
+ * S3 actif uniquement si le driver est "s3".
  */
 export function isS3StorageEnabled() {
-  const b = process.env.S3_BUCKET;
-  return Boolean(b && String(b).trim());
+  return getStorageBackend() === 's3';
 }
 
 /**
@@ -36,13 +54,6 @@ export function getStorageRoot() {
     return path.resolve(String(raw).trim());
   }
   return path.join(getBackendRoot(), 'storage', 'controlled-documents');
-}
-
-/**
- * @deprecated Préférer isS3StorageEnabled(). Conservé pour compatibilité lecture .env.
- */
-export function getStorageBackend() {
-  return isS3StorageEnabled() ? 's3' : 'local';
 }
 
 /** @type {S3Client | null} */
@@ -62,11 +73,17 @@ function getS3Client() {
   if (s3ClientSingleton) return s3ClientSingleton;
   const endpoint = process.env.S3_ENDPOINT?.trim() || undefined;
   const region = (process.env.S3_REGION || 'us-east-1').trim();
-  const accessKeyId = process.env.S3_ACCESS_KEY?.trim() || '';
-  const secretAccessKey = process.env.S3_SECRET_KEY?.trim() || '';
-  if (!accessKeyId || !secretAccessKey) {
+  const accessKeyId =
+    process.env.S3_ACCESS_KEY_ID?.trim() ||
+    process.env.S3_ACCESS_KEY?.trim() ||
+    '';
+  const secretAccessKey =
+    process.env.S3_SECRET_ACCESS_KEY?.trim() ||
+    process.env.S3_SECRET_KEY?.trim() ||
+    '';
+  if (!accessKeyId || !secretAccessKey || !getS3Bucket()) {
     const err = new Error(
-      'S3 : renseignez S3_ACCESS_KEY et S3_SECRET_KEY (ou désactivez S3_BUCKET pour le stockage local).'
+      'Stockage S3 : configurez STORAGE_DRIVER=s3 et renseignez S3_BUCKET + identifiants S3 (S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY).'
     );
     err.statusCode = 500;
     throw err;
@@ -87,12 +104,140 @@ function resetS3ClientForTests() {
 
 export { resetS3ClientForTests };
 
+function getFileExtension(originalName) {
+  const n = String(originalName || '').trim();
+  if (!n) return '';
+  const ext = path.extname(n).replace('.', '').trim().toLowerCase();
+  return ext || '';
+}
+
+function normalizeMimeType(m) {
+  if (m == null) return '';
+  const s = String(m).trim().toLowerCase();
+  return s.includes(';') ? s.split(';')[0].trim() : s;
+}
+
+function validateControlledUploadMeta(meta, bufferLengthBytes) {
+  const originalName = String(meta.originalName || 'file');
+  const contentType = normalizeMimeType(meta.contentType || '');
+  let ext = getFileExtension(originalName);
+  const allowedExts = new Set([
+    'pdf',
+    'png',
+    'jpg',
+    'jpeg',
+    'gif',
+    'webp',
+    'bmp',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'csv',
+    'txt',
+    'rtf',
+    'json'
+  ]);
+
+  const controlledMax = Number(process.env.CONTROLLED_DOCUMENT_MAX_BYTES) || 25 * 1024 * 1024;
+  const isoMax = Number(process.env.ISO_EVIDENCE_MAX_BYTES) || 20 * 1024 * 1024;
+  const maxBytes = Math.max(controlledMax, isoMax);
+
+  if (!bufferLengthBytes || bufferLengthBytes <= 0) {
+    const err = new Error('Fichier vide ou illisible.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (bufferLengthBytes > maxBytes) {
+    const err = new Error(`Fichier trop volumineux (max. ${Math.round(maxBytes / 1024 / 1024)} Mo).`);
+    err.statusCode = 413;
+    throw err;
+  }
+  if (!contentType) {
+    const err = new Error('Type de fichier non pris en charge (mimetype manquant).');
+    err.statusCode = 415;
+    throw err;
+  }
+
+  function guessExtensionFromMime(mime) {
+    const m = String(mime || '').trim().toLowerCase();
+    if (!m) return '';
+    if (m === 'application/octet-stream') return '';
+    if (m === 'application/pdf') return 'pdf';
+    if (m === 'text/csv' || m === 'application/csv') return 'csv';
+    if (m === 'application/rtf') return 'rtf';
+    if (m === 'text/plain') return 'txt';
+    if (m.includes('json')) return 'json';
+    if (m.startsWith('image/png')) return 'png';
+    if (m.startsWith('image/jpeg')) return 'jpeg';
+    if (m.startsWith('image/gif')) return 'gif';
+    if (m.startsWith('image/webp')) return 'webp';
+    if (m.startsWith('image/bmp')) return 'bmp';
+    if (m === 'application/msword') return 'doc';
+    if (m.includes('wordprocessingml.document')) return 'docx';
+    if (m === 'application/vnd.ms-excel' || m === 'application/vnd.ms-office') return 'xls';
+    if (m.includes('spreadsheetml.sheet')) return 'xlsx';
+    return '';
+  }
+
+  // Si l’extension n’est pas fiable (absente ou non reconnue), on valide le couple depuis le mimetype.
+  if (!ext || !allowedExts.has(ext)) {
+    const guessed = guessExtensionFromMime(contentType);
+    if (guessed && allowedExts.has(guessed)) {
+      ext = guessed;
+    }
+  }
+
+  if (!ext || !allowedExts.has(ext)) {
+    const err = new Error('Type de fichier non pris en charge (extension).');
+    err.statusCode = 415;
+    throw err;
+  }
+
+  const allowedMimeByExt = {
+    pdf: ['application/pdf'],
+    png: ['image/png'],
+    jpg: ['image/jpeg'],
+    jpeg: ['image/jpeg'],
+    gif: ['image/gif'],
+    webp: ['image/webp'],
+    bmp: ['image/bmp'],
+    doc: ['application/msword'],
+    docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    xls: ['application/vnd.ms-excel', 'application/vnd.ms-office'],
+    xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+    csv: ['text/csv', 'application/csv', 'application/vnd.ms-excel'],
+    txt: ['text/plain'],
+    rtf: ['application/rtf'],
+    json: ['application/json', 'text/json']
+  };
+
+  // `application/octet-stream` arrive souvent, donc on l’accepte si l’extension est autorisée.
+  if (contentType === 'application/octet-stream') return;
+
+  const allowedMimes = allowedMimeByExt[ext] || [];
+  if (allowedMimes.length === 0) {
+    const err = new Error('Type de fichier non pris en charge.');
+    err.statusCode = 415;
+    throw err;
+  }
+
+  const ok = allowedMimes.some((m) => m === contentType);
+  if (!ok) {
+    const err = new Error('Type de fichier non pris en charge (mimetype).');
+    err.statusCode = 415;
+    throw err;
+  }
+}
+
 /**
  * @param {Buffer} buffer
  * @param {{ originalName: string, contentType?: string | null }} meta
  * @returns {Promise<{ relativePath: string, sizeBytes: number }>}
  */
 export async function saveControlledFile(buffer, meta) {
+  validateControlledUploadMeta({ originalName: meta.originalName, contentType: meta.contentType }, buffer.length);
+
   if (isS3StorageEnabled()) {
     const bucket = getS3Bucket();
     const safeBase = path

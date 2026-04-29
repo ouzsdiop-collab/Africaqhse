@@ -34,7 +34,7 @@ vi.mock('../services/auditLog.service.js', () => ({
   writeAuditLog: (...args) => mocks.writeAuditLog(...args)
 }));
 
-vi.mock('../services/documentStorage.service.js', () => ({
+vi.mock('../services/storage.service.js', () => ({
   isS3StorageEnabled: vi.fn(() => false),
   getPresignedControlledDocumentDownloadUrl: vi.fn(async () => 'https://example.invalid/s3'),
   readControlledFileBuffer: (...args) => mocks.readControlledFileBuffer(...args),

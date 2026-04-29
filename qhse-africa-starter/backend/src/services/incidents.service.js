@@ -94,13 +94,62 @@ export async function createIncident(tenantId, data) {
       location: data.location ?? null,
       causes: data.causes ?? null,
       causeCategory: data.causeCategory ?? null,
-      photosJson: data.photosJson ?? null,
+      photosJson: normalizeIncidentPhotosJsonForDb(data.photosJson),
       responsible: data.responsible ?? null
     }
   });
 }
 
 const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
+
+/**
+ * Prisma `photosJson` est un champ Json :
+ * - null = aucun média
+ * - chaîne JSON = on parse puis on stocke en Json
+ * - tableau déjà valide = on stocke tel quel
+ *
+ * @param {unknown} raw
+ * @returns {string[] | null}
+ */
+function normalizeIncidentPhotosJsonForDb(raw) {
+  if (raw == null || raw === '') return null;
+  if (Array.isArray(raw)) {
+    if (raw.length > 4) {
+      const err = new Error('Maximum 4 photos par incident');
+      err.statusCode = 400;
+      throw err;
+    }
+    for (const x of raw) {
+      if (typeof x !== 'string' || x.length < 20 || !x.startsWith('data:image/')) {
+        const err = new Error('Chaque photo doit être une data URL image');
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    const s = raw.trim();
+    if (!s) return null;
+    let parsed;
+    try {
+      parsed = JSON.parse(s);
+    } catch {
+      const err = new Error('photosJson invalide (JSON)');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!Array.isArray(parsed)) {
+      const err = new Error('photosJson : attendu un tableau');
+      err.statusCode = 400;
+      throw err;
+    }
+    return normalizeIncidentPhotosJsonForDb(parsed);
+  }
+  const err = new Error('photosJson : type invalide');
+  err.statusCode = 400;
+  throw err;
+}
 
 /**
  * @param {string | null | undefined} tenantId
@@ -111,7 +160,7 @@ const CAUSE_CATS = new Set(['humain', 'materiel', 'organisation', 'mixte']);
  *   causeCategory?: string | null,
  *   location?: string | null,
  *   responsible?: string | null,
- *   photosJson?: string | null
+ *   photosJson?: unknown
  * }} data
  */
 export async function updateIncidentByRef(tenantId, ref, data) {
@@ -147,7 +196,7 @@ export async function updateIncidentByRef(tenantId, ref, data) {
     patch.responsible = data.responsible;
   }
   if ('photosJson' in data) {
-    patch.photosJson = data.photosJson;
+    patch.photosJson = normalizeIncidentPhotosJsonForDb(data.photosJson);
   }
   if (Object.keys(patch).length === 0) {
     const err = new Error('Aucun champ valide à mettre à jour');

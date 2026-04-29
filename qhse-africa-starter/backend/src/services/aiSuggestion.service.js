@@ -11,6 +11,15 @@ import {
   resolveAiProvider
 } from './aiProvider.service.js';
 
+// API unifiée : ces helpers restent implémentés dans `aiSuggestions.service.js`,
+// mais l’interface publique passe par ce fichier (évite le doublon).
+export {
+  suggestIncidentCauses,
+  suggestRiskMitigation,
+  suggestAuditQuestions,
+  generateDashboardInsight
+} from './aiSuggestions.service.js';
+
 export const AI_SUGGESTION_STATUS = {
   PENDING: 'pending_review',
   ACCEPTED: 'accepted',

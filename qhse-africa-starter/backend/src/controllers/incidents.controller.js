@@ -11,13 +11,31 @@ import {
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
 import { emitBusinessEvent } from '../services/businessEvents.service.js';
 
+function serializeIncidentPhotosJsonForApi(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'string') return raw; // compat (ancien stockage String)
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeIncidentForApi(row) {
+  if (!row || typeof row !== 'object') return row;
+  return {
+    ...row,
+    photosJson: serializeIncidentPhotosJsonForApi(row.photosJson)
+  };
+}
+
 export async function getAll(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
     const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const limit = parseListLimit(req.query.limit);
     const items = await incidentsService.findAllIncidents(req.qhseTenantId, { siteId, limit });
-    res.json(items);
+    res.json(items.map(normalizeIncidentForApi));
   } catch (err) {
     next(err);
   }
@@ -189,7 +207,7 @@ export async function create(req, res, next) {
       description: created.description ?? null,
       userId: auditUserIdFromRequest(req)
     });
-    res.status(201).json(created);
+    res.status(201).json(normalizeIncidentForApi(created));
   } catch (err) {
     if (err.statusCode === 400) {
       return res.status(400).json({ error: err.message });
@@ -280,7 +298,7 @@ export async function patchByRef(req, res, next) {
       action: 'update',
       metadata: { ref: updated.ref, status: updated.status }
     });
-    res.json(updated);
+    res.json(normalizeIncidentForApi(updated));
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Incident introuvable' });

@@ -1,6 +1,6 @@
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
-import { saveControlledFile } from './documentStorage.service.js';
+import { saveControlledFile } from './storage.service.js';
 
 const TYPES = new Set(['photo', 'document', 'audit', 'autre']);
 

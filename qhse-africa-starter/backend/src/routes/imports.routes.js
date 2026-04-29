@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as controller from '../controllers/imports.controller.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
-import { importUploadLimiter } from '../middleware/apiRateLimit.middleware.js';
+import { importUploadLimiter, importsWriteLimiter } from '../middleware/apiRateLimit.middleware.js';
 
 const router = Router();
 
@@ -19,6 +19,7 @@ router.get(
 
 router.post(
   '/preview',
+  importsWriteLimiter,
   importUploadLimiter,
   requirePermission('imports', 'write'),
   controller.uploadSingleFile,
@@ -27,6 +28,7 @@ router.post(
 
 router.post(
   '/confirm',
+  importsWriteLimiter,
   requirePermission('imports', 'write'),
   controller.confirm
 );

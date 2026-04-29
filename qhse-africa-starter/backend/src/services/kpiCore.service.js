@@ -13,7 +13,10 @@ import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 export function normalizeSiteId(siteId) {
   if (siteId == null || siteId === '') return null;
   const s = String(siteId).trim();
-  return s === '' ? null : s;
+  if (!s) return null;
+  const low = s.toLowerCase();
+  if (low === 'null' || low === 'undefined' || low === 'none' || low === 'all') return null;
+  return s;
 }
 
 /**

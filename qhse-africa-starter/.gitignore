@@ -27,3 +27,10 @@ dist/
 
 # logs
 *.log
+
+# Bases de données locales (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+prisma/dev.db
+prisma/test-routes.db

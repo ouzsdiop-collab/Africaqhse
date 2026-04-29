@@ -14,7 +14,7 @@ import { emitBusinessEvent } from '../services/businessEvents.service.js';
 import {
   getPresignedControlledDocumentDownloadUrl,
   isS3StorageEnabled
-} from '../services/documentStorage.service.js';
+} from '../services/storage.service.js';
 
 const S3_DOWNLOAD_PRESIGN_SECONDS = 3600;
 
@@ -114,6 +114,10 @@ export async function streamByToken(req, res, next) {
     res.setHeader('Cache-Control', 'private, no-store');
     return res.send(buffer);
   } catch (e) {
+    const sc = typeof e?.statusCode === 'number' ? e.statusCode : undefined;
+    if (sc && (sc === 400 || sc === 413 || sc === 415)) {
+      return res.status(sc).json({ error: String(e?.message || 'Requête invalide') });
+    }
     return next(e);
   }
 }

@@ -9,6 +9,7 @@ import {
 
 const router = Router();
 
+router.get('/alerts', requirePermission('habilitations', 'read'), controller.getAlerts);
 router.get('/', requirePermission('habilitations', 'read'), controller.getAll);
 router.post(
   '/',

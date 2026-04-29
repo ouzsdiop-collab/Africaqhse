@@ -46,3 +46,18 @@ export const controlledDocumentUploadLimiter = rateLimit({
   validate: { xForwardedForHeader: false },
   skipSuccessfulRequests: false
 });
+
+/** Imports (/api/imports/*) — limite POST confirm/preview (ne touche pas les autres routes). */
+export const importsWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  skipSuccessfulRequests: false,
+  handler(req, res) {
+    res.status(429).json({
+      error: "Trop de requêtes d’import. Patientez quelques minutes puis réessayez."
+    });
+  }
+});

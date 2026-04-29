@@ -6,7 +6,7 @@ import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 import { can } from '../lib/permissions.js';
 import { isRequireAuthEnabled } from '../lib/securityConfig.js';
-import { readControlledFileBuffer, saveControlledFile, deleteControlledFile } from './documentStorage.service.js';
+import { readControlledFileBuffer, saveControlledFile, deleteControlledFile } from './storage.service.js';
 import { addWatermarkToPdf } from './documentWatermark.service.js';
 
 const CLASSIFICATIONS = new Set(['normal', 'sensible', 'critique', 'confidentiel']);

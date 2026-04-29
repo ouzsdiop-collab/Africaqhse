@@ -159,7 +159,7 @@ describe('incidents.service', () => {
           causeCategory: 'humain',
           location: 'L1',
           responsible: 'Bob',
-          photosJson: '[]'
+          photosJson: []
         }
       });
     });

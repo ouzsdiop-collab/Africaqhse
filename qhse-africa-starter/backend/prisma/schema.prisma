@@ -121,7 +121,7 @@ model Incident {
   location      String?
   causes        String?
   causeCategory String?
-  photosJson    String?
+  photosJson    Json?
   responsible   String?
 
   linkedActions Action[]

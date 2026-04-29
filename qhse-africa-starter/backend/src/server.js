@@ -96,15 +96,18 @@ function validateProductionEnvOrExit() {
     problems.push('ALLOW_X_USER_ID doit être "false" en production.');
   }
 
-  const rawOrigins = String(process.env.ALLOWED_ORIGINS || '').trim();
+  const rawCorsOrigins = String(process.env.CORS_ORIGINS || '').trim();
+  const rawAllowedOrigins = String(process.env.ALLOWED_ORIGINS || '').trim();
+  // Priorité : CORS_ORIGINS ; sinon fallback ALLOWED_ORIGINS
+  const rawOrigins = rawCorsOrigins || rawAllowedOrigins;
   const origins = rawOrigins
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   if (!rawOrigins || origins.length === 0) {
-    problems.push('ALLOWED_ORIGINS est obligatoire en production (liste CSV).');
+    problems.push('CORS_ORIGINS (ou ALLOWED_ORIGINS en fallback) est obligatoire en production (liste CSV).');
   } else if (origins.some((o) => o === '*' || o.includes('*'))) {
-    problems.push('ALLOWED_ORIGINS ne doit pas contenir de wildcard ("*") en production.');
+    problems.push('CORS_ORIGINS (ou ALLOWED_ORIGINS en fallback) ne doit pas contenir de wildcard ("*") en production.');
   }
 
   const jwt = String(process.env.JWT_SECRET || '').trim();
@@ -175,7 +178,7 @@ app.use(
     crossOriginEmbedderPolicy: false
   })
 );
-/* CORS : credentials: true + ALLOWED_ORIGINS — requis pour envoyer le cookie httpOnly qhse_refresh (refresh JWT). */
+/* CORS : credentials: true + whitelist via CORS_ORIGINS (fallback ALLOWED_ORIGINS) — requis pour envoyer le cookie httpOnly qhse_refresh (refresh JWT). */
 app.use(cors(getCorsMiddlewareOptions()));
 app.use(compression());
 app.use(express.json({ limit: getJsonBodyLimit() }));
@@ -224,8 +227,23 @@ const swaggerEnabled =
     : process.env.ENABLE_SWAGGER === 'true';
 
 if (swaggerEnabled) {
+  function requireAdminSwagger(req, res, next) {
+    const u = req.qhseUser;
+    if (!u) {
+      return sendJsonError(res, 401, 'Authentification requise.', req, { code: 'AUTH_REQUIRED' });
+    }
+    const role = String(u.role || '').trim().toUpperCase();
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return sendJsonError(res, 403, 'Accès réservé aux administrateurs.', req, {
+        code: 'FORBIDDEN_ADMIN_ONLY'
+      });
+    }
+    return next();
+  }
+
   app.use(
     '/api/docs',
+    requireAdminSwagger,
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
       customSiteTitle: 'AfricaQHSE API Docs',
@@ -234,7 +252,7 @@ if (swaggerEnabled) {
       swaggerOptions: { persistAuthorization: true }
     })
   );
-  app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
+  app.get('/api/docs.json', requireAdminSwagger, (req, res) => res.json(swaggerSpec));
 }
 
 setupSentryExpressErrorHandler(app);

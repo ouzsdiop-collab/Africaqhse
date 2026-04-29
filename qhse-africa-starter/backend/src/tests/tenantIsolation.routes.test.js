@@ -82,9 +82,12 @@ async function buildApp() {
 describe('tenant isolation — controllers pass req.qhseTenantId', () => {
   let app;
 
-  beforeAll(async () => {
+  beforeAll(
+    async () => {
     app = await buildApp();
-  });
+    },
+    20000
+  );
 
   it('GET /api/risks calls service with tenant id', async () => {
     const mod = await import('../services/risks.service.js');
