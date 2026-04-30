@@ -1,13 +1,70 @@
 import { readFile } from 'node:fs/promises';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const COMPLIANCE_DIR = path.resolve(__dirname, '../../../data-packs/compliance');
-const COUNTRIES_DIR = path.join(COMPLIANCE_DIR, 'countries');
-const STANDARDS_DIR = path.join(COMPLIANCE_DIR, 'standards');
+function computeComplianceDirCandidates() {
+  const unique = new Set();
+  const push = (p) => {
+    const v = String(p || '').trim();
+    if (!v) return;
+    unique.add(path.resolve(v));
+  };
+
+  // 1) Chemin relatif au fichier (dev + certains builds)
+  push(path.resolve(__dirname, '../../../data-packs/compliance'));
+
+  // 2) Chemin relatif au cwd (Docker WORKDIR=/app)
+  push(path.resolve(process.cwd(), 'data-packs/compliance'));
+  push(path.resolve(process.cwd(), 'backend/data-packs/compliance'));
+
+  // 3) Chemins usuels containers (Railway)
+  push('/app/data-packs/compliance');
+  push('/app/backend/data-packs/compliance');
+
+  return [...unique];
+}
+
+const COMPLIANCE_DIR_CANDIDATES = computeComplianceDirCandidates();
+const COUNTRY_REL = path.join('countries');
+const STANDARD_REL = path.join('standards');
+
+function firstExistingDir(subDir) {
+  for (const base of COMPLIANCE_DIR_CANDIDATES) {
+    const p = path.join(base, subDir);
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* ignore */
+    }
+  }
+  // fallback deterministic (first candidate)
+  return path.join(COMPLIANCE_DIR_CANDIDATES[0] || path.resolve(__dirname, '../../../data-packs/compliance'), subDir);
+}
+
+const COUNTRIES_DIR = firstExistingDir(COUNTRY_REL);
+const STANDARDS_DIR = firstExistingDir(STANDARD_REL);
+
+let loggedCompliancePackBoot = false;
+function logCompliancePackAvailabilityOnce() {
+  if (loggedCompliancePackBoot) return;
+  loggedCompliancePackBoot = true;
+  try {
+    const sample = ['iso-45001', 'iso-14001', 'iso-9001'].map((k) => {
+      const fp = path.join(STANDARDS_DIR, `${k}.json`);
+      const ok = fs.existsSync(fp);
+      return `${k}=${ok ? 'OK' : 'MISSING'} (${fp})`;
+    });
+    console.error(
+      `[compliance] packs standards: ${sample.join(' · ')} | candidates=${COMPLIANCE_DIR_CANDIDATES.join(' , ')}`
+    );
+  } catch (e) {
+    console.error('[compliance] packs standards: probe failed', e?.message || e);
+  }
+}
 
 const ALLOWED_COUNTRIES = {
   CI: { label: "Côte d’Ivoire" }
@@ -65,7 +122,31 @@ async function readJsonFile(filePath, notFoundErr) {
   }
 }
 
+async function readJsonFileWithFallbacks(filePaths, notFoundErr) {
+  /** @type {string[]} */
+  const tried = [];
+  for (const fp of ensureArray(filePaths)) {
+    const p = String(fp || '').trim();
+    if (!p) continue;
+    tried.push(p);
+    try {
+      return await readJsonFile(p, notFoundErr);
+    } catch (e) {
+      // @ts-ignore
+      if (e?.code === 'ENOENT' || e?.statusCode === 404) {
+        continue;
+      }
+      throw e;
+    }
+  }
+  console.error(
+    `[compliance] pack introuvable (${notFoundErr?.code || 'NOT_FOUND'}) · chemins testés:\n- ${tried.join('\n- ')}`
+  );
+  throw notFoundErr;
+}
+
 export async function getCountryCompliance(countryCodeRaw) {
+  logCompliancePackAvailabilityOnce();
   const countryCode = normalizeCountryCode(countryCodeRaw);
   if (!/^[A-Z]{2}$/.test(countryCode)) {
     throw createHttpError(400, 'Code pays invalide.', 'COMPLIANCE_COUNTRY_INVALID');
@@ -79,9 +160,9 @@ export async function getCountryCompliance(countryCodeRaw) {
     );
   }
 
-  const fp = path.join(COUNTRIES_DIR, `${countryCode.toLowerCase()}.json`);
-  const json = await readJsonFile(
-    fp,
+  const name = `${countryCode.toLowerCase()}.json`;
+  const json = await readJsonFileWithFallbacks(
+    COMPLIANCE_DIR_CANDIDATES.map((base) => path.join(base, 'countries', name)),
     createHttpError(404, 'Pack pays introuvable.', 'COMPLIANCE_COUNTRY_NOT_FOUND')
   );
 
@@ -99,6 +180,7 @@ export async function getCountryCompliance(countryCodeRaw) {
 }
 
 export async function getStandardCompliance(standardCodeRaw) {
+  logCompliancePackAvailabilityOnce();
   const standardCode = normalizeStandardCode(standardCodeRaw);
   if (!/^[a-z0-9-]+$/.test(standardCode)) {
     throw createHttpError(400, 'Code norme invalide.', 'COMPLIANCE_STANDARD_INVALID');
@@ -112,9 +194,9 @@ export async function getStandardCompliance(standardCodeRaw) {
     );
   }
 
-  const fp = path.join(STANDARDS_DIR, `${standardCode}.json`);
-  const json = await readJsonFile(
-    fp,
+  const name = `${standardCode}.json`;
+  const json = await readJsonFileWithFallbacks(
+    COMPLIANCE_DIR_CANDIDATES.map((base) => path.join(base, 'standards', name)),
     createHttpError(404, 'Pack norme introuvable.', 'COMPLIANCE_STANDARD_NOT_FOUND')
   );
 

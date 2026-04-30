@@ -14,6 +14,7 @@ RUN npm ci
 # 3) Reste de l’application (le client Prisma est déjà généré)
 COPY scripts ./scripts
 COPY src ./src
+COPY data-packs ./data-packs
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
