@@ -20,6 +20,7 @@ import {
 import { sortRisksByPriority } from '../utils/risksSort.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
+import { showToast } from '../components/toast.js';
 
 /** Texte cellule PDF : tirets normalisés puis échappement. */
 function pdfCell(s) {
@@ -300,15 +301,97 @@ export async function downloadIsoPremiumPdf(standard, opts = {}, overrides = {})
   const org = opts?.organizationName != null ? String(opts.organizationName).trim() : '';
   const siteLabel = opts?.siteLabel != null ? String(opts.siteLabel).trim() : '';
 
+  const openPrintableFallback = (html, title) => {
+    const safeTitle = String(title || 'Rapport ISO').slice(0, 80);
+    const w = window.open('', '_blank');
+    if (!w) return false;
+    const doc = w.document;
+    doc.open();
+    doc.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <title>${escapeHtml(safeTitle)}</title>
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#0f172a}
+        .note{max-width:960px;margin:0 auto 16px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+        .note h1{font-size:16px;margin:0 0 6px}
+        .note p{margin:0;font-size:13px;line-height:1.5;color:#334155}
+        .wrap{max-width:960px;margin:0 auto}
+      </style>
+      </head><body>
+        <div class="note">
+          <h1>Rapport prêt à imprimer</h1>
+          <p>Si le téléchargement PDF échoue sur ce navigateur, utilisez <strong>Imprimer</strong>, puis <strong>Enregistrer en PDF</strong>.</p>
+        </div>
+        <div class="wrap">${html}</div>
+        <script>addEventListener('load',()=>setTimeout(()=>{ try{ print() } catch{} },250));<\/script>
+      </body></html>`);
+    doc.close();
+    return true;
+  };
+
+  const mapIsoPremiumError = (status, backendError) => {
+    const msg = typeof backendError === 'string' ? backendError.trim() : '';
+    if (status === 401) {
+      return 'Session expirée. Reconnectez-vous puis relancez l’export.';
+    }
+    if (status === 403) {
+      if (/permission|refus/i.test(msg)) {
+        return "Accès refusé : il faut l’autorisation « rapports : lecture » pour exporter ce PDF.";
+      }
+      if (/site|p[ée]rim[èe]tre/i.test(msg)) {
+        return "Périmètre site non autorisé pour cet export. Sélectionnez un site autorisé puis réessayez.";
+      }
+      if (/organisation|contexte/i.test(msg)) {
+        return "Organisation active introuvable. Déconnectez-vous puis reconnectez-vous pour rétablir le contexte.";
+      }
+      return msg || 'Accès refusé pour cet export.';
+    }
+    if (status === 404) {
+      return "Export indisponible : ressource introuvable (route API ou périmètre).";
+    }
+    if (status >= 500) {
+      return "Erreur serveur lors de la préparation du rapport. Réessayez plus tard ou vérifiez les logs API.";
+    }
+    return msg || `Export impossible (erreur ${status}).`;
+  };
+
   const endpoint = overrides?.endpoint
     ? String(overrides.endpoint)
     : `/api/reports/iso-premium?standard=${encodeURIComponent(std)}`;
   const url = withSiteQuery(endpoint);
-  const res = await qhseFetch(url);
+  const base = overrides?.filenameBase ? String(overrides.filenameBase) : `rapport-${std}-pilotage-premium`;
+
+  showToast('Génération du PDF ISO en cours…', 'info');
+  let res;
+  try {
+    res = await qhseFetch(url);
+  } catch (netErr) {
+    console.error('[iso premium] fetch', netErr);
+    showToast("Réseau indisponible ou accès bloqué. Vérifiez votre connexion puis réessayez.", 'error');
+    throw netErr;
+  }
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const friendly = mapIsoPremiumError(res.status, payload?.error);
+    showToast(friendly, 'error');
+    throw new Error(friendly);
+  }
+
+  const pilotage = payload?.pilotage && typeof payload.pilotage === 'object' ? payload.pilotage : null;
+  const hasSomePilotage =
+    Boolean(pilotage) &&
+    (Number.isFinite(Number(pilotage?.score)) ||
+      (Array.isArray(pilotage?.topPriorities) && pilotage.topPriorities.length) ||
+      (Array.isArray(pilotage?.recommendedActions) && pilotage.recommendedActions.length));
+  const isoPack = payload?.iso && typeof payload.iso === 'object' ? payload.iso : payload?.iso45001;
+  const hasSomeIso =
+    Boolean(isoPack) &&
+    ((Array.isArray(isoPack?.mainRequirements) && isoPack.mainRequirements.length) ||
+      (Array.isArray(isoPack?.criticalRequirements) && isoPack.criticalRequirements.length));
+  if (!hasSomePilotage && !hasSomeIso) {
     const msg =
-      typeof payload?.error === 'string' && payload.error.trim() ? payload.error.trim() : `Erreur ${res.status}`;
+      "Aucune donnée exploitable pour construire le rapport ISO premium (périmètre vide ou droits insuffisants).";
+    showToast(msg, 'error');
     throw new Error(msg);
   }
 
@@ -325,8 +408,29 @@ export async function downloadIsoPremiumPdf(standard, opts = {}, overrides = {})
     appName: 'QHSE Control Africa'
   });
 
-  const base = overrides?.filenameBase ? String(overrides.filenameBase) : `rapport-${std}-pilotage-premium`;
-  await downloadAuditIsoPdfFromHtml(html, base);
+  const htmlSafe = String(html || '').trim();
+  if (htmlSafe.length < 900) {
+    const msg =
+      "Rapport HTML trop court : export interrompu (données incomplètes). Vérifiez le site sélectionné et la permission rapports.";
+    showToast(msg, 'error');
+    throw new Error(msg);
+  }
+
+  try {
+    await downloadAuditIsoPdfFromHtml(htmlSafe, base);
+    showToast('PDF ISO premium généré.', 'success');
+  } catch (pdfErr) {
+    console.error('[iso premium] pdf capture', pdfErr);
+    showToast(
+      "La génération PDF a échoué sur ce navigateur. Ouverture d’une version imprimable (Imprimer → Enregistrer en PDF).",
+      'warning'
+    );
+    const opened = openPrintableFallback(htmlSafe, `ISO premium ${std.toUpperCase()}`);
+    if (!opened) {
+      showToast("Fenêtre bloquée : autorisez les pop-ups, puis relancez l’export.", 'error');
+    }
+    throw pdfErr;
+  }
 }
 
 /**

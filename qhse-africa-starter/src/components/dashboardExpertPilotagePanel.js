@@ -2,6 +2,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
+import { showToast } from './toast.js';
 
 function clamp01(n) {
   const v = Number(n);
@@ -582,11 +583,27 @@ export function createDashboardExpertPilotagePanel() {
   root.querySelector('[data-open-iso]')?.addEventListener('click', () => qhseNavigate('iso', { source: 'dashboard_expert_compliance' }));
   root.querySelector('[data-export-premium]')?.addEventListener('click', () => {
     void (async () => {
+      const btn = root.querySelector('[data-export-premium]');
+      const prev = btn?.textContent || '';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Génération…';
+      }
       try {
         const { downloadIso45001PilotagePremiumPdf } = await import('../services/qhseReportsPdf.service.js');
         await downloadIso45001PilotagePremiumPdf({});
       } catch (e) {
         console.warn('[dashboard expert] export premium pdf', e);
+        const msg =
+          e instanceof Error && e.message
+            ? e.message
+            : "Export PDF ISO premium impossible. Vérifiez vos droits « rapports : lecture ».";
+        showToast(msg, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = prev || 'Exporter PDF premium';
+        }
       }
     })();
   });

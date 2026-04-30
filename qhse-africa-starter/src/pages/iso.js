@@ -2218,6 +2218,12 @@ export function renderIso(onAddLog) {
   });
 
   heroCard.querySelector('.iso-export-iso45001-premium-pdf')?.addEventListener('click', async () => {
+    const btn = heroCard.querySelector('.iso-export-iso45001-premium-pdf');
+    const prev = btn?.textContent || '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Génération…';
+    }
     try {
       const { downloadIsoPremiumPdf } = await import('../services/qhseReportsPdf.service.js');
       const user = getSessionUser();
@@ -2235,6 +2241,16 @@ export function renderIso(onAddLog) {
       }
     } catch (e) {
       console.error(e);
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : "Export PDF ISO premium impossible. Vérifiez vos droits et le périmètre site.";
+      showToast(msg, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || 'Exporter PDF premium ISO 45001';
+      }
     }
   });
 
