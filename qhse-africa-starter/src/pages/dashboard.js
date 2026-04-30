@@ -333,17 +333,63 @@ function ensureDashboardIntelligenceStyles() {
 .dashboard-intel__cta-row{display:flex;justify-content:flex-end;gap:10px;padding:0 16px 16px}
 .dashboard-intel__cta{font-size:12px;padding:8px 10px;border-radius:10px;border:1px solid color-mix(in srgb,#38bdf8 36%, var(--color-border-tertiary));background:color-mix(in srgb,#0ea5e9 14%, var(--color-background-primary));color:var(--text);cursor:pointer}
 .dashboard-intel__cta:hover{transform:translateY(-1px)}
-.intel-alert{display:grid;gap:4px;padding:10px 10px 10px 12px;border-radius:12px;border:1px solid color-mix(in srgb, var(--color-border-tertiary) 82%, transparent);background:color-mix(in srgb,var(--color-background-primary) 92%, transparent)}
+.intel-alert{
+  position:relative;
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-areas:
+    "top top"
+    "ttl src"
+    "desc desc"
+    "meta meta"
+    "acts acts";
+  gap:6px 12px;
+  padding:12px 12px 12px 14px;
+  border-radius:14px;
+  border:1px solid color-mix(in srgb, var(--color-border-tertiary) 82%, transparent);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--color-background-primary) 94%,transparent),color-mix(in srgb,var(--color-background-secondary) 92%,transparent));
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 10px 22px -18px rgba(0,0,0,.35);
+}
+.intel-alert::before{
+  content:'';
+  position:absolute;
+  left:0;top:10px;bottom:10px;
+  width:4px;border-radius:999px;
+  background:color-mix(in srgb, var(--color-border-tertiary) 70%, transparent);
+  opacity:.9;
+}
+.intel-alert--critical::before{background:linear-gradient(180deg,#ef4444,#b91c1c)}
+.intel-alert--high::before{background:linear-gradient(180deg,#f59e0b,#b45309)}
+.intel-alert--medium::before{background:linear-gradient(180deg,#fb923c,#c2410c)}
+.intel-alert--low::before{background:linear-gradient(180deg,#22c55e,#166534)}
+.intel-alert--critical{border-color:color-mix(in srgb,#ef4444 34%, var(--color-border-tertiary));background:linear-gradient(180deg,color-mix(in srgb,rgba(239,68,68,.16) 22%,var(--color-background-primary)),color-mix(in srgb,var(--color-background-primary) 92%,transparent))}
+.intel-alert--high{border-color:color-mix(in srgb,#f59e0b 28%, var(--color-border-tertiary))}
 .intel-alert__top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.intel-alert__top{grid-area:top}
 .intel-alert__sev{font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--color-border-secondary);color:var(--text2);background:var(--color-background-primary)}
-.intel-alert__sev--critical,.intel-alert__sev--high{border-color:color-mix(in srgb,#ef4444 42%, var(--color-border-secondary));color:color-mix(in srgb,#fecaca 88%, var(--text));background:color-mix(in srgb,#ef4444 10%, var(--color-background-primary))}
+.intel-alert__sev--critical{
+  border-color:color-mix(in srgb,#7f1d1d 55%, var(--color-border-secondary));
+  color:#fff;
+  background:linear-gradient(180deg,#ef4444,#dc2626);
+  box-shadow:0 10px 18px -14px rgba(239,68,68,.75),0 1px 0 rgba(255,255,255,.18) inset;
+}
+.intel-alert__sev--high{
+  border-color:color-mix(in srgb,#b45309 50%, var(--color-border-secondary));
+  color:#0b1220;
+  background:linear-gradient(180deg,#fbbf24,#f59e0b);
+  box-shadow:0 10px 18px -14px rgba(245,158,11,.65),0 1px 0 rgba(255,255,255,.22) inset;
+}
 .intel-alert__sev--medium{border-color:color-mix(in srgb,#fb923c 45%, var(--color-border-secondary));color:color-mix(in srgb,#fdba74 92%, var(--text));background:color-mix(in srgb,#f97316 10%, var(--color-background-primary))}
 .intel-alert__sev--low{border-color:color-mix(in srgb,#22c55e 40%, var(--color-border-secondary));color:color-mix(in srgb,#bbf7d0 90%, var(--text));background:color-mix(in srgb,#22c55e 10%, var(--color-background-primary))}
-.intel-alert__src{font-size:11px;color:var(--text3)}
-.intel-alert__ttl{font-size:13px;font-weight:850;color:var(--text);letter-spacing:-.01em}
+.intel-alert__src{grid-area:src;font-size:11px;color:var(--text3);text-align:right}
+.intel-alert__ttl{grid-area:ttl;font-size:13px;font-weight:900;color:var(--text);letter-spacing:-.01em}
 .intel-alert__desc{font-size:12px;line-height:1.45;color:var(--text2)}
-.intel-alert__meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)}
+.intel-alert__desc{grid-area:desc}
+.intel-alert__meta{grid-area:meta;display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text3);align-items:center}
+.intel-alert__pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--color-border-tertiary) 80%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 92%, transparent);font-weight:800;letter-spacing:.02em}
+.intel-alert__pill strong{color:var(--text);font-weight:900}
 .intel-alert__acts{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.intel-alert__acts{grid-area:acts;margin-top:0}
 .intel-alert__btn{font-size:12px;padding:7px 10px;border-radius:10px;border:1px solid color-mix(in srgb,var(--color-border-tertiary) 82%, transparent);background:color-mix(in srgb,var(--color-background-secondary) 92%, transparent);color:var(--text);cursor:pointer}
 .intel-alert__btn:hover{transform:translateY(-1px)}
 .intel-alert__btn--primary{border-color:color-mix(in srgb,#38bdf8 40%, var(--color-border-tertiary));background:color-mix(in srgb,#0ea5e9 14%, var(--color-background-primary));}
@@ -753,7 +799,7 @@ function createDashboardIntelligenceWidget() {
       filteredAlerts.forEach((a) => {
         const sevKey = String(a?.severity || '').toLowerCase() || 'low';
         const li = document.createElement('li');
-        li.className = 'intel-alert';
+        li.className = `intel-alert intel-alert--${sevKey}`;
         const conf =
           a?.confidence != null && Number.isFinite(Number(a.confidence))
             ? Math.round(Number(a.confidence) * 100)
@@ -772,7 +818,11 @@ function createDashboardIntelligenceWidget() {
           <div class="intel-alert__ttl">${escapeHtml(safeText(a?.title || 'Alerte', 140) || 'Alerte')}</div>
           <div class="intel-alert__desc">${escapeHtml(safeText(a?.description || '', 320) || 'Non disponible')}</div>
           <div class="intel-alert__meta">
-            ${conf != null ? `<span>Confiance : ${conf}%</span>` : ''}
+            ${
+              conf != null
+                ? `<span class="intel-alert__pill" title="Indice de confiance sur la détection"><span>Confiance</span> <strong>${conf}%</strong></span>`
+                : ''
+            }
           </div>
           ${
             hasSuggested
