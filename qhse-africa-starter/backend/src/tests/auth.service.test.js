@@ -10,7 +10,7 @@ import {
 const MOCK_USER = {
   id: 'user-123',
   name: 'Test User',
-  email: 'test@africaqhse.com',
+  email: 'test@qhsecontrol.com',
   role: 'ADMIN'
 };
 

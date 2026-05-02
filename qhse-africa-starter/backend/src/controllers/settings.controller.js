@@ -25,15 +25,15 @@ export async function postEmailTest(req, res, next) {
     }
     const html = buildHtmlEmailLayout({
       tone: 'info',
-      title: 'E-mail de test AfricaQHSE',
+      title: 'E-mail de test QHSE Control',
       bodyHtml:
         '<p>Ceci est un message de test pour valider la configuration SMTP.</p><p>Si vous le recevez, l’API peut envoyer des notifications.</p>'
     });
     await sendMailHtml({
       to: [email],
-      subject: '[AfricaQHSE] Test de configuration SMTP',
+      subject: '[QHSE Control] Test de configuration SMTP',
       html,
-      text: 'Test SMTP AfricaQHSE — configuration OK.'
+      text: 'Test SMTP QHSE Control : configuration OK.'
     });
     res.json({ ok: true, to: email });
   } catch (err) {

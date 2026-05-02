@@ -1,6 +1,6 @@
 {
-  "name": "AfricaQHSE",
-  "short_name": "AfricaQHSE",
+  "name": "QHSE Control",
+  "short_name": "QHSE Control",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

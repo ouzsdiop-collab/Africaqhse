@@ -4,16 +4,16 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'AfricaQHSE API',
+      title: 'QHSE Control API',
       version: '1.0.0',
       description:
-        'API REST de la plateforme de pilotage QHSE AfricaQHSE. JWT Bearer (access) ; le refresh est un cookie httpOnly `qhse_refresh` (SameSite=strict), posé au login et renvoyé par le navigateur avec credentials.\n\n' +
+        'API REST de la plateforme QHSE Control. JWT Bearer (access) ; le refresh est un cookie httpOnly `qhse_refresh` (SameSite=strict), posé au login et renvoyé par le navigateur avec credentials.\n\n' +
         '**Multi-tenant** : la plupart des routes sous `/api` exigent un **tenant résolu** (`req.qhseTenantId`) ; sinon **403** `{ "error": "Contexte organisation requis." }` (y compris si `REQUIRE_AUTH=false`). ' +
         'Fournir un **JWT** avec organisation valide, ou l’en-tête **`X-User-Id`** en développement/test (en production uniquement si `ALLOW_X_USER_ID=true`). ' +
         'Exceptions : `requireTenantContext.middleware.js` → `isApiTenantOptionalPath` (santé, auth, docs, stream document signé, `POST /fds/analyze`, `/automation/*`).',
       contact: {
-        name: 'Support AfricaQHSE',
-        email: 'support@africaqhse.com'
+        name: 'Support QHSE Control',
+        email: 'support@qhsecontrol.com'
       }
     },
     servers: [{ url: '/api', description: 'Serveur principal' }],
@@ -164,7 +164,7 @@ const options = {
                   type: 'object',
                   required: ['email', 'password'],
                   properties: {
-                    email: { type: 'string', format: 'email', example: 'admin@africaqhse.com' },
+                    email: { type: 'string', format: 'email', example: 'admin@client.tld' },
                     password: { type: 'string', example: 'motdepasse123' }
                   }
                 }

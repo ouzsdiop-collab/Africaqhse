@@ -10,7 +10,7 @@ async function buildTestApp() {
     req.qhseUser = {
       id: 'user-test',
       name: 'Test User',
-      email: 'test@africaqhse.com',
+      email: 'test@qhsecontrol.com',
       role: 'ADMIN',
       tenantId: 'tenant-test'
     };

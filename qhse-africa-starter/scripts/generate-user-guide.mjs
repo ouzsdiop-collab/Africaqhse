@@ -53,14 +53,14 @@ doc.fillColor('#ffffff').fontSize(36).font('Helvetica-Bold')
 doc.fontSize(20).font('Helvetica')
    .text('Plateforme de pilotage QHSE', 50, 135, { align: 'center' });
 doc.fontSize(13)
-   .text(`AfricaQHSE — v1.0 — ${new Date().getFullYear()}`, 50, 175, { align: 'center' });
+   .text(`QHSE Control · v1.0 · ${new Date().getFullYear()}`, 50, 175, { align: 'center' });
 doc.fillColor(DARK).fontSize(13).font('Helvetica')
-   .text('Ce guide vous accompagne dans la prise en main de la plateforme AfricaQHSE.',
+   .text('Ce guide vous accompagne dans la prise en main de QHSE Control.',
      80, 320, { width: 440, align: 'center', lineGap: 6 });
 
 // SECTION 1 — PRESENTATION
 header('1. Presentation');
-body('AfricaQHSE est une plateforme digitale de gestion QHSE concue pour les entreprises africaines. Elle centralise la declaration d\'incidents, le suivi des risques, la planification des audits et le pilotage des actions correctives.');
+body('QHSE Control est une plateforme de gestion QHSE pour les sites industriels et les equipes terrain. Elle centralise la declaration d\'incidents, le suivi des risques, la planification des audits et le pilotage des actions correctives.');
 doc.moveDown(0.5);
 ['Gain de temps : reduction de 60 % du temps de reporting manuel.',
  'Conformite : suivi ISO 45001, ISO 9001 et reglementations locales.',
@@ -70,7 +70,7 @@ doc.moveDown(0.5);
 header('2. Prise en main rapide');
 doc.fontSize(13).font('Helvetica-Bold').fillColor(DARK).text('Connexion');
 doc.moveDown(0.3);
-[['1','Ouvrez africaqhse.com dans votre navigateur.'],
+[['1','Ouvrez l\'URL fournie par votre organisation (ou qhsecontrol.com si applicable).'],
  ['2','Saisissez votre email et mot de passe.'],
  ['3','Cliquez sur "Se connecter".'],
  ['4','Vous arrivez directement sur le tableau de bord.']].forEach(([n,t]) => numbered(n,t));
@@ -99,7 +99,7 @@ const modules = [
 ];
 
 modules.forEach(m => {
-  header(`3. Module — ${m.name}`);
+  header(`3. Module : ${m.name}`);
   body(m.desc);
   doc.moveDown(0.3);
   doc.fontSize(11).font('Helvetica-Bold').fillColor(DARK).text('Actions principales :');
@@ -146,14 +146,14 @@ roles.forEach((row, ri) => {
 // SECTION 5 — FAQ
 header('5. Questions frequentes');
 const faq = [
-  ["J'ai oublie mon mot de passe, que faire ?", "Contactez votre administrateur AfricaQHSE pour reinitialiser votre acces."],
+  ["J'ai oublie mon mot de passe, que faire ?", "Contactez l'administrateur de votre organisation ou support@qhsecontrol.com."],
   ["Puis-je utiliser l'app sans connexion ?", "Oui, le mode terrain fonctionne hors connexion. Les donnees se synchronisent au retour du reseau."],
   ["Comment changer de site ?", "Utilisez le selecteur de site en haut de page dans la barre de navigation."],
   ["Comment exporter mes donnees ?", "Cliquez sur 'Export CSV' en haut de chaque liste (incidents, risques, actions, audits)."],
   ["Qui peut creer des utilisateurs ?", "Uniquement les utilisateurs avec le role ADMIN."],
   ["Comment telecharger un rapport d'audit PDF ?", "Ouvrez un audit et cliquez sur le bouton 'Telecharger PDF'."],
   ["Les donnees sont-elles securisees ?", "Oui, toutes les communications sont chiffrees HTTPS et les donnees hebergees sur des serveurs securises."],
-  ["Comment signaler un bug ?", "Envoyez un email a support@africaqhse.com avec une capture d'ecran."],
+  ["Comment signaler un bug ?", "Ecrivez a support@qhsecontrol.com avec une capture d'ecran."],
   ["Peut-on avoir plusieurs sites dans le meme compte ?", "Oui, les offres Pro et Business permettent plusieurs sites."],
   ["Comment inviter un collegue ?", "Menu Parametres > Utilisateurs > Ajouter un utilisateur."],
 ];
@@ -167,11 +167,12 @@ faq.forEach(([q, a], i) => {
 header('6. Contact et support');
 body('Notre equipe est disponible pour vous accompagner :');
 doc.moveDown(0.3);
-bullet('Email : support@africaqhse.com');
-bullet('WhatsApp : +221 XX XXX XX XX');
-bullet('Delai de reponse : 24h ouvrables');
-bullet('Documentation en ligne : docs.africaqhse.com');
-tip('Pour toute urgence terrain, privilegiez le contact WhatsApp.');
+bullet('Assistance application : support@qhsecontrol.com');
+bullet('Relation client / compte : direction@qhsecontrol.com');
+bullet('Devis ou offre Pro : devis@qhsecontrol.com');
+bullet('Facturation : facturation@qhsecontrol.com');
+bullet('Contact general : contact@qhsecontrol.com');
+tip('Pour une demande commerciale ou un accompagnement, utilisez devis@qhsecontrol.com.');
 
 // NUMEROTATION DES PAGES
 const total = doc.bufferedPageRange().count;
@@ -179,7 +180,7 @@ for (let i = 0; i < total; i++) {
   doc.switchToPage(i);
   if (i === 0) continue;
   doc.fontSize(8).fillColor(GREY)
-     .text(`AfricaQHSE — Guide Utilisateur v1.0 | Page ${i}/${total - 1}`,
+     .text(`QHSE Control · Guide utilisateur v1.0 · Page ${i}/${total - 1}`,
        50, doc.page.height - 35, { align: 'center', width: 495 });
 }
 

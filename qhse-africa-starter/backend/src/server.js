@@ -292,9 +292,9 @@ if (swaggerEnabled) {
     requireAdminSwagger,
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
-      customSiteTitle: 'AfricaQHSE API Docs',
+      customSiteTitle: 'QHSE Control API Docs',
       customCss:
-        '.swagger-ui .topbar { background-color: #0f172a; } .swagger-ui .topbar-wrapper img { display: none; } .swagger-ui .topbar-wrapper::before { content: "AfricaQHSE API"; color: #3b82f6; font-size: 18px; font-weight: bold; }',
+        '.swagger-ui .topbar { background-color: #0f172a; } .swagger-ui .topbar-wrapper img { display: none; } .swagger-ui .topbar-wrapper::before { content: "QHSE Control API"; color: #3b82f6; font-size: 18px; font-weight: bold; }',
       swaggerOptions: { persistAuthorization: true }
     })
   );

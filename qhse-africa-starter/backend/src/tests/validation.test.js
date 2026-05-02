@@ -63,7 +63,7 @@ describe('validateBody middleware', () => {
 
 describe('isValidEmailBasic', () => {
   it('retourne true pour un email valide', () => {
-    expect(isValidEmailBasic('user@africaqhse.com')).toBe(true);
+    expect(isValidEmailBasic('user@qhsecontrol.com')).toBe(true);
   });
 
   it('retourne false pour un email invalide', () => {

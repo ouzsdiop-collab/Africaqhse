@@ -8,6 +8,11 @@ export function getMailFrom() {
   return f || '';
 }
 
+/** Reply-To des notifications (assistance). Priorité : SMTP_REPLY_TO puis SUPPORT_EMAIL. */
+export function getSmtpReplyTo() {
+  return process.env.SMTP_REPLY_TO?.trim() || process.env.SUPPORT_EMAIL?.trim() || '';
+}
+
 export function isSmtpConfigured() {
   const host = process.env.SMTP_HOST && String(process.env.SMTP_HOST).trim();
   const user = process.env.SMTP_USER?.trim();
@@ -117,7 +122,7 @@ export function buildHtmlEmailLayout(p) {
             <td style="background:${color};padding:20px 24px;color:#fff;">
               <table width="100%"><tr>
                 <td style="vertical-align:middle;">
-                  <div style="font-size:20px;font-weight:800;letter-spacing:0.02em;">AfricaQHSE</div>
+                  <div style="font-size:20px;font-weight:800;letter-spacing:0.02em;">QHSE Control</div>
                   <div style="font-size:13px;opacity:0.95;margin-top:4px;">${escapeHtml(MONO_ORG.name)}</div>
                 </td>
               </tr></table>
@@ -136,7 +141,7 @@ export function buildHtmlEmailLayout(p) {
           </tr>
           <tr>
             <td style="padding:16px 24px 20px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5;">
-              AfricaQHSE — Ne pas répondre à cet email.
+              QHSE Control · assistance : support@qhsecontrol.com
             </td>
           </tr>
         </table>
@@ -166,6 +171,7 @@ export async function sendMailHtml(opts) {
   }
 
   const from = getMailFrom();
+  const replyTo = getSmtpReplyTo();
   const to = opts.to.filter(Boolean);
   if (!to.length) {
     const err = new Error('Aucun destinataire');
@@ -175,6 +181,7 @@ export async function sendMailHtml(opts) {
 
   return t.sendMail({
     from,
+    ...(replyTo ? { replyTo } : {}),
     to: to.join(', '),
     subject: opts.subject,
     html: opts.html,
@@ -201,6 +208,7 @@ export async function sendMailWithPdfAttachment(opts) {
   }
 
   const from = getMailFrom();
+  const replyTo = getSmtpReplyTo();
   const to = opts.to.filter(Boolean);
   if (!to.length) {
     const err = new Error('Aucun destinataire');
@@ -210,6 +218,7 @@ export async function sendMailWithPdfAttachment(opts) {
 
   return t.sendMail({
     from,
+    ...(replyTo ? { replyTo } : {}),
     to: to.join(', '),
     subject: opts.subject,
     text: opts.text,
@@ -243,6 +252,7 @@ export async function sendMailText(opts) {
   }
 
   const from = getMailFrom();
+  const replyTo = getSmtpReplyTo();
   const to = opts.to.filter(Boolean);
   if (!to.length) {
     const err = new Error('Aucun destinataire');
@@ -252,6 +262,7 @@ export async function sendMailText(opts) {
 
   return t.sendMail({
     from,
+    ...(replyTo ? { replyTo } : {}),
     to: to.join(', '),
     subject: opts.subject,
     text: opts.text
@@ -280,7 +291,7 @@ export async function sendIncidentAlert(incident, recipients) {
   `;
   const html = buildHtmlEmailLayout({
     tone: 'critique',
-    title: 'Alerte — incident critique',
+    title: 'Alerte : incident critique',
     bodyHtml,
     ctaLabel: 'Ouvrir le registre des incidents',
     ctaUrl
@@ -289,7 +300,7 @@ export async function sendIncidentAlert(incident, recipients) {
   if (!to.length) return;
   await sendMailHtml({
     to,
-    subject: `[AfricaQHSE] Incident critique — ${ref} (${site})`,
+    subject: `[QHSE Control] Incident critique : ${ref} (${site})`,
     html,
     text: `Incident critique\nGravité : ${severity}\nSite : ${site}\nRéf : ${ref}\n\n${description}\n\n${ctaUrl}`
   });
@@ -320,14 +331,14 @@ export async function sendActionOverdueReminder(action, assignee) {
   `;
   const html = buildHtmlEmailLayout({
     tone: 'high',
-    title: 'Rappel — action en retard',
+    title: 'Rappel : action en retard',
     bodyHtml,
     ctaLabel: 'Voir le plan d’actions',
     ctaUrl
   });
   await sendMailHtml({
     to: [email],
-    subject: `[AfricaQHSE] Action en retard — ${title.slice(0, 60)}`,
+    subject: `[QHSE Control] Action en retard : ${title.slice(0, 60)}`,
     html,
     text: `${String(user.name || '')}\n\nAction en retard : ${title}\nÉchéance : ${due}\nStatut : ${status}\n\n${ctaUrl}`
   });
@@ -352,21 +363,21 @@ export async function sendAuditScheduled(audit, participants) {
   const to = [...new Set(list.map((e) => e.toLowerCase()))];
   if (!to.length) return;
   const bodyHtml = `
-    <p>Un audit est enregistré / planifié dans AfricaQHSE.</p>
+    <p>Un audit est enregistré ou planifié dans QHSE Control.</p>
     <p><strong>Référence :</strong> ${escapeHtml(ref)}</p>
     <p><strong>Site :</strong> ${escapeHtml(site)}</p>
     <p><strong>Statut :</strong> ${escapeHtml(status)} &nbsp;·&nbsp; <strong>Score :</strong> ${escapeHtml(score)}</p>
   `;
   const html = buildHtmlEmailLayout({
     tone: 'info',
-    title: 'Convocation — audit planifié',
+    title: 'Convocation : audit planifié',
     bodyHtml,
     ctaLabel: 'Consulter les audits',
     ctaUrl
   });
   await sendMailHtml({
     to,
-    subject: `[AfricaQHSE] Audit planifié — ${ref} (${site})`,
+    subject: `[QHSE Control] Audit planifié : ${ref} (${site})`,
     html,
     text: `Audit planifié\nRéf : ${ref}\nSite : ${site}\nStatut : ${status}\nScore : ${score}\n\n${ctaUrl}`
   });
@@ -420,7 +431,7 @@ export async function sendWeeklyQhseSummary(stats, recipients, opts) {
   if (!to.length) return;
   await sendMailHtml({
     to,
-    subject: `[AfricaQHSE] Synthèse QHSE${orgSeg} — semaine ${start} → ${end}`,
+    subject: `[QHSE Control] Synthèse QHSE${orgSeg} : semaine ${start} → ${end}`,
     html,
     text: `Synthèse QHSE ${start} → ${end}\nIncidents : ${incidents}\nCritiques : ${crit}\nActions : ${actions}\nRetard : ${overdue}\nScore audits : ${score}\n\n${ctaUrl}`
   });

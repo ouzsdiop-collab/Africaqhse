@@ -1799,6 +1799,13 @@ export function renderSettings() {
       <p class="settings-demo-hint" style="margin:0">
         <a href="/guide-utilisateur-africaqhse.pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Télécharger le guide utilisateur (PDF)</a>
       </p>
+      <p class="settings-section__lead" style="margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--text2,#94a3b8)">
+        Besoin d’aide sur l’application : <a href="mailto:support@qhsecontrol.com">support@qhsecontrol.com</a>.
+        Compte client ou accompagnement : <a href="mailto:direction@qhsecontrol.com">direction@qhsecontrol.com</a>.
+        Devis ou offre Pro : <a href="mailto:devis@qhsecontrol.com?subject=Demande%20QHSE%20Control%20Pro">devis@qhsecontrol.com</a>.
+        Facturation : <a href="mailto:facturation@qhsecontrol.com">facturation@qhsecontrol.com</a>.
+        Contact général : <a href="mailto:contact@qhsecontrol.com">contact@qhsecontrol.com</a>.
+      </p>
     </div>
   `;
 
