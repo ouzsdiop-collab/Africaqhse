@@ -77,6 +77,26 @@ function moduleLabelForKey(key) {
   return def ? def.label : key;
 }
 
+/** Mot de passe provisoire renvoyé par l’API admin (tolère formes alternatives / wrappers). */
+/** @param {unknown} payload */
+function readProvisionalPassword(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const o = /** @type {Record<string, unknown>} */ (payload);
+  const nested =
+    o.data && typeof o.data === 'object' && !Array.isArray(o.data)
+      ? /** @type {Record<string, unknown>} */ (o.data)
+      : null;
+  const candidates = [o, nested].filter(Boolean);
+  for (const c of candidates) {
+    const raw = c.provisionalPassword ?? c.provisional_password;
+    if (typeof raw === 'string') {
+      const s = raw.trim();
+      if (s) return s;
+    }
+  }
+  return '';
+}
+
 export function renderSaasClients() {
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas saas-clients-page';
@@ -168,7 +188,7 @@ export function renderSaasClients() {
       </div>
       <div class="sc-list-host stack" style="margin-top:24px"></div>
     </article>
-    <div class="sc-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title" aria-hidden="true">
+    <div class="sc-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:10050;padding:16px" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title" aria-hidden="true">
       <div class="content-card card-soft sc-modal-inner" style="max-width:480px;width:100%;position:relative">
         <button type="button" class="btn sc-modal-close" style="position:absolute;top:12px;right:12px">Fermer</button>
         <h3 id="sc-modal-title" style="margin-top:0">Mot de passe provisoire</h3>
@@ -194,6 +214,9 @@ export function renderSaasClients() {
   /** @type {((e: KeyboardEvent) => void) | null} */
   let provisionalModalEscHandler = null;
 
+  /** @type {(() => void) | null} */
+  let provisionalModalAfterClose = null;
+
   function closeProvisionalModal() {
     if (!modal) return;
     modal.hidden = true;
@@ -205,13 +228,33 @@ export function renderSaasClients() {
       document.removeEventListener('keydown', provisionalModalEscHandler);
       provisionalModalEscHandler = null;
     }
+    const after = provisionalModalAfterClose;
+    provisionalModalAfterClose = null;
+    if (after) {
+      try {
+        after();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
-  function showOnceModal(titleHtml, secret, extraHtml) {
+  /**
+   * @param {string} titleHtml
+   * @param {string} secret
+   * @param {string} extraHtml
+   * @param {{ afterClose?: () => void } | null} [opts]
+   */
+  function showOnceModal(titleHtml, secret, extraHtml, opts = null) {
     if (!modal || !modalLead || !modalSecret) return;
+    provisionalModalAfterClose = opts && typeof opts.afterClose === 'function' ? opts.afterClose : null;
     modalSecret.textContent = secret;
+    let lead = titleHtml;
+    if (!String(secret || '').trim()) {
+      lead += `<p style="font-size:13px;color:var(--warning,#f59e0b);margin-top:12px;font-weight:600">Aucun mot de passe reçu du serveur. Utilisez le bouton « Réinitialiser » sur la carte entreprise pour en générer un.</p>`;
+    }
     modalLead.innerHTML =
-      titleHtml +
+      lead +
       (extraHtml
         ? `<p class="content-card-lead" style="font-size:13px;margin-top:10px">${extraHtml}</p>`
         : '');
@@ -453,7 +496,7 @@ export function renderSaasClients() {
               showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
               return;
             }
-            const pwd = typeof b2.provisionalPassword === 'string' ? b2.provisionalPassword : '';
+            const pwd = readProvisionalPassword(b2);
             showOnceModal(
               '<strong>Nouveau mot de passe provisoire</strong> (admin client principal).',
               pwd,
@@ -566,7 +609,7 @@ export function renderSaasClients() {
                 showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
                 return;
               }
-              const pwd = typeof b2.provisionalPassword === 'string' ? b2.provisionalPassword : '';
+              const pwd = readProvisionalPassword(b2);
               showOnceModal(
                 '<strong>Mot de passe provisoire</strong> (utilisateur).',
                 pwd,
@@ -643,16 +686,19 @@ export function renderSaasClients() {
               showToast(typeof j.error === 'string' ? j.error : `Erreur ${r.status}`, 'error');
               return;
             }
-            const pwd = typeof j.provisionalPassword === 'string' ? j.provisionalPassword : '';
+            const pwd = readProvisionalPassword(j);
             showOnceModal(
               '<strong>Utilisateur créé</strong>',
               pwd,
-              j.user ? `${escapeHtml(j.user.name || '')} · <code>${escapeHtml(j.user.email || '')}</code>` : ''
+              j.user ? `${escapeHtml(j.user.name || '')} · <code>${escapeHtml(j.user.email || '')}</code>` : '',
+              { afterClose: () => void refreshList() }
             );
             nName.value = '';
             nEmail.value = '';
-            showToast('Utilisateur créé.', 'success');
-            void refreshList();
+            showToast(
+              pwd ? 'Utilisateur créé.' : 'Utilisateur créé — sans mot de passe renvoyé : utilisez « MDP ».',
+              pwd ? 'success' : 'warning'
+            );
           } catch {
             showToast('Erreur réseau', 'error');
           } finally {
@@ -698,20 +744,23 @@ export function renderSaasClients() {
         showToast(typeof j.error === 'string' ? j.error : `Erreur ${res.status}`, 'error');
         return;
       }
-      const pwd = typeof j.provisionalPassword === 'string' ? j.provisionalPassword : '';
+      const pwd = readProvisionalPassword(j);
       const tenant = j.tenant || {};
       const user = j.user || {};
       showOnceModal(
         `<strong>Compte créé.</strong> Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
         pwd,
-        `Connexion : e-mail <code>${escapeHtml(user.email || '')}</code> ou identifiant <strong>${escapeHtml(user.clientCode || '')}</strong>`
+        `Connexion : e-mail <code>${escapeHtml(user.email || '')}</code> ou identifiant <strong>${escapeHtml(user.clientCode || '')}</strong>`,
+        { afterClose: () => void refreshList() }
       );
       companyIn.value = '';
       contactIn.value = '';
       emailIn.value = '';
       codeIn.value = '';
-      showToast('Entreprise créée.', 'success');
-      void refreshList();
+      showToast(
+        pwd ? 'Entreprise créée.' : 'Entreprise créée — sans mot de passe renvoyé : utilisez « Réinitialiser ».',
+        pwd ? 'success' : 'warning'
+      );
     } catch {
       showToast('Erreur réseau', 'error');
     } finally {
