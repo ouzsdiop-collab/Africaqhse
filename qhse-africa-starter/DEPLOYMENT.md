@@ -63,3 +63,37 @@ Ce document complète le `README.md` pour une mise en ligne **PostgreSQL** + API
 - [ ] Secrets hors du dépôt, rotation prévue pour `JWT_SECRET` / SMTP / S3.
 - [ ] CORS et HTTPS cohérents avec l’URL du front.
 - [ ] Sauvegardes DB + procédure de restauration documentée.
+
+## Check-list de validation post-merge (Railway)
+
+> À lancer juste après le merge vers `principal`, sur les 1 à 3 premiers déploiements.
+
+### 1) Vérifier le statut des checks Railway
+
+- [ ] Le déploiement passe en `3/3` (et pas `1/3` ou `2/3`).
+- [ ] Le service reste en `Healthy` au moins 10 minutes après le premier `3/3`.
+- [ ] Aucun redéploiement en boucle n’est observé.
+
+### 2) Vérifier les endpoints de santé
+
+- [ ] `GET /api/health` retourne HTTP `200` avec `ok=true`.
+- [ ] `GET /api/health/live` retourne HTTP `200`.
+- [ ] `GET /api/health/ready` retourne HTTP `200` avec `ready=true` et `db=true`.
+- [ ] En cas de latence DB transitoire, `recovery: "reconnected"` peut apparaître ponctuellement sans passage en `503`.
+
+### 3) Vérifier les logs d’amorçage
+
+- [ ] Présence de `DB CONNECTED` dans les logs backend.
+- [ ] Absence de `health_db_timeout` répétitifs.
+- [ ] Absence de `PrismaClientInitializationError` après démarrage.
+
+### 4) Vérifier la stabilité applicative (smoke tests)
+
+- [ ] Connexion utilisateur OK (`/api/auth/login`).
+- [ ] Tableau de bord chargé sans erreur 5xx.
+- [ ] Au moins un appel API métier (ex: incidents/risks/actions) répond en `200`.
+
+### 5) Critères de rollback
+
+- [ ] Si un des 3 premiers déploiements retombe à `1/3` ou `2/3` plus de 2 fois, rollback immédiat.
+- [ ] Si `GET /api/health/ready` renvoie `503` en continu > 5 min, rollback + analyse DB/latence.
