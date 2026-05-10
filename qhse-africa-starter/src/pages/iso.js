@@ -2576,17 +2576,25 @@ export function renderIso(onAddLog) {
     card.innerHTML = `
       <div class="content-card-head">
         <div>
-          <div class="section-kicker">Décision</div>
+          <div class="section-kicker">DÉCISION</div>
           <h3>ISO en 5 secondes</h3>
-          <p class="content-card-lead">Score, readiness et 5 exigences critiques à traiter maintenant.</p>
+          <p class="content-card-lead">Score, readiness et exigences critiques à traiter maintenant.</p>
         </div>
       </div>
       <div class="iso-decision-grid">
-        <section class="iso-decision-block">
-          <div class="iso-decision-k">Score global</div>
-          <div class="iso-decision-score" data-score>Non disponible</div>
-          <div class="iso-decision-muted" data-readiness>Audit readiness: non disponible</div>
-          <div class="iso-decision-muted" data-message></div>
+        <section class="iso-decision-block iso-decision-block--score">
+          <div class="iso-decision-band">
+            <div class="iso-decision-band-left">
+              <div class="iso-decision-k">Score global</div>
+              <div class="iso-decision-score" data-score>Non renseigné</div>
+              <div class="iso-decision-progress" aria-hidden="true"><span data-scorebar></span></div>
+            </div>
+            <div class="iso-decision-band-badges">
+              <span class="iso-decision-chip" data-score-chip>Score</span>
+              <span class="iso-decision-chip" data-readiness>Audit readiness: Non renseigné</span>
+              <span class="iso-decision-chip iso-decision-chip--risk" data-message>À compléter</span>
+            </div>
+          </div>
           <details class="iso-decision-details">
             <summary>Explication du score</summary>
             <div class="iso-decision-explain" data-explain></div>
@@ -2602,6 +2610,8 @@ export function renderIso(onAddLog) {
     const elScore = card.querySelector('[data-score]');
     const elReadiness = card.querySelector('[data-readiness]');
     const elMessage = card.querySelector('[data-message]');
+    const elScoreChip = card.querySelector('[data-score-chip]');
+    const elScoreBar = card.querySelector('[data-scorebar]');
     const elExplain = card.querySelector('[data-explain]');
     const elCritical = card.querySelector('[data-critical]');
 
@@ -2611,14 +2621,19 @@ export function renderIso(onAddLog) {
 
       if (elScore) {
         const pct = Number(s?.pct);
-        elScore.textContent = Number.isFinite(pct) ? `${Math.round(pct)}/100` : 'Non disponible';
+        const scoreLabel = Number.isFinite(pct) ? `${Math.round(pct)}/100` : 'Non renseigné';
+        elScore.textContent = scoreLabel;
+        if (elScoreChip) elScoreChip.textContent = `Score ${scoreLabel}`;
+        if (elScoreBar) elScoreBar.style.width = `${Number.isFinite(pct) ? Math.max(0, Math.min(100, Math.round(pct))) : 0}%`;
       }
       if (elReadiness) {
         const r = String(ar?.readiness || 'non_pret');
-        elReadiness.textContent = `Audit readiness: ${r}`;
+        const readinessMap = { pret: 'Prêt', fragile: 'Fragile', non_pret: 'Non prêt' };
+        elReadiness.textContent = `Audit readiness: ${readinessMap[r] || (r || 'Non renseigné')}`;
       }
       if (elMessage) {
-        elMessage.textContent = String(ar?.message || '').replaceAll('—', '-').replaceAll('–', '-');
+        const msg = String(ar?.message || '').replaceAll('—', '-').replaceAll('–', '-').trim();
+        elMessage.textContent = msg || 'Aucun détail disponible';
       }
       if (elExplain) {
         elExplain.replaceChildren();
@@ -2626,7 +2641,7 @@ export function renderIso(onAddLog) {
         if (!bits.length) {
           const p = document.createElement('p');
           p.className = 'iso-decision-muted';
-          p.textContent = 'Non disponible.';
+          p.textContent = 'Aucun détail disponible';
           elExplain.append(p);
         } else {
           const ul = document.createElement('ul');
@@ -2680,9 +2695,12 @@ export function renderIso(onAddLog) {
             const problem = problemBits.length ? problemBits.join(' · ') : 'à traiter';
             row.innerHTML = `
               <div class="iso-decision-crit-main">
-                <strong>${escapeHtml(`${r.clause} - ${r.title}`)}</strong>
-                <div class="iso-decision-muted">${escapeHtml(String(r.summary || '').replaceAll('—', '-').replaceAll('–', '-').slice(0, 180))}</div>
-                <div class="iso-decision-muted">Problème: ${escapeHtml(problem)}</div>
+                <div class="iso-decision-crit-head">
+                  <span class="iso-decision-clause">${escapeHtml(String(r.clause || 'Non renseigné'))}</span>
+                  <strong>${escapeHtml(String(r.title || 'À compléter'))}</strong>
+                </div>
+                <div class="iso-decision-muted">${escapeHtml(String(r.summary || 'Aucun détail disponible').replaceAll('—', '-').replaceAll('–', '-').slice(0, 180))}</div>
+                <div class="iso-decision-problem">Problème : ${escapeHtml(problem)}</div>
               </div>
               <div class="iso-decision-crit-actions"></div>
             `;
