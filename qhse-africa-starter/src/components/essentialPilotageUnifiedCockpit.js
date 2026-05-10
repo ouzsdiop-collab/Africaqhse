@@ -41,11 +41,17 @@ export function createEssentialPilotageUnifiedCockpit() {
       </div>
 
       <div class="dashboard-essential-pilotage__score-wrap" aria-label="Score QHSE">
-        <div class="dashboard-essential-pilotage__score-ring">
-          <div class="dashboard-essential-pilotage__score-val">—</div>
-          <div class="dashboard-essential-pilotage__score-unit">/100</div>
+        <div class="dashboard-essential-pilotage__score-head">
+          <div class="dashboard-essential-pilotage__score-lbl">Score QHSE</div>
+          <div class="dashboard-essential-pilotage__score-value-line">
+            <div class="dashboard-essential-pilotage__score-val">—</div>
+            <div class="dashboard-essential-pilotage__score-unit">/100</div>
+          </div>
         </div>
-        <div class="dashboard-essential-pilotage__score-lbl">Score QHSE</div>
+        <div class="dashboard-essential-pilotage__score-progress" role="presentation">
+          <span class="dashboard-essential-pilotage__score-progress-bar"></span>
+        </div>
+        <div class="dashboard-essential-pilotage__score-meta">Fiabilité : non disponible</div>
       </div>
 
       <div class="dashboard-essential-pilotage__grid">
@@ -81,6 +87,7 @@ export function createEssentialPilotageUnifiedCockpit() {
   const alerts = root.querySelector('.dashboard-essential-pilotage__alerts');
   const actions = root.querySelector('.dashboard-essential-pilotage__actions');
   const dq = root.querySelector('.dashboard-essential-pilotage__dq');
+  const scoreMeta = root.querySelector('.dashboard-essential-pilotage__score-meta');
   const status = root.querySelector('.dashboard-essential-pilotage__status');
   const statusLabel = root.querySelector('.dashboard-essential-pilotage__status-label');
   const miniPriorities = root.querySelector('.dashboard-essential-pilotage__mini-count--priorities');
@@ -133,7 +140,7 @@ export function createEssentialPilotageUnifiedCockpit() {
         priorities.append(li);
       }
       if (summary) {
-        summary.innerHTML = `<strong>Données de pilotage à compléter</strong><br>Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.`;
+        renderSummary('Données de pilotage à compléter. Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.');
       }
       if (dq) dq.textContent = 'Fiabilité: non disponible.';
       if (actions) {
@@ -150,13 +157,15 @@ export function createEssentialPilotageUnifiedCockpit() {
     setScore(p.score);
     if (summary) {
       const txt = String(p.executiveSummary || '').trim();
-      summary.textContent = txt ? txt.replaceAll('—', '-').replaceAll('–', '-') : 'Données de pilotage à compléter. Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.';
+      renderSummary(txt ? txt : 'Données de pilotage à compléter. Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.');
     }
     const dqg = p?.dataQuality && typeof p.dataQuality === 'object' ? p.dataQuality : null;
     if (dq) {
-      dq.textContent = !dqg
-        ? 'Fiabilité: incomplet.'
-        : `Fiabilité: incidents ${dataQualityLabelFr(dqg.incidents)}, actions ${dataQualityLabelFr(dqg.actions)}, audits ${dataQualityLabelFr(dqg.audits)}, risques ${dataQualityLabelFr(dqg.risks)}.`;
+      const qualityText = !dqg
+        ? 'Fiabilité : non disponible.'
+        : `Fiabilité : incidents ${dataQualityLabelFr(dqg.incidents)}, actions ${dataQualityLabelFr(dqg.actions)}, audits ${dataQualityLabelFr(dqg.audits)}, risques ${dataQualityLabelFr(dqg.risks)}.`;
+      dq.textContent = qualityText;
+      if (scoreMeta) scoreMeta.textContent = qualityText;
     }
 
     const recs = ensureList(p.topPriorities).slice(0, 3);
@@ -211,7 +220,7 @@ export function createEssentialPilotageUnifiedCockpit() {
     setScore(snap.enrichedScore);
     if (summary) {
       const txt = String(snap.synthesis || '').trim();
-      summary.textContent = txt ? txt.replaceAll('—', '-').replaceAll('–', '-') : 'Données de pilotage à compléter. Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.';
+      renderSummary(txt ? txt : 'Données de pilotage à compléter. Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.');
     }
     refreshUiMeta();
   }
@@ -221,9 +230,28 @@ export function createEssentialPilotageUnifiedCockpit() {
     if (summary && narrative) {
       const clean = narrative.replaceAll('—', '-').replaceAll('–', '-').split('\n').join(' ').trim();
       const short = clean.length > 240 ? `${clean.slice(0, 237)}…` : clean;
-      summary.textContent = `${summary.textContent} ${short}`.trim();
+      renderSummary(`${summary.textContent} ${short}`.trim());
     }
     refreshUiMeta();
+  }
+
+  function splitSummary(txt) {
+    const clean = String(txt || '').trim().replaceAll('—', '-').replaceAll('–', '-');
+    if (!clean) return { keyTakeaway: '', context: '' };
+    const parts = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+    if (parts.length <= 1) return { keyTakeaway: parts[0] || clean, context: '' };
+    return {
+      keyTakeaway: parts.slice(0, 1).join(' '),
+      context: parts.slice(1).join(' ')
+    };
+  }
+
+  function renderSummary(raw) {
+    if (!summary) return;
+    const { keyTakeaway, context } = splitSummary(raw);
+    const take = keyTakeaway || 'Données de pilotage à compléter.';
+    const ctx = context || 'Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.';
+    summary.innerHTML = `<span class="dashboard-essential-pilotage__summary-line"><strong>À retenir :</strong> ${escapeHtml(take)}</span><span class="dashboard-essential-pilotage__summary-line"><strong>Contexte :</strong> ${escapeHtml(ctx)}</span>`;
   }
 
   function updateAlerts(ctx) {
