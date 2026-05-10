@@ -315,6 +315,13 @@ const CSS = `
 .content-card-head--split .content-card-lead--narrow{max-width:52ch}
 .btn--pilotage-cta{white-space:nowrap;min-height:44px;font-weight:800}
 .kanban-board--pilotage{
+  --actions-column-bg:rgba(255,255,255,.03);
+  --actions-card-bg:rgba(255,255,255,.045);
+  --actions-card-border:rgba(255,255,255,.1);
+  --actions-card-shadow:0 6px 18px rgba(0,0,0,.14);
+  --actions-chip-bg:rgba(255,255,255,.07);
+  --actions-chip-border:rgba(255,255,255,.16);
+  --actions-muted-text:var(--text3);
   margin-top:8px;
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
@@ -328,7 +335,7 @@ const CSS = `
   .kanban-board--pilotage{grid-template-columns:1fr}
 }
 .kanban-column--pilotage{
-  background:rgba(255,255,255,.025);
+  background:var(--actions-column-bg);
   border-radius:14px;
   border:1px solid rgba(255,255,255,.08);
   padding:14px 12px 16px;
@@ -667,9 +674,12 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 }
 
 .action-card--premium{
-  padding:11px 11px 10px;
-  margin-bottom:10px;
+  padding:12px 12px 11px;
+  margin-bottom:12px;
   cursor:pointer;
+  border:1px solid var(--actions-card-border);
+  background:var(--actions-card-bg);
+  box-shadow:var(--actions-card-shadow);
   transition:transform .18s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease;
 }
 .action-card--premium:hover{
@@ -689,19 +699,23 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 .action-card--premium.action-card--dnd-ready:active{cursor:pointer}
 
 .action-card__premium-head{
-  display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;margin-bottom:6px;flex-wrap:wrap;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;
 }
-.action-card__premium-head .action-card__title{flex:1 1 120px;min-width:0}
-.action-card--premium .action-card__title{font-size:13px;line-height:1.3;margin:0}
+.action-card__head-left{display:flex;align-items:center;gap:8px;min-width:0}
+.action-card--premium .action-card__title{
+  font-size:13px;line-height:1.45;margin:0 0 10px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
 .action-card__prio-badge{
-  font-size:8px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:.02em;white-space:nowrap;align-self:flex-start;
+  font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;letter-spacing:.02em;white-space:nowrap;align-self:flex-start;
+  border:1px solid var(--actions-chip-border);background:var(--actions-chip-bg);
 }
 .action-card__prio-badge--low{border:1px solid rgba(148,163,184,.25);background:rgba(148,163,184,.1);color:var(--text3)}
 .action-card__prio-badge--norm{border:1px solid rgba(77,160,255,.3);background:rgba(77,160,255,.12);color:#bae6fd}
 .action-card__prio-badge--high{border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.14);color:#fde68a}
 .action-card__prio-badge--crit{border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.15);color:#fecaca}
 .action-card__type-badge{
-  font-size:8px;font-weight:800;padding:2px 6px;border-radius:6px;letter-spacing:.04em;
+  font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;letter-spacing:.04em;
   white-space:nowrap;flex-shrink:0;text-transform:uppercase;
 }
 .action-card__type-badge--corrective{
@@ -727,12 +741,12 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 .action-card__menu{position:relative;flex-shrink:0}
 .action-card__menu-trigger{
   display:grid;place-items:center;
-  width:30px;height:30px;padding:0;margin:0;
+  width:26px;height:26px;padding:0;margin:0;
   border-radius:9px;
   border:1px solid rgba(255,255,255,.1);
   background:rgba(0,0,0,.2);
   color:var(--text2);
-  font-size:18px;line-height:1;
+  font-size:15px;line-height:1;
   font-weight:700;
   cursor:pointer;
   transition:background .15s ease,border-color .15s ease,color .15s ease;
@@ -774,42 +788,40 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 
 .action-card__premium-meta{
   display:flex;
-  align-items:center;
-  justify-content:space-between;
+  align-items:flex-start;
+  justify-content:flex-start;
   gap:8px;
-  margin-bottom:5px;
+  margin-bottom:10px;
   min-width:0;
-  padding:5px 0 2px;
+  padding:8px 0 0;
   border-top:1px solid rgba(255,255,255,.06);
 }
 .action-card__premium-meta .action-card__status{
   margin-bottom:0;
   flex:0 1 auto;
   min-width:0;
-  max-width:56%;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:9px;
-  padding:3px 8px;
+  max-width:100%;
+  font-size:10px;
+  padding:4px 9px;
 }
-.action-card__due-compact{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:5px;
-  flex-shrink:0;
-  max-width:44%;
-  font-size:11px;
-  font-weight:700;
-  color:var(--text2);
-  font-variant-numeric:tabular-nums;
-}
-.action-card__due-compact-date{white-space:nowrap}
-.action-card__due-compact--late .action-card__due-compact-date{
-  color:var(--color-text-warning);
+.action-card__label-lite{
+  margin:0 0 2px;
+  font-size:10px;
   font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--actions-muted-text);
 }
+.action-card__due-block{margin-bottom:10px}
+.action-card__due-value{
+  margin:0;
+  font-size:14px;
+  font-weight:800;
+  line-height:1.3;
+  font-variant-numeric:tabular-nums;
+  color:var(--text);
+}
+.action-card__due-block--late .action-card__due-value{color:var(--color-text-warning)}
 .action-card__due-badge--mini{
   flex-shrink:0;
   font-size:8px;
@@ -823,23 +835,13 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
   border:1px solid rgba(239,91,107,.45);
 }
 
-.action-card--late-strong .action-card__due-compact--late .action-card__due-compact-date{
+.action-card--late-strong .action-card__due-block--late .action-card__due-value{
   text-decoration:underline;
   text-underline-offset:2px;
 }
 
-.action-card__owner-lite{
-  margin:0;
-  font-size:11px;font-weight:600;color:var(--text3);
-  line-height:1.35;
-  padding-left:1px;
-}
-.action-card__owner-lite::before{
-  content:'Resp. ';
-  font-weight:700;
-  color:var(--text3);
-  opacity:.75;
-}
+.action-card__owner-block{padding-top:8px;border-top:1px dashed rgba(255,255,255,.08)}
+.action-card__owner-lite{margin:0;font-size:12px;font-weight:600;color:var(--text2);line-height:1.4}
 
 @media (prefers-reduced-motion:reduce){
   .action-card--premium{transition:none}
@@ -1804,6 +1806,28 @@ html[data-theme='light'] .risks-tier-pill--active{
   background:var(--color-info-bg);
   color:var(--color-info-text);
   box-shadow:none;
+}
+html[data-theme='light'] .kanban-board--pilotage{
+  --actions-column-bg:#f8fafc;
+  --actions-card-bg:#ffffff;
+  --actions-card-border:#dbe3ee;
+  --actions-card-shadow:0 6px 16px rgba(15,23,42,.08);
+  --actions-chip-bg:#f8fafc;
+  --actions-chip-border:#d6dee9;
+  --actions-muted-text:#64748b;
+}
+html[data-theme='light'] .kanban-column--pilotage{
+  border-color:#dbe3ee;
+}
+html[data-theme='light'] .action-card--premium:hover{
+  border-color:#c9d5e4;
+  background:#ffffff;
+  box-shadow:0 12px 26px rgba(15,23,42,.12);
+}
+html[data-theme='light'] .action-card__menu-trigger{
+  border-color:#d4deea;
+  background:#f8fafc;
+  color:#5b687a;
 }
 html[data-theme='light'] .action-card__prio--danger,
 html[data-theme='light'] .action-detail-dialog__pill--danger,
