@@ -1918,11 +1918,13 @@ export function renderDashboard() {
       showToast("Certaines listes n’ont pas pu être chargées, affichage partiel.", 'warning');
     }
 
-    const incidents = isDemoMode() ? incR || DASHBOARD_DEMO_LISTS.incidents : incR || [];
-    const actions = isDemoMode() ? actR || DASHBOARD_DEMO_LISTS.actions : actR || [];
-    const audits = isDemoMode() ? audR || DASHBOARD_DEMO_LISTS.audits : audR || [];
-    const ncs = isDemoMode() ? ncR || DASHBOARD_DEMO_LISTS.ncs : ncR || [];
-    const docs = docsR || [];
+    const demoTenant = String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+    const useDemoLists = isDemoMode() && demoTenant;
+    const incidents = useDemoLists ? (incR ?? DASHBOARD_DEMO_LISTS.incidents) : (incR ?? []);
+    const actions = useDemoLists ? (actR ?? DASHBOARD_DEMO_LISTS.actions) : (actR ?? []);
+    const audits = useDemoLists ? (audR ?? DASHBOARD_DEMO_LISTS.audits) : (audR ?? []);
+    const ncs = useDemoLists ? (ncR ?? DASHBOARD_DEMO_LISTS.ncs) : (ncR ?? []);
+    const docs = docsR ?? [];
 
     if (fillStatsFromLists) {
       const derived = deriveDashboardStatsFromLists(incidents, actions, ncs);

@@ -11,6 +11,7 @@ import {
 import { qhseFetch } from './qhseFetch.js';
 import { withSiteQuery } from './siteFilter.js';
 import { showToast } from '../components/toast.js';
+import { getActiveTenant, getSessionUser } from '../data/sessionUser.js';
 
 export { sortRisksByPriority } from './risksSort.js';
 
@@ -305,9 +306,16 @@ export async function fetchRisksApi(filters = {}) {
 
 export const RISKS_LIST_CACHE_KEY = 'qhse.cache.risks.list.v1';
 
+function scopedRisksCacheKey() {
+  const tenantId = String(getActiveTenant()?.id || '').trim();
+  const userId = String(getSessionUser()?.id || '').trim();
+  if (!tenantId || !userId) return RISKS_LIST_CACHE_KEY;
+  return `${RISKS_LIST_CACHE_KEY}:${tenantId}:${userId}`;
+}
+
 export function readRisksListCache() {
   try {
-    const raw = localStorage.getItem(RISKS_LIST_CACHE_KEY);
+    const raw = localStorage.getItem(scopedRisksCacheKey());
     if (!raw) return null;
     const j = JSON.parse(raw);
     return Array.isArray(j?.rows) ? j.rows : null;
@@ -318,7 +326,7 @@ export function readRisksListCache() {
 
 export function saveRisksListCache(rows) {
   try {
-    localStorage.setItem(RISKS_LIST_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
+    localStorage.setItem(scopedRisksCacheKey(), JSON.stringify({ savedAt: Date.now(), rows }));
   } catch {
     /* ignore */
   }

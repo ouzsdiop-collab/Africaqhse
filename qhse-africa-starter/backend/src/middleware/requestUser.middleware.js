@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { getJwtSecret } from '../services/auth.service.js';
 import * as tenantAuth from '../services/tenantAuth.service.js';
-import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
 import { isXUserIdAllowed } from '../lib/securityConfig.js';
 
 /**
@@ -138,10 +137,7 @@ export async function attachRequestUser(req, res, next) {
       defaultSiteId: null
     };
 
-    let tenant = await tenantAuth.getFirstTenantForUser(user.id);
-    if (!tenant) {
-      tenant = await tenantAuth.assertUserTenantAccess(user.id, DEFAULT_TENANT_ID);
-    }
+    const tenant = await tenantAuth.getFirstTenantForUser(user.id);
     if (tenant) {
       req.qhseTenantId = tenant.id;
       req.qhseTenant = { id: tenant.id, slug: tenant.slug, name: tenant.name };
