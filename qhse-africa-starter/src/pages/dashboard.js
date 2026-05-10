@@ -1049,6 +1049,20 @@ function formatDashboardInsightBody(raw) {
     .join('');
 }
 
+function pickWeeklyStat(source, keys) {
+  if (!source || typeof source !== 'object') return null;
+  for (const key of keys) {
+    const value = source[key];
+    if (Number.isFinite(value)) return Number(value);
+  }
+  return null;
+}
+
+function formatWeeklyStat(value, suffix = '') {
+  if (!Number.isFinite(value)) return 'Non renseigné';
+  return `${value}${suffix}`;
+}
+
 async function loadDashboardInsight(stats) {
   const zone = document.getElementById('dashboard-ai-insight');
   if (!zone) return;
@@ -1060,20 +1074,58 @@ async function loadDashboardInsight(stats) {
     });
     if (!res.ok) throw new Error('api');
     const { insight } = await res.json();
+
+    const incidentsDeclared = pickWeeklyStat(stats, ['incidents_declares', 'incidents_declared', 'incidents_total', 'incidents']);
+    const risksOpen = pickWeeklyStat(stats, ['risques_ouverts', 'risks_open', 'risques', 'risks']);
+    const actionsLate = pickWeeklyStat(stats, ['actions_retard', 'actions_overdue', 'actions_late', 'actions']);
+    const auditsScore = pickWeeklyStat(stats, ['audit_score', 'audits_score', 'score_audits', 'audit_average_score']);
+
     zone.innerHTML = `
       <article class="content-card card-soft dashboard-ai-insight__card" aria-label="Synthèse hebdomadaire">
-        <div class="dashboard-ai-insight__shell">
-          <div class="dashboard-ai-insight__rail" aria-hidden="true"></div>
-          <div class="dashboard-ai-insight__content">
-            <header class="dashboard-ai-insight__head">
-              <div class="dashboard-ai-insight__head-text">
-                <p class="section-kicker dashboard-ai-insight__kicker">Synthèse de la semaine</p>
-                <p class="dashboard-ai-insight__lede">Commentaire court sur les KPI et événements saisis sur les sept derniers jours.</p>
-              </div>
-              <span class="dashboard-ai-insight__chip">Hebdo</span>
-            </header>
-            <div class="dashboard-ai-insight__body" role="region" aria-label="Texte de synthèse">${formatDashboardInsightBody(insight)}</div>
-          </div>
+        <div class="dashboard-ai-insight__content">
+          <header class="dashboard-ai-insight__head">
+            <div class="dashboard-ai-insight__head-text">
+              <p class="section-kicker dashboard-ai-insight__kicker">SYNTHÈSE DE LA SEMAINE</p>
+              <p class="dashboard-ai-insight__lede">Lecture consolidée des indicateurs et événements récents.</p>
+            </div>
+            <span class="dashboard-ai-insight__chip">HEBDO</span>
+          </header>
+
+          <section class="dashboard-ai-insight__kpis" aria-label="Constat rapide">
+            <article class="dashboard-ai-insight__kpi-tile">
+              <p class="dashboard-ai-insight__kpi-value">${formatWeeklyStat(incidentsDeclared)}</p>
+              <p class="dashboard-ai-insight__kpi-label">Incidents déclarés</p>
+              <p class="dashboard-ai-insight__kpi-sub">sur 7 jours</p>
+            </article>
+            <article class="dashboard-ai-insight__kpi-tile">
+              <p class="dashboard-ai-insight__kpi-value">${formatWeeklyStat(risksOpen)}</p>
+              <p class="dashboard-ai-insight__kpi-label">Risques ouverts</p>
+              <p class="dashboard-ai-insight__kpi-sub">à suivre</p>
+            </article>
+            <article class="dashboard-ai-insight__kpi-tile dashboard-ai-insight__kpi-tile--alert">
+              <p class="dashboard-ai-insight__kpi-value">${formatWeeklyStat(actionsLate)}</p>
+              <p class="dashboard-ai-insight__kpi-label">Actions en retard</p>
+              <p class="dashboard-ai-insight__kpi-sub">prioritaires</p>
+            </article>
+            <article class="dashboard-ai-insight__kpi-tile">
+              <p class="dashboard-ai-insight__kpi-value">${formatWeeklyStat(auditsScore, '/100')}</p>
+              <p class="dashboard-ai-insight__kpi-label">Score audits</p>
+              <p class="dashboard-ai-insight__kpi-sub">moyenne</p>
+            </article>
+          </section>
+
+          <section class="dashboard-ai-insight__direction" aria-label="Lecture direction">
+            <article class="dashboard-ai-insight__panel dashboard-ai-insight__panel--alert">
+              <h4 class="dashboard-ai-insight__panel-title">Point d’alerte</h4>
+              <p class="dashboard-ai-insight__panel-text">Prioriser incidents critiques et retards d’actions.</p>
+            </article>
+            <article class="dashboard-ai-insight__panel">
+              <h4 class="dashboard-ai-insight__panel-title">Recommandation</h4>
+              <p class="dashboard-ai-insight__panel-text">Faire une revue des actions en retard et réaffecter les responsables sous 7 jours.</p>
+            </article>
+          </section>
+
+          <footer class="dashboard-ai-insight__footer">Synthèse heuristique — à valider par la Direction/QHSE.</footer>
         </div>
       </article>`;
   } catch {
