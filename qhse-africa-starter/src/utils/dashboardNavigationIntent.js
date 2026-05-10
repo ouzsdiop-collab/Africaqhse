@@ -33,15 +33,25 @@
  * - Champs décoratifs utiles au débogage / UX : `source` identifiant la zone UI ayant poussé l’intent.
  */
 
+import { getActiveTenant, getSessionUser } from '../data/sessionUser.js';
+
 export const DASHBOARD_INTENT_STORAGE_KEY = 'qhse.dashboard.intent';
+
+function scopedIntentKey() {
+  const tenantId = String(getActiveTenant()?.id || '').trim();
+  const userId = String(getSessionUser()?.id || '').trim();
+  if (!tenantId || !userId) return DASHBOARD_INTENT_STORAGE_KEY;
+  return `${DASHBOARD_INTENT_STORAGE_KEY}:${tenantId}:${userId}`;
+}
 
 /** @returns {Record<string, unknown> | null} */
 export function consumeDashboardIntent() {
   try {
-    const raw = localStorage.getItem(DASHBOARD_INTENT_STORAGE_KEY);
+    const key = scopedIntentKey();
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    localStorage.removeItem(DASHBOARD_INTENT_STORAGE_KEY);
+    localStorage.removeItem(key);
     return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
     return null;
@@ -55,8 +65,9 @@ export function pushDashboardIntent(intent) {
       ...intent,
       at: new Date().toISOString()
     });
-    localStorage.setItem(DASHBOARD_INTENT_STORAGE_KEY, payload);
-    localStorage.setItem(`${DASHBOARD_INTENT_STORAGE_KEY}.last`, payload);
+    const key = scopedIntentKey();
+    localStorage.setItem(key, payload);
+    localStorage.setItem(`${key}.last`, payload);
   } catch {
     // no-op
   }

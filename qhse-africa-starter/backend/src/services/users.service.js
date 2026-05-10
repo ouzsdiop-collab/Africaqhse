@@ -2,7 +2,6 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { validatePasswordPolicy } from '../lib/validation.js';
 import { prismaTenantFilter, normalizeTenantId } from '../lib/tenantScope.js';
-import { DEFAULT_TENANT_ID } from '../lib/tenantConstants.js';
 
 const userPublicSelect = {
   id: true,
@@ -65,7 +64,12 @@ export async function createUser(tenantId, { name, email, role, password }) {
     }
     passwordHash = await bcrypt.hash(pwd, 10);
   }
-  const tid = normalizeTenantId(tenantId) || DEFAULT_TENANT_ID;
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) {
+    const err = new Error('Tenant requis');
+    err.statusCode = 400;
+    throw err;
+  }
   const user = await prisma.user.create({
     data: {
       name,

@@ -18,6 +18,21 @@ export async function logoutAndClear(opts = {}) {
       headers: { 'Content-Type': 'application/json' }
     }).catch(() => {});
   } finally {
+    try {
+      const purgePrefixes = ['qhse.dashboard.intent', 'qhse.cache.risks.list.v1'];
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const k = localStorage.key(i);
+        if (typeof k === 'string' && k) keys.push(k);
+      }
+      for (const k of keys) {
+        if (purgePrefixes.some((p) => k === p || k.startsWith(`${p}:`) || k.startsWith(`${p}.`))) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch {
+      // ignore storage access errors
+    }
     if (redirectToLogin) {
       clearSession();
     } else {
@@ -25,4 +40,3 @@ export async function logoutAndClear(opts = {}) {
     }
   }
 }
-
