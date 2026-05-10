@@ -939,13 +939,11 @@ html[data-theme='light'] .kpi-detail-cell--main {
 /* Phase 1 — séparation visuelle dashboard light (sans toucher la logique) */
 html[data-theme='light'] .dashboard-page {
   --dash-card-bg: var(--surface-1);
-  --dash-surface-raised: color-mix(in srgb, var(--surface-2) 80%, white 20%);
-  --dash-subcard-bg: color-mix(in srgb, var(--surface-2) 74%, white 26%);
-  --dash-subcard-border: rgba(15, 23, 42, 0.18);
-  --dash-subcard-border-strong: rgba(15, 23, 42, 0.22);
-  --dash-subcard-shadow: 0 8px 20px -14px rgba(15, 23, 42, 0.24);
-  --dash-divider: rgba(15, 23, 42, 0.17);
-  --dash-chip-bg: color-mix(in srgb, var(--surface-2) 70%, white 30%);
+  --dash-subcard-bg: color-mix(in srgb, var(--surface-2) 86%, white 14%);
+  --dash-subcard-border: rgba(15, 23, 42, 0.16);
+  --dash-subcard-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.28);
+  --dash-divider: rgba(15, 23, 42, 0.14);
+  --dash-chip-bg: color-mix(in srgb, var(--surface-2) 78%, white 22%);
   --dash-chip-border: rgba(15, 23, 42, 0.22);
   --dash-muted-text: var(--color-text-secondary);
 }
@@ -958,9 +956,9 @@ html[data-theme='light'] .dashboard-page .dashboard-ai-insight__card,
 html[data-theme='light'] .dashboard-page .dashboard-priority-now,
 html[data-theme='light'] .dashboard-page .dashboard-activity-section.content-card,
 html[data-theme='light'] .dashboard-page .dashboard-cockpit {
-  background: linear-gradient(180deg, var(--dash-card-bg) 0%, var(--dash-surface-raised) 100%) !important;
+  background: linear-gradient(180deg, var(--dash-card-bg) 0%, var(--dash-surface-muted) 100%) !important;
   border-color: var(--dash-subcard-border) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset, var(--dash-subcard-shadow) !important;
+  box-shadow: var(--dash-subcard-shadow) !important;
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-cockpit__card,
@@ -980,23 +978,7 @@ html[data-theme='light'] .dashboard-page .dashboard-ops-card,
 html[data-theme='light'] .dashboard-page .dashboard-decision-alert {
   background: var(--dash-subcard-bg) !important;
   border-color: var(--dash-subcard-border) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.74) inset, var(--dash-subcard-shadow) !important;
-}
-
-html[data-theme='light'] .dashboard-page .dashboard-cockpit__card,
-html[data-theme='light'] .dashboard-page .dashboard-shortcuts__tile,
-html[data-theme='light'] .dashboard-page .dashboard-alerts-prio-row,
-html[data-theme='light'] .dashboard-page .dashboard-ops-card,
-html[data-theme='light'] .dashboard-page .dashboard-decision-alert,
-html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__panel {
-  border-color: var(--dash-subcard-border-strong) !important;
-}
-
-html[data-theme='light'] .dashboard-page .dashboard-cockpit__watch-item,
-html[data-theme='light'] .dashboard-page .dashboard-alerts-prio-row + .dashboard-alerts-prio-row,
-html[data-theme='light'] .dashboard-page .dashboard-decision-chart-panel + .dashboard-decision-chart-panel,
-html[data-theme='light'] .dashboard-page .dashboard-activity-item + .dashboard-activity-item {
-  border-top-color: var(--dash-divider) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, var(--dash-subcard-shadow) !important;
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-decision-chart-panel,
@@ -1018,7 +1000,6 @@ html[data-theme='light'] .dashboard-page .dashboard-ceo-hero__prime-badge {
   background: var(--dash-chip-bg) !important;
   border-color: var(--dash-chip-border) !important;
   color: var(--dash-muted-text) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
 }
 
 html[data-theme='light'] .dashboard-page .dashboard-decision-charts-lead,
