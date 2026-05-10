@@ -4495,16 +4495,77 @@ html[data-theme='light'] .kpi-perf-timeline-empty {
   background:linear-gradient(180deg,var(--palette-accent,#14b8a6),color-mix(in srgb,var(--color-primary,#6366f1) 80%,transparent));
   box-shadow:0 0 12px -2px color-mix(in srgb,var(--palette-accent,#14b8a6) 45%,transparent);
 }
+.dashboard-pilotage-assistant__subhead{
+  margin:-2px 0 14px;
+  font-size:12px;
+  color:var(--text3);
+}
+.dashboard-pilotage-assistant__micro-label{
+  margin:0;
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  font-weight:700;
+  color:var(--text3);
+}
+.dashboard-pilotage-assistant__syn-score{
+  display:grid;
+  gap:10px;
+  padding:12px 14px;
+  border:1px solid color-mix(in srgb,var(--color-border-tertiary) 78%,transparent);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--color-background-secondary) 65%,transparent);
+}
+.dashboard-pilotage-assistant__syn-score-value{margin:4px 0 0;font-size:24px;font-weight:800;color:var(--text)}
+.dashboard-pilotage-assistant__syn-progress{height:8px;border-radius:999px;background:color-mix(in srgb,var(--color-background-primary) 82%,transparent);overflow:hidden}
+.dashboard-pilotage-assistant__syn-progress-fill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--palette-accent,#14b8a6),var(--color-primary,#6366f1))}
+.dashboard-pilotage-assistant__syn-tensions{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.dashboard-pilotage-assistant__tension-chip{
+  display:flex;justify-content:space-between;gap:8px;align-items:center;
+  padding:8px 10px;border-radius:10px;
+  border:1px solid color-mix(in srgb,var(--color-border-tertiary) 75%,transparent);
+  background:color-mix(in srgb,var(--color-background-primary) 78%,transparent);
+  font-size:12px;color:var(--text2);
+}
+.dashboard-pilotage-assistant__tension-chip strong{font-size:13px;color:var(--text)}
+.dashboard-pilotage-assistant__syn-note{
+  margin-top:12px;padding:10px 12px;border-radius:12px;
+  border:1px solid color-mix(in srgb,var(--color-border-tertiary) 78%,transparent);
+  background:color-mix(in srgb,var(--color-background-secondary) 48%,transparent);
+}
 .dashboard-pilotage-assistant__synthesis-text{
-  margin:0;max-width:75ch;
-  font-size:15px;line-height:1.72;letter-spacing:-.012em;
+  margin:6px 0 0;max-width:68ch;
+  font-size:13px;line-height:1.6;letter-spacing:-.005em;
   color:var(--text2);
   text-wrap:pretty;
 }
 .dashboard-pilotage-assistant__ia-loading{margin:0;font-size:14px;line-height:1.62;color:var(--text3);font-style:italic}
+.dashboard-pilotage-assistant__ia-badge{
+  display:inline-flex;align-items:center;
+  margin:2px 0 10px;padding:5px 9px;border-radius:999px;
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid color-mix(in srgb,var(--palette-warning,#f59e0b) 40%,var(--color-border-tertiary));
+  background:color-mix(in srgb,var(--palette-warning,#f59e0b) 10%,var(--color-background-primary));
+  color:var(--text2);
+}
+.dashboard-pilotage-assistant__ia-rows{display:grid;gap:6px;margin:0 0 12px}
+.dashboard-pilotage-assistant__ia-row{
+  display:grid;grid-template-columns:minmax(90px,120px) 1fr;gap:10px;
+  padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--color-border-tertiary) 55%,transparent);
+}
+.dashboard-pilotage-assistant__ia-row:last-child{border-bottom:none}
+.dashboard-pilotage-assistant__ia-row-label{
+  font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3)
+}
+.dashboard-pilotage-assistant__ia-row p{margin:0;font-size:13px;line-height:1.5;color:var(--text2)}
 .dashboard-pilotage-assistant__ia-text{
-  margin:0;max-width:75ch;
-  font-size:15px;line-height:1.72;letter-spacing:-.012em;
+  margin:0;max-width:68ch;
+  font-size:12px;line-height:1.55;letter-spacing:-.005em;
   color:var(--text2);
   text-wrap:pretty;
 }
@@ -4562,6 +4623,10 @@ html[data-theme='light'] .kpi-perf-timeline-empty {
   border-left-color:color-mix(in srgb,var(--palette-warning,#f59e0b) 80%,transparent);
   background:color-mix(in srgb,rgba(245,158,11,.12) 30%,var(--color-background-primary));
   color:#fde68a;
+}
+@media (max-width: 780px){
+  .dashboard-pilotage-assistant__syn-tensions{grid-template-columns:1fr}
+  .dashboard-pilotage-assistant__ia-row{grid-template-columns:1fr}
 }
 /* Synthèse hebdo : carte direction claire, claire/sombre */
 .dashboard-ai-insight{
