@@ -272,7 +272,7 @@ export function openIsoAuditReportModal(report) {
   const btnPdf = document.createElement('button');
   btnPdf.type = 'button';
   btnPdf.className = 'btn btn-primary';
-  btnPdf.textContent = 'Exporter PDF';
+  btnPdf.textContent = 'Exporter en PDF';
   const btnClose = document.createElement('button');
   btnClose.type = 'button';
   btnClose.className = 'btn btn-secondary';

@@ -734,7 +734,7 @@ export function renderIncidents(onAddLog) {
 
   const exportBtnInc = document.createElement('button');
   exportBtnInc.type = 'button';
-  exportBtnInc.textContent = 'Export CSV';
+  exportBtnInc.textContent = 'Exporter en CSV';
   exportBtnInc.className = 'btn btn-secondary btn-sm';
   exportBtnInc.setAttribute('aria-label', 'Exporter le registre incidents');
   exportBtnInc.addEventListener('click', async () => {
@@ -760,7 +760,7 @@ export function renderIncidents(onAddLog) {
 
   const exportBtnPdf = document.createElement('button');
   exportBtnPdf.type = 'button';
-  exportBtnPdf.textContent = 'Export PDF';
+  exportBtnPdf.textContent = 'Exporter en PDF';
   exportBtnPdf.className = 'btn btn-secondary btn-sm';
   exportBtnPdf.setAttribute('aria-label', 'Exporter le registre incidents en PDF');
   exportBtnPdf.addEventListener('click', async () => {

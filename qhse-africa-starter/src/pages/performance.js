@@ -580,7 +580,7 @@ export function renderPerformance() {
   const pdfPerfBtn = document.createElement('button');
   pdfPerfBtn.type = 'button';
   pdfPerfBtn.className = 'btn btn-secondary';
-  pdfPerfBtn.textContent = 'Export PDF';
+  pdfPerfBtn.textContent = 'Exporter en PDF';
   pdfPerfBtn.title = 'Rapport de performance QHSE (PDF premium)';
   pdfPerfBtn.addEventListener('click', async () => {
     if (!lastPerfPdfContext) {

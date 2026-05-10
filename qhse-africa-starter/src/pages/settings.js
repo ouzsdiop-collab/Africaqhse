@@ -315,7 +315,7 @@ export function renderSettings() {
     ...(isAdminUser
       ? [{ id: 'settings-anchor-email-notif', label: 'Notifications email' }]
       : []),
-    { id: 'settings-anchor-exports', label: 'Exports' },
+    { id: 'settings-anchor-exports', label: 'Exportations' },
     { id: 'settings-anchor-security-access', label: 'Sécurité & accès' },
     { id: 'settings-anchor-ref', label: 'Référentiels' },
     { id: 'settings-anchor-ia', label: 'IA' },
