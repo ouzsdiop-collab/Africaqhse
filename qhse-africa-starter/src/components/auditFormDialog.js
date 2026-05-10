@@ -19,6 +19,21 @@ function ensureAuditFormDialogStyles() {
 .qhse-audit-form-ai{margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border, rgba(148,163,184,.18))}
 .qhse-audit-form-ai__row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .qhse-audit-form-ai__hint{margin:0;font-size:12px;color:var(--text3);max-width:58ch}
+html[data-theme='light'] .qhse-audit-form-dialog{
+  border:1px solid rgba(15,23,42,.16);
+  background:linear-gradient(180deg,var(--surface-1,#fff) 0%,var(--surface-2,#f8fafc) 100%);
+  color:var(--color-text-primary,#0f172a);
+  box-shadow:0 18px 44px -24px rgba(15,23,42,.34);
+}
+html[data-theme='light'] .qhse-audit-form-dialog::backdrop{background:rgba(15,23,42,.34)}
+html[data-theme='light'] .qhse-audit-form-dialog__head{
+  border-bottom:1px solid rgba(15,23,42,.12);
+  padding-bottom:10px;
+}
+html[data-theme='light'] .qhse-audit-form-ai{
+  border-top-color:rgba(15,23,42,.14);
+}
+html[data-theme='light'] .qhse-audit-form-ai__hint{color:var(--color-text-secondary,#334155)}
 `;
   document.head.append(el);
 }

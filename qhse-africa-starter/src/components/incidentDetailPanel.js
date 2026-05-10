@@ -113,7 +113,21 @@ function ensureIncidentDetailDialogStyles() {
   el.textContent = `.qhse-incident-detail-dialog{border:none;border-radius:14px;max-width:min(520px,96vw);max-height:min(92vh,900px);padding:0;background:var(--bg,#0f172a);color:var(--text);box-shadow:0 24px 64px rgba(0,0,0,.55)}
 .qhse-incident-detail-dialog::backdrop{background:rgba(0,0,0,.55)}
 .qhse-incident-detail-dialog__toolbar{display:flex;justify-content:flex-end;padding:10px 12px 0;border-bottom:1px solid rgba(255,255,255,.06)}
-.qhse-incident-detail-dialog__body{overflow:auto;max-height:min(86vh,860px);padding:12px 16px 18px}`;
+.qhse-incident-detail-dialog__body{overflow:auto;max-height:min(86vh,860px);padding:12px 16px 18px}
+html[data-theme='light'] .qhse-incident-detail-dialog{
+  border:1px solid rgba(15,23,42,.16);
+  background:linear-gradient(180deg,var(--surface-1,#fff) 0%,var(--surface-2,#f8fafc) 100%);
+  color:var(--color-text-primary,#0f172a);
+  box-shadow:0 18px 44px -24px rgba(15,23,42,.34);
+}
+html[data-theme='light'] .qhse-incident-detail-dialog::backdrop{background:rgba(15,23,42,.34)}
+html[data-theme='light'] .qhse-incident-detail-dialog__toolbar{
+  border-bottom-color:rgba(15,23,42,.13);
+  background:color-mix(in srgb,var(--surface-2,#f8fafc) 84%,white 16%);
+}
+html[data-theme='light'] .qhse-incident-detail-dialog__body{
+  background:var(--surface-1,#fff);
+}`;
   document.head.append(el);
 }
 
