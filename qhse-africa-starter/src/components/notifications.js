@@ -55,7 +55,7 @@ export function createNotificationsPanel({
     <details class="notif-panel__digest">
       <summary class="notif-panel__digest-summary">
         <span class="notif-panel__digest-kicker">${NOTIF_TIER.DIGEST}</span>
-        <span class="notif-panel__digest-title">Digest pilotage</span>
+        <span class="notif-panel__digest-title">Synthèse de pilotage</span>
         <span class="notif-panel__digest-hint">Résumé quotidien / hebdo</span>
       </summary>
       <div class="notif-panel__digest-body"></div>

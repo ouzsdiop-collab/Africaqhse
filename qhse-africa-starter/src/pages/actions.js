@@ -475,12 +475,12 @@ function buildFilterToolbar(users, refs, opts = {}) {
   gExp.className = 'actions-filter-group';
   const exportBtnAct = document.createElement('button');
   exportBtnAct.type = 'button';
-  exportBtnAct.textContent = 'Export CSV';
+  exportBtnAct.textContent = 'Exporter en CSV';
   exportBtnAct.className = 'btn btn-secondary btn-sm';
   exportBtnAct.addEventListener('click', async () => {
     const prev = exportBtnAct.textContent;
     exportBtnAct.disabled = true;
-    exportBtnAct.textContent = 'Export…';
+    exportBtnAct.textContent = 'Export en cours…';
     try {
       const res = await qhseFetch(withSiteQuery('/api/export/actions'));
       if (!res.ok) {

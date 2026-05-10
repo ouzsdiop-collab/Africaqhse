@@ -14,6 +14,7 @@ import { ensureSensitiveAccess } from './sensitiveAccessGate.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { isDemoMode } from '../services/demoMode.service.js';
+import { translateStatus } from '../utils/i18nTranslate.js';
 
 const STORAGE_KEY = 'qhse-iso-proof-docs-module-v1';
 const TOUCHED_KEY = 'qhse-iso-proof-touched-reqs-v1';
@@ -393,7 +394,7 @@ export function updateUI(root = document) {
       evList.style.marginTop = '6px';
       for (const d of evs) {
         const st = normEvidenceStatus(d);
-        const stLabel = st === 'validated' ? 'Preuve validée' : st === 'rejected' ? 'Preuve rejetée' : 'Preuve en attente';
+        const stLabel = `Preuve ${translateStatus(st).toLowerCase()}`;
         const rowEv = document.createElement('div');
         rowEv.className = 'iso-proof-server-row';
         rowEv.style.cssText =

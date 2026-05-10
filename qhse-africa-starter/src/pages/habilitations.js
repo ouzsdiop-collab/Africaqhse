@@ -477,7 +477,7 @@ export function renderHabilitations() {
     exportBar.replaceChildren();
     const label = document.createElement('span');
     label.className = 'hab-export-bar__label';
-    label.textContent = 'Exports';
+    label.textContent = 'Exportations';
     const g1 = document.createElement('div');
     g1.className = 'hab-export-group';
     const g2 = document.createElement('div');
