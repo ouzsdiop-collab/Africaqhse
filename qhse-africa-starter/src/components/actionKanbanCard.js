@@ -154,13 +154,12 @@ export function createActionKanbanCard(item, columnKey) {
     (!ownerStr || ownerStr === 'À assigner' || ownerStr === 'Non renseigné');
   if (noAssignee && columnKey !== 'done') card.classList.add('action-card--no-assignee');
 
-  const pb = PRIO_BADGE[pilotage.priority] || PRIO_BADGE.normale;
-
   const resolvedType =
     item.rawRow && item.actionId
       ? getResolvedActionType(item.rawRow, String(item.actionId))
       : 'corrective';
   const typeSpec = TYPE_BADGE[resolvedType] || TYPE_BADGE.corrective;
+  const pb = PRIO_BADGE[pilotage.priority] || PRIO_BADGE.normale;
 
   const urg = computeActionUrgency(item.rawRow || {}, columnKey, pilotage);
   const tier = columnKey === 'done' ? 'normal' : urgencyTierFromTotal(urg.total);
@@ -203,14 +202,13 @@ export function createActionKanbanCard(item, columnKey) {
   const head = document.createElement('div');
   head.className = 'action-card__premium-head';
 
-  const title = document.createElement('h4');
-  title.className = 'action-card__title';
-  title.textContent = item.title;
+  const headLeft = document.createElement('div');
+  headLeft.className = 'action-card__head-left';
 
-  const prioBadge = document.createElement('span');
-  prioBadge.className = `action-card__prio-badge ${pb.mod}`;
-  prioBadge.textContent = pb.label;
-  prioBadge.title = 'Priorité pilotage (fiche locale)';
+  const typeBadge = document.createElement('span');
+  typeBadge.className = `action-card__type-badge action-card__type-badge--${resolvedType}`;
+  typeBadge.textContent = typeSpec.label;
+  typeBadge.title = typeSpec.title;
 
   const menuWrap = document.createElement('div');
   menuWrap.className = 'action-card__menu';
@@ -357,7 +355,12 @@ export function createActionKanbanCard(item, columnKey) {
   }
 
   menuWrap.append(menuBtn, menuPanel);
-  head.append(title, prioBadge, menuWrap);
+  headLeft.append(typeBadge);
+  head.append(headLeft, menuWrap);
+
+  const title = document.createElement('h4');
+  title.className = 'action-card__title';
+  title.textContent = item.title;
 
   const statusEl = document.createElement('span');
   statusEl.className = statusPillClass(columnKey);
@@ -366,38 +369,39 @@ export function createActionKanbanCard(item, columnKey) {
   const metaRow = document.createElement('div');
   metaRow.className = 'action-card__premium-meta';
 
-  const typeBadge = document.createElement('span');
-  typeBadge.className = `action-card__type-badge action-card__type-badge--${resolvedType}`;
-  typeBadge.textContent = typeSpec.label;
-  typeBadge.title = typeSpec.title;
-
-  const dueSide = document.createElement('div');
-  dueSide.className = 'action-card__due-compact';
-  if (isLate) dueSide.classList.add('action-card__due-compact--late');
-  dueSide.title = dueFormatted ? `Échéance : ${dueFormatted}` : 'Sans échéance';
-
-  const dueText = document.createElement('span');
-  dueText.className = 'action-card__due-compact-date';
-  dueText.textContent = dueFormatted || 'Non disponible';
-  dueSide.append(dueText);
-
+  const metaLeft = document.createElement('div');
+  metaLeft.className = 'action-card__premium-meta-left';
+  metaLeft.append(statusEl, prioBadge);
   if (isLate && columnKey !== 'overdue') {
     const lateBadge = document.createElement('span');
     lateBadge.className = 'action-card__due-badge action-card__due-badge--mini';
     lateBadge.textContent = 'Retard';
-    dueSide.append(lateBadge);
+    metaLeft.append(lateBadge);
   }
+  metaRow.append(metaLeft);
 
-  const metaLeft = document.createElement('div');
-  metaLeft.className = 'action-card__premium-meta-left';
-  metaLeft.append(typeBadge, statusEl);
-  metaRow.append(metaLeft, dueSide);
+  const dueBlock = document.createElement('div');
+  dueBlock.className = 'action-card__due-block';
+  if (isLate) dueBlock.classList.add('action-card__due-block--late');
+  const dueLabel = document.createElement('p');
+  dueLabel.className = 'action-card__label-lite';
+  dueLabel.textContent = 'Échéance';
+  const dueValue = document.createElement('p');
+  dueValue.className = 'action-card__due-value';
+  dueValue.textContent = dueFormatted || 'Non disponible';
+  dueBlock.append(dueLabel, dueValue);
 
+  const ownerBlock = document.createElement('div');
+  ownerBlock.className = 'action-card__owner-block';
+  const ownerLabel = document.createElement('p');
+  ownerLabel.className = 'action-card__label-lite';
+  ownerLabel.textContent = 'Responsable';
   const ownerEl = document.createElement('p');
   ownerEl.className = 'action-card__owner-lite';
   ownerEl.textContent = displayOwner;
+  ownerBlock.append(ownerLabel, ownerEl);
 
-  card.append(head, metaRow, ownerEl);
+  card.append(head, title, metaRow, dueBlock, ownerBlock);
 
   card.addEventListener('click', (e) => {
     if (e.target.closest('.action-card__menu')) return;
