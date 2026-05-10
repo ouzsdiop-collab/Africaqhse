@@ -935,3 +935,79 @@ html[data-theme='light'] .kpi-detail-foot {
 html[data-theme='light'] .kpi-detail-cell--main {
   color: var(--color-text-primary) !important;
 }
+
+/* Phase 1 — séparation visuelle dashboard light (sans toucher la logique) */
+html[data-theme='light'] .dashboard-page {
+  --dash-card-bg: var(--surface-1);
+  --dash-subcard-bg: color-mix(in srgb, var(--surface-2) 86%, white 14%);
+  --dash-subcard-border: rgba(15, 23, 42, 0.16);
+  --dash-subcard-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.28);
+  --dash-divider: rgba(15, 23, 42, 0.14);
+  --dash-chip-bg: color-mix(in srgb, var(--surface-2) 78%, white 22%);
+  --dash-chip-border: rgba(15, 23, 42, 0.22);
+  --dash-muted-text: var(--color-text-secondary);
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-decision-charts-host,
+html[data-theme='light'] .dashboard-page .dashboard-decision-insight,
+html[data-theme='light'] .dashboard-page .dashboard-executive-panel,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__card,
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__card,
+html[data-theme='light'] .dashboard-page .dashboard-priority-now,
+html[data-theme='light'] .dashboard-page .dashboard-activity-section.content-card,
+html[data-theme='light'] .dashboard-page .dashboard-cockpit {
+  background: linear-gradient(180deg, var(--dash-card-bg) 0%, var(--dash-surface-muted) 100%) !important;
+  border-color: var(--dash-subcard-border) !important;
+  box-shadow: var(--dash-subcard-shadow) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-cockpit__card,
+html[data-theme='light'] .dashboard-page .dashboard-cockpit__mini,
+html[data-theme='light'] .dashboard-page .dashboard-cockpit__watch-item,
+html[data-theme='light'] .dashboard-page .dashboard-shortcuts__tile,
+html[data-theme='light'] .dashboard-page .dashboard-alerts-prio-card,
+html[data-theme='light'] .dashboard-page .dashboard-alerts-prio-row,
+html[data-theme='light'] .dashboard-page .dashboard-alerts-prio-tier-pill,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__panel,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__score-block,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly-panel,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__anomaly,
+html[data-theme='light'] .dashboard-page .dashboard-vigilance-rich-item,
+html[data-theme='light'] .dashboard-page .dashboard-exec-score,
+html[data-theme='light'] .dashboard-page .dashboard-ops-card,
+html[data-theme='light'] .dashboard-page .dashboard-decision-alert {
+  background: var(--dash-subcard-bg) !important;
+  border-color: var(--dash-subcard-border) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, var(--dash-subcard-shadow) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-decision-chart-panel,
+html[data-theme='light'] .dashboard-page .dashboard-section-head,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__head,
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__head,
+html[data-theme='light'] .dashboard-page .dashboard-priority-now__head,
+html[data-theme='light'] .dashboard-page .dashboard-ceo-hero__prime-foot {
+  border-color: var(--dash-divider) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-decision-chart-panel__tag,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-prio,
+html[data-theme='light'] .dashboard-page .dashboard-pilotage-assistant__rec-prio--normal,
+html[data-theme='light'] .dashboard-page .dashboard-ai-insight__chip,
+html[data-theme='light'] .dashboard-page .dashboard-priority-now__chip,
+html[data-theme='light'] .dashboard-page .dashboard-cockpit__pill,
+html[data-theme='light'] .dashboard-page .dashboard-ceo-hero__prime-badge {
+  background: var(--dash-chip-bg) !important;
+  border-color: var(--dash-chip-border) !important;
+  color: var(--dash-muted-text) !important;
+}
+
+html[data-theme='light'] .dashboard-page .dashboard-decision-charts-lead,
+html[data-theme='light'] .dashboard-page .dashboard-chart-foot,
+html[data-theme='light'] .dashboard-page .dashboard-chart-foot--tight,
+html[data-theme='light'] .dashboard-page .dashboard-kpi-subline,
+html[data-theme='light'] .dashboard-page .dashboard-ops-card__k,
+html[data-theme='light'] .dashboard-page .dashboard-ops-card__d,
+html[data-theme='light'] .dashboard-page .dashboard-decision-alert__k {
+  color: var(--dash-muted-text) !important;
+}
