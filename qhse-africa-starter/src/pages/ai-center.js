@@ -40,6 +40,21 @@ function ensureAiCenterApiSlideoverCss() {
 .qhse-ac-ia-cat{font-size:11px;color:var(--color-text-muted);margin-top:4px}
 .qhse-ac-ia-actions{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px}
 .qhse-ac-ia-provider{font-size:11px;color:var(--color-text-muted);margin-bottom:10px}
+html[data-theme='light'] .qhse-ai-center-overlay{background:rgba(15,23,42,.34)}
+html[data-theme='light'] .qhse-ai-center-slide{
+  background:linear-gradient(180deg,var(--surface-1,#fff) 0%,var(--surface-2,#f8fafc) 100%);
+  border-left-color:rgba(15,23,42,.16);
+  box-shadow:-10px 0 28px -20px rgba(15,23,42,.35);
+}
+html[data-theme='light'] .qhse-ai-center-slide__head{
+  border-bottom-color:rgba(15,23,42,.14);
+  background:color-mix(in srgb,var(--surface-2,#f8fafc) 84%,white 16%);
+}
+html[data-theme='light'] .qhse-ac-ia-row{
+  border-color:rgba(15,23,42,.16);
+  background:color-mix(in srgb,var(--surface-2,#f8fafc) 82%,white 18%);
+  box-shadow:0 1px 0 rgba(255,255,255,.62) inset;
+}
 `;
   document.head.append(el);
 }

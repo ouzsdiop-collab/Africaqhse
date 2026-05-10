@@ -787,6 +787,61 @@ p,
   .iso-page .iso-decision-crit-actions .btn { width: 100%; }
 }
 
+html[data-theme='light'] .iso-page {
+  --iso-card-bg: var(--surface-1);
+  --iso-subcard-bg: color-mix(in srgb, var(--surface-2) 84%, white 16%);
+  --iso-subcard-border: rgba(15, 23, 42, 0.15);
+  --iso-subcard-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.3);
+  --iso-divider: rgba(15, 23, 42, 0.14);
+  --iso-chip-bg: color-mix(in srgb, var(--surface-2) 76%, white 24%);
+  --iso-chip-border: rgba(15, 23, 42, 0.2);
+  --iso-muted-text: var(--color-text-secondary);
+}
+
+html[data-theme='light'] .iso-page .iso-decision-center,
+html[data-theme='light'] .iso-page .iso-cockpit-priorities,
+html[data-theme='light'] .iso-page .iso-ai-spotlight,
+html[data-theme='light'] .iso-page .iso-conformity-chart-card {
+  background: linear-gradient(180deg, var(--iso-card-bg) 0%, var(--surface-2) 100%);
+  border-color: var(--iso-subcard-border);
+  box-shadow: var(--iso-subcard-shadow);
+}
+
+html[data-theme='light'] .iso-page .iso-decision-block,
+html[data-theme='light'] .iso-page .iso-decision-crit,
+html[data-theme='light'] .iso-page .iso-cockpit-prio-list--unified > li,
+html[data-theme='light'] .iso-page .iso-ai-suggestion-btn,
+html[data-theme='light'] .iso-page .iso-hero-kpi {
+  background: var(--iso-subcard-bg);
+  border-color: var(--iso-subcard-border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.62) inset, var(--iso-subcard-shadow);
+}
+
+html[data-theme='light'] .iso-page .iso-decision-chip,
+html[data-theme='light'] .iso-page .iso-decision-pill,
+html[data-theme='light'] .iso-page .iso-decision-clause,
+html[data-theme='light'] .iso-page .iso-ai-badge {
+  background: var(--iso-chip-bg);
+  border-color: var(--iso-chip-border);
+  color: var(--iso-muted-text);
+}
+
+html[data-theme='light'] .iso-page .iso-decision-details,
+html[data-theme='light'] .iso-page .iso-decision-crit + .iso-decision-crit,
+html[data-theme='light'] .iso-page .iso-zone-header,
+html[data-theme='light'] .iso-page .iso-cockpit-hero-executive-band {
+  border-color: var(--iso-divider);
+}
+
+html[data-theme='light'] .iso-page .iso-decision-k,
+html[data-theme='light'] .iso-page .iso-decision-muted,
+html[data-theme='light'] .iso-page .iso-decision-problem,
+html[data-theme='light'] .iso-page .iso-hero-kpi-label,
+html[data-theme='light'] .iso-page .iso-ai-trust,
+html[data-theme='light'] .iso-page .iso-zone-header__desc {
+  color: var(--iso-muted-text);
+}
+
 .app-topbar__title {
   font-size: 15px;
   font-weight: 700;

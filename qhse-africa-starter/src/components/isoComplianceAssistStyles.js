@@ -69,6 +69,32 @@ const CSS = `
 .iso-req-history-meta{font-size:11px;font-weight:600;color:var(--text3)}
 .iso-req-history-detail{font-size:12px;color:var(--text2);word-break:break-word}
 .iso-req-history-empty{margin:0;font-size:12px;color:var(--text3);line-height:1.45}
+html[data-theme='light'] .iso-ca-panel{
+  border-color:rgba(15,23,42,.16);
+  background:linear-gradient(180deg,var(--surface-1,#fff) 0%,var(--surface-2,#f8fafc) 100%);
+  box-shadow:0 18px 42px -26px rgba(15,23,42,.35);
+}
+html[data-theme='light'] .iso-ca-head{border-bottom-color:rgba(15,23,42,.14)}
+html[data-theme='light'] .iso-ca-sub,
+html[data-theme='light'] .iso-ca-loading-hint,
+html[data-theme='light'] .iso-ca-explain,
+html[data-theme='light'] .iso-ca-list,
+html[data-theme='light'] .iso-ca-docs,
+html[data-theme='light'] .iso-ca-human-text,
+html[data-theme='light'] .iso-ca-history-hint,
+html[data-theme='light'] .iso-req-history-detail{color:var(--color-text-secondary,#334155)}
+html[data-theme='light'] .iso-ca-proposed,
+html[data-theme='light'] .iso-ca-block,
+html[data-theme='light'] .iso-ca-human,
+html[data-theme='light'] .iso-ca-history-block{
+  border-color:rgba(15,23,42,.14);
+}
+html[data-theme='light'] .iso-ca-docs li{border-bottom-color:rgba(15,23,42,.14)}
+html[data-theme='light'] .iso-req-history-body .iso-req-history-item{
+  border-color:rgba(15,23,42,.15);
+  background:color-mix(in srgb,var(--surface-2,#f8fafc) 84%,white 16%);
+  box-shadow:0 1px 0 rgba(255,255,255,.62) inset;
+}
 `;
 
 export function ensureIsoComplianceAssistStyles() {

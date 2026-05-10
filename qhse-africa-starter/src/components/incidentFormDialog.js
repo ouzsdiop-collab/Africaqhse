@@ -104,6 +104,9 @@ export function ensureIncidentsSlideOverStyles() {
 html[data-theme='dark'] .inc-overlay {
   background: rgba(0,0,0,.6);
 }
+html[data-theme='light'] .inc-overlay {
+  background: rgba(15,23,42,.32);
+}
 .inc-overlay--open {
   opacity: 1;
   pointer-events: all;
@@ -222,6 +225,24 @@ dialog.qhse-inc-declare-dialog::backdrop {
 }
 html[data-theme='dark'] dialog.qhse-inc-declare-dialog::backdrop {
   background: rgba(0,0,0,.6);
+}
+html[data-theme='light'] dialog.qhse-inc-declare-dialog::backdrop {
+  background: rgba(15,23,42,.32);
+}
+html[data-theme='light'] .inc-slideover,
+html[data-theme='light'] dialog.qhse-inc-declare-dialog {
+  background: linear-gradient(180deg,var(--surface-1,#fff) 0%,var(--surface-2,#f8fafc) 100%);
+  border-left-color: rgba(15,23,42,.16);
+  box-shadow: -10px 0 28px -20px rgba(15,23,42,.35);
+}
+html[data-theme='light'] .inc-slideover__head {
+  border-bottom-color: rgba(15,23,42,.14);
+  background: color-mix(in srgb,var(--surface-2,#f8fafc) 84%,white 16%);
+}
+html[data-theme='light'] .inc-ia-row {
+  border-color: rgba(15,23,42,.16);
+  background: color-mix(in srgb,var(--surface-2,#f8fafc) 82%,white 18%);
+  box-shadow: 0 1px 0 rgba(255,255,255,.62) inset;
 }
 @media (max-width: 520px) {
   dialog.qhse-inc-declare-dialog { width: 100vw; }
