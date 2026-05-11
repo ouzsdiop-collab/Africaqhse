@@ -308,13 +308,13 @@ export function updateDecisionAlerts(refs, stats, data) {
           const period = idx != null ? ncLabels[idx] : null;
           const tier =
             el?.datasetIndex === 1 ? 'prioritaire' : el?.datasetIndex === 0 ? 'autre' : null;
-          pushDashboardIntent({
-            source: 'dashboard',
+          qhseNavigate('audits', {
+            source: 'dashboard_decision_chart',
             chart: 'nc_major_minor_trend',
             period,
-            tier
+            tier,
+            scrollToId: 'audit-cockpit-tier-critical'
           });
-          window.location.hash = 'audits';
         }
       }
     });
@@ -372,8 +372,12 @@ export function updateDecisionAlerts(refs, stats, data) {
         onClick: (_evt, elements) => {
           const idx = elements?.[0]?.index;
           const riskType = idx != null ? riskTypes[idx]?.type : null;
-          pushDashboardIntent({ source: 'dashboard', chart: 'risk_distribution', riskType });
-          window.location.hash = 'risks';
+          qhseNavigate('risks', {
+            source: 'dashboard_decision_chart',
+            chart: 'risk_distribution',
+            riskType,
+            riskBannerKpi: 'critique'
+          });
         }
       }
     });
@@ -432,8 +436,12 @@ export function updateDecisionAlerts(refs, stats, data) {
         onClick: (_evt, elements) => {
           const idx = elements?.[0]?.index;
           const period = idx != null ? auditScores[idx]?.label : null;
-          pushDashboardIntent({ source: 'dashboard', chart: 'qhse_score', period });
-          window.location.hash = 'audits';
+          qhseNavigate('audits', {
+            source: 'dashboard_decision_chart',
+            chart: 'qhse_score',
+            period,
+            scrollToId: 'audit-cockpit-tier-score'
+          });
         }
       }
     });

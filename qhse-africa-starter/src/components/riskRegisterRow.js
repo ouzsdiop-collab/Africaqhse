@@ -193,7 +193,7 @@ export function createRiskRegisterRow(risk, opts = {}) {
     autoBtn.textContent = 'Créer action';
     autoBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      opts.onCreatePreventiveAction(String(risk.title || ''));
+      opts.onCreatePreventiveAction(String(risk.title || ''), risk);
     });
     moreBody.append(autoBtn);
   }

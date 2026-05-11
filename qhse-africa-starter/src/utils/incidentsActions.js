@@ -47,6 +47,12 @@ export async function createLinkedAction(inc) {
     { skipDefaults: true }
   );
   showToast('Formulaire action lié prérempli. Vérifiez avant validation.', 'info');
+  qhseNavigate('actions', {
+    skipDefaults: true,
+    linkedIncidentRef: String(inc.ref || ''),
+    linkedNonConformity: String(inc.type || '').slice(0, 180),
+    source: 'incident_detail_create_linked_action'
+  });
 
   activityLogStore.add({
     module: 'incidents',
@@ -68,6 +74,12 @@ export async function proposeCorrectiveActionViaAssistant(inc) {
     { skipDefaults: true }
   );
   showToast('Formulaire action prérempli (assistant). Vérifiez avant validation.', 'info');
+  qhseNavigate('actions', {
+    skipDefaults: true,
+    linkedIncidentRef: String(inc.ref || ''),
+    linkedNonConformity: String(inc.type || '').slice(0, 180),
+    source: 'incident_detail_corrective_assistant'
+  });
 
   activityLogStore.add({
     module: 'incidents',
@@ -92,6 +104,12 @@ export async function createCorrectiveAction(inc) {
     { skipDefaults: true }
   );
   showToast('Formulaire action corrective prérempli. Vérifiez avant validation.', 'info');
+  qhseNavigate('actions', {
+    skipDefaults: true,
+    linkedIncidentRef: String(inc.ref || ''),
+    linkedNonConformity: String(inc.type || '').slice(0, 180),
+    source: 'incident_detail_create_corrective_action'
+  });
 
   activityLogStore.add({
     module: 'incidents',

@@ -264,6 +264,7 @@ async function openIsoRequirementActionCreate(req, onAddLog) {
       priority: stKey === 'non_conforme' ? 'haute' : stKey === 'partiel' ? 'moyenne' : 'basse',
       description: [
         `Exigence: ${req.clause} - ${req.title} (${normCode}).`,
+        `Référence exigence: ${req.id}.`,
         req.summary ? `Résumé: ${req.summary}` : '',
         req.owner ? `Pilote: ${req.owner}.` : '',
         req.evidence ? `Preuves attendues (référentiel): ${req.evidence}.` : ''
@@ -1527,6 +1528,40 @@ function createRequirementsTable(ctx, registryDocImpact) {
       });
       assistCell.append(btn);
 
+      const addProofBtn = document.createElement('button');
+      addProofBtn.type = 'button';
+      addProofBtn.className = 'btn btn-secondary iso-analyze-btn';
+      addProofBtn.textContent = 'Ajouter preuve';
+      addProofBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ensureIsoDocsPanelOpen();
+        docsSection.openAttachProofForRequirement(row.id);
+      });
+      assistCell.append(addProofBtn);
+
+      const viewProofBtn = document.createElement('button');
+      viewProofBtn.type = 'button';
+      viewProofBtn.className = 'btn btn-secondary iso-analyze-btn';
+      viewProofBtn.textContent = 'Voir preuves';
+      viewProofBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ensureIsoDocsPanelOpen();
+        docsSection.openProofsForRequirement(row.id);
+      });
+      assistCell.append(viewProofBtn);
+
+      if (isoRequirementStatusNormKey(row.status) === 'non_conforme') {
+        const fixBtn = document.createElement('button');
+        fixBtn.type = 'button';
+        fixBtn.className = 'btn btn-primary iso-analyze-btn';
+        fixBtn.textContent = 'Corriger écart';
+        fixBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          void openIsoRequirementActionCreate(row, ctx.onAddLog);
+        });
+        assistCell.append(fixBtn);
+      }
+
       const openRow = () => ctx.onAnalyze({ ...row, normCode });
       line.addEventListener('click', (e) => {
         if (e.target.closest('button')) return;
@@ -1790,6 +1825,15 @@ function createDocumentsPrioritySection(pilotageCtx, onAddLog, docTableSection) 
     openAttachProofForRequirement(requirementId) {
       preferredRequirementId = String(requirementId || '').trim();
       fileInput.click();
+    },
+    /**
+     * Ouvre la zone preuves/documents pour une exigence (sans création, consultation contextuelle).
+     * @param {string} requirementId
+     */
+    openProofsForRequirement(requirementId) {
+      preferredRequirementId = String(requirementId || '').trim();
+      root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showToast(`Preuves liées à l’exigence ${preferredRequirementId || 'sélectionnée'} : consultez la zone documents.`, 'info');
     }
   };
 }
@@ -2719,7 +2763,16 @@ export function renderIso(onAddLog) {
               document.getElementById('iso-docs-priority-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               docsSection.openAttachProofForRequirement(r.id);
             });
-            actions?.append(b1, b2);
+            const b3 = document.createElement('button');
+            b3.type = 'button';
+            b3.className = 'btn btn-secondary';
+            b3.textContent = 'Voir preuves';
+            b3.addEventListener('click', () => {
+              ensureIsoDocsPanelOpen();
+              document.getElementById('iso-docs-priority-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              docsSection.openProofsForRequirement(r.id);
+            });
+            actions?.append(b1, b2, b3);
             elCritical.append(row);
           });
         }

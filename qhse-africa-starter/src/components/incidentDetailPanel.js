@@ -582,6 +582,14 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   btnRisk.className = 'btn btn-secondary';
   btnRisk.textContent = 'Créer risque associé';
   btnRisk.addEventListener('click', () => {
+    qhseNavigate('risks', {
+      skipDefaults: true,
+      openRiskCreateFromIntent: true,
+      riskPrefillTitle: `Risque lié ${inc.ref}`,
+      riskPrefillDescription: `Contexte incident ${inc.ref} : ${inc.type} (${inc.site}).\n\n${(inc.description || '').slice(0, 1400)}`,
+      focusIncidentRef: String(inc.ref || ''),
+      source: 'incident_detail_create_risk'
+    });
     openRiskCreateDialog({
       defaults: {
         category: 'Sécurité',
@@ -608,7 +616,12 @@ export async function mountIncidentDetailPanel(container, inc, ctx) {
   btnActionsPage.className = 'btn incidents-detail-foot__secondary';
   btnActionsPage.textContent = 'Ouvrir pilotage actions';
   btnActionsPage.addEventListener('click', () => {
-    qhseNavigate('actions');
+    qhseNavigate('actions', {
+      skipDefaults: true,
+      linkedIncidentRef: String(inc.ref || ''),
+      linkedNonConformity: String(inc.type || '').slice(0, 180),
+      source: 'incident_detail_open_actions'
+    });
   });
   foot.append(btnCorrAssist, btnCorr, btnAct, btnRisk, btnActionsPage);
 
