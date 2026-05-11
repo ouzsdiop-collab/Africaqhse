@@ -564,6 +564,10 @@ export function renderActions() {
     dashboardIntent?.linkedNonConformity != null && String(dashboardIntent.linkedNonConformity).trim()
       ? String(dashboardIntent.linkedNonConformity).trim().slice(0, 240)
       : '';
+  const actionsNavLinkedIncident =
+    dashboardIntent?.linkedIncidentRef != null && String(dashboardIntent.linkedIncidentRef).trim()
+      ? String(dashboardIntent.linkedIncidentRef).trim().slice(0, 120)
+      : '';
 
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas page-stack--actions-premium';
@@ -1204,10 +1208,10 @@ export function renderActions() {
     main
   );
 
-  if (actionsNavLinkedAudit || actionsNavLinkedNc) {
+  if (actionsNavLinkedAudit || actionsNavLinkedNc || actionsNavLinkedIncident) {
     queueMicrotask(() => {
       showToast(
-        `Contexte : audit ${actionsNavLinkedAudit || 'Non disponible'}${
+        `Contexte : ${actionsNavLinkedIncident ? `incident ${actionsNavLinkedIncident}` : `audit ${actionsNavLinkedAudit || 'Non disponible'}`}${
           actionsNavLinkedNc
             ? ` · ${actionsNavLinkedNc.slice(0, 120)}${actionsNavLinkedNc.length > 120 ? '…' : ''}`
             : ''

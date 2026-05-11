@@ -417,7 +417,7 @@ export function openRiskSheetModal(risk, ctx = {}) {
       'Ouvre le formulaire Plan d’actions avec type préventif et risque pré-rempli.';
     prevBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      ctx.onCreatePreventiveAction(String(risk.title || ''));
+      ctx.onCreatePreventiveAction(String(risk.title || ''), risk);
       dialog.close();
     });
     actSec.append(prevBtn);

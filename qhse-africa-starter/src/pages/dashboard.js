@@ -1283,7 +1283,7 @@ export function renderDashboard() {
     onExport: exportDirectionToast,
     onOpenAuditTrendPoint: ({ label, value }) => {
       showToast(`Audits ${label} · ${value}%`, 'info');
-      qhseNavigate('audits');
+      qhseNavigate('audits', { scrollToId: 'audit-cockpit-planning-block', source: 'dashboard_ceo_hero' });
     }
   });
 
