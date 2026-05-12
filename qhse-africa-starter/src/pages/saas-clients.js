@@ -322,6 +322,9 @@ export function renderSaasClients() {
               <button type="button" class="btn sc-btn-ghost sc-btn-reset-admin" data-tenant="${escapeHtml(tid)}" title="Réinitialise le mot de passe de l’admin client principal">
                 MDP admin principal
               </button>
+              <button type="button" class="btn btn-primary sc-btn-open-client" data-tenant="${escapeHtml(tid)}">
+                Ouvrir interface client
+              </button>
             </div>
           </div>
           <div class="sc-metrics">
@@ -482,6 +485,27 @@ export function renderSaasClients() {
           } finally {
             btn.removeAttribute('disabled');
             btn.textContent = prev;
+          }
+        });
+        card.querySelector('.sc-btn-open-client')?.addEventListener('click', async () => {
+          const btn = card.querySelector('.sc-btn-open-client');
+          if (!btn || !tid) return;
+          btn.setAttribute('disabled', 'true');
+          try {
+            const r = await qhseFetch(`/api/admin/tenants/${encodeURIComponent(tid)}/setup/start`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              showToast(typeof j.error === 'string' ? j.error : 'Impossible d’ouvrir l’interface client', 'error');
+              return;
+            }
+            window.location.assign('/app');
+          } catch {
+            showToast('Erreur réseau', 'error');
+          } finally {
+            btn.removeAttribute('disabled');
           }
         });
 

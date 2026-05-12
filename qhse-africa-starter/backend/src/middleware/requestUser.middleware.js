@@ -61,6 +61,18 @@ export async function attachRequestUser(req, res, next) {
       };
 
       let tid = typeof payload.tid === 'string' ? payload.tid.trim() : '';
+      const roleUpper = String(user.role ?? '').trim().toUpperCase();
+      const setupRaw = req.cookies?.qhse_setup_mode;
+      if (roleUpper === 'SUPER_ADMIN' && setupRaw) {
+        try {
+          const setupPayload = jwt.verify(setupRaw, getJwtSecret());
+          if (setupPayload?.typ === 'setup_mode' && typeof setupPayload.tenantId === 'string') {
+            tid = setupPayload.tenantId.trim();
+          }
+        } catch {
+          /* ignore invalid setup cookie */
+        }
+      }
       if (tid) {
         const tenant = await tenantAuth.assertUserTenantAccess(user.id, tid);
         if (!tenant) {
@@ -71,6 +83,11 @@ export async function attachRequestUser(req, res, next) {
         req.qhseTenantId = tenant.id;
         req.qhseTenant = { id: tenant.id, slug: tenant.slug, name: tenant.name };
       } else {
+        if (roleUpper === 'SUPER_ADMIN') {
+          req.qhseTenantId = null;
+          req.qhseTenant = null;
+          return next();
+        }
         const first = await tenantAuth.getFirstTenantForUser(user.id);
         if (!first) {
           return res.status(403).json({

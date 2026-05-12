@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { sendJsonError } from '../lib/apiErrors.js';
 import * as authService from '../services/auth.service.js';
@@ -14,6 +15,21 @@ import * as emailService from '../services/email.service.js';
 import { ADMIN_LOG_ACTIONS, writeAdminLog, listAdminLogs } from '../services/adminLog.service.js';
 
 const PLATFORM_TENANT_SLUG = 'qhse-control-platform';
+export const QHSE_SETUP_COOKIE = 'qhse_setup_mode';
+
+function setupCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 8 * 60 * 60 * 1000,
+    path: '/'
+  };
+}
+
+function provisioningExpiresAt() {
+  return new Date(Date.now() + authService.PROVISIONAL_PASSWORD_TTL_MS);
+}
 
 function provisioningExpiresAt() {
   return new Date(Date.now() + authService.PROVISIONAL_PASSWORD_TTL_MS);
@@ -755,5 +771,91 @@ export async function getAdminLogs(req, res, next) {
     res.json({ logs });
   } catch (err) {
     next(err);
+  }
+}
+
+export async function getAdminLogs(req, res, next) {
+  try {
+    const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : '';
+    const action = typeof req.query.action === 'string' ? req.query.action.trim() : '';
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+    const logs = await listAdminLogs({ tenantId, action, limit });
+    res.json({ logs });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function startSetupMode(req, res, next) {
+  try {
+    const tenantId = String(req.params.tenantId ?? '').trim();
+    if (!tenantId) return res.status(400).json({ error: 'tenantId requis' });
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, name: true, slug: true } });
+    if (!tenant) return res.status(404).json({ error: 'Entreprise introuvable' });
+    const token = jwt.sign(
+      { typ: 'setup_mode', tenantId: tenant.id, tenantName: tenant.name, tenantSlug: tenant.slug, actor: req.qhseUser?.id || '' },
+      getJwtSecret(),
+      { expiresIn: '8h' }
+    );
+    res.cookie(QHSE_SETUP_COOKIE, token, setupCookieOptions());
+    await writeAdminLog({
+      actorUserId: req.qhseUser?.id || '',
+      targetType: 'TENANT',
+      targetId: tenant.id,
+      tenantId: tenant.id,
+      action: ADMIN_LOG_ACTIONS.SETUP_MODE_STARTED,
+      metadata: { tenantName: tenant.name }
+    });
+    await writeAdminLog({
+      actorUserId: req.qhseUser?.id || '',
+      targetType: 'TENANT',
+      targetId: tenant.id,
+      tenantId: tenant.id,
+      action: ADMIN_LOG_ACTIONS.SETUP_CLIENT_INTERFACE_OPENED,
+      metadata: {}
+    });
+    res.json({ ok: true, setupMode: true, tenant });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function stopSetupMode(req, res, next) {
+  try {
+    const raw = req.cookies?.[QHSE_SETUP_COOKIE];
+    if (raw) {
+      const p = jwt.verify(raw, getJwtSecret());
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'TENANT',
+        targetId: typeof p.tenantId === 'string' ? p.tenantId : null,
+        tenantId: typeof p.tenantId === 'string' ? p.tenantId : null,
+        action: ADMIN_LOG_ACTIONS.SETUP_MODE_ENDED,
+        metadata: {}
+      });
+    }
+    res.clearCookie(QHSE_SETUP_COOKIE, { path: '/' });
+    res.json({ ok: true, setupMode: false });
+  } catch (err) {
+    res.clearCookie(QHSE_SETUP_COOKIE, { path: '/' });
+    res.json({ ok: true, setupMode: false });
+  }
+}
+
+export async function getSetupStatus(req, res) {
+  try {
+    const raw = req.cookies?.[QHSE_SETUP_COOKIE];
+    if (!raw) return res.json({ setupMode: false });
+    const p = jwt.verify(raw, getJwtSecret());
+    res.json({
+      setupMode: true,
+      tenant: {
+        id: String(p.tenantId || ''),
+        name: String(p.tenantName || ''),
+        slug: String(p.tenantSlug || '')
+      }
+    });
+  } catch {
+    res.json({ setupMode: false });
   }
 }
