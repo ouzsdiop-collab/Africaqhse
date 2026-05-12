@@ -147,6 +147,8 @@ model User {
 
   /// false = compte désactivé (connexion refusée).
   isActive Boolean @default(true)
+  /// Statut SaaS canonique (migration progressive): INVITED | ACTIVE | SUSPENDED | LOCKED | EXPIRED | DELETED
+  status   String  @default("ACTIVE")
 
   /// Premier login avec mot de passe provisoire : l’utilisateur doit changer avant accès complet.
   mustChangePassword Boolean @default(false)
@@ -170,8 +172,26 @@ model User {
   habilitations              Habilitation[]
   createdIsoEvidences        IsoEvidence[] @relation("IsoEvidenceCreatedBy")
   validatedIsoEvidences      IsoEvidence[] @relation("IsoEvidenceValidatedBy")
+  adminLogs                  AdminLog[]    @relation("AdminLogActor")
 
   @@map("users")
+}
+
+model AdminLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  actorUser   User     @relation("AdminLogActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetType  String?
+  targetId    String?
+  tenantId    String?
+  action      String
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+  @@map("admin_logs")
 }
 
 /// Preuves ISO rattachées à une exigence du registre — persistance multi-tenant.

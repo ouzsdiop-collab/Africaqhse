@@ -1,0 +1,65 @@
+import { prisma } from '../db.js';
+
+export const ADMIN_LOG_ACTIONS = Object.freeze({
+  USER_CREATED: 'USER_CREATED',
+  ACCESS_EMAIL_SENT: 'ACCESS_EMAIL_SENT',
+  TEMP_PASSWORD_RESET: 'TEMP_PASSWORD_RESET',
+  USER_SUSPENDED: 'USER_SUSPENDED',
+  USER_REACTIVATED: 'USER_REACTIVATED',
+  COMPANY_CREATED: 'COMPANY_CREATED',
+  COMPANY_SUSPENDED: 'COMPANY_SUSPENDED',
+  ROLE_CHANGED: 'ROLE_CHANGED',
+  SETUP_MODE_STARTED: 'SETUP_MODE_STARTED',
+  SETUP_CLIENT_INTERFACE_OPENED: 'SETUP_CLIENT_INTERFACE_OPENED',
+  SETUP_MODE_ENDED: 'SETUP_MODE_ENDED'
+});
+
+function sanitizeMetadata(meta) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  const clone = { ...meta };
+  for (const k of Object.keys(clone)) {
+    const lk = k.toLowerCase();
+    if (lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
+      delete clone[k];
+    }
+  }
+  return clone;
+}
+
+export async function writeAdminLog({ actorUserId, targetType = null, targetId = null, tenantId = null, action, metadata = {} }) {
+  const actor = String(actorUserId || '').trim();
+  const act = String(action || '').trim().toUpperCase();
+  if (!actor || !act) return;
+  await prisma.adminLog.create({
+    data: {
+      actorUserId: actor,
+      targetType: targetType ? String(targetType) : null,
+      targetId: targetId ? String(targetId) : null,
+      tenantId: tenantId ? String(tenantId) : null,
+      action: act,
+      metadata: sanitizeMetadata(metadata)
+    }
+  });
+}
+
+export async function listAdminLogs({ tenantId = '', action = '', limit = 100 }) {
+  const where = {};
+  if (tenantId) where.tenantId = String(tenantId).trim();
+  if (action) where.action = String(action).trim().toUpperCase();
+  const take = Math.min(Math.max(Number(limit) || 100, 1), 300);
+  return prisma.adminLog.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take,
+    select: {
+      id: true,
+      actorUserId: true,
+      targetType: true,
+      targetId: true,
+      tenantId: true,
+      action: true,
+      metadata: true,
+      createdAt: true
+    }
+  });
+}

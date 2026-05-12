@@ -7,6 +7,10 @@ const router = Router();
 
 router.use(requireSuperAdmin);
 
+router.get('/logs', controller.getAdminLogs);
+router.get('/setup/status', controller.getSetupStatus);
+router.post('/setup/stop', controller.stopSetupMode);
+router.post('/tenants/:tenantId/setup/start', controller.startSetupMode);
 router.get('/clients', controller.listClients);
 router.post('/clients', controller.createClient);
 router.patch('/clients/:id', controller.patchTenant);

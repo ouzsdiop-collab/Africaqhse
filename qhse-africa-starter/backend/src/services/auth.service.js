@@ -13,7 +13,7 @@ const REFRESH_EXPIRES = '30d';
 const PASSWORD_SETUP_EXPIRES = '15m';
 
 /** Durée de validité d’un mot de passe provisoire après attribution (réinitialisation admin). */
-export const PROVISIONAL_PASSWORD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const PROVISIONAL_PASSWORD_TTL_MS = 48 * 60 * 60 * 1000;
 
 /** @deprecated Utiliser le tenant issu de la DB / JWT (`tid`). Conservé pour compatibilité d’import. */
 export const MONO_ORG = Object.freeze({
@@ -21,6 +21,25 @@ export const MONO_ORG = Object.freeze({
   slug: 'default',
   name: 'Organisation'
 });
+
+export const USER_STATUS = Object.freeze({
+  INVITED: 'INVITED',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  LOCKED: 'LOCKED',
+  EXPIRED: 'EXPIRED',
+  DELETED: 'DELETED'
+});
+
+export function resolveUserStatus(user) {
+  const raw = String(user?.status ?? '')
+    .trim()
+    .toUpperCase();
+  if (raw && Object.values(USER_STATUS).includes(raw)) return raw;
+  if (user?.isActive === false) return USER_STATUS.SUSPENDED;
+  if (user?.mustChangePassword) return USER_STATUS.INVITED;
+  return USER_STATUS.ACTIVE;
+}
 
 let warnedDevJwtSecret = false;
 
@@ -130,11 +149,13 @@ export async function fulfillMandatoryPasswordChange(rawToken, newPassword) {
       name: true,
       email: true,
       role: true,
+      status: true,
       mustChangePassword: true,
       isActive: true
     }
   });
-  if (!row?.isActive) {
+  const effectiveStatus = resolveUserStatus(row);
+  if (!row?.isActive || [USER_STATUS.SUSPENDED, USER_STATUS.LOCKED, USER_STATUS.DELETED].includes(effectiveStatus)) {
     return { ok: false, code: 'account_inactive' };
   }
   if (!row.mustChangePassword) {
@@ -155,6 +176,7 @@ export async function fulfillMandatoryPasswordChange(rawToken, newPassword) {
       where: { id: parsed.sub },
       data: {
         passwordHash,
+        status: USER_STATUS.ACTIVE,
         mustChangePassword: false,
         temporaryPasswordCreatedAt: null
       }
@@ -173,7 +195,10 @@ export async function fulfillMandatoryPasswordChange(rawToken, newPassword) {
   };
 }
 
-/** Génère un mot de passe provisoire lisible (affichage unique côté admin). */
+/** Génère un mot de passe provisoire lisible.
+ * SECURITE: ne jamais retourner ce secret en clair dans une réponse API.
+ * Utilisation autorisée: envoi e-mail immédiat puis stockage hashé uniquement.
+ */
 export function generateProvisioningPassword() {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const lower = 'abcdefghijkmnpqrstuvwxyz';
@@ -339,6 +364,7 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
           name: true,
           email: true,
           role: true,
+          status: true,
           passwordHash: true,
           mustChangePassword: true,
           isActive: true,
@@ -353,6 +379,7 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
           name: true,
           email: true,
           role: true,
+          status: true,
           passwordHash: true,
           mustChangePassword: true,
           isActive: true,
@@ -361,7 +388,14 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
         }
       });
 
-  if (!user?.passwordHash || user.isActive === false) return null;
+  if (!user?.passwordHash) return null;
+  const effectiveStatus = resolveUserStatus(user);
+  if (
+    user.isActive === false ||
+    [USER_STATUS.SUSPENDED, USER_STATUS.LOCKED, USER_STATUS.DELETED, USER_STATUS.EXPIRED].includes(effectiveStatus)
+  ) {
+    return null;
+  }
   const ok = await bcrypt.compare(pwd, user.passwordHash);
   if (!ok) return null;
 
@@ -370,6 +404,12 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
     user.temporaryPasswordCreatedAt instanceof Date &&
     Date.now() - user.temporaryPasswordCreatedAt.getTime() > PROVISIONAL_PASSWORD_TTL_MS
   ) {
+    await prisma.user
+      .update({
+        where: { id: user.id },
+        data: { status: USER_STATUS.EXPIRED }
+      })
+      .catch(() => {});
     return { code: 'PROVISIONAL_EXPIRED' };
   }
 
@@ -378,6 +418,7 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
     name: user.name,
     email: user.email,
     role: String(user.role ?? '').trim().toUpperCase(),
+    status: effectiveStatus,
     mustChangePassword: Boolean(user.mustChangePassword)
   };
 }

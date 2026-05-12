@@ -1713,8 +1713,12 @@ export function createLoginView({ onSuccess, onNavigate }) {
         { tenant: body.tenant, tenants: body.tenants }
       );
       showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
-      setCurrentPage('dashboard');
-      window.location.hash = 'dashboard';
+      const redirectTarget = String(body.redirectTarget || '').toUpperCase();
+      if (redirectTarget === 'SAAS_ADMIN') {
+        window.location.assign('/saas-admin/entreprises');
+      } else {
+        window.location.assign('/app');
+      }
       onSuccess();
     } catch {
       showToast('Réseau ou serveur indisponible', 'error');

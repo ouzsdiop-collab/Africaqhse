@@ -77,26 +77,6 @@ function moduleLabelForKey(key) {
   return def ? def.label : key;
 }
 
-/** Mot de passe provisoire renvoyé par l’API admin (tolère formes alternatives / wrappers). */
-/** @param {unknown} payload */
-function readProvisionalPassword(payload) {
-  if (!payload || typeof payload !== 'object') return '';
-  const o = /** @type {Record<string, unknown>} */ (payload);
-  const nested =
-    o.data && typeof o.data === 'object' && !Array.isArray(o.data)
-      ? /** @type {Record<string, unknown>} */ (o.data)
-      : null;
-  const candidates = [o, nested].filter(Boolean);
-  for (const c of candidates) {
-    const raw = c.provisionalPassword ?? c.provisional_password;
-    if (typeof raw === 'string') {
-      const s = raw.trim();
-      if (s) return s;
-    }
-  }
-  return '';
-}
-
 export function renderSaasClients() {
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas saas-clients-page';
@@ -342,6 +322,9 @@ export function renderSaasClients() {
               <button type="button" class="btn sc-btn-ghost sc-btn-reset-admin" data-tenant="${escapeHtml(tid)}" title="Réinitialise le mot de passe de l’admin client principal">
                 MDP admin principal
               </button>
+              <button type="button" class="btn btn-primary sc-btn-open-client" data-tenant="${escapeHtml(tid)}">
+                Ouvrir interface client
+              </button>
             </div>
           </div>
           <div class="sc-metrics">
@@ -477,7 +460,7 @@ export function renderSaasClients() {
           if (!btn || !tid) return;
           if (
             !window.confirm(
-              'Réinitialiser le mot de passe de l’administrateur client principal ? Un mot de passe provisoire sera généré ; l’ancien ne fonctionnera plus.'
+              'Réinitialiser l'accès de l’administrateur client principal ? Un e-mail d'accès sera renvoyé ; l’ancien accès ne fonctionnera plus.'
             )
           ) {
             return;
@@ -496,20 +479,33 @@ export function renderSaasClients() {
               showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
               return;
             }
-            const pwd = readProvisionalPassword(b2);
-            showOnceModal(
-              '<strong>Nouveau mot de passe provisoire</strong> (admin client principal).',
-              pwd,
-              b2.user
-                ? `Compte : <strong>${escapeHtml(b2.user.email || '')}</strong>`
-                : ''
-            );
-            showToast('Mot de passe réinitialisé.', 'success');
+            showToast('Accès réinitialisé. E-mail envoyé.', 'success');
           } catch {
             showToast('Erreur réseau', 'error');
           } finally {
             btn.removeAttribute('disabled');
             btn.textContent = prev;
+          }
+        });
+        card.querySelector('.sc-btn-open-client')?.addEventListener('click', async () => {
+          const btn = card.querySelector('.sc-btn-open-client');
+          if (!btn || !tid) return;
+          btn.setAttribute('disabled', 'true');
+          try {
+            const r = await qhseFetch(`/api/admin/tenants/${encodeURIComponent(tid)}/setup/start`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              showToast(typeof j.error === 'string' ? j.error : 'Impossible d’ouvrir l’interface client', 'error');
+              return;
+            }
+            window.location.assign('/app');
+          } catch {
+            showToast('Erreur réseau', 'error');
+          } finally {
+            btn.removeAttribute('disabled');
           }
         });
 
@@ -518,7 +514,8 @@ export function renderSaasClients() {
           for (const u of users) {
             const tr = document.createElement('tr');
             const uid = String(u.id || '');
-            const active = u.isActive !== false;
+            const status = String(u.status || (u.isActive === false ? 'SUSPENDED' : 'ACTIVE')).toUpperCase();
+            const active = status === 'ACTIVE' || status === 'INVITED';
             const rVal = String(u.role || '').toUpperCase();
             tr.className = active ? '' : 'sc-inactive-row';
             tr.innerHTML = `
@@ -529,7 +526,7 @@ export function renderSaasClients() {
               </td>
               <td><span class="${roleBadgeClass(u.role)}">${escapeHtml(roleBadgeLabel(u.role))}</span></td>
               <td style="font-size:12px;color:var(--text2)">${escapeHtml(formatActivity(u.lastLoginAt))}</td>
-              <td>${active ? '<span class="sc-pill sc-pill--active">Actif</span>' : '<span class="sc-pill sc-pill--suspended">Inactif</span>'}</td>
+              <td>${status === 'ACTIVE' ? '<span class="sc-pill sc-pill--active">ACTIVE</span>' : `<span class="sc-pill sc-pill--suspended">${escapeHtml(status)}</span>`}</td>
               <td class="sc-user-actions">
                 <select class="sc-role-select sc-role-ch" data-user="${escapeHtml(uid)}" data-tenant="${escapeHtml(tid)}" data-current="${escapeHtml(rVal)}">
                   ${ROLE_OPTIONS.map((o) => `<option value="${escapeHtml(o.value)}" ${o.value === rVal ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
@@ -592,7 +589,7 @@ export function renderSaasClients() {
             if (!uid || !tenant) return;
             if (
               !window.confirm(
-                'Réinitialiser le mot de passe de cet utilisateur ? Un mot de passe provisoire sera affiché ; l’ancien ne fonctionnera plus.'
+                'Réinitialiser l'accès de cet utilisateur ? Un e-mail d'accès sera envoyé ; l’ancien accès ne fonctionnera plus.'
               )
             ) {
               return;
@@ -609,13 +606,7 @@ export function renderSaasClients() {
                 showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
                 return;
               }
-              const pwd = readProvisionalPassword(b2);
-              showOnceModal(
-                '<strong>Mot de passe provisoire</strong> (utilisateur).',
-                pwd,
-                b2.user ? `Compte : <strong>${escapeHtml(b2.user.email || '')}</strong>` : ''
-              );
-              showToast('Mot de passe réinitialisé.', 'success');
+              showToast('Accès réinitialisé. E-mail envoyé.', 'success');
             } catch {
               showToast('Erreur réseau', 'error');
             } finally {
@@ -686,19 +677,16 @@ export function renderSaasClients() {
               showToast(typeof j.error === 'string' ? j.error : `Erreur ${r.status}`, 'error');
               return;
             }
-            const pwd = readProvisionalPassword(j);
+
             showOnceModal(
               '<strong>Utilisateur créé</strong>',
-              pwd,
+              '',
               j.user ? `${escapeHtml(j.user.name || '')} · <code>${escapeHtml(j.user.email || '')}</code>` : '',
               { afterClose: () => void refreshList() }
             );
             nName.value = '';
             nEmail.value = '';
-            showToast(
-              pwd ? 'Utilisateur créé.' : 'Utilisateur créé — sans mot de passe renvoyé : utilisez « MDP ».',
-              pwd ? 'success' : 'warning'
-            );
+            showToast("Utilisateur créé. E-mail d'accès envoyé.", 'success');
           } catch {
             showToast('Erreur réseau', 'error');
           } finally {
@@ -744,12 +732,11 @@ export function renderSaasClients() {
         showToast(typeof j.error === 'string' ? j.error : `Erreur ${res.status}`, 'error');
         return;
       }
-      const pwd = readProvisionalPassword(j);
       const tenant = j.tenant || {};
       const user = j.user || {};
       showOnceModal(
         `<strong>Compte créé.</strong> Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
-        pwd,
+        '',
         `Connexion : e-mail <code>${escapeHtml(user.email || '')}</code> ou identifiant <strong>${escapeHtml(user.clientCode || '')}</strong>`,
         { afterClose: () => void refreshList() }
       );
@@ -757,10 +744,7 @@ export function renderSaasClients() {
       contactIn.value = '';
       emailIn.value = '';
       codeIn.value = '';
-      showToast(
-        pwd ? 'Entreprise créée.' : 'Entreprise créée — sans mot de passe renvoyé : utilisez « Réinitialiser ».',
-        pwd ? 'success' : 'warning'
-      );
+      showToast("Entreprise cliente créée. E-mail d'accès envoyé.", 'success');
     } catch {
       showToast('Erreur réseau', 'error');
     } finally {

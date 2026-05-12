@@ -122,6 +122,26 @@ const SW_DEBUG_STORAGE_KEY = 'qhse_sw_debug';
 
 let swClientHooksInstalled = false;
 let swLoadHandlerRegistered = false;
+let setupModeContext = null;
+let setupModeLoaded = false;
+
+async function refreshSetupModeContext() {
+  const su = getSessionUser();
+  if (String(su?.role || '').toUpperCase() !== 'SUPER_ADMIN') {
+    setupModeContext = null;
+    setupModeLoaded = true;
+    return;
+  }
+  try {
+    const r = await qhseFetch('/api/admin/setup/status');
+    const j = await r.json().catch(() => ({}));
+    setupModeContext = j?.setupMode ? j : null;
+  } catch {
+    setupModeContext = null;
+  } finally {
+    setupModeLoaded = true;
+  }
+}
 
 /**
  * Enregistre le background sync terrain (retry quand le réseau revient).
@@ -686,6 +706,20 @@ function renderApp() {
       setCurrentPage('mines-demo');
     }
 
+    const su = getSessionUser();
+    if (su) {
+      const role = String(su.role || '').toUpperCase();
+      if (role === 'SUPER_ADMIN' && !setupModeContext?.setupMode && appState.currentPage !== 'saas-clients') {
+        setCurrentPage('saas-clients');
+        if (window.location.pathname !== '/saas-admin/entreprises') {
+          window.history.replaceState(null, '', '/saas-admin/entreprises');
+        }
+      } else if (role !== 'SUPER_ADMIN' && window.location.pathname.startsWith('/saas-admin')) {
+        setCurrentPage('dashboard');
+        window.history.replaceState(null, '', '/app');
+      }
+    }
+
     const terrainMode = getDisplayMode() === 'terrain';
     const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
@@ -749,6 +783,34 @@ function renderApp() {
 
     const shell = document.createElement('div');
     shell.className = 'app-shell';
+    if (
+      String(getSessionUser()?.role || '').toUpperCase() === 'SUPER_ADMIN' &&
+      setupModeContext?.setupMode === true &&
+      setupModeContext?.tenant?.name
+    ) {
+      const banner = document.createElement('div');
+      banner.className = 'content-card card-soft';
+      banner.style.margin = '8px 12px';
+      banner.innerHTML = `<strong>MODE SETUP CLIENT - ${setupModeContext.tenant.name}</strong> · Connecté comme SUPER_ADMIN`;
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:8px;margin-top:8px';
+      const backBtn = document.createElement('button');
+      backBtn.className = 'btn sc-btn-ghost';
+      backBtn.textContent = 'Retour superadmin';
+      backBtn.addEventListener('click', () => {
+        window.location.assign('/saas-admin/entreprises');
+      });
+      const stopBtn = document.createElement('button');
+      stopBtn.className = 'btn btn-primary';
+      stopBtn.textContent = 'Quitter setup';
+      stopBtn.addEventListener('click', async () => {
+        await qhseFetch('/api/admin/setup/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(() => {});
+        window.location.assign('/saas-admin/entreprises');
+      });
+      actions.append(backBtn, stopBtn);
+      banner.append(actions);
+      shell.append(banner);
+    }
 
     const sidebar = createSidebar({
       currentPage: appState.currentPage,
@@ -903,6 +965,15 @@ function renderApp() {
 }
 
 function initRouting() {
+  const pathname = String(window.location.pathname || '').replace(/\/+$/, '');
+  if (pathname === '/saas-admin' || pathname === '/saas-admin/entreprises') {
+    setCurrentPage('saas-clients');
+    return;
+  }
+  if (pathname === '/app') {
+    setCurrentPage('dashboard');
+    return;
+  }
   const hash = window.location.hash.replace(/^#/, '');
   if (!hash) return;
   const path = hash.split('?')[0];
@@ -947,6 +1018,7 @@ async function boot() {
       return;
     }
     initRouting();
+    await refreshSetupModeContext();
     ensureExpertMobileNavEscape();
     registerPwaServiceWorker();
     try {
