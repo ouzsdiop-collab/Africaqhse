@@ -81,6 +81,40 @@ export async function sendPasswordResetEmail(toEmail, resetUrl) {
 }
 
 /**
+ * Envoi des accès provisoires (création ou reset) — secret transmis uniquement par e-mail.
+ * @param {{
+ *  toEmail: string,
+ *  userName?: string,
+ *  tenantName?: string,
+ *  temporaryPassword: string,
+ *  expiresAt: Date
+ * }} p
+ */
+export async function sendProvisioningAccessEmail(p) {
+  const to = String(p?.toEmail ?? '')
+    .trim()
+    .toLowerCase();
+  if (!to) return;
+  const exp = p?.expiresAt instanceof Date ? p.expiresAt : new Date(Date.now() + 48 * 60 * 60 * 1000);
+  const html = buildHtmlEmailLayout({
+    tone: 'info',
+    title: 'Accès à votre espace QHSE Control',
+    bodyHtml: `<p style="margin:0 0 12px">Bonjour ${escapeHtml(p?.userName || '')},</p>
+<p style="margin:0 0 12px">Votre compte pour ${escapeHtml(p?.tenantName || 'votre organisation')} est prêt.</p>
+<p style="margin:0 0 12px"><strong>Mot de passe provisoire :</strong> <code style="font-size:14px">${escapeHtml(p?.temporaryPassword || '')}</code></p>
+<p style="margin:0 0 12px">Ce mot de passe expire le <strong>${exp.toLocaleString('fr-FR')}</strong> et devra être changé lors de la première connexion.</p>`,
+    ctaLabel: 'Se connecter',
+    ctaUrl: `${getFrontendBaseUrl()}/`
+  });
+  await sendMailHtml({
+    to: [to],
+    subject: 'QHSE Control — accès à votre compte',
+    html,
+    text: `Votre mot de passe provisoire: ${p?.temporaryPassword || ''}\nExpire le: ${exp.toISOString()}\nConnexion: ${getFrontendBaseUrl()}/`
+  });
+}
+
+/**
  * @param {'critique'|'high'|'info'|'success'} tone
  */
 function headerColorForTone(tone) {

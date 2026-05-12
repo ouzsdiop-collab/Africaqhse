@@ -10,8 +10,14 @@ import {
   adminPatchTenantUserBodySchema,
   adminTenantScopedBodySchema
 } from '../validation/adminSchemas.js';
+import * as emailService from '../services/email.service.js';
+import { ADMIN_LOG_ACTIONS, writeAdminLog, listAdminLogs } from '../services/adminLog.service.js';
 
 const PLATFORM_TENANT_SLUG = 'qhse-control-platform';
+
+function provisioningExpiresAt() {
+  return new Date(Date.now() + authService.PROVISIONAL_PASSWORD_TTL_MS);
+}
 
 function normalizeSettings(raw) {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
@@ -76,6 +82,7 @@ export async function listClients(req, res, next) {
                 role: true,
                 clientCode: true,
                 isActive: true,
+                status: true,
                 mustChangePassword: true,
                 lastLoginAt: true,
                 createdAt: true
@@ -96,6 +103,7 @@ export async function listClients(req, res, next) {
           memberRole: m.role,
           clientCode: m.user.clientCode,
           isActive: m.user.isActive,
+          status: authService.resolveUserStatus(m.user),
           mustChangePassword: m.user.mustChangePassword,
           lastLoginAt: m.user.lastLoginAt,
           createdAt: m.user.createdAt
@@ -173,6 +181,7 @@ export async function createClient(req, res, next) {
           passwordHash,
           clientCode,
           isActive: true,
+          status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
           temporaryPasswordCreatedAt: new Date()
         }
@@ -186,6 +195,52 @@ export async function createClient(req, res, next) {
       });
       return { tenant, user };
     });
+    const actorUserId = req.qhseUser?.id || '';
+    await writeAdminLog({
+      actorUserId,
+      targetType: 'COMPANY',
+      targetId: result.tenant.id,
+      tenantId: result.tenant.id,
+      action: ADMIN_LOG_ACTIONS.COMPANY_CREATED,
+      metadata: { companyName: result.tenant.name, slug: result.tenant.slug }
+    });
+    await writeAdminLog({
+      actorUserId,
+      targetType: 'USER',
+      targetId: result.user.id,
+      tenantId: result.tenant.id,
+      action: ADMIN_LOG_ACTIONS.USER_CREATED,
+      metadata: { role: 'CLIENT_ADMIN' }
+    });
+
+    const expiresAt = provisioningExpiresAt();
+    let invitationSent = false;
+    try {
+      await emailService.sendProvisioningAccessEmail({
+        toEmail: result.user.email,
+        userName: result.user.name,
+        tenantName: result.tenant.name,
+        temporaryPassword: provisional,
+        expiresAt
+      });
+      invitationSent = true;
+      await writeAdminLog({
+        actorUserId,
+        targetType: 'USER',
+        targetId: result.user.id,
+        tenantId: result.tenant.id,
+        action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
+        metadata: { context: 'CREATE_CLIENT_ADMIN' }
+      });
+    } catch (err) {
+      return sendJsonError(
+        res,
+        502,
+        "Compte créé, mais l'envoi de l'e-mail d'accès a échoué. Relancez l'invitation.",
+        req,
+        { code: 'ACCESS_EMAIL_SEND_FAILED' }
+      );
+    }
 
     res.status(201).json({
       ok: true,
@@ -194,13 +249,19 @@ export async function createClient(req, res, next) {
         name: result.tenant.name,
         slug: result.tenant.slug
       },
+      message: 'Entreprise et compte administrateur créés.',
       user: {
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
-        clientCode
+        clientCode,
+        status: authService.resolveUserStatus(result.user),
+        mustChangePassword: true
       },
-      provisionalPassword: provisional
+      invitation: {
+        sent: invitationSent,
+        expiresAt
+      }
     });
   } catch (err) {
     next(err);
@@ -245,6 +306,7 @@ export async function resetClientPassword(req, res, next) {
         where: { id: member.user.id },
         data: {
           passwordHash,
+          status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
           temporaryPasswordCreatedAt: new Date()
         }
@@ -252,15 +314,54 @@ export async function resetClientPassword(req, res, next) {
       prisma.refreshToken.deleteMany({ where: { userId: member.user.id } })
     ]);
 
+    const expiresAt = provisioningExpiresAt();
+    let invitationSent = false;
+    try {
+      await emailService.sendProvisioningAccessEmail({
+        toEmail: member.user.email,
+        userName: member.user.name,
+        temporaryPassword: provisional,
+        expiresAt
+      });
+      invitationSent = true;
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'USER',
+        targetId: member.user.id,
+        tenantId,
+        action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
+        metadata: { context: 'RESET_CLIENT_ADMIN_ACCESS' }
+      });
+    } catch {
+      return sendJsonError(
+        res,
+        502,
+        "Accès réinitialisé, mais l'envoi de l'e-mail a échoué. Relancez l'invitation.",
+        req,
+        { code: 'ACCESS_EMAIL_SEND_FAILED' }
+      );
+    }
+
     res.json({
       ok: true,
+      message: 'Accès administrateur client réinitialisé.',
       user: {
         id: member.user.id,
         name: member.user.name,
         email: member.user.email,
-        clientCode: member.user.clientCode
+        clientCode: member.user.clientCode,
+        status: authService.USER_STATUS.INVITED,
+        mustChangePassword: true
       },
-      provisionalPassword: provisional
+      invitation: { sent: invitationSent, expiresAt }
+    });
+    await writeAdminLog({
+      actorUserId: req.qhseUser?.id || '',
+      targetType: 'USER',
+      targetId: member.user.id,
+      tenantId,
+      action: ADMIN_LOG_ACTIONS.TEMP_PASSWORD_RESET,
+      metadata: { targetRole: 'CLIENT_ADMIN' }
     });
   } catch (err) {
     next(err);
@@ -316,6 +417,16 @@ export async function patchTenant(req, res, next) {
       ok: true,
       tenant: { ...tenant, settings: normalizeSettings(tenant.settings) }
     });
+    if (String(status || '').toLowerCase() === 'suspended') {
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'COMPANY',
+        targetId: tenantId,
+        tenantId,
+        action: ADMIN_LOG_ACTIONS.COMPANY_SUSPENDED,
+        metadata: { status: 'suspended' }
+      });
+    }
   } catch (err) {
     next(err);
   }
@@ -364,6 +475,7 @@ export async function createTenantUser(req, res, next) {
           role,
           passwordHash,
           isActive: true,
+          status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
           temporaryPasswordCreatedAt: new Date()
         },
@@ -375,10 +487,47 @@ export async function createTenantUser(req, res, next) {
       return u;
     });
 
+    const expiresAt = provisioningExpiresAt();
+    let invitationSent = false;
+    try {
+      await emailService.sendProvisioningAccessEmail({
+        toEmail: user.email,
+        userName: user.name,
+        temporaryPassword: provisional,
+        expiresAt
+      });
+      invitationSent = true;
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'USER',
+        targetId: user.id,
+        tenantId,
+        action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
+        metadata: { context: 'CREATE_USER' }
+      });
+    } catch {
+      return sendJsonError(
+        res,
+        502,
+        "Compte créé, mais l'envoi de l'e-mail d'accès a échoué. Relancez l'invitation.",
+        req,
+        { code: 'ACCESS_EMAIL_SEND_FAILED' }
+      );
+    }
+
     res.status(201).json({
       ok: true,
-      user,
-      provisionalPassword: provisional
+      message: 'Utilisateur créé.',
+      user: { ...user, status: authService.USER_STATUS.INVITED, mustChangePassword: true },
+      invitation: { sent: invitationSent, expiresAt }
+    });
+    await writeAdminLog({
+      actorUserId: req.qhseUser?.id || '',
+      targetType: 'USER',
+      targetId: user.id,
+      tenantId,
+      action: ADMIN_LOG_ACTIONS.USER_CREATED,
+      metadata: { role: user.role }
     });
   } catch (err) {
     next(err);
@@ -412,7 +561,7 @@ export async function patchTenantUser(req, res, next) {
 
     const member = await prisma.tenantMember.findUnique({
       where: { tenantId_userId: { tenantId, userId } },
-      include: { user: { select: { id: true, role: true } } }
+      include: { user: { select: { id: true, role: true, mustChangePassword: true } } }
     });
     if (!member?.user) {
       return sendJsonError(res, 404, 'Utilisateur introuvable dans cette entreprise.', req, {
@@ -428,7 +577,14 @@ export async function patchTenantUser(req, res, next) {
 
     const userData = {};
     if (role != null) userData.role = role;
-    if (isActive != null) userData.isActive = isActive;
+    if (isActive != null) {
+      userData.isActive = isActive;
+      userData.status = isActive
+        ? member.user.mustChangePassword
+          ? authService.USER_STATUS.INVITED
+          : authService.USER_STATUS.ACTIVE
+        : authService.USER_STATUS.SUSPENDED;
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: userId }, data: userData });
@@ -436,6 +592,14 @@ export async function patchTenantUser(req, res, next) {
         await tx.tenantMember.update({
           where: { tenantId_userId: { tenantId, userId } },
           data: { role }
+        });
+        await writeAdminLog({
+          actorUserId: req.qhseUser?.id || '',
+          targetType: 'USER',
+          targetId: userId,
+          tenantId,
+          action: ADMIN_LOG_ACTIONS.ROLE_CHANGED,
+          metadata: { role }
         });
       }
       if (isActive === false) {
@@ -445,8 +609,27 @@ export async function patchTenantUser(req, res, next) {
 
     const updated = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, role: true, isActive: true, lastLoginAt: true }
+      select: { id: true, name: true, email: true, role: true, status: true, isActive: true, lastLoginAt: true }
     });
+    if (isActive === false) {
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'USER',
+        targetId: userId,
+        tenantId,
+        action: ADMIN_LOG_ACTIONS.USER_SUSPENDED,
+        metadata: {}
+      });
+    } else if (isActive === true) {
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'USER',
+        targetId: userId,
+        tenantId,
+        action: ADMIN_LOG_ACTIONS.USER_REACTIVATED,
+        metadata: {}
+      });
+    }
     res.json({ ok: true, user: updated });
   } catch (err) {
     next(err);
@@ -501,6 +684,7 @@ export async function resetUserPassword(req, res, next) {
         where: { id: userId },
         data: {
           passwordHash,
+          status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
           temporaryPasswordCreatedAt: new Date()
         }
@@ -508,16 +692,67 @@ export async function resetUserPassword(req, res, next) {
       prisma.refreshToken.deleteMany({ where: { userId } })
     ]);
 
+    const expiresAt = provisioningExpiresAt();
+    let invitationSent = false;
+    try {
+      await emailService.sendProvisioningAccessEmail({
+        toEmail: member.user.email,
+        userName: member.user.name,
+        temporaryPassword: provisional,
+        expiresAt
+      });
+      invitationSent = true;
+      await writeAdminLog({
+        actorUserId: req.qhseUser?.id || '',
+        targetType: 'USER',
+        targetId: member.user.id,
+        tenantId,
+        action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
+        metadata: { context: 'RESET_USER_ACCESS' }
+      });
+    } catch {
+      return sendJsonError(
+        res,
+        502,
+        "Accès réinitialisé, mais l'envoi de l'e-mail a échoué. Relancez l'invitation.",
+        req,
+        { code: 'ACCESS_EMAIL_SEND_FAILED' }
+      );
+    }
+
     res.json({
       ok: true,
+      message: 'Accès utilisateur réinitialisé.',
       user: {
         id: member.user.id,
         name: member.user.name,
         email: member.user.email,
-        clientCode: member.user.clientCode
+        clientCode: member.user.clientCode,
+        status: authService.USER_STATUS.INVITED,
+        mustChangePassword: true
       },
-      provisionalPassword: provisional
+      invitation: { sent: invitationSent, expiresAt }
     });
+    await writeAdminLog({
+      actorUserId: req.qhseUser?.id || '',
+      targetType: 'USER',
+      targetId: member.user.id,
+      tenantId,
+      action: ADMIN_LOG_ACTIONS.TEMP_PASSWORD_RESET,
+      metadata: { targetRole: member.user.role }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminLogs(req, res, next) {
+  try {
+    const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : '';
+    const action = typeof req.query.action === 'string' ? req.query.action.trim() : '';
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+    const logs = await listAdminLogs({ tenantId, action, limit });
+    res.json({ logs });
   } catch (err) {
     next(err);
   }
