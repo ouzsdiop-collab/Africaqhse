@@ -115,10 +115,12 @@ export async function login(req, res, next) {
     if (user.mustChangePassword) {
       const changePasswordToken = authService.issuePasswordSetupToken(user.id, tenant.id);
       const tenants = await tenantAuth.listTenantsForUser(user.id);
+      const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
       return res.json({
         success: true,
         mustChangePassword: true,
         changePasswordToken,
+        redirectTarget,
         user: {
           id: user.id,
           name: user.name,
@@ -131,6 +133,7 @@ export async function login(req, res, next) {
     }
 
     const accessToken = authService.issueAccessToken(user, tenant.id);
+    const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
     const refreshToken = authService.issueRefreshToken(user, tenant.id);
 
     res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
@@ -148,6 +151,7 @@ export async function login(req, res, next) {
       accessToken,
       expiresIn: 3600,
       token: accessToken,
+      redirectTarget,
       user: {
         id: user.id,
         name: user.name,
@@ -195,10 +199,11 @@ export async function refreshHandler(req, res, next) {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, role: true, mustChangePassword: true, isActive: true }
+      select: { id: true, name: true, email: true, role: true, status: true, mustChangePassword: true, isActive: true }
     });
 
-    if (!user || !user.isActive) {
+    const userStatus = authService.resolveUserStatus(user);
+    if (!user || !user.isActive || ['SUSPENDED', 'LOCKED', 'DELETED'].includes(userStatus)) {
       return res.status(401).json({ error: 'Compte introuvable ou désactivé.' });
     }
     if (user.mustChangePassword) {
@@ -272,9 +277,10 @@ export async function postSwitchTenant(req, res, next) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: req.qhseUser.id },
-      select: { mustChangePassword: true, isActive: true }
+      select: { mustChangePassword: true, status: true, isActive: true }
     });
-    if (!dbUser?.isActive) {
+    const dbStatus = authService.resolveUserStatus(dbUser);
+    if (!dbUser?.isActive || ['SUSPENDED', 'LOCKED', 'DELETED'].includes(dbStatus)) {
       return res.status(403).json({ error: 'Compte désactivé.' });
     }
     if (dbUser.mustChangePassword) {
@@ -381,6 +387,7 @@ export async function changeTemporaryPassword(req, res, next) {
     }
     const { tenant } = resolved;
     const accessToken = authService.issueAccessToken(user, tenant.id);
+    const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
     const refreshToken = authService.issueRefreshToken(user, tenant.id);
     res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
     const tenants = await tenantAuth.listTenantsForUser(user.id);
@@ -398,6 +405,7 @@ export async function changeTemporaryPassword(req, res, next) {
       accessToken,
       expiresIn: 3600,
       token: accessToken,
+      redirectTarget,
       user: {
         id: user.id,
         name: user.name,

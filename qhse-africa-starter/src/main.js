@@ -686,6 +686,20 @@ function renderApp() {
       setCurrentPage('mines-demo');
     }
 
+    const su = getSessionUser();
+    if (su) {
+      const role = String(su.role || '').toUpperCase();
+      if (role === 'SUPER_ADMIN' && appState.currentPage !== 'saas-clients') {
+        setCurrentPage('saas-clients');
+        if (window.location.pathname !== '/saas-admin') {
+          window.history.replaceState(null, '', '/saas-admin');
+        }
+      } else if (role !== 'SUPER_ADMIN' && window.location.pathname === '/saas-admin') {
+        setCurrentPage('dashboard');
+        window.history.replaceState(null, '', '/app');
+      }
+    }
+
     const terrainMode = getDisplayMode() === 'terrain';
     const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
@@ -903,6 +917,15 @@ function renderApp() {
 }
 
 function initRouting() {
+  const pathname = String(window.location.pathname || '').replace(/\/+$/, '');
+  if (pathname === '/saas-admin') {
+    setCurrentPage('saas-clients');
+    return;
+  }
+  if (pathname === '/app') {
+    setCurrentPage('dashboard');
+    return;
+  }
   const hash = window.location.hash.replace(/^#/, '');
   if (!hash) return;
   const path = hash.split('?')[0];

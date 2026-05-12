@@ -7,6 +7,7 @@ const router = Router();
 
 router.use(requireSuperAdmin);
 
+router.get('/logs', controller.getAdminLogs);
 router.get('/clients', controller.listClients);
 router.post('/clients', controller.createClient);
 router.patch('/clients/:id', controller.patchTenant);
