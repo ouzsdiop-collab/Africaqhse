@@ -709,12 +709,12 @@ function renderApp() {
     const su = getSessionUser();
     if (su) {
       const role = String(su.role || '').toUpperCase();
-      if (role === 'SUPER_ADMIN' && !setupModeContext?.setupMode && appState.currentPage !== 'saas-clients') {
+      if (role === 'SUPER_ADMIN' && appState.currentPage !== 'saas-clients') {
         setCurrentPage('saas-clients');
-        if (window.location.pathname !== '/saas-admin/entreprises') {
-          window.history.replaceState(null, '', '/saas-admin/entreprises');
+        if (window.location.pathname !== '/saas-admin') {
+          window.history.replaceState(null, '', '/saas-admin');
         }
-      } else if (role !== 'SUPER_ADMIN' && window.location.pathname.startsWith('/saas-admin')) {
+      } else if (role !== 'SUPER_ADMIN' && window.location.pathname === '/saas-admin') {
         setCurrentPage('dashboard');
         window.history.replaceState(null, '', '/app');
       }
@@ -966,7 +966,7 @@ function renderApp() {
 
 function initRouting() {
   const pathname = String(window.location.pathname || '').replace(/\/+$/, '');
-  if (pathname === '/saas-admin' || pathname === '/saas-admin/entreprises') {
+  if (pathname === '/saas-admin') {
     setCurrentPage('saas-clients');
     return;
   }

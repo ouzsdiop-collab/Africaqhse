@@ -13,7 +13,6 @@ import {
 } from '../validation/adminSchemas.js';
 import * as emailService from '../services/email.service.js';
 import { ADMIN_LOG_ACTIONS, writeAdminLog, listAdminLogs } from '../services/adminLog.service.js';
-import { getJwtSecret } from '../services/auth.service.js';
 
 const PLATFORM_TENANT_SLUG = 'qhse-control-platform';
 export const QHSE_SETUP_COOKIE = 'qhse_setup_mode';
@@ -26,6 +25,10 @@ function setupCookieOptions() {
     maxAge: 8 * 60 * 60 * 1000,
     path: '/'
   };
+}
+
+function provisioningExpiresAt() {
+  return new Date(Date.now() + authService.PROVISIONAL_PASSWORD_TTL_MS);
 }
 
 function provisioningExpiresAt() {
@@ -754,6 +757,18 @@ export async function resetUserPassword(req, res, next) {
       action: ADMIN_LOG_ACTIONS.TEMP_PASSWORD_RESET,
       metadata: { targetRole: member.user.role }
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminLogs(req, res, next) {
+  try {
+    const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : '';
+    const action = typeof req.query.action === 'string' ? req.query.action.trim() : '';
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+    const logs = await listAdminLogs({ tenantId, action, limit });
+    res.json({ logs });
   } catch (err) {
     next(err);
   }
