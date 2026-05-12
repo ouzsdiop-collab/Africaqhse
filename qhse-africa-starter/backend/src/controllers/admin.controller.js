@@ -31,10 +31,6 @@ function provisioningExpiresAt() {
   return new Date(Date.now() + authService.PROVISIONAL_PASSWORD_TTL_MS);
 }
 
-function provisioningExpiresAt() {
-  return new Date(Date.now() + authService.PROVISIONAL_PASSWORD_TTL_MS);
-}
-
 function normalizeSettings(raw) {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
   return {};
