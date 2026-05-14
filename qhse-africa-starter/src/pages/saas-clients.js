@@ -460,7 +460,7 @@ export function renderSaasClients() {
           if (!btn || !tid) return;
           if (
             !window.confirm(
-              'Réinitialiser l'accès de l’administrateur client principal ? Un e-mail d'accès sera renvoyé ; l’ancien accès ne fonctionnera plus.'
+              `Réinitialiser l'accès de l’administrateur client principal ? Un e-mail d'accès sera renvoyé ; l’ancien accès ne fonctionnera plus.`
             )
           ) {
             return;
@@ -589,7 +589,7 @@ export function renderSaasClients() {
             if (!uid || !tenant) return;
             if (
               !window.confirm(
-                'Réinitialiser l'accès de cet utilisateur ? Un e-mail d'accès sera envoyé ; l’ancien accès ne fonctionnera plus.'
+                `Réinitialiser l'accès de cet utilisateur ? Un e-mail d'accès sera envoyé ; l’ancien accès ne fonctionnera plus.`
               )
             ) {
               return;
