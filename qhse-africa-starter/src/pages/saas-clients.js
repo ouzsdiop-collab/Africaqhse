@@ -170,7 +170,7 @@ export function renderSaasClients() {
     </article>
     <div class="sc-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.38);display:none;align-items:center;justify-content:center;z-index:10050;padding:16px" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title" aria-hidden="true">
       <div class="content-card card-soft sc-modal-inner" style="max-width:480px;width:100%;position:relative">
-        <button type="button" class="btn sc-modal-close" style="position:absolute;top:12px;right:12px">Fermer</button>
+        <button type="button" class="btn sc-modal-close" style="position:absolute;top:12px;right:12px">J'ai copié</button>
         <h3 id="sc-modal-title" style="margin-top:0">Mot de passe provisoire</h3>
         <p class="content-card-lead sc-modal-lead" style="font-size:13px"></p>
         <pre class="sc-modal-secret" style="font-size:14px;padding:12px;border-radius:8px;background:var(--surface-2,#f8fafc);border:1px solid rgba(15,23,42,.14);color:var(--color-text-primary,#0f172a);overflow:auto"></pre>

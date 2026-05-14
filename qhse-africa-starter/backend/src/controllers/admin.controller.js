@@ -361,7 +361,10 @@ export async function resetClientPassword(req, res, next) {
           emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
         })
       },
-      temporaryPasswordOneTime: provisional
+      temporaryPasswordOneTime: provisional,
+      message: invitationSent
+        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -530,7 +533,10 @@ export async function createTenantUser(req, res, next) {
           emailError: "Accès créé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
         })
       },
-      temporaryPasswordOneTime: provisional
+      temporaryPasswordOneTime: provisional,
+      message: invitationSent
+        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -743,7 +749,10 @@ export async function resetUserPassword(req, res, next) {
           emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
         })
       },
-      temporaryPasswordOneTime: provisional
+      temporaryPasswordOneTime: provisional,
+      message: invitationSent
+        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
