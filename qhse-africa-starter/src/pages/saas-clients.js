@@ -785,17 +785,29 @@ export function renderSaasClients() {
       }
       const tenant = j.tenant || {};
       const user = j.user || {};
-      showOnceModal(
-        `<strong>Compte créé.</strong> Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
-        '',
-        `Connexion : e-mail <code>${escapeHtml(user.email || '')}</code> ou identifiant <strong>${escapeHtml(user.clientCode || '')}</strong>`,
-        { afterClose: () => void refreshList() }
-      );
+      if (typeof j.temporaryPasswordOneTime === 'string' && j.temporaryPasswordOneTime.trim()) {
+        const sent = j?.invitation?.sent === true;
+        const exp = j?.invitation?.expiresAt ? new Date(j.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+        const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(j?.invitation?.emailError || 'E-mail non envoyé'));
+        showOnceModal(
+          `<strong>Mot de passe provisoire généré</strong><br>Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
+          j.temporaryPasswordOneTime,
+          `Admin principal : <code>${escapeHtml(user.email || '')}</code><br>Expiration : ${escapeHtml(exp)}<br>Statut e-mail : ${emailState}`,
+          { afterClose: () => void refreshList() }
+        );
+      } else {
+        showOnceModal(
+          `<strong>Compte créé.</strong> Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
+          '',
+          `Connexion : e-mail <code>${escapeHtml(user.email || '')}</code> ou identifiant <strong>${escapeHtml(user.clientCode || '')}</strong>`,
+          { afterClose: () => void refreshList() }
+        );
+      }
       companyIn.value = '';
       contactIn.value = '';
       emailIn.value = '';
       codeIn.value = '';
-      showToast("Entreprise cliente créée. E-mail d'accès envoyé.", 'success');
+      showToast(j?.invitation?.sent === false ? "Entreprise créée. E-mail non envoyé : copiez le mot de passe provisoire." : "Entreprise cliente créée. E-mail d'accès envoyé.", j?.invitation?.sent === false ? 'warning' : 'success');
     } catch {
       showToast('Erreur réseau', 'error');
     } finally {

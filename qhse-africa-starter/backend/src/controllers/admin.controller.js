@@ -245,36 +245,42 @@ export async function createClient(req, res, next) {
         metadata: { context: 'CREATE_CLIENT_ADMIN' }
       });
     } catch (err) {
-      return sendJsonError(
-        res,
-        502,
-        "Compte créé, mais l'envoi de l'e-mail d'accès a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
     }
 
-    res.status(201).json({
+    const payload = {
       ok: true,
       tenant: {
         id: result.tenant.id,
         name: result.tenant.name,
         slug: result.tenant.slug
       },
-      message: 'Entreprise et compte administrateur créés.',
+      message: invitationSent
+        ? 'Compte créé. Copiez le mot de passe provisoire maintenant.'
+        : "Compte créé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant.",
       user: {
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
         clientCode,
-        status: authService.resolveUserStatus(result.user),
+        role: 'CLIENT_ADMIN',
+        status: authService.USER_STATUS.INVITED,
         mustChangePassword: true
       },
       invitation: {
         sent: invitationSent,
-        expiresAt
-      }
+        expiresAt,
+        ...(invitationSent ? {} : { emailError: 'SMTP non configuré ou refusé' })
+      },
+      temporaryPasswordOneTime: provisional
+    };
+    console.log('[admin.password.one-shot]', {
+      route: req.originalUrl,
+      hasTemporaryPasswordOneTime: Boolean(payload.temporaryPasswordOneTime),
+      userId: payload.user?.id,
+      email: payload.user?.email,
+      invitationSent: payload.invitation?.sent
     });
+    res.status(201).json(payload);
   } catch (err) {
     next(err);
   }
