@@ -352,7 +352,7 @@ export async function resetClientPassword(req, res, next) {
     } catch (err) {
     }
 
-    res.json({
+    const payload = {
       ok: true,
       user: {
         id: member.user.id,
@@ -371,7 +371,15 @@ export async function resetClientPassword(req, res, next) {
       message: invitationSent
         ? "Accès généré. Copiez le mot de passe provisoire maintenant."
         : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+    };
+    console.log('[admin.password.one-shot]', {
+      route: req.originalUrl,
+      hasTemporaryPasswordOneTime: Boolean(payload.temporaryPasswordOneTime),
+      userId: payload.user?.id,
+      email: payload.user?.email,
+      invitationSent: payload.invitation?.sent
     });
+    res.json(payload);
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
       targetType: 'USER',
@@ -529,7 +537,7 @@ export async function createTenantUser(req, res, next) {
     } catch (err) {
     }
 
-    res.status(201).json({
+    const payload = {
       ok: true,
       user: { id: user.id, email: user.email, role: user.role, status: authService.USER_STATUS.INVITED },
       invitation: {
@@ -543,7 +551,15 @@ export async function createTenantUser(req, res, next) {
       message: invitationSent
         ? "Accès généré. Copiez le mot de passe provisoire maintenant."
         : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+    };
+    console.log('[admin.password.one-shot]', {
+      route: req.originalUrl,
+      hasTemporaryPasswordOneTime: Boolean(payload.temporaryPasswordOneTime),
+      userId: payload.user?.id,
+      email: payload.user?.email,
+      invitationSent: payload.invitation?.sent
     });
+    res.status(201).json(payload);
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
       targetType: 'USER',
@@ -740,7 +756,7 @@ export async function resetUserPassword(req, res, next) {
     } catch (err) {
     }
 
-    res.json({
+    const payload = {
       ok: true,
       user: {
         id: member.user.id,
@@ -759,7 +775,15 @@ export async function resetUserPassword(req, res, next) {
       message: invitationSent
         ? "Accès généré. Copiez le mot de passe provisoire maintenant."
         : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+    };
+    console.log('[admin.password.one-shot]', {
+      route: req.originalUrl,
+      hasTemporaryPasswordOneTime: Boolean(payload.temporaryPasswordOneTime),
+      userId: payload.user?.id,
+      email: payload.user?.email,
+      invitationSent: payload.invitation?.sent
     });
+    res.json(payload);
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
       targetType: 'USER',

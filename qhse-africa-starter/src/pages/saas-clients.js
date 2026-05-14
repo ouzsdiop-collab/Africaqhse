@@ -456,6 +456,7 @@ export function renderSaasClients() {
               body: JSON.stringify({ status: v })
             });
             const j = await r.json().catch(() => ({}));
+            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/users', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
             if (!r.ok) {
               showToast(typeof j.error === 'string' ? j.error : 'Échec', 'error');
               sel.value = prev;
@@ -490,6 +491,7 @@ export function renderSaasClients() {
               body: JSON.stringify({})
             });
             const b2 = await r2.json().catch(() => ({}));
+            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/reset-password', hasTemporaryPasswordOneTime: Boolean(b2?.temporaryPasswordOneTime), email: b2?.user?.email, invitationSent: b2?.invitation?.sent });
             if (!r2.ok) {
               showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
               return;
@@ -524,6 +526,7 @@ export function renderSaasClients() {
               headers: { 'Content-Type': 'application/json' }
             });
             const j = await r.json().catch(() => ({}));
+            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/users', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
             if (!r.ok) {
               showToast(typeof j.error === 'string' ? j.error : 'Impossible d’ouvrir l’interface client', 'error');
               return;
@@ -629,6 +632,7 @@ export function renderSaasClients() {
                 body: JSON.stringify({ tenantId: tenant })
               });
               const b2 = await r2.json().catch(() => ({}));
+              console.log('[saas-admin.password.one-shot]', { route: '/api/admin/users/:userId/reset-password', hasTemporaryPasswordOneTime: Boolean(b2?.temporaryPasswordOneTime), email: b2?.user?.email, invitationSent: b2?.invitation?.sent });
               if (!r2.ok) {
                 showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
                 return;
@@ -712,6 +716,7 @@ export function renderSaasClients() {
               body: JSON.stringify({ name, email, role })
             });
             const j = await r.json().catch(() => ({}));
+            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/users', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
             if (!r.ok) {
               showToast(typeof j.error === 'string' ? j.error : `Erreur ${r.status}`, 'error');
               return;
@@ -779,6 +784,7 @@ export function renderSaasClients() {
         body: JSON.stringify(body)
       });
       const j = await res.json().catch(() => ({}));
+      console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
       if (!res.ok) {
         showToast(typeof j.error === 'string' ? j.error : `Erreur ${res.status}`, 'error');
         return;
