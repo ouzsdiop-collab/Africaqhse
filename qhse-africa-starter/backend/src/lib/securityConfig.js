@@ -8,32 +8,52 @@ function envFalsy(name) {
   return v === 'false' || v === '0';
 }
 
-export function getCorsMiddlewareOptions() {
-  // Priorité : CORS_ORIGINS (nouvelle variable). ALLOWED_ORIGINS reste en fallback.
-  const raw = process.env.CORS_ORIGINS || process.env.ALLOWED_ORIGINS || '';
-  const whitelist = raw
-    .split(',')
+export function getAllowedCorsOrigins() {
+  const rawValues = [
+    process.env.CORS_ORIGINS,
+    process.env.ALLOWED_ORIGINS,
+    process.env.FRONTEND_URL,
+    process.env.APP_URL
+  ];
+  const parsed = rawValues
+    .flatMap((v) => String(v ?? '').split(','))
     .map((o) => o.trim())
     .filter(Boolean);
 
-  const devDefaults = ['http://localhost:5173', 'http://127.0.0.1:5173'];
-  const origins = whitelist.length > 0 ? whitelist : devDefaults;
+  const withFallback = [...parsed, 'https://app.qhsecontrol.com'];
+  const unique = [...new Set(withFallback)];
 
-  if (process.env.NODE_ENV === 'production' && whitelist.length === 0) {
+  if (process.env.NODE_ENV !== 'production') {
+    for (const devOrigin of ['http://localhost:5173', 'http://127.0.0.1:5173']) {
+      if (!unique.includes(devOrigin)) unique.push(devOrigin);
+    }
+  }
+
+  return unique;
+}
+
+export function getCorsMiddlewareOptions() {
+  const origins = getAllowedCorsOrigins();
+
+  if (process.env.NODE_ENV === 'production' && origins.length === 0) {
     throw new Error(
-      '[CORS] CORS_ORIGINS/ALLOWED_ORIGINS est vide en production — definissez-la dans les variables Railway.'
+      '[CORS] CORS_ORIGINS/ALLOWED_ORIGINS/FRONTEND_URL/APP_URL est vide en production — definissez-la dans les variables Railway.'
     );
+  }
+  if (origins.includes('*')) {
+    throw new Error('[CORS] wildcard "*" interdit avec credentials=true.');
   }
 
   return {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (origins.includes(origin)) return callback(null, true);
-      callback(new Error(`CORS : origine non autorisee — ${origin}`));
+      console.warn(`[cors] blocked origin: ${origin}`);
+      return callback(new Error(`CORS : origine non autorisee — ${origin}`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Request-Id']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   };
 }
 
@@ -58,10 +78,6 @@ export function isXUserIdAllowed() {
   return process.env.NODE_ENV !== 'production';
 }
 
-/**
- * Hébergeur « managé » (Railway, Render, Cloud Run, etc.) : même hors NODE_ENV=production,
- * on refuse REQUIRE_AUTH=false et ALLOW_X_USER_ID=true pour éviter une préprod publique ouverte.
- */
 function envPresent(name) {
   const v = process.env[name];
   return v != null && String(v).trim() !== '';
@@ -80,9 +96,6 @@ export function isManagedCloudRuntime() {
   return false;
 }
 
-/**
- * Affiche un avertissement stderr très visible si l’API tourne sans auth obligatoire (hors prod déjà bloquée).
- */
 export function formatRequireAuthDisabledBanner() {
   const lines = [
     '',
