@@ -15,5 +15,7 @@ router.post('/clients/:id/users', controller.createTenantUser);
 router.post('/clients/:id/reset-password', controller.resetClientPassword);
 router.patch('/users/:userId', controller.patchTenantUser);
 router.post('/users/:userId/reset-password', controller.resetUserPassword);
+router.post('/users/:userId/reset-access', controller.resetUserPassword);
+router.post('/users/:userId/resend-invitation', controller.resetUserPassword);
 
 export default router;
