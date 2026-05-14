@@ -372,7 +372,12 @@ export async function resetClientPassword(req, res, next) {
       metadata: { targetRole: 'CLIENT_ADMIN' }
     });
   } catch (err) {
-    next(err);
+    console.error('[admin.reset-client-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
   }
 }
 
@@ -536,7 +541,12 @@ export async function createTenantUser(req, res, next) {
       metadata: { role: user.role }
     });
   } catch (err) {
-    next(err);
+    console.error('[admin.reset-client-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
   }
 }
 
@@ -744,7 +754,12 @@ export async function resetUserPassword(req, res, next) {
       metadata: { targetRole: member.user.role }
     });
   } catch (err) {
-    next(err);
+    console.error('[admin.reset-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
   }
 }
 
@@ -819,10 +834,13 @@ export async function stopSetupMode(req, res, next) {
 export async function getSetupStatus(req, res) {
   try {
     const raw = req.cookies?.[QHSE_SETUP_COOKIE];
-    if (!raw) return res.json({ setupMode: false });
+    if (!raw) return res.json({ ok: true, setupMode: false, setupTenantId: null, setupTenantName: null });
     const p = jwt.verify(raw, getJwtSecret());
     res.json({
+      ok: true,
       setupMode: true,
+      setupTenantId: String(p.tenantId || ''),
+      setupTenantName: String(p.tenantName || ''),
       tenant: {
         id: String(p.tenantId || ''),
         name: String(p.tenantName || ''),
@@ -830,6 +848,6 @@ export async function getSetupStatus(req, res) {
       }
     });
   } catch {
-    res.json({ setupMode: false });
+    res.json({ ok: true, setupMode: false, setupTenantId: null, setupTenantName: null });
   }
 }
