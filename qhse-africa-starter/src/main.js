@@ -207,6 +207,25 @@ function swDebugLog(...args) {
   if (on) console.info('[QHSE/SW]', ...args);
 }
 
+
+function disableAndPurgeServiceWorkers() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        void registration.unregister();
+      });
+    }).catch(() => {});
+  }
+
+  if ('caches' in window) {
+    caches.keys().then((keys) => {
+      keys.forEach((key) => {
+        void caches.delete(key);
+      });
+    }).catch(() => {});
+  }
+}
+
 function registerPwaServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   if (import.meta.env.PROD && String(import.meta.env.VITE_DISABLE_SW || '').trim() === 'true') {
@@ -1024,7 +1043,7 @@ async function boot() {
     initRouting();
     await refreshSetupModeContext();
     ensureExpertMobileNavEscape();
-    registerPwaServiceWorker();
+    disableAndPurgeServiceWorkers();
     try {
       await Promise.race([restoreSessionFromToken(), sleep(10000)]);
     } catch (e) {

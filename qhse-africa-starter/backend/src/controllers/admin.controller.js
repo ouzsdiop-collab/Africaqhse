@@ -327,8 +327,7 @@ export async function resetClientPassword(req, res, next) {
     ]);
 
     const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;
-    try {
+    let invitationSent = false;    try {
       await emailService.sendProvisioningAccessEmail({
         toEmail: member.user.email,
         userName: member.user.name,
@@ -344,28 +343,25 @@ export async function resetClientPassword(req, res, next) {
         action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
         metadata: { context: 'RESET_CLIENT_ADMIN_ACCESS' }
       });
-    } catch {
-      return sendJsonError(
-        res,
-        502,
-        "Accès réinitialisé, mais l'envoi de l'e-mail a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
+    } catch (err) {
     }
 
     res.json({
       ok: true,
-      message: 'Accès administrateur client réinitialisé.',
       user: {
         id: member.user.id,
-        name: member.user.name,
         email: member.user.email,
-        clientCode: member.user.clientCode,
-        status: authService.USER_STATUS.INVITED,
-        mustChangePassword: true
+        role: 'CLIENT_ADMIN',
+        status: authService.USER_STATUS.INVITED
       },
-      invitation: { sent: invitationSent, expiresAt }
+      invitation: {
+        sent: invitationSent,
+        expiresAt,
+        ...(invitationSent ? {} : {
+          emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+        })
+      },
+      temporaryPasswordOneTime: provisional
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -500,8 +496,7 @@ export async function createTenantUser(req, res, next) {
     });
 
     const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;
-    try {
+    let invitationSent = false;    try {
       await emailService.sendProvisioningAccessEmail({
         toEmail: user.email,
         userName: user.name,
@@ -517,21 +512,20 @@ export async function createTenantUser(req, res, next) {
         action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
         metadata: { context: 'CREATE_USER' }
       });
-    } catch {
-      return sendJsonError(
-        res,
-        502,
-        "Compte créé, mais l'envoi de l'e-mail d'accès a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
+    } catch (err) {
     }
 
     res.status(201).json({
       ok: true,
-      message: 'Utilisateur créé.',
-      user: { ...user, status: authService.USER_STATUS.INVITED, mustChangePassword: true },
-      invitation: { sent: invitationSent, expiresAt }
+      user: { id: user.id, email: user.email, role: user.role, status: authService.USER_STATUS.INVITED },
+      invitation: {
+        sent: invitationSent,
+        expiresAt,
+        ...(invitationSent ? {} : {
+          emailError: "Accès créé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+        })
+      },
+      temporaryPasswordOneTime: provisional
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -705,8 +699,7 @@ export async function resetUserPassword(req, res, next) {
     ]);
 
     const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;
-    try {
+    let invitationSent = false;    try {
       await emailService.sendProvisioningAccessEmail({
         toEmail: member.user.email,
         userName: member.user.name,
@@ -722,19 +715,25 @@ export async function resetUserPassword(req, res, next) {
         action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
         metadata: { context: 'RESET_USER_ACCESS' }
       });
-    } catch {
-      return sendJsonError(
-        res,
-        502,
-        "Accès réinitialisé, mais l'envoi de l'e-mail a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
+    } catch (err) {
     }
 
     res.json({
       ok: true,
-      invitation: { sent: invitationSent, expiresAt }
+      user: {
+        id: member.user.id,
+        email: member.user.email,
+        role: member.user.role,
+        status: authService.USER_STATUS.INVITED
+      },
+      invitation: {
+        sent: invitationSent,
+        expiresAt,
+        ...(invitationSent ? {} : {
+          emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+        })
+      },
+      temporaryPasswordOneTime: provisional
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',

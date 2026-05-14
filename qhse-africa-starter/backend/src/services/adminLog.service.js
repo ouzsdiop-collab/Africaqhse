@@ -16,7 +16,7 @@ function sanitizeMetadata(meta) {
   const clone = { ...meta };
   for (const k of Object.keys(clone)) {
     const lk = k.toLowerCase();
-    if (lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
+    if (lk.includes('temporarypasswordonetime') || lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
       delete clone[k];
     }
   }
