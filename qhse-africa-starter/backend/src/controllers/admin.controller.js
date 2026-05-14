@@ -734,15 +734,6 @@ export async function resetUserPassword(req, res, next) {
 
     res.json({
       ok: true,
-      message: 'Accès utilisateur réinitialisé.',
-      user: {
-        id: member.user.id,
-        name: member.user.name,
-        email: member.user.email,
-        clientCode: member.user.clientCode,
-        status: authService.USER_STATUS.INVITED,
-        mustChangePassword: true
-      },
       invitation: { sent: invitationSent, expiresAt }
     });
     await writeAdminLog({
