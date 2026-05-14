@@ -494,7 +494,19 @@ export function renderSaasClients() {
               showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
               return;
             }
-            showToast('Accès réinitialisé. E-mail envoyé.', 'success');
+            if (typeof b2.temporaryPasswordOneTime === 'string' && b2.temporaryPasswordOneTime.trim()) {
+              const sent = b2?.invitation?.sent === true;
+              const exp = b2?.invitation?.expiresAt ? new Date(b2.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+              const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(b2?.invitation?.emailError || 'E-mail non envoyé'));
+              showOnceModal(
+                '<strong>Mot de passe provisoire généré</strong>',
+                b2.temporaryPasswordOneTime,
+                `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
+                { afterClose: () => void refreshList() }
+              );
+            } else {
+              showToast('Accès réinitialisé. E-mail envoyé.', 'success');
+            }
           } catch {
             showToast('Erreur réseau', 'error');
           } finally {
