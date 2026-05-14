@@ -327,8 +327,7 @@ export async function resetClientPassword(req, res, next) {
     ]);
 
     const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;
-    try {
+    let invitationSent = false;    try {
       await emailService.sendProvisioningAccessEmail({
         toEmail: member.user.email,
         userName: member.user.name,
@@ -502,8 +501,7 @@ export async function createTenantUser(req, res, next) {
     });
 
     const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;
-    try {
+    let invitationSent = false;    try {
       await emailService.sendProvisioningAccessEmail({
         toEmail: user.email,
         userName: user.name,
@@ -711,8 +709,7 @@ export async function resetUserPassword(req, res, next) {
     ]);
 
     const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;
-    try {
+    let invitationSent = false;    try {
       await emailService.sendProvisioningAccessEmail({
         toEmail: member.user.email,
         userName: member.user.name,
