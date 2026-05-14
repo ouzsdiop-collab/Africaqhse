@@ -16,7 +16,7 @@ function sanitizeMetadata(meta) {
   const clone = { ...meta };
   for (const k of Object.keys(clone)) {
     const lk = k.toLowerCase();
-    if (lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
+    if (lk.includes('temporarypasswordonetime') || lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
       delete clone[k];
     }
   }
@@ -27,16 +27,24 @@ export async function writeAdminLog({ actorUserId, targetType = null, targetId =
   const actor = String(actorUserId || '').trim();
   const act = String(action || '').trim().toUpperCase();
   if (!actor || !act) return;
-  await prisma.adminLog.create({
-    data: {
+  try {
+    await prisma.adminLog.create({
+      data: {
+        actorUserId: actor,
+        targetType: targetType ? String(targetType) : null,
+        targetId: targetId ? String(targetId) : null,
+        tenantId: tenantId ? String(tenantId) : null,
+        action: act,
+        metadata: sanitizeMetadata(metadata)
+      }
+    });
+  } catch (err) {
+    console.warn('[admin-log] write skipped', {
       actorUserId: actor,
-      targetType: targetType ? String(targetType) : null,
-      targetId: targetId ? String(targetId) : null,
-      tenantId: tenantId ? String(tenantId) : null,
       action: act,
-      metadata: sanitizeMetadata(metadata)
-    }
-  });
+      message: err instanceof Error ? err.message : String(err)
+    });
+  }
 }
 
 export async function listAdminLogs({ tenantId = '', action = '', limit = 100 }) {

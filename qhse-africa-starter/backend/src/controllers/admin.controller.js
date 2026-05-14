@@ -245,36 +245,42 @@ export async function createClient(req, res, next) {
         metadata: { context: 'CREATE_CLIENT_ADMIN' }
       });
     } catch (err) {
-      return sendJsonError(
-        res,
-        502,
-        "Compte créé, mais l'envoi de l'e-mail d'accès a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
     }
 
-    res.status(201).json({
+    const payload = {
       ok: true,
       tenant: {
         id: result.tenant.id,
         name: result.tenant.name,
         slug: result.tenant.slug
       },
-      message: 'Entreprise et compte administrateur créés.',
+      message: invitationSent
+        ? 'Compte créé. Copiez le mot de passe provisoire maintenant.'
+        : "Compte créé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant.",
       user: {
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
         clientCode,
-        status: authService.resolveUserStatus(result.user),
+        role: 'CLIENT_ADMIN',
+        status: authService.USER_STATUS.INVITED,
         mustChangePassword: true
       },
       invitation: {
         sent: invitationSent,
-        expiresAt
-      }
+        expiresAt,
+        ...(invitationSent ? {} : { emailError: 'SMTP non configuré ou refusé' })
+      },
+      temporaryPasswordOneTime: provisional
+    };
+    console.log('[admin.password.one-shot]', {
+      route: req.originalUrl,
+      hasTemporaryPasswordOneTime: Boolean(payload.temporaryPasswordOneTime),
+      userId: payload.user?.id,
+      email: payload.user?.email,
+      invitationSent: payload.invitation?.sent
     });
+    res.status(201).json(payload);
   } catch (err) {
     next(err);
   }
@@ -344,28 +350,28 @@ export async function resetClientPassword(req, res, next) {
         action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
         metadata: { context: 'RESET_CLIENT_ADMIN_ACCESS' }
       });
-    } catch {
-      return sendJsonError(
-        res,
-        502,
-        "Accès réinitialisé, mais l'envoi de l'e-mail a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
+    } catch (err) {
     }
 
     res.json({
       ok: true,
-      message: 'Accès administrateur client réinitialisé.',
       user: {
         id: member.user.id,
-        name: member.user.name,
         email: member.user.email,
-        clientCode: member.user.clientCode,
-        status: authService.USER_STATUS.INVITED,
-        mustChangePassword: true
+        role: 'CLIENT_ADMIN',
+        status: authService.USER_STATUS.INVITED
       },
-      invitation: { sent: invitationSent, expiresAt }
+      invitation: {
+        sent: invitationSent,
+        expiresAt,
+        ...(invitationSent ? {} : {
+          emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+        })
+      },
+      temporaryPasswordOneTime: provisional,
+      message: invitationSent
+        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -376,7 +382,12 @@ export async function resetClientPassword(req, res, next) {
       metadata: { targetRole: 'CLIENT_ADMIN' }
     });
   } catch (err) {
-    next(err);
+    console.error('[admin.reset-client-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
   }
 }
 
@@ -517,21 +528,23 @@ export async function createTenantUser(req, res, next) {
         action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
         metadata: { context: 'CREATE_USER' }
       });
-    } catch {
-      return sendJsonError(
-        res,
-        502,
-        "Compte créé, mais l'envoi de l'e-mail d'accès a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
+    } catch (err) {
     }
 
     res.status(201).json({
       ok: true,
-      message: 'Utilisateur créé.',
-      user: { ...user, status: authService.USER_STATUS.INVITED, mustChangePassword: true },
-      invitation: { sent: invitationSent, expiresAt }
+      user: { id: user.id, email: user.email, role: user.role, status: authService.USER_STATUS.INVITED },
+      invitation: {
+        sent: invitationSent,
+        expiresAt,
+        ...(invitationSent ? {} : {
+          emailError: "Accès créé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+        })
+      },
+      temporaryPasswordOneTime: provisional,
+      message: invitationSent
+        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -542,7 +555,12 @@ export async function createTenantUser(req, res, next) {
       metadata: { role: user.role }
     });
   } catch (err) {
-    next(err);
+    console.error('[admin.reset-client-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
   }
 }
 
@@ -722,28 +740,28 @@ export async function resetUserPassword(req, res, next) {
         action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
         metadata: { context: 'RESET_USER_ACCESS' }
       });
-    } catch {
-      return sendJsonError(
-        res,
-        502,
-        "Accès réinitialisé, mais l'envoi de l'e-mail a échoué. Relancez l'invitation.",
-        req,
-        { code: 'ACCESS_EMAIL_SEND_FAILED' }
-      );
+    } catch (err) {
     }
 
     res.json({
       ok: true,
-      message: 'Accès utilisateur réinitialisé.',
       user: {
         id: member.user.id,
-        name: member.user.name,
         email: member.user.email,
-        clientCode: member.user.clientCode,
-        status: authService.USER_STATUS.INVITED,
-        mustChangePassword: true
+        role: member.user.role,
+        status: authService.USER_STATUS.INVITED
       },
-      invitation: { sent: invitationSent, expiresAt }
+      invitation: {
+        sent: invitationSent,
+        expiresAt,
+        ...(invitationSent ? {} : {
+          emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+        })
+      },
+      temporaryPasswordOneTime: provisional,
+      message: invitationSent
+        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
     });
     await writeAdminLog({
       actorUserId: req.qhseUser?.id || '',
@@ -754,7 +772,12 @@ export async function resetUserPassword(req, res, next) {
       metadata: { targetRole: member.user.role }
     });
   } catch (err) {
-    next(err);
+    console.error('[admin.reset-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
   }
 }
 
@@ -829,10 +852,13 @@ export async function stopSetupMode(req, res, next) {
 export async function getSetupStatus(req, res) {
   try {
     const raw = req.cookies?.[QHSE_SETUP_COOKIE];
-    if (!raw) return res.json({ setupMode: false });
+    if (!raw) return res.json({ ok: true, setupMode: false, setupTenantId: null, setupTenantName: null });
     const p = jwt.verify(raw, getJwtSecret());
     res.json({
+      ok: true,
       setupMode: true,
+      setupTenantId: String(p.tenantId || ''),
+      setupTenantName: String(p.tenantName || ''),
       tenant: {
         id: String(p.tenantId || ''),
         name: String(p.tenantName || ''),
@@ -840,6 +866,6 @@ export async function getSetupStatus(req, res) {
       }
     });
   } catch {
-    res.json({ setupMode: false });
+    res.json({ ok: true, setupMode: false, setupTenantId: null, setupTenantName: null });
   }
 }
