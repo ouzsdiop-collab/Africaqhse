@@ -209,6 +209,10 @@ function swDebugLog(...args) {
 
 function registerPwaServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
+  if (import.meta.env.PROD && String(import.meta.env.VITE_DISABLE_SW || '').trim() === 'true') {
+    void navigator.serviceWorker.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister()))).catch(() => {});
+    return;
+  }
 
   if (!swClientHooksInstalled) {
     swClientHooksInstalled = true;
