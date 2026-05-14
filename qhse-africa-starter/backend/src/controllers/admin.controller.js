@@ -770,18 +770,6 @@ export async function getAdminLogs(req, res, next) {
   }
 }
 
-export async function getAdminLogs(req, res, next) {
-  try {
-    const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : '';
-    const action = typeof req.query.action === 'string' ? req.query.action.trim() : '';
-    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
-    const logs = await listAdminLogs({ tenantId, action, limit });
-    res.json({ logs });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function startSetupMode(req, res, next) {
   try {
     const tenantId = String(req.params.tenantId ?? '').trim();
