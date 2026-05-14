@@ -174,7 +174,10 @@ export function renderSaasClients() {
         <h3 id="sc-modal-title" style="margin-top:0">Mot de passe provisoire</h3>
         <p class="content-card-lead sc-modal-lead" style="font-size:13px"></p>
         <pre class="sc-modal-secret" style="font-size:14px;padding:12px;border-radius:8px;background:var(--surface-2,#f8fafc);border:1px solid rgba(15,23,42,.14);color:var(--color-text-primary,#0f172a);overflow:auto"></pre>
-        <p style="font-size:12px;color:var(--text2)">Ce message ne sera plus affiché après fermeture.</p>
+        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between">
+          <p style="font-size:12px;color:var(--text2);margin:0">Ce mot de passe ne sera plus visible après fermeture.</p>
+          <button type="button" class="btn sc-modal-copy">Copier</button>
+        </div>
       </div>
     </div>
   `;
@@ -190,6 +193,7 @@ export function renderSaasClients() {
   const modalSecret = page.querySelector('.sc-modal-secret');
   const modalClose = page.querySelector('.sc-modal-close');
   const modalInner = page.querySelector('.sc-modal-inner');
+  const modalCopy = page.querySelector('.sc-modal-copy');
 
   /** @type {((e: KeyboardEvent) => void) | null} */
   let provisionalModalEscHandler = null;
@@ -261,6 +265,17 @@ export function renderSaasClients() {
   });
   modal?.addEventListener('click', () => {
     closeProvisionalModal();
+  });
+
+  modalCopy?.addEventListener('click', async () => {
+    const value = String(modalSecret?.textContent || '').trim();
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast('Mot de passe copié.', 'success');
+    } catch {
+      showToast('Copie impossible.', 'error');
+    }
   });
 
   async function refreshList() {
@@ -460,7 +475,7 @@ export function renderSaasClients() {
           if (!btn || !tid) return;
           if (
             !window.confirm(
-              'Réinitialiser l'accès de l’administrateur client principal ? Un e-mail d'accès sera renvoyé ; l’ancien accès ne fonctionnera plus.'
+              `Réinitialiser l'accès de l’administrateur client principal ? Un e-mail d'accès sera renvoyé ; l’ancien accès ne fonctionnera plus.`
             )
           ) {
             return;
@@ -589,7 +604,7 @@ export function renderSaasClients() {
             if (!uid || !tenant) return;
             if (
               !window.confirm(
-                'Réinitialiser l'accès de cet utilisateur ? Un e-mail d'accès sera envoyé ; l’ancien accès ne fonctionnera plus.'
+                `Réinitialiser l'accès de cet utilisateur ? Un e-mail d'accès sera envoyé ; l’ancien accès ne fonctionnera plus.`
               )
             ) {
               return;
@@ -606,7 +621,19 @@ export function renderSaasClients() {
                 showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
                 return;
               }
-              showToast('Accès réinitialisé. E-mail envoyé.', 'success');
+              if (typeof b2.temporaryPasswordOneTime === 'string' && b2.temporaryPasswordOneTime.trim()) {
+                const sent = b2?.invitation?.sent === true;
+                const exp = b2?.invitation?.expiresAt ? new Date(b2.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+                const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(b2?.invitation?.emailError || 'E-mail non envoyé'));
+                showOnceModal(
+                  '<strong>Mot de passe provisoire généré</strong>',
+                  b2.temporaryPasswordOneTime,
+                  `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
+                  { afterClose: () => void refreshList() }
+                );
+              } else {
+                showToast('Accès réinitialisé.', 'success');
+              }
             } catch {
               showToast('Erreur réseau', 'error');
             } finally {
@@ -678,15 +705,27 @@ export function renderSaasClients() {
               return;
             }
 
-            showOnceModal(
-              '<strong>Utilisateur créé</strong>',
-              '',
-              j.user ? `${escapeHtml(j.user.name || '')} · <code>${escapeHtml(j.user.email || '')}</code>` : '',
-              { afterClose: () => void refreshList() }
-            );
+            if (typeof j.temporaryPasswordOneTime === 'string' && j.temporaryPasswordOneTime.trim()) {
+              const sent = j?.invitation?.sent === true;
+              const exp = j?.invitation?.expiresAt ? new Date(j.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+              const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(j?.invitation?.emailError || 'E-mail non envoyé'));
+              showOnceModal(
+                '<strong>Mot de passe provisoire généré</strong>',
+                j.temporaryPasswordOneTime,
+                `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>${j.user ? `${escapeHtml(j.user.email || '')}` : ''}<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
+                { afterClose: () => void refreshList() }
+              );
+            } else {
+              showOnceModal(
+                '<strong>Utilisateur créé</strong>',
+                '',
+                j.user ? `${escapeHtml(j.user.email || '')}` : '',
+                { afterClose: () => void refreshList() }
+              );
+            }
             nName.value = '';
             nEmail.value = '';
-            showToast("Utilisateur créé. E-mail d'accès envoyé.", 'success');
+            showToast(j?.invitation?.sent === false ? "Utilisateur créé. E-mail non envoyé : copiez le mot de passe provisoire." : "Utilisateur créé. E-mail d'accès envoyé.", j?.invitation?.sent === false ? 'warning' : 'success');
           } catch {
             showToast('Erreur réseau', 'error');
           } finally {
