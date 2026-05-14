@@ -42,6 +42,7 @@ export function resolveUserStatus(user) {
 }
 
 let warnedDevJwtSecret = false;
+let warnedDevRefreshSecretFallback = false;
 
 export function getJwtSecret() {
   const s = process.env.JWT_SECRET;
@@ -64,6 +65,19 @@ export function getJwtSecret() {
  * @param {{ id: string, name: string, email: string, role: string }} user
  * @param {string | null | undefined} tenantId
  */
+
+export function getRefreshJwtSecret() {
+  const refresh = String(process.env.JWT_REFRESH_SECRET ?? '').trim();
+  if (refresh.length >= 16) return refresh;
+
+  if (process.env.NODE_ENV !== 'production' && !warnedDevRefreshSecretFallback) {
+    warnedDevRefreshSecretFallback = true;
+    console.warn('[auth] JWT_REFRESH_SECRET absent/trop court — repli sur JWT_SECRET.');
+  }
+
+  return getJwtSecret();
+}
+
 export function issueAccessToken(user, tenantId) {
   const tid = typeof tenantId === 'string' ? tenantId.trim() : '';
   return jwt.sign(
@@ -85,7 +99,7 @@ export function issueRefreshToken(user, tenantId) {
   const tid = typeof tenantId === 'string' ? tenantId.trim() : '';
   return jwt.sign(
     { sub: user.id, type: 'refresh', ...(tid ? { tid } : {}) },
-    getJwtSecret(),
+    getRefreshJwtSecret(),
     { expiresIn: REFRESH_EXPIRES }
   );
 }
@@ -223,7 +237,7 @@ export function generateProvisioningPassword() {
 /** @returns {import('jsonwebtoken').JwtPayload & { sub?: string, tid?: string } | null} */
 export function verifyRefreshToken(token) {
   try {
-    const payload = jwt.verify(token, getJwtSecret());
+    const payload = jwt.verify(token, getRefreshJwtSecret());
     if (payload.type !== 'refresh') return null;
     return payload;
   } catch {

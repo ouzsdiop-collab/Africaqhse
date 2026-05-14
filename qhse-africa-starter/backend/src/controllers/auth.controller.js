@@ -162,6 +162,12 @@ export async function login(req, res, next) {
       tenants
     });
   } catch (err) {
+    console.error('[auth.login] failure', {
+      route: 'POST /api/auth/login',
+      identifierType: typeof req.body?.identifier === 'string' && req.body.identifier.includes('@') ? 'email' : 'client_code',
+      hasTenantSlug: Boolean(String(req.body?.tenantSlug ?? '').trim()),
+      message: err instanceof Error ? err.message : String(err)
+    });
     next(err);
   }
 }
