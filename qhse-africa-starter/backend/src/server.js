@@ -224,7 +224,7 @@ app.use(
 );
 /* CORS : credentials: true + whitelist via variables d'environnement — requis pour envoyer le cookie httpOnly qhse_refresh (refresh JWT). */
 const allowedCorsOrigins = getAllowedCorsOrigins();
-console.log(`[cors] allowed origins: ${allowedCorsOrigins.join(', ')}`);
+console.log('[cors] allowed origins', allowedCorsOrigins);
 const corsOptions = getCorsMiddlewareOptions();
 app.use(cors(corsOptions));
 app.use((req, res, next) => {

@@ -20,14 +20,14 @@ export function getAllowedCorsOrigins() {
     .map((o) => o.trim())
     .filter(Boolean);
 
-  const withFallback = [...parsed, 'https://app.qhsecontrol.com'];
+  const withFallback = [
+    ...parsed,
+    'https://app.qhsecontrol.com',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173'
+  ];
   const unique = [...new Set(withFallback)];
-
-  if (process.env.NODE_ENV !== 'production') {
-    for (const devOrigin of ['http://localhost:5173', 'http://127.0.0.1:5173']) {
-      if (!unique.includes(devOrigin)) unique.push(devOrigin);
-    }
-  }
 
   return unique;
 }
@@ -48,7 +48,7 @@ export function getCorsMiddlewareOptions() {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (origins.includes(origin)) return callback(null, true);
-      console.warn(`[cors] blocked origin: ${origin}`);
+      console.warn('[cors] blocked origin', origin);
       return callback(new Error(`CORS : origine non autorisee — ${origin}`));
     },
     credentials: true,
