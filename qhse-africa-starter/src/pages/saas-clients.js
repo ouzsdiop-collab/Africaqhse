@@ -141,7 +141,7 @@ export function renderSaasClients() {
           <div class="section-kicker">SaaS</div>
           <h3 style="margin:0 0 6px">Cockpit clients</h3>
           <p class="content-card-lead" style="margin:0;max-width:64ch;font-size:13px">
-            Par entreprise : utilisateurs, rôles, statut et modules activés. Création d’admin client et mot de passe provisoire à communiquer une seule fois.
+            Par entreprise : utilisateurs, rôles, statut et modules activés. Le mot de passe provisoire n’est visible qu’une seule fois (jamais récupérable ensuite).
           </p>
         </div>
       </div>
@@ -547,7 +547,7 @@ export function renderSaasClients() {
                   ${ROLE_OPTIONS.map((o) => `<option value="${escapeHtml(o.value)}" ${o.value === rVal ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
                 </select>
                 <button type="button" class="btn sc-btn-ghost sc-btn-apply-role" data-user="${escapeHtml(uid)}" data-tenant="${escapeHtml(tid)}">Rôle</button>
-                <button type="button" class="btn sc-btn-ghost sc-btn-user-reset" data-user="${escapeHtml(uid)}" data-tenant="${escapeHtml(tid)}">MDP</button>
+                <button type="button" class="btn sc-btn-ghost sc-btn-user-reset" data-user="${escapeHtml(uid)}" data-tenant="${escapeHtml(tid)}">Nouveau MDP</button>
                 <button type="button" class="btn sc-btn-ghost ${active ? 'sc-btn-danger' : ''} sc-btn-toggle-active" data-user="${escapeHtml(uid)}" data-tenant="${escapeHtml(tid)}" data-active="${active ? '1' : '0'}">${active ? 'Suspendre' : 'Réactiver'}</button>
               </td>
             `;
@@ -604,7 +604,7 @@ export function renderSaasClients() {
             if (!uid || !tenant) return;
             if (
               !window.confirm(
-                `Réinitialiser l'accès de cet utilisateur ? Un e-mail d'accès sera envoyé ; l’ancien accès ne fonctionnera plus.`
+                `Générer un nouveau mot de passe provisoire pour cet utilisateur ? L’ancien accès ne fonctionnera plus.`
               )
             ) {
               return;
