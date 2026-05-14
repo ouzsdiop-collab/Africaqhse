@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qhse-terrain-v5';
+const CACHE_NAME = 'qhse-terrain-v6';
 
 /** Précache léger : pas de HTML (évite un shell figé d’une ancienne build). */
 const PRECACHE_URLS = ['/manifest.webmanifest'];
@@ -58,6 +58,14 @@ function networkOnly(request) {
   return fetch(request);
 }
 
+async function safeFetch(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return null;
+  }
+}
+
 /** Réseau → mise à jour cache ; échec → cache (requête, index, /). */
 async function networkFirstNavigate(request) {
   const cache = await caches.open(CACHE_NAME);
@@ -78,28 +86,20 @@ async function networkFirstNavigate(request) {
   }
 }
 
-/** Cache first (offline rapide) ; mise à jour en arrière-plan si le réseau répond. */
-async function cacheFirstStaleWhileRevalidate(request) {
+/** Static assets (JS/CSS/etc.) : network first pour éviter les vieux chunks, fallback cache. */
+async function networkFirstStatic(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
-
-  const networkPromise = fetch(request)
-    .then(async (res) => {
-      if (res.ok) {
-        await putResponse(cache, request, res);
-      }
-      return res;
-    })
-    .catch(() => null);
-
-  if (cached) {
-    void networkPromise;
-    return cached;
+  const networkRes = await safeFetch(request);
+  if (networkRes && networkRes.ok) {
+    await putResponse(cache, request, networkRes);
+    return networkRes;
   }
 
-  const res = await networkPromise;
-  if (res) return res;
-  return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  if (networkRes) return networkRes;
+  return new Response('', { status: 503, statusText: 'Service Unavailable' });
 }
 
 self.addEventListener('fetch', (event) => {
@@ -111,7 +111,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (req.headers.has('range')) {
-    event.respondWith(fetch(req));
+    event.respondWith(safeFetch(req).then((res) => res || new Response('', { status: 503, statusText: 'Service Unavailable' })));
     return;
   }
 
@@ -126,11 +126,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isCacheFirstStaticPath(url.pathname)) {
-    event.respondWith(cacheFirstStaleWhileRevalidate(req));
+    event.respondWith(networkFirstStatic(req));
     return;
   }
 
-  event.respondWith(fetch(req));
+  event.respondWith(safeFetch(req).then((res) => res || new Response('', { status: 503, statusText: 'Service Unavailable' })));
 });
 
 // Notification de mise à jour SW
