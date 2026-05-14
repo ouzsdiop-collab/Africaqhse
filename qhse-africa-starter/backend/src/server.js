@@ -6,7 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
-import { getCorsMiddlewareOptions } from './lib/securityConfig.js';
+import { getCorsMiddlewareOptions, getAllowedCorsOrigins } from './lib/securityConfig.js';
 import { getJsonBodyLimit } from './lib/jsonBodyLimit.js';
 import { initSentryBackend, setupSentryExpressErrorHandler } from './sentryInit.js';
 import { httpRequestLog } from './middleware/httpRequestLog.middleware.js';
@@ -222,8 +222,15 @@ app.use(
     crossOriginEmbedderPolicy: false
   })
 );
-/* CORS : credentials: true + whitelist via CORS_ORIGINS (fallback ALLOWED_ORIGINS) — requis pour envoyer le cookie httpOnly qhse_refresh (refresh JWT). */
-app.use(cors(getCorsMiddlewareOptions()));
+/* CORS : credentials: true + whitelist via variables d'environnement — requis pour envoyer le cookie httpOnly qhse_refresh (refresh JWT). */
+const allowedCorsOrigins = getAllowedCorsOrigins();
+console.log('[cors] allowed origins', allowedCorsOrigins);
+const corsOptions = getCorsMiddlewareOptions();
+app.use(cors(corsOptions));
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') return cors(corsOptions)(req, res, next);
+  return next();
+});
 app.use(compression());
 app.use(express.json({ limit: getJsonBodyLimit() }));
 app.use(cookieParser());
