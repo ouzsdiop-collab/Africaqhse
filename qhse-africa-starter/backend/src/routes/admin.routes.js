@@ -8,6 +8,10 @@ const router = Router();
 router.use(requireSuperAdmin);
 
 router.get('/logs', controller.getAdminLogs);
+router.get('/setup/current', controller.getSetupStatus);
+router.get('/setup/status', controller.getSetupStatus);
+router.post('/setup/start/:tenantId', controller.startSetupMode);
+router.post('/setup/stop', controller.stopSetupMode);
 router.get('/clients', controller.listClients);
 router.post('/clients', controller.createClient);
 router.patch('/clients/:id', controller.patchTenant);
@@ -15,5 +19,7 @@ router.post('/clients/:id/users', controller.createTenantUser);
 router.post('/clients/:id/reset-password', controller.resetClientPassword);
 router.patch('/users/:userId', controller.patchTenantUser);
 router.post('/users/:userId/reset-password', controller.resetUserPassword);
+router.post('/users/:userId/reset-access', controller.resetUserPassword);
+router.post('/users/:userId/resend-invitation', controller.resetUserPassword);
 
 export default router;
