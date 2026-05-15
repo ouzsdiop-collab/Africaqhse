@@ -81,11 +81,11 @@ function ensureTerrainMobileStyles() {
   el.textContent = `
 .terrain-bottom-nav{display:none!important}
 @media (max-width:900px){
-  [data-display-mode="terrain"] .sidebar-v2{display:none!important}
-  [data-display-mode="terrain"] .topbar-v2__center,
-  [data-display-mode="terrain"] .topbar-v2__quick-wrap{display:none!important}
-  [data-display-mode="terrain"] .main-shell{padding-bottom:74px}
-  [data-display-mode="terrain"] .terrain-bottom-nav{
+  [data-display-mode="field"] .sidebar-v2{display:none!important}
+  [data-display-mode="field"] .topbar-v2__center,
+  [data-display-mode="field"] .topbar-v2__quick-wrap{display:none!important}
+  [data-display-mode="field"] .main-shell{padding-bottom:74px}
+  [data-display-mode="field"] .terrain-bottom-nav{
     display:grid!important;
     position:fixed;left:0;right:0;bottom:0;z-index:2000;
     grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;
@@ -469,7 +469,7 @@ function scheduleIdleRoutePrefetch() {
     const su2 = getSessionUser();
     if (!su2?.role) return;
     const cur = appState.currentPage;
-    const terrain = getDisplayMode() === 'terrain';
+    const terrain = getDisplayMode() === 'field';
     /** @type {Array<keyof typeof PAGE_IMPORT_LOADERS>} */
     const want = ['incidents', 'risks', 'actions', 'audits'];
     if (terrain) want.push('terrain-mode');
@@ -743,7 +743,7 @@ function renderApp() {
       }
     }
 
-    const terrainMode = getDisplayMode() === 'terrain';
+    const terrainMode = getDisplayMode() === 'field';
     const expertMode = getDisplayMode() === 'expert';
     ensureTerrainMobileStyles();
     if (terrainMode) {
