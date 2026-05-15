@@ -1,16 +1,20 @@
 /* Mode Essentiel (desktop) : cockpit simplifié, sans impacter le mode terrain mobile.
    IMPORTANT: tout ici est limité à >=1025px pour ne pas toucher au mobile. */
 
-@media (min-width: 1025px) {
-  /* ═══ Navigation : garder le menu (repères utilisateur) en Essentiel desktop ═══ */
-  [data-display-mode='terrain'] .sidebar-v2__terrain-dock {
+@media (min-width: 901px) {
+  /* Essentiel desktop/tablette: retire la sidebar du flux pour éviter la colonne fantôme (258px). */
+  [data-display-mode='terrain'] .app-shell > .sidebar-v2 {
     display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    flex: 0 0 0 !important;
   }
 
-  [data-display-mode='terrain'] .sidebar-v2__brand,
-  [data-display-mode='terrain'] .sidebar-v2__nav,
-  [data-display-mode='terrain'] .sidebar-v2__footer {
-    display: flex !important;
+  [data-display-mode='terrain'] .app-shell > .main-shell {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   /* ═══ Barre Essentiel/Expert par page : moins de bruit quand le mode global est Essentiel ═══ */
@@ -173,6 +177,20 @@
 .dashboard-essential-pilotage__summary { margin:0; line-height:1.68; color:var(--text,#0f172a); display:grid; gap:8px; max-width:72ch; }
 .dashboard-essential-pilotage__summary-line { display:block; }
 .dashboard-essential-pilotage__empty { list-style:none; color:var(--text2,#94a3b8); padding-left:0; font-size:12px; }
+
+.dashboard-essential-pilotage__card,
+.dashboard-essential-pilotage__header,
+.dashboard-essential-pilotage__head-main,
+.dashboard-essential-pilotage__mini-card,
+.dashboard-essential-pilotage__priorities,
+.dashboard-essential-pilotage__alerts,
+.dashboard-essential-pilotage__actions,
+.dashboard-essential-pilotage__summary { min-width:0; }
+.dashboard-essential-pilotage__prio-label,
+.dashboard-essential-pilotage__prio-reason,
+.dashboard-essential-pilotage__alert,
+.dashboard-essential-pilotage__action,
+.dashboard-essential-pilotage__summary-line { overflow-wrap:anywhere; word-break:break-word; }
 @media (max-width: 900px) {
   .dashboard-essential-pilotage__header { flex-direction:column; }
   .dashboard-essential-pilotage__status { align-self:flex-start; }
