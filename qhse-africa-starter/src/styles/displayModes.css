@@ -84,6 +84,73 @@
   grid-template-columns: repeat(4, 1fr);
 }
 
+/* ═══ MODE ESSENTIEL : dashboard prioritaire (sans toucher au mode Expert) ═══ */
+[data-display-mode="essential"] .dashboard-page .dashboard-kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-kpi-grid .dashboard-kpi-card:nth-child(n+5) {
+  display: none;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-kpi-card {
+  min-height: 128px;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-kpi-card .metric-value {
+  font-size: clamp(34px, 5vw, 44px);
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-section--charts .dashboard-charts-grid .dashboard-chart-card:nth-child(n+2) {
+  display: none;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-section--essential-now .dashboard-essential-now-list,
+[data-display-mode="essential"] .dashboard-page .dashboard-section--essential-alerts .dashboard-essential-alerts-list {
+  display: grid;
+  gap: 10px;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-essential-now-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-essential-now-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text2);
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-essential-now-main strong {
+  width: 100%;
+  font-size: 14px;
+  color: var(--text);
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-essential-alert-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  background: color-mix(in srgb, rgba(251, 146, 60, 0.14) 68%, var(--color-background-secondary));
+  font-size: 13px;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-essential-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+[data-display-mode="essential"] .dashboard-page .dashboard-essential-quick-btn {
+  justify-content: center;
+  min-height: 44px;
+}
+@media (max-width: 720px) {
+  [data-display-mode="essential"] .dashboard-page .dashboard-kpi-grid,
+  [data-display-mode="essential"] .dashboard-page .dashboard-essential-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ═══ Bandeau guide (injecté par createSimpleModeGuide) ═══ */
 
 .qhse-simple-guide {

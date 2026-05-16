@@ -1627,11 +1627,56 @@ export function renderDashboard() {
   if (kpiQuick) kpiFoot.append(kpiQuick);
 
   kpiSection.append(
-    makeSectionHeader('Priorités', 'Cinq indicateurs clés', 'Le détail et les listes complètes : volet « Analyses & modules » ou clic sur une carte.'),
+    makeSectionHeader('Priorités QHSE', "Les points à traiter aujourd'hui", 'Le détail et les listes complètes : volet « Analyses & modules » ou clic sur une carte.'),
     kpiStickyWrap,
     tfTgMini.root,
     kpiPriorityLine,
     ...(kpiQuick ? [kpiFoot] : [])
+  );
+
+  const essentialNowSection = document.createElement('section');
+  essentialNowSection.className = 'dashboard-section dashboard-section--essential-now';
+  const essentialNowList = document.createElement('div');
+  essentialNowList.className = 'dashboard-essential-now-list';
+  essentialNowSection.append(
+    makeSectionHeader('Exécution', 'À traiter maintenant', 'Actions critiques, FDS, audits et risques les plus urgents.'),
+    essentialNowList
+  );
+
+  const essentialAlertsSection = document.createElement('section');
+  essentialAlertsSection.className = 'dashboard-section dashboard-section--essential-alerts';
+  const essentialAlertsList = document.createElement('div');
+  essentialAlertsList.className = 'dashboard-essential-alerts-list';
+  essentialAlertsSection.append(
+    makeSectionHeader('Signaux', 'Alertes intelligentes', 'Maximum 5 alertes prioritaires.'),
+    essentialAlertsList
+  );
+
+  const essentialQuickSection = document.createElement('section');
+  essentialQuickSection.className = 'dashboard-section dashboard-section--essential-quick';
+  const essentialQuickGrid = document.createElement('div');
+  essentialQuickGrid.className = 'dashboard-essential-quick-grid';
+  const quickActions = [
+    { label: 'Déclarer incident', page: 'incidents', intent: { source: 'dashboard_essential_quick_incident' } },
+    { label: 'Ajouter action', page: 'actions', intent: { source: 'dashboard_essential_quick_action' } },
+    { label: 'Voir risques critiques', page: 'risks', intent: { source: 'dashboard_essential_quick_risks' } },
+    { label: 'Importer données', page: 'documents', intent: { source: 'dashboard_essential_quick_import' } },
+    { label: 'Export PDF', custom: exportDirectionToast }
+  ];
+  for (const item of quickActions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-primary dashboard-essential-quick-btn';
+    btn.textContent = item.label;
+    btn.addEventListener('click', () => {
+      if (typeof item.custom === 'function') item.custom();
+      else qhseNavigate(item.page, item.intent || { source: 'dashboard_essential_quick' });
+    });
+    essentialQuickGrid.append(btn);
+  }
+  essentialQuickSection.append(
+    makeSectionHeader('Accès rapides', 'Actions immédiates', 'Ouvrez les modules opérationnels en un clic.'),
+    essentialQuickGrid
   );
 
   const chartsSection = document.createElement('section');
@@ -1844,6 +1889,9 @@ export function renderDashboard() {
     bandExecutiveSummary,
     decisionAlertsBand,
     kpiSection,
+    essentialNowSection,
+    essentialAlertsSection,
+    essentialQuickSection,
     primaryChartSection,
     bandPriority,
     bandIntelligence,
@@ -1894,6 +1942,45 @@ export function renderDashboard() {
 
   function updateKpiPriorityLine() {
     return updateKpiPriorityLineModule(kpiPriorityLine, kpiDashboardLists, lastStats);
+  }
+
+  function renderEssentialNow(stats, actions = [], audits = [], docs = [], risks = []) {
+    const items = [];
+    const overdueCrit = actions.filter((a) => (a?.status || '') !== 'done' && new Date(a?.dueDate || 0) < new Date()).slice(0, 2);
+    for (const a of overdueCrit) items.push({ t: a.title || 'Action critique en retard', p: 'Critique', d: a.dueDate || 'N/A', page: 'actions' });
+    if ((stats?.overdueActions || 0) > 0 && overdueCrit.length === 0) items.push({ t: 'Actions en retard', p: 'Attention', d: "Aujourd'hui", page: 'actions' });
+    const expFds = docs.filter((d) => d?.nextReviewDate && new Date(d.nextReviewDate) <= new Date()).slice(0, 1);
+    if (expFds.length) items.push({ t: 'FDS à revoir', p: 'Attention', d: expFds[0].nextReviewDate, page: 'documents' });
+    if ((stats?.audits || 0) > 0) items.push({ t: 'Audits à planifier', p: 'Attention', d: 'Cette semaine', page: 'audits' });
+    if (Array.isArray(risks) && risks.some((r) => ['critical', 'high'].includes(String(r?.level || '').toLowerCase()))) {
+      items.push({ t: 'Risques critiques ouverts', p: 'Critique', d: 'Immédiat', page: 'risks' });
+    }
+    const trimmed = items.slice(0, 4);
+    essentialNowList.replaceChildren();
+    for (const item of trimmed) {
+      const row = document.createElement('div');
+      row.className = 'dashboard-essential-now-row';
+      row.innerHTML = `<div class="dashboard-essential-now-main"><strong>${escapeHtml(item.t)}</strong><span>${escapeHtml(item.p)}</span><span>${escapeHtml(String(item.d))}</span></div>`;
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'btn btn-secondary dashboard-essential-open-btn';
+      open.textContent = 'Ouvrir';
+      open.addEventListener('click', () => qhseNavigate(item.page, { source: 'dashboard_essential_now' }));
+      row.append(open);
+      essentialNowList.append(row);
+    }
+  }
+
+  function renderEssentialAlerts(stats = {}, risks = [], docs = [], incidents = []) {
+    const alerts = [];
+    const conf = Number(stats?.conformityRate || 0);
+    if (conf > 0 && conf < 80) alerts.push('Conformité < 80 %');
+    if ((stats?.overdueActions || 0) > 0) alerts.push('Action critique en retard');
+    if ((stats?.audits || 0) > 0) alerts.push('Audit à planifier');
+    if (docs.some((d) => d?.nextReviewDate && new Date(d.nextReviewDate) <= new Date())) alerts.push('FDS expirée');
+    if (Array.isArray(incidents) && incidents.length >= 3) alerts.push('Incident récurrent');
+    const trimmed = alerts.slice(0, 5);
+    essentialAlertsList.innerHTML = trimmed.map((a) => `<div class="dashboard-essential-alert-item">${escapeHtml(a)}</div>`).join('');
   }
 
   function dismissKpiSkeleton() {
@@ -2066,6 +2153,8 @@ export function renderDashboard() {
       incidents,
       ncs
     });
+    renderEssentialNow(lastStats, actions, audits, docs, kpiDashboardLists.risks);
+    renderEssentialAlerts(lastStats, kpiDashboardLists.risks, docs, incidents);
 
     try {
       const snap = await buildAssistantSnapshot({
@@ -2281,6 +2370,8 @@ export function renderDashboard() {
       });
       priorityNow.update({ stats: lastStats, ncs: [], audits: [] });
       updateDecisionAlerts(lastStats, [], [], [], []);
+      renderEssentialNow(lastStats, [], [], [], []);
+      renderEssentialAlerts(lastStats, [], [], []);
 
       await loadListsAndRefreshDashboard(false);
     } catch (err) {
