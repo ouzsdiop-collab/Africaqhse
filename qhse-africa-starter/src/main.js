@@ -862,6 +862,7 @@ function renderApp() {
       { label: 'Paramètres', href: '/admin/parametres' }
     ];
 
+    let clientSidebar = null;
     if (isAdminPath && String(getSessionUser()?.role || '').toUpperCase() === 'SUPER_ADMIN') {
       const adminNav = document.createElement('aside');
       adminNav.className = 'sidebar-v2';
@@ -894,7 +895,7 @@ function renderApp() {
       nav?.append(logoutBtn);
       shell.append(adminNav);
     } else {
-      const sidebar = createSidebar({
+      clientSidebar = createSidebar({
       currentPage: appState.currentPage,
       onNavigate: (pageId) => {
         if (expertMode) appState.expertMobileNavOpen = false;
@@ -935,7 +936,7 @@ function renderApp() {
           .catch((err) => console.error('[QHSE] notifications après changement profil', err));
       }
       });
-      shell.append(sidebar);
+      shell.append(clientSidebar);
     }
 
     const content = document.createElement('main');
@@ -1038,9 +1039,11 @@ function renderApp() {
     syncDocumentTitle(appState.currentPage);
     scheduleIdleRoutePrefetch();
 
-    void refreshShellNavBadges(sidebar).catch((err) => {
-      console.error('[QHSE] refreshShellNavBadges', err);
-    });
+    if (clientSidebar) {
+      void refreshShellNavBadges(clientSidebar).catch((err) => {
+        console.error('[QHSE] refreshShellNavBadges', err);
+      });
+    }
   } catch (e) {
     console.error('[QHSE] renderApp', e);
     captureQhseException(e, { phase: 'renderApp' });
