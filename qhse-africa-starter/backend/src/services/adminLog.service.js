@@ -13,10 +13,20 @@ export const ADMIN_LOG_ACTIONS = Object.freeze({
 
 function sanitizeMetadata(meta) {
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  const forbiddenKeys = new Set([
+    'password',
+    'temporarypassword',
+    'provisionalpassword',
+    'temporarypasswordonetime',
+    'token',
+    'hash',
+    'secret',
+    'smtp_pass'
+  ]);
   const clone = { ...meta };
   for (const k of Object.keys(clone)) {
-    const lk = k.toLowerCase();
-    if (lk.includes('temporarypasswordonetime') || lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
+    const lk = String(k || '').toLowerCase();
+    if (forbiddenKeys.has(lk) || lk.includes('password') || lk.includes('token') || lk.includes('secret') || lk.includes('hash')) {
       delete clone[k];
     }
   }

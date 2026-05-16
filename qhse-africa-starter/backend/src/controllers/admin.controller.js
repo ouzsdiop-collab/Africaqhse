@@ -255,8 +255,8 @@ export async function createClient(req, res, next) {
         slug: result.tenant.slug
       },
       message: invitationSent
-        ? 'Compte créé. Copiez le mot de passe provisoire maintenant.'
-        : "Compte créé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant.",
+        ? 'Accès généré. Copiez le mot de passe provisoire maintenant.'
+        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant.",
       user: {
         id: result.user.id,
         name: result.user.name,
