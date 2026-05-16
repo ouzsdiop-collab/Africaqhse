@@ -182,7 +182,7 @@ export function canAccessNavPage(role, pageId) {
   if (!role) return true;
   const r = String(role).toUpperCase();
   if (r === 'SUPER_ADMIN') {
-    return pageId === 'saas-clients' || pageId === 'first-password';
+    return ['saas-clients', 'activity-log-server', 'settings', 'first-password'].includes(pageId);
   }
   if (pageId === 'saas-clients' && r !== 'SUPER_ADMIN') return false;
   if (pageId === 'first-password') return true;
