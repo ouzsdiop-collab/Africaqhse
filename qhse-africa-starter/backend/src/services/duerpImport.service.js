@@ -1,7 +1,7 @@
 import { createRequire } from 'module';
 import * as risksService from './risks.service.js';
 import * as actionsService from './actions.service.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
