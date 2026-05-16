@@ -171,7 +171,7 @@ export function renderSaasClients() {
     <div class="sc-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.38);display:none;align-items:center;justify-content:center;z-index:10050;padding:16px" role="dialog" aria-modal="true" aria-labelledby="sc-modal-title" aria-hidden="true">
       <div class="content-card card-soft sc-modal-inner" style="max-width:480px;width:100%;position:relative">
         <button type="button" class="btn sc-modal-close" style="position:absolute;top:12px;right:12px">J'ai copié</button>
-        <h3 id="sc-modal-title" style="margin-top:0">Mot de passe provisoire</h3>
+        <h3 id="sc-modal-title" style="margin-top:0">Mot de passe provisoire généré</h3>
         <p class="content-card-lead sc-modal-lead" style="font-size:13px"></p>
         <pre class="sc-modal-secret" style="font-size:14px;padding:12px;border-radius:8px;background:var(--surface-2,#f8fafc);border:1px solid rgba(15,23,42,.14);color:var(--color-text-primary,#0f172a);overflow:auto"></pre>
         <div style="display:flex;gap:10px;align-items:center;justify-content:space-between">
@@ -200,6 +200,15 @@ export function renderSaasClients() {
 
   /** @type {(() => void) | null} */
   let provisionalModalAfterClose = null;
+
+  function debugPasswordOneShot(action, data) {
+    console.log('[saas-admin.password.one-shot]', {
+      action,
+      hasTemporaryPasswordOneTime: Boolean(data?.temporaryPasswordOneTime),
+      email: data?.user?.email,
+      invitationSent: data?.invitation?.sent
+    });
+  }
 
   function closeProvisionalModal() {
     if (!modal) return;
@@ -422,6 +431,7 @@ export function renderSaasClients() {
                   body: JSON.stringify({ modules: { [key]: enabled } })
                 });
                 const j = await r.json().catch(() => ({}));
+            debugPasswordOneShot('create-tenant-user', j);
                 if (!r.ok) {
                   showToast(typeof j.error === 'string' ? j.error : 'Échec enregistrement module', 'error');
                   inp.checked = !enabled;
@@ -456,7 +466,8 @@ export function renderSaasClients() {
               body: JSON.stringify({ status: v })
             });
             const j = await r.json().catch(() => ({}));
-            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/users', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
+            debugPasswordOneShot('create-tenant-user', j);
+
             if (!r.ok) {
               showToast(typeof j.error === 'string' ? j.error : 'Échec', 'error');
               sel.value = prev;
@@ -491,7 +502,8 @@ export function renderSaasClients() {
               body: JSON.stringify({})
             });
             const b2 = await r2.json().catch(() => ({}));
-            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/reset-password', hasTemporaryPasswordOneTime: Boolean(b2?.temporaryPasswordOneTime), email: b2?.user?.email, invitationSent: b2?.invitation?.sent });
+            debugPasswordOneShot('reset-client-admin-password', b2);
+            
             if (!r2.ok) {
               showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
               return;
@@ -526,7 +538,7 @@ export function renderSaasClients() {
               headers: { 'Content-Type': 'application/json' }
             });
             const j = await r.json().catch(() => ({}));
-            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/users', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
+            
             if (!r.ok) {
               showToast(typeof j.error === 'string' ? j.error : 'Impossible d’ouvrir l’interface client', 'error');
               return;
@@ -632,7 +644,8 @@ export function renderSaasClients() {
                 body: JSON.stringify({ tenantId: tenant })
               });
               const b2 = await r2.json().catch(() => ({}));
-              console.log('[saas-admin.password.one-shot]', { route: '/api/admin/users/:userId/reset-password', hasTemporaryPasswordOneTime: Boolean(b2?.temporaryPasswordOneTime), email: b2?.user?.email, invitationSent: b2?.invitation?.sent });
+              debugPasswordOneShot('reset-tenant-user-password', b2);
+              
               if (!r2.ok) {
                 showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
                 return;
@@ -716,7 +729,7 @@ export function renderSaasClients() {
               body: JSON.stringify({ name, email, role })
             });
             const j = await r.json().catch(() => ({}));
-            console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients/:id/users', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
+            
             if (!r.ok) {
               showToast(typeof j.error === 'string' ? j.error : `Erreur ${r.status}`, 'error');
               return;
@@ -784,7 +797,8 @@ export function renderSaasClients() {
         body: JSON.stringify(body)
       });
       const j = await res.json().catch(() => ({}));
-      console.log('[saas-admin.password.one-shot]', { route: '/api/admin/clients', hasTemporaryPasswordOneTime: Boolean(j?.temporaryPasswordOneTime), email: j?.user?.email, invitationSent: j?.invitation?.sent });
+      debugPasswordOneShot('create-client-company-admin', j);
+      
       if (!res.ok) {
         showToast(typeof j.error === 'string' ? j.error : `Erreur ${res.status}`, 'error');
         return;
