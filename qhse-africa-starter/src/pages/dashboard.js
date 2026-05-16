@@ -1347,6 +1347,19 @@ export function renderDashboard() {
     criticalIncidents: [],
     overdueActionItems: []
   };
+  function updateExecutivePanelSafe(payload = {}) {
+    if (!executivePanel || typeof executivePanel.update !== 'function') return;
+    const next = payload && typeof payload === 'object' ? payload : {};
+    executivePanel.update({
+      stats: next.stats && typeof next.stats === 'object' ? next.stats : lastStats || {},
+      ncs: Array.isArray(next.ncs) ? next.ncs : [],
+      audits: Array.isArray(next.audits) ? next.audits : [],
+      siteLabel:
+        next.siteLabel != null && String(next.siteLabel).trim()
+          ? String(next.siteLabel).trim()
+          : siteName
+    });
+  }
   let dashboardNcListForKpi = [];
   alertsPrio.update({ stats: lastStats, ncs: [], audits: [] });
 
@@ -2124,6 +2137,12 @@ export function renderDashboard() {
       incidents,
       siteLabel: siteName
     });
+    updateExecutivePanelSafe({
+      stats: lastStats,
+      ncs,
+      audits,
+      siteLabel: siteName
+    });
     cockpit.update({
       stats: lastStats,
       incidents,
@@ -2351,6 +2370,12 @@ export function renderDashboard() {
         ncs: [],
         audits: [],
         incidents: [],
+        siteLabel: siteName
+      });
+      updateExecutivePanelSafe({
+        stats: lastStats,
+        ncs: [],
+        audits: [],
         siteLabel: siteName
       });
       cockpit.update({
