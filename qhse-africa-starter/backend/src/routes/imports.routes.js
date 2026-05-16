@@ -26,6 +26,23 @@ router.post(
   controller.preview
 );
 
+
+router.post(
+  '/duerp/preview',
+  importsWriteLimiter,
+  importUploadLimiter,
+  requirePermission('imports', 'write'),
+  controller.uploadSingleFile,
+  controller.previewDuerp
+);
+
+router.post(
+  '/duerp/confirm',
+  importsWriteLimiter,
+  requirePermission('imports', 'write'),
+  controller.confirmDuerp
+);
+
 router.post(
   '/confirm',
   importsWriteLimiter,

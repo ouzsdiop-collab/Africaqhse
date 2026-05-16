@@ -214,10 +214,10 @@ export function renderImports() {
   card.innerHTML = `
     <div class="content-card-head">
       <div>
-        <div class="section-kicker">Documents</div>
-        <h3>Import assisté : phase 1</h3>
+        <div class="section-kicker">Import document classique</div>
+        <h3>Import & reprise de données</h3>
         <p class="content-card-lead" style="margin:0;max-width:58ch;font-size:14px;line-height:1.5;color:var(--text2)">
-          CSV recommandé (modèle ci-dessous), PDF et tableur acceptés : aperçu brut, pré-analyse et brouillon indicatif. Aucune création en base tant que vous ne validez pas explicitement sur le module cible.
+          Importez vos documents QHSE, détectez les données exploitables et validez avant intégration.
         </p>
       </div>
     </div>
@@ -525,6 +525,81 @@ export function renderImports() {
     }
   });
 
+  const duerpCard = document.createElement('article');
+  duerpCard.className = 'content-card card-soft';
+  duerpCard.style.marginTop = '14px';
+  duerpCard.innerHTML = `
+    <div class="content-card-head">
+      <div>
+        <div class="section-kicker">Import DUERP QHSE Control</div>
+        <h3>DUERP généré par QHSE Control</h3>
+        <p class="content-card-lead" style="margin:0;max-width:62ch;font-size:13px">
+          Importez un PDF ou un fichier .qhse.json issu du générateur DUERP. QHSE Control détecte les unités de travail, risques, cotations, mesures et actions proposées. Validation humaine obligatoire avant création en base.
+        </p>
+      </div>
+    </div>
+  `;
+  const duerpInput = document.createElement('input');
+  duerpInput.type = 'file';
+  duerpInput.accept = '.pdf,.qhse.json,application/pdf,application/json,text/json';
+  duerpInput.className = 'control-input';
+  const duerpPreview = document.createElement('pre');
+  duerpPreview.style.cssText = 'display:none;margin-top:12px;padding:12px;border-radius:8px;background:rgba(0,0,0,.04);font-size:12px;line-height:1.45;white-space:pre-wrap';
+  const duerpChecks = document.createElement('div');
+  duerpChecks.style.cssText = 'display:none;margin-top:10px;gap:8px;flex-direction:column';
+  duerpChecks.innerHTML = `<label><input type="checkbox" data-k="a"> Je confirme que les données ont été relues</label>
+    <label><input type="checkbox" data-k="b"> Je confirme que les risques sélectionnés peuvent être importés</label>
+    <label><input type="checkbox" data-k="c"> Je comprends que ce document ne remplace pas une validation HSE officielle</label>`;
+  const duerpBtn = document.createElement('button');
+  duerpBtn.type = 'button';
+  duerpBtn.className = 'btn btn-primary';
+  duerpBtn.textContent = 'Importer un DUERP';
+  const duerpConfirmBtn = document.createElement('button');
+  duerpConfirmBtn.type = 'button';
+  duerpConfirmBtn.className = 'btn';
+  duerpConfirmBtn.style.display = 'none';
+  duerpConfirmBtn.textContent = 'Valider et importer';
+  let duerpPayload = null;
+  duerpBtn.addEventListener('click', async () => {
+    const file = duerpInput.files?.[0];
+    if (!file) return showToast('Choisissez un fichier DUERP.', 'warning');
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await qhseFetch('/api/imports/duerp/preview', { method: 'POST', body: fd });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(body.error || 'Analyse DUERP impossible', 'error');
+    duerpPayload = body.payload || {};
+    const p = body.preview || {};
+    duerpPreview.textContent = `Entreprise: ${p.entreprise}\nResponsable HSE: ${p.responsableHse}\nDate: ${p.date || 'N/A'}\nUnités de travail détectées: ${(p.unitesTravail || []).length}\nRisques détectés: ${(p.risques || []).length}\nActions proposées: ${(p.actions || []).length}\nChamps manquants: ${(p.missingFields || []).join(', ') || 'Aucun'}\nNiveau de confiance: ${p.confidence ?? 'N/A'}%`;
+    duerpPreview.style.display = 'block';
+    duerpChecks.style.display = 'flex';
+    duerpConfirmBtn.style.display = 'inline-flex';
+  });
+  duerpConfirmBtn.addEventListener('click', async () => {
+    const checked = (key) => Boolean(duerpChecks.querySelector(`input[data-k="${key}"]`)?.checked);
+    const res = await qhseFetch('/api/imports/duerp/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        previewPayload: duerpPayload,
+        sourceFileName: duerpInput.files?.[0]?.name ?? null,
+        acknowledgements: {
+          reviewed: checked('a'),
+          risksConfirmed: checked('b'),
+          officialValidationDisclaimer: checked('c')
+        }
+      })
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(body.error || 'Import DUERP impossible', 'error');
+    duerpPreview.textContent += `\n\nRapport final\nRisques créés: ${body.risksCreated}\nActions créées: ${body.actionsCreated}\nUnités créées: ${body.unitsCreated}\nLignes ignorées: ${(body.ignored || []).length}\nErreurs: ${(body.errors || []).length}\nRollback: ${body.rollbackAvailable ? 'Annuler cet import' : 'Préparé, non implémenté'}`;
+    showToast('Import DUERP terminé', 'info');
+  });
+  const duerpRow = document.createElement('div');
+  duerpRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center';
+  duerpRow.append(duerpInput, duerpBtn, duerpConfirmBtn);
+  duerpCard.append(duerpRow, duerpChecks, duerpPreview);
+
   const historyCard = document.createElement('article');
   historyCard.className = 'content-card card-soft qhse-page-advanced-only';
   historyCard.style.marginTop = '14px';
@@ -662,7 +737,7 @@ export function renderImports() {
 
   row.append(sampleBtn, input, btn);
   card.append(formatsHelp, row, out, draftPanel);
-  page.append(card, historyCard);
+  page.append(card, duerpCard, historyCard);
   refreshHistory();
   return page;
 }

@@ -7,6 +7,7 @@ import * as documentImportService from '../services/documentImport.service.js';
 import * as importConfirmService from '../services/importConfirm.service.js';
 import * as importHistoryService from '../services/importHistory.service.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
+import * as duerpImportService from '../services/duerpImport.service.js';
 
 const MAX_BYTES = 12 * 1024 * 1024;
 
@@ -197,6 +198,37 @@ export async function confirm(req, res, next) {
     });
   } catch (err) {
     next(err);
+  }
+}
+
+
+
+export async function previewDuerp(req, res) {
+  try {
+    if (!req.file?.buffer) return res.status(400).json({ error: 'Aucun fichier DUERP reçu.' });
+    const result = await duerpImportService.previewDuerpImport(req.file.buffer, req.file.originalname, req.file.mimetype);
+    res.json(result);
+  } catch (err) {
+    console.error('[imports] preview DUERP', err);
+    res.status(422).json({ error: 'Analyse DUERP impossible.' });
+  }
+}
+
+export async function confirmDuerp(req, res) {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const result = await duerpImportService.commitDuerpImport({
+      tenantId: req.qhseTenantId,
+      role: req.qhseUser?.role,
+      previewPayload: body.previewPayload,
+      acknowledgements: body.acknowledgements,
+      sourceFileName: body.sourceFileName
+    });
+    if (!result.ok) return res.status(422).json(result);
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('[imports] confirm DUERP', err);
+    res.status(500).json({ ok: false, error: 'Import DUERP impossible.' });
   }
 }
 
