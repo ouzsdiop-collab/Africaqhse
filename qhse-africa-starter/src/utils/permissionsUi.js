@@ -187,7 +187,7 @@ export function canAccessNavPage(role, pageId) {
   if (pageId === 'saas-clients' && r !== 'SUPER_ADMIN') return false;
   if (pageId === 'first-password') return true;
   if (r === 'TERRAIN') {
-    return getDisplayMode() === 'terrain'
+    return getDisplayMode() === 'field'
       ? TERRAIN_ALLOWED_PAGE_IDS.has(pageId)
       : TERRAIN_NAV_EXPERT_PAGES.has(pageId);
   }

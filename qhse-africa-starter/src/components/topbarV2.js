@@ -522,7 +522,7 @@ function ensureTopbarV2Styles() {
   background: var(--color-primary-bg);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-text) 12%, transparent);
 }
-[data-display-mode="terrain"] .display-mode-switch {
+[data-display-mode="essential"] .display-mode-switch {
   border-color: color-mix(in srgb, var(--color-primary-border) 45%, var(--color-border));
 }
 @media (max-width: 1024px) {
@@ -912,9 +912,9 @@ export function createTopbar({
   displayModeSwitch.setAttribute('aria-label', 'Application : mode Essentiel ou Expert');
   const segTerrain = document.createElement('button');
   segTerrain.type = 'button';
-  segTerrain.className = 'display-mode-seg' + (mode === 'terrain' ? ' is-active' : '');
-  segTerrain.setAttribute('data-set-mode', 'terrain');
-  segTerrain.setAttribute('aria-pressed', mode === 'terrain' ? 'true' : 'false');
+  segTerrain.className = 'display-mode-seg' + (mode === 'essential' ? ' is-active' : '');
+  segTerrain.setAttribute('data-set-mode', 'essential');
+  segTerrain.setAttribute('aria-pressed', mode === 'essential' ? 'true' : 'false');
   segTerrain.title =
     'Navigation réduite et raccourcis opérationnels. Sur mobile, ce mode est toujours actif.';
   segTerrain.textContent = 'Essentiel';
@@ -990,10 +990,10 @@ export function createTopbar({
   const nameHidden = header.querySelector('.topbar-v2__user-name');
 
   function allAccessibleItems() {
-    const terrainMode = getDisplayMode() === 'terrain';
+    const fieldMode = getDisplayMode() === 'field';
     return getFlattenedNavItems().filter((item) => {
       if (!canAccessNavPage(role, item.id)) return false;
-      if (terrainMode && !TERRAIN_ALLOWED_PAGE_IDS.has(item.id)) return false;
+      if (fieldMode && !TERRAIN_ALLOWED_PAGE_IDS.has(item.id)) return false;
       if (
         'resource' in item &&
         item.resource &&
@@ -1126,14 +1126,15 @@ export function createTopbar({
     modeSwitch.querySelectorAll('[data-set-mode]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-set-mode');
-        if (target !== 'terrain' && target !== 'expert') return;
+        if (target !== 'essential' && target !== 'expert') return;
         if (getDisplayMode() === target) return;
         setDisplayMode(target);
         syncModeSegments(target);
-        if (target === 'terrain') {
-          showToast('Mode Essentiel : navigation réduite et raccourcis opérationnels.', 'info');
-          if (typeof onNavigate === 'function') onNavigate('terrain-mode');
-          else navigateByHash('terrain-mode');
+        if (target === 'essential') {
+          showToast('Mode Essentiel : contenu simplifié, shell desktop conservé.', 'info');
+          const dest = currentPage === 'terrain-mode' ? 'dashboard' : currentPage;
+          if (typeof onNavigate === 'function') onNavigate(dest);
+          else navigateByHash(dest);
         } else {
           showToast('Mode Expert : menu complet et tous les modules.', 'info');
           const dest = currentPage === 'terrain-mode' ? 'dashboard' : currentPage;

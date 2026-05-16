@@ -716,13 +716,13 @@ function ensureSidebarV2Styles() {
   display: none;
 }
 @media (max-width: 1024px) {
-  [data-display-mode='terrain'] .terrain-bottom-nav {
+  [data-display-mode='field'] .terrain-bottom-nav {
     display: none !important;
   }
-  [data-display-mode='terrain'] .app-shell .main-shell {
+  [data-display-mode='field'] .app-shell .main-shell {
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
-  [data-display-mode='terrain'] aside.sidebar-v2#qhse-shell-sidebar {
+  [data-display-mode='field'] aside.sidebar-v2#qhse-shell-sidebar {
     display: flex !important;
     position: fixed;
     left: 0;
@@ -747,12 +747,12 @@ function ensureSidebarV2Styles() {
     box-shadow: 0 -8px 28px color-mix(in srgb, var(--color-text) 12%, transparent);
     background: var(--color-surface);
   }
-  [data-display-mode='terrain'] .sidebar-v2__brand,
-  [data-display-mode='terrain'] .sidebar-v2__nav,
-  [data-display-mode='terrain'] .sidebar-v2__footer {
+  [data-display-mode='field'] .sidebar-v2__brand,
+  [data-display-mode='field'] .sidebar-v2__nav,
+  [data-display-mode='field'] .sidebar-v2__footer {
     display: none !important;
   }
-  [data-display-mode='terrain'] .sidebar-v2__terrain-dock {
+  [data-display-mode='field'] .sidebar-v2__terrain-dock {
     display: flex !important;
     width: 100%;
     justify-content: space-around;
@@ -873,7 +873,7 @@ export function createSidebar({
   onExpertMobileDrawerClose
 }) {
   ensureSidebarV2Styles();
-  const terrainMode = getDisplayMode() === 'terrain';
+  const terrainMode = getDisplayMode() === 'field';
   const terrainVisiblePages = TERRAIN_ALLOWED_PAGE_IDS;
 
   const aside = document.createElement('aside');

@@ -10,8 +10,9 @@ function rootEl() {
 function readStoredDisplayMode() {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    if (s === 'terrain' || s === 'expert') return s;
-    if (s === 'simple') return 'terrain';
+    if (s === 'expert') return 'expert';
+    if (s === 'essential' || s === 'simple') return 'essential';
+    if (s === 'field' || s === 'terrain') return 'field';
   } catch {
     /* ignore */
   }
@@ -19,7 +20,7 @@ function readStoredDisplayMode() {
 }
 
 /**
- * Mobile : toujours mode Essentiel (`terrain`). Évite le mode Expert et ses layouts bureau.
+ * Mobile : toujours mode terrain (`field`). Évite le mode Expert et ses layouts bureau.
  * Bureau : préférence utilisateur (localStorage).
  */
 export function isMobileViewport() {
@@ -30,22 +31,23 @@ export function isMobileViewport() {
 
 export function applyEffectiveDisplayMode() {
   const stored = readStoredDisplayMode();
-  const effective = isMobileViewport() ? 'terrain' : stored;
+  const effective = isMobileViewport() ? 'field' : stored;
   rootEl().setAttribute('data-display-mode', effective);
 }
 
 /**
- * @returns {'terrain' | 'expert'}
+ * @returns {'essential' | 'expert' | 'field'}
  */
 export function getDisplayMode() {
   const v = rootEl().getAttribute('data-display-mode');
-  if (v === 'terrain' || v === 'expert') return v;
-  if (v === 'simple') return 'terrain';
-  return isMobileViewport() ? 'terrain' : 'expert';
+  if (v === 'essential' || v === 'expert' || v === 'field') return v;
+  if (v === 'simple') return 'essential';
+  if (v === 'terrain') return 'field';
+  return isMobileViewport() ? 'field' : 'expert';
 }
 
 export function setDisplayMode(mode) {
-  const m = mode === 'terrain' ? 'terrain' : 'expert';
+  const m = mode === 'field' ? 'field' : mode === 'essential' ? 'essential' : 'expert';
   try {
     localStorage.setItem(STORAGE_KEY, m);
   } catch {

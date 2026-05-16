@@ -1,69 +1,66 @@
 /* Mode Essentiel (desktop) : cockpit simplifié, sans impacter le mode terrain mobile.
    IMPORTANT: tout ici est limité à >=1025px pour ne pas toucher au mobile. */
 
-@media (min-width: 1025px) {
-  /* ═══ Navigation : garder le menu (repères utilisateur) en Essentiel desktop ═══ */
-  [data-display-mode='terrain'] .sidebar-v2__terrain-dock {
-    display: none !important;
-  }
+@media (min-width: 901px) {
+  /* Essentiel desktop/tablette: conserve la sidebar visible (menu utilisable). */
 
-  [data-display-mode='terrain'] .sidebar-v2__brand,
-  [data-display-mode='terrain'] .sidebar-v2__nav,
-  [data-display-mode='terrain'] .sidebar-v2__footer {
-    display: flex !important;
+  [data-display-mode='essential'] .app-shell > .main-shell {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   /* ═══ Barre Essentiel/Expert par page : moins de bruit quand le mode global est Essentiel ═══ */
-  [data-display-mode='terrain'] .qhse-page-view-bar {
+  [data-display-mode='essential'] .qhse-page-view-bar {
     display: none !important;
   }
 
   /* ═══ Dashboard : lecture en 5 secondes (KPI + alertes + priorités) ═══ */
-  [data-display-mode='terrain'] .dashboard-section--primary-chart,
-  [data-display-mode='terrain'] .dashboard-band--assistant,
-  [data-display-mode='terrain'] .dashboard-band--intelligence,
-  [data-display-mode='terrain'] .dashboard-band--shortcuts,
-  [data-display-mode='terrain'] .dashboard-band--cockpit,
-  [data-display-mode='terrain'] .dashboard-band--cockpit-premium {
+  [data-display-mode='essential'] .dashboard-section--primary-chart,
+  [data-display-mode='essential'] .dashboard-band--assistant,
+  [data-display-mode='essential'] .dashboard-band--intelligence,
+  [data-display-mode='essential'] .dashboard-band--shortcuts,
+  [data-display-mode='essential'] .dashboard-band--cockpit,
+  [data-display-mode='essential'] .dashboard-band--cockpit-premium {
     display: none !important;
   }
 
   /* Rétablit l’en-tête direction sur desktop (masqué en terrain par displayModes.css) */
-  [data-display-mode='terrain'] .dashboard-band--ceo {
+  [data-display-mode='essential'] .dashboard-band--ceo {
     display: block !important;
   }
 
   /* “Aujourd’hui” + “Priorités” en tête */
-  [data-display-mode='terrain'] .dashboard-today-block {
+  [data-display-mode='essential'] .dashboard-today-block {
     order: 1;
   }
-  [data-display-mode='terrain'] .dashboard-band--priority {
+  [data-display-mode='essential'] .dashboard-band--priority {
     order: 2;
   }
-  [data-display-mode='terrain'] .dashboard-band--alerts-first {
+  [data-display-mode='essential'] .dashboard-band--alerts-first {
     order: 3;
   }
 
   /* Cockpit décisionnel Essentiel desktop (pilotage unifié) */
-  [data-display-mode='terrain'] .dashboard-band--essential-pilotage {
+  [data-display-mode='essential'] .dashboard-band--essential-pilotage {
     display: block !important;
     order: 2;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__grid {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__grid {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     gap: 14px;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__block {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__block {
     border: 1px solid rgba(148, 163, 184, 0.14);
     border-radius: 14px;
     padding: 12px 12px 14px;
     background: rgba(255, 255, 255, 0.02);
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__k {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__k {
     font-size: 10px;
     font-weight: 900;
     letter-spacing: 0.12em;
@@ -72,56 +69,56 @@
     margin-bottom: 8px;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__score {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__score {
     min-width: 160px;
     text-align: right;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__score-val {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__score-val {
     font-size: 22px;
     font-weight: 900;
     letter-spacing: -0.02em;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__score-lbl {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__score-lbl {
     font-size: 11px;
     color: var(--text2, #94a3b8);
     margin-top: 2px;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__priorities {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__priorities {
     margin: 0;
     padding-left: 18px;
     display: grid;
     gap: 10px;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__prio-top {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__prio-top {
     display: flex;
     gap: 10px;
     align-items: baseline;
     margin-bottom: 6px;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__prio-label {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__prio-label {
     font-weight: 900;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__prio-reason {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__prio-reason {
     font-size: 12px;
     color: var(--text2, #94a3b8);
     line-height: 1.35;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__alerts,
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__actions {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__alerts,
+  [data-display-mode='essential'] .dashboard-essential-pilotage__actions {
     margin: 0;
     padding-left: 16px;
     display: grid;
     gap: 8px;
   }
 
-  [data-display-mode='terrain'] .dashboard-essential-pilotage__empty {
+  [data-display-mode='essential'] .dashboard-essential-pilotage__empty {
     list-style: none;
     padding-left: 0;
     color: var(--text2, #94a3b8);
@@ -130,7 +127,7 @@
 
   /* Responsive : une colonne si écran rétréci */
   @media (max-width: 1180px) {
-    [data-display-mode='terrain'] .dashboard-essential-pilotage__grid {
+    [data-display-mode='essential'] .dashboard-essential-pilotage__grid {
       grid-template-columns: 1fr;
     }
   }
@@ -173,6 +170,20 @@
 .dashboard-essential-pilotage__summary { margin:0; line-height:1.68; color:var(--text,#0f172a); display:grid; gap:8px; max-width:72ch; }
 .dashboard-essential-pilotage__summary-line { display:block; }
 .dashboard-essential-pilotage__empty { list-style:none; color:var(--text2,#94a3b8); padding-left:0; font-size:12px; }
+
+.dashboard-essential-pilotage__card,
+.dashboard-essential-pilotage__header,
+.dashboard-essential-pilotage__head-main,
+.dashboard-essential-pilotage__mini-card,
+.dashboard-essential-pilotage__priorities,
+.dashboard-essential-pilotage__alerts,
+.dashboard-essential-pilotage__actions,
+.dashboard-essential-pilotage__summary { min-width:0; }
+.dashboard-essential-pilotage__prio-label,
+.dashboard-essential-pilotage__prio-reason,
+.dashboard-essential-pilotage__alert,
+.dashboard-essential-pilotage__action,
+.dashboard-essential-pilotage__summary-line { overflow-wrap:anywhere; word-break:break-word; }
 @media (max-width: 900px) {
   .dashboard-essential-pilotage__header { flex-direction:column; }
   .dashboard-essential-pilotage__status { align-self:flex-start; }
