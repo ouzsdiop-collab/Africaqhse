@@ -4,6 +4,31 @@
 @media (min-width: 901px) {
   /* Essentiel desktop/tablette: conserve la sidebar visible (menu utilisable). */
 
+  [data-display-mode='essential'] .sidebar-v2 {
+    width: clamp(220px, 24vw, 260px);
+    min-width: 220px;
+    max-width: 260px;
+  }
+
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__brand-text,
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__group-label,
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__item-text,
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__footer-label,
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__account-meta {
+    display: block !important;
+  }
+
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__item {
+    justify-content: flex-start;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    padding-left: calc(var(--space-3) + 3px);
+  }
+
+  [data-display-mode='essential'] .sidebar-v2 .sidebar-v2__item-icon {
+    margin: 0;
+  }
+
   [data-display-mode='essential'] .app-shell > .main-shell {
     width: 100%;
     min-width: 0;
