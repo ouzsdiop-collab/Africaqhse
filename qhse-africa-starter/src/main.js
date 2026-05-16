@@ -685,7 +685,7 @@ function syncDocumentTitle(pageId) {
     return;
   }
   if (pageId === 'saas-clients') {
-    document.title = `Clients SaaS · ${APP_BRAND_TITLE}`;
+    document.title = `Administration QHSE Control · ${APP_BRAND_TITLE}`;
     return;
   }
   const meta = pageTopbarById[pageId];
@@ -730,16 +730,29 @@ function renderApp() {
     }
 
     const su = getSessionUser();
+    const path = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
+    const isAdminPath = path === '/admin' || path.startsWith('/admin/');
+    const isLegacyAdminPath = path === '/saas-admin' || path.startsWith('/saas-admin/');
+    const isAppPath = path === '/app' || path.startsWith('/app');
     if (su) {
       const role = String(su.role || '').toUpperCase();
-      if (role === 'SUPER_ADMIN' && appState.currentPage !== 'saas-clients') {
-        setCurrentPage('saas-clients');
-        if (window.location.pathname !== '/saas-admin') {
-          window.history.replaceState(null, '', '/saas-admin');
+      if (isLegacyAdminPath) {
+        window.location.replace(path.replace('/saas-admin', '/admin') || '/admin');
+        return;
+      }
+      if (role === 'SUPER_ADMIN') {
+        if (isAppPath && !setupModeContext?.setupMode) {
+          window.location.replace('/admin');
+          return;
         }
-      } else if (role !== 'SUPER_ADMIN' && window.location.pathname === '/saas-admin') {
+        if (!isAdminPath && !setupModeContext?.setupMode) {
+          setCurrentPage('saas-clients');
+          window.history.replaceState(null, '', '/admin');
+        }
+      } else if (isAdminPath) {
         setCurrentPage('dashboard');
-        window.history.replaceState(null, '', '/app');
+        window.location.replace('/app');
+        return;
       }
     }
 
@@ -804,6 +817,11 @@ function renderApp() {
       return;
     }
 
+    if (!su && (isAdminPath || isAppPath || isLegacyAdminPath)) {
+      window.location.replace('/login');
+      return;
+    }
+
     const shell = document.createElement('div');
     shell.className = 'app-shell';
     if (
@@ -821,21 +839,63 @@ function renderApp() {
       backBtn.className = 'btn sc-btn-ghost';
       backBtn.textContent = 'Retour superadmin';
       backBtn.addEventListener('click', () => {
-        window.location.assign('/saas-admin/entreprises');
+        window.location.assign('/admin/entreprises');
       });
       const stopBtn = document.createElement('button');
       stopBtn.className = 'btn btn-primary';
       stopBtn.textContent = 'Quitter setup';
       stopBtn.addEventListener('click', async () => {
         await qhseFetch('/api/admin/setup/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(() => {});
-        window.location.assign('/saas-admin/entreprises');
+        window.location.assign('/admin/entreprises');
       });
       actions.append(backBtn, stopBtn);
       banner.append(actions);
       shell.append(banner);
     }
 
-    const sidebar = createSidebar({
+    const adminMenuItems = [
+      { label: 'Vue d’ensemble', href: '/admin' },
+      { label: 'Entreprises', href: '/admin/entreprises' },
+      { label: 'Utilisateurs', href: '/admin/utilisateurs' },
+      { label: 'Accès / invitations', href: '/admin/acces' },
+      { label: 'Logs', href: '/admin/logs' },
+      { label: 'Paramètres', href: '/admin/parametres' }
+    ];
+
+    let clientSidebar = null;
+    if (isAdminPath && String(getSessionUser()?.role || '').toUpperCase() === 'SUPER_ADMIN') {
+      const adminNav = document.createElement('aside');
+      adminNav.className = 'sidebar-v2';
+      adminNav.innerHTML = `
+        <div class="sidebar-v2__brand">
+          <div class="sidebar-v2__brand-text">
+            <strong class="sidebar-v2__brand-title">Administration QHSE Control</strong>
+            <span class="sidebar-v2__brand-badge">Console administrateur</span>
+          </div>
+        </div>
+        <nav class="sidebar-v2__nav"></nav>
+      `;
+      const nav = adminNav.querySelector('.sidebar-v2__nav');
+      adminMenuItems.forEach((it) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `sidebar-v2__item${path === it.href ? ' is-active' : ''}`;
+        btn.textContent = it.label;
+        btn.addEventListener('click', () => window.location.assign(it.href));
+        nav?.append(btn);
+      });
+      const logoutBtn = document.createElement('button');
+      logoutBtn.type = 'button';
+      logoutBtn.className = 'sidebar-v2__item';
+      logoutBtn.textContent = 'Déconnexion';
+      logoutBtn.addEventListener('click', async () => {
+        await qhseFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        window.location.assign('/login');
+      });
+      nav?.append(logoutBtn);
+      shell.append(adminNav);
+    } else {
+      clientSidebar = createSidebar({
       currentPage: appState.currentPage,
       onNavigate: (pageId) => {
         if (expertMode) appState.expertMobileNavOpen = false;
@@ -875,7 +935,9 @@ function renderApp() {
           .then(() => renderApp())
           .catch((err) => console.error('[QHSE] notifications après changement profil', err));
       }
-    });
+      });
+      shell.append(clientSidebar);
+    }
 
     const content = document.createElement('main');
     content.className = 'main-shell';
@@ -925,11 +987,11 @@ function renderApp() {
 
     attachPageIntro(pageRenderer, appState.currentPage);
 
-    content.append(topbar);
+    if (!isAdminPath) content.append(topbar);
 
     content.append(pageRenderer);
 
-    if (appState.notificationsOpen) {
+    if (!isAdminPath && appState.notificationsOpen) {
       content.append(
         createNotificationsPanel({
           notifications: notificationsStore.all(),
@@ -946,8 +1008,8 @@ function renderApp() {
       );
     }
 
-    shell.append(sidebar, content);
-    if (terrainMode) {
+    shell.append(content);
+    if (!isAdminPath && terrainMode) {
       const mobileNav = createTerrainBottomNav(appState.currentPage, (pageId) => {
         setCurrentPage(pageId);
         window.location.hash = pageId;
@@ -956,7 +1018,7 @@ function renderApp() {
       shell.append(mobileNav);
     }
 
-    if (expertMode) {
+    if (!isAdminPath && expertMode) {
       if (appState.expertMobileNavOpen) shell.classList.add('app-shell--nav-open');
       else shell.classList.remove('app-shell--nav-open');
       const backdrop = document.createElement('button');
@@ -977,9 +1039,11 @@ function renderApp() {
     syncDocumentTitle(appState.currentPage);
     scheduleIdleRoutePrefetch();
 
-    void refreshShellNavBadges(sidebar).catch((err) => {
-      console.error('[QHSE] refreshShellNavBadges', err);
-    });
+    if (clientSidebar) {
+      void refreshShellNavBadges(clientSidebar).catch((err) => {
+        console.error('[QHSE] refreshShellNavBadges', err);
+      });
+    }
   } catch (e) {
     console.error('[QHSE] renderApp', e);
     captureQhseException(e, { phase: 'renderApp' });
@@ -989,6 +1053,23 @@ function renderApp() {
 
 function initRouting() {
   const pathname = String(window.location.pathname || '').replace(/\/+$/, '');
+  if (pathname === '/admin' || pathname === '/admin/entreprises' || pathname === '/admin/utilisateurs' || pathname === '/admin/acces') {
+    setCurrentPage('saas-clients');
+    return;
+  }
+  if (pathname === '/admin/logs') {
+    setCurrentPage('activity-log-server');
+    return;
+  }
+  if (pathname === '/admin/parametres') {
+    setCurrentPage('settings');
+    return;
+  }
+  if (pathname === '/saas-admin' || pathname.startsWith('/saas-admin/')) {
+    const target = pathname.replace('/saas-admin', '/admin') || '/admin';
+    window.location.replace(target);
+    return;
+  }
   if (pathname === '/saas-admin') {
     setCurrentPage('saas-clients');
     return;

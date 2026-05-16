@@ -1715,7 +1715,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
       showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
       const redirectTarget = String(body.redirectTarget || '').toUpperCase();
       if (redirectTarget === 'SAAS_ADMIN') {
-        window.location.assign('/saas-admin');
+        window.location.assign('/admin');
       } else {
         window.location.assign('/app');
       }
