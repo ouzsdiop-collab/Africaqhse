@@ -49,6 +49,13 @@ import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
 import './styles/ui-density-saas.css';
 
+import { createAdminShell, withPasswordModal } from './pages/admin/AdminShell.js';
+import { renderAdminOverview } from './pages/admin/AdminOverview.js';
+import { renderAdminCompanies } from './pages/admin/AdminCompanies.js';
+import { renderAdminUsers } from './pages/admin/AdminUsers.js';
+import { renderAdminLogs } from './pages/admin/AdminLogs.js';
+import { renderAdminSettings } from './pages/admin/AdminSettings.js';
+
 ensureProductionDemoModeOff();
 initTheme();
 
@@ -124,6 +131,7 @@ let swClientHooksInstalled = false;
 let swLoadHandlerRegistered = false;
 let setupModeContext = null;
 let setupModeLoaded = false;
+let adminOneTimePasswordState = null;
 
 async function refreshSetupModeContext() {
   const su = getSessionUser();
@@ -822,6 +830,31 @@ function renderApp() {
       return;
     }
 
+    if (isAdminPath && String(getSessionUser()?.role || '').toUpperCase() === 'SUPER_ADMIN') {
+            const pathAdmin = String(window.location.pathname || '').replace(/\/+$/, '') || '/admin';
+      const renderer = pathAdmin === '/admin/entreprises'
+        ? () => renderAdminCompanies((payload) => { adminOneTimePasswordState = payload; renderApp(); })
+        : (pathAdmin === '/admin/utilisateurs' || pathAdmin === '/admin/acces')
+          ? () => renderAdminUsers((payload) => { adminOneTimePasswordState = payload; renderApp(); })
+          : pathAdmin === '/admin/logs'
+            ? () => renderAdminLogs()
+            : pathAdmin === '/admin/parametres'
+              ? () => renderAdminSettings()
+              : () => renderAdminOverview();
+      Promise.resolve(renderer()).then((contentEl) => {
+        const appShell = createAdminShell(contentEl);
+        if (adminOneTimePasswordState) {
+          withPasswordModal(appShell, adminOneTimePasswordState, () => {
+            adminOneTimePasswordState = null;
+          });
+        }
+        app.append(appShell);
+      }).catch((e) => {
+        showFatalShell('Erreur console admin', String(e?.message || e));
+      });
+      return;
+    }
+
     const shell = document.createElement('div');
     shell.className = 'app-shell';
     if (
@@ -1053,16 +1086,8 @@ function renderApp() {
 
 function initRouting() {
   const pathname = String(window.location.pathname || '').replace(/\/+$/, '');
-  if (pathname === '/admin' || pathname === '/admin/entreprises' || pathname === '/admin/utilisateurs' || pathname === '/admin/acces') {
-    setCurrentPage('saas-clients');
-    return;
-  }
-  if (pathname === '/admin/logs') {
-    setCurrentPage('activity-log-server');
-    return;
-  }
-  if (pathname === '/admin/parametres') {
-    setCurrentPage('settings');
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    setCurrentPage('dashboard');
     return;
   }
   if (pathname === '/saas-admin' || pathname.startsWith('/saas-admin/')) {
