@@ -210,6 +210,24 @@ export function renderSaasClients() {
     });
   }
 
+  /**
+   * Affichage strict one-shot: uniquement si le backend retourne `temporaryPasswordOneTime`
+   * dans la réponse immédiate POST (jamais stocké côté client).
+   * @param {unknown} payload
+   * @param {string} titleHtml
+   * @param {string} extraHtml
+   * @param {(() => void) | null} [afterClose]
+   * @returns {boolean}
+   */
+  function showTemporaryPasswordOneShot(payload, titleHtml, extraHtml, afterClose = null) {
+    const secret = typeof payload?.temporaryPasswordOneTime === 'string'
+      ? payload.temporaryPasswordOneTime.trim()
+      : '';
+    if (!secret) return false;
+    showOnceModal(titleHtml, secret, extraHtml, afterClose ? { afterClose } : null);
+    return true;
+  }
+
   function closeProvisionalModal() {
     if (!modal) return;
     modal.hidden = true;
@@ -508,18 +526,17 @@ export function renderSaasClients() {
               showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
               return;
             }
-            if (typeof b2.temporaryPasswordOneTime === 'string' && b2.temporaryPasswordOneTime.trim()) {
-              const sent = b2?.invitation?.sent === true;
-              const exp = b2?.invitation?.expiresAt ? new Date(b2.invitation.expiresAt).toLocaleString('fr-FR') : '—';
-              const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(b2?.invitation?.emailError || 'E-mail non envoyé'));
-              showOnceModal(
-                '<strong>Mot de passe provisoire généré</strong>',
-                b2.temporaryPasswordOneTime,
-                `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
-                { afterClose: () => void refreshList() }
-              );
+            const sent = b2?.invitation?.sent === true;
+            const exp = b2?.invitation?.expiresAt ? new Date(b2.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+            const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(b2?.invitation?.emailError || 'E-mail non envoyé'));
+            if (showTemporaryPasswordOneShot(
+              b2,
+              '<strong>Mot de passe provisoire généré</strong>',
+              `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
+              () => void refreshList()
+            )) {
             } else {
-              showToast('Accès réinitialisé. E-mail envoyé.', 'success');
+              showToast('Accès réinitialisé, mais aucun mot de passe provisoire one-shot reçu.', 'warning');
             }
           } catch {
             showToast('Erreur réseau', 'error');
@@ -650,18 +667,17 @@ export function renderSaasClients() {
                 showToast(typeof b2.error === 'string' ? b2.error : 'Échec', 'error');
                 return;
               }
-              if (typeof b2.temporaryPasswordOneTime === 'string' && b2.temporaryPasswordOneTime.trim()) {
-                const sent = b2?.invitation?.sent === true;
-                const exp = b2?.invitation?.expiresAt ? new Date(b2.invitation.expiresAt).toLocaleString('fr-FR') : '—';
-                const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(b2?.invitation?.emailError || 'E-mail non envoyé'));
-                showOnceModal(
-                  '<strong>Mot de passe provisoire généré</strong>',
-                  b2.temporaryPasswordOneTime,
-                  `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
-                  { afterClose: () => void refreshList() }
-                );
+              const sent = b2?.invitation?.sent === true;
+              const exp = b2?.invitation?.expiresAt ? new Date(b2.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+              const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(b2?.invitation?.emailError || 'E-mail non envoyé'));
+              if (showTemporaryPasswordOneShot(
+                b2,
+                '<strong>Mot de passe provisoire généré</strong>',
+                `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
+                () => void refreshList()
+              )) {
               } else {
-                showToast('Accès réinitialisé.', 'success');
+                showToast('Accès réinitialisé, mais aucun mot de passe provisoire one-shot reçu.', 'warning');
               }
             } catch {
               showToast('Erreur réseau', 'error');
@@ -735,23 +751,18 @@ export function renderSaasClients() {
               return;
             }
 
-            if (typeof j.temporaryPasswordOneTime === 'string' && j.temporaryPasswordOneTime.trim()) {
-              const sent = j?.invitation?.sent === true;
-              const exp = j?.invitation?.expiresAt ? new Date(j.invitation.expiresAt).toLocaleString('fr-FR') : '—';
-              const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(j?.invitation?.emailError || 'E-mail non envoyé'));
-              showOnceModal(
-                '<strong>Mot de passe provisoire généré</strong>',
-                j.temporaryPasswordOneTime,
-                `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>${j.user ? `${escapeHtml(j.user.email || '')}` : ''}<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
-                { afterClose: () => void refreshList() }
-              );
+            const sent = j?.invitation?.sent === true;
+            const exp = j?.invitation?.expiresAt ? new Date(j.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+            const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(j?.invitation?.emailError || 'E-mail non envoyé'));
+            if (showTemporaryPasswordOneShot(
+              j,
+              '<strong>Mot de passe provisoire généré</strong>',
+              `Copiez ce mot de passe maintenant. Il ne sera plus affiché ensuite.<br>${j.user ? `${escapeHtml(j.user.email || '')}` : ''}<br>Statut e-mail : ${emailState}<br>Expiration : ${escapeHtml(exp)}`,
+              () => void refreshList()
+            )) {
             } else {
-              showOnceModal(
-                '<strong>Utilisateur créé</strong>',
-                '',
-                j.user ? `${escapeHtml(j.user.email || '')}` : '',
-                { afterClose: () => void refreshList() }
-              );
+              showToast('Utilisateur créé, mais aucun mot de passe provisoire one-shot reçu.', 'warning');
+              void refreshList();
             }
             nName.value = '';
             nEmail.value = '';
@@ -805,23 +816,18 @@ export function renderSaasClients() {
       }
       const tenant = j.tenant || {};
       const user = j.user || {};
-      if (typeof j.temporaryPasswordOneTime === 'string' && j.temporaryPasswordOneTime.trim()) {
-        const sent = j?.invitation?.sent === true;
-        const exp = j?.invitation?.expiresAt ? new Date(j.invitation.expiresAt).toLocaleString('fr-FR') : '—';
-        const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(j?.invitation?.emailError || 'E-mail non envoyé'));
-        showOnceModal(
-          `<strong>Mot de passe provisoire généré</strong><br>Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
-          j.temporaryPasswordOneTime,
-          `Admin principal : <code>${escapeHtml(user.email || '')}</code><br>Expiration : ${escapeHtml(exp)}<br>Statut e-mail : ${emailState}`,
-          { afterClose: () => void refreshList() }
-        );
+      const sent = j?.invitation?.sent === true;
+      const exp = j?.invitation?.expiresAt ? new Date(j.invitation.expiresAt).toLocaleString('fr-FR') : '—';
+      const emailState = sent ? 'E-mail envoyé' : escapeHtml(String(j?.invitation?.emailError || 'E-mail non envoyé'));
+      if (showTemporaryPasswordOneShot(
+        j,
+        `<strong>Mot de passe provisoire généré</strong><br>Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
+        `Admin principal : <code>${escapeHtml(user.email || '')}</code><br>Expiration : ${escapeHtml(exp)}<br>Statut e-mail : ${emailState}`,
+        () => void refreshList()
+      )) {
       } else {
-        showOnceModal(
-          `<strong>Compte créé.</strong> Entreprise : ${escapeHtml(tenant.name || '')} (<code>${escapeHtml(tenant.slug || '')}</code>)`,
-          '',
-          `Connexion : e-mail <code>${escapeHtml(user.email || '')}</code> ou identifiant <strong>${escapeHtml(user.clientCode || '')}</strong>`,
-          { afterClose: () => void refreshList() }
-        );
+        showToast('Entreprise créée, mais aucun mot de passe provisoire one-shot reçu.', 'warning');
+        void refreshList();
       }
       companyIn.value = '';
       contactIn.value = '';
