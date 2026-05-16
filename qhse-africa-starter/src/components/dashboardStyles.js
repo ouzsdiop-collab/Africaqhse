@@ -1610,6 +1610,93 @@ const CSS = `
 }
 .dashboard-extended[data-expanded="false"]{display:none}
 .dashboard-extended[data-expanded="true"]{display:block}
+.dashboard-essential-now-list,
+.dashboard-essential-alerts-list{
+  display:grid;
+  gap:10px;
+}
+.dashboard-essential-now-row,
+.dashboard-essential-alert-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px;
+  border:1px solid var(--color-border-tertiary);
+  border-radius:12px;
+  background:var(--color-background-secondary);
+}
+.dashboard-essential-now-main{
+  min-width:0;
+  display:grid;
+  gap:6px;
+}
+.dashboard-essential-now-title{
+  display:block;
+  font-size:13px;
+  line-height:1.35;
+}
+.dashboard-essential-now-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.dashboard-essential-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  color:var(--text2);
+}
+.dashboard-essential-badge--critical{
+  border-color:rgba(239,68,68,.45);
+  color:rgba(252,165,165,.95);
+  background:rgba(239,68,68,.12);
+}
+.dashboard-essential-badge--watch{
+  border-color:rgba(251,146,60,.42);
+  color:rgba(253,186,116,.95);
+  background:rgba(249,115,22,.11);
+}
+.dashboard-essential-date{
+  font-size:12px;
+  color:var(--text2);
+}
+.dashboard-essential-alert-item{
+  align-items:flex-start;
+}
+.dashboard-essential-alert-text{
+  margin:0;
+  font-size:13px;
+  line-height:1.4;
+  color:var(--text);
+  flex:1;
+}
+.dashboard-essential-empty{
+  margin:0;
+  padding:12px;
+  border:1px dashed var(--color-border-tertiary);
+  border-radius:12px;
+  color:var(--text2);
+  font-size:12px;
+  background:var(--color-background-secondary);
+}
+.dashboard-essential-quick-grid{
+  display:grid;
+  gap:10px;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+}
+.dashboard-essential-quick-btn{
+  width:100%;
+  justify-content:center;
+}
 .dashboard-toggle-row{
   display:flex;justify-content:center;
   padding:6px 0 2px;
