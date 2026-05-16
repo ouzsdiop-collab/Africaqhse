@@ -16,6 +16,14 @@ import { getDisplayMode } from '../utils/displayMode.js';
 import { TERRAIN_ALLOWED_PAGE_IDS } from '../utils/terrainModePages.js';
 
 const STYLE_ID = 'qhse-sidebar-v2-styles';
+const ESSENTIAL_NAV_ITEM_IDS = new Set([
+  'dashboard',
+  'risks',
+  'actions',
+  'incidents',
+  'products',
+  'settings'
+]);
 
 /** État repliable des familles de navigation (préférence locale, sans impact routing). */
 const NAV_GROUPS_EXPANDED_KEY = 'qhse-nav-groups-expanded';
@@ -873,7 +881,9 @@ export function createSidebar({
   onExpertMobileDrawerClose
 }) {
   ensureSidebarV2Styles();
-  const terrainMode = getDisplayMode() === 'field';
+  const displayMode = getDisplayMode();
+  const terrainMode = displayMode === 'field';
+  const essentialMode = displayMode === 'essential';
   const terrainVisiblePages = TERRAIN_ALLOWED_PAGE_IDS;
 
   const aside = document.createElement('aside');
@@ -1226,6 +1236,7 @@ export function createSidebar({
     const visibleItemIds = [];
 
     group.items.forEach((item) => {
+      if (essentialMode && !ESSENTIAL_NAV_ITEM_IDS.has(item.id)) return;
       if (terrainMode && !terrainVisiblePages.has(item.id)) return;
       if (!canAccessNavPage(role, item.id)) return;
       if (
