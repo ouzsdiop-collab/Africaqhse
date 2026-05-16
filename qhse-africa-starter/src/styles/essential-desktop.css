@@ -2,14 +2,7 @@
    IMPORTANT: tout ici est limité à >=1025px pour ne pas toucher au mobile. */
 
 @media (min-width: 901px) {
-  /* Essentiel desktop/tablette: retire la sidebar du flux pour éviter la colonne fantôme (258px). */
-  [data-display-mode='essential'] .app-shell > .sidebar-v2 {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    flex: 0 0 0 !important;
-  }
+  /* Essentiel desktop/tablette: conserve la sidebar visible (menu utilisable). */
 
   [data-display-mode='essential'] .app-shell > .main-shell {
     width: 100%;
