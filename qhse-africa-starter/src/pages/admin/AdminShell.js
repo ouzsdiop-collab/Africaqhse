@@ -18,7 +18,11 @@ export function createAdminShell(contentEl) {
   MENU.forEach(([label, href]) => {
     const b = document.createElement('button');
     b.textContent = label;
-    b.addEventListener('click', () => window.location.assign(href));
+    b.addEventListener('click', () => {
+      if (window.location.pathname === href) return;
+      window.history.pushState(null, '', href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
     nav.append(b);
   });
   const logout = document.createElement('button');

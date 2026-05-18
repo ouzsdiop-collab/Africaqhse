@@ -831,16 +831,23 @@ function renderApp() {
     }
 
     if (isAdminPath && String(getSessionUser()?.role || '').toUpperCase() === 'SUPER_ADMIN') {
-            const pathAdmin = String(window.location.pathname || '').replace(/\/+$/, '') || '/admin';
-      const renderer = pathAdmin === '/admin/entreprises'
-        ? () => renderAdminCompanies((payload) => { adminOneTimePasswordState = payload; renderApp(); })
-        : (pathAdmin === '/admin/utilisateurs' || pathAdmin === '/admin/acces')
-          ? () => renderAdminUsers((payload) => { adminOneTimePasswordState = payload; renderApp(); })
-          : pathAdmin === '/admin/logs'
-            ? () => renderAdminLogs()
-            : pathAdmin === '/admin/parametres'
-              ? () => renderAdminSettings()
-              : () => renderAdminOverview();
+      const pathAdmin = String(window.location.pathname || '').replace(/\/+$/, '') || '/admin';
+      const adminRenderers = {
+        '/admin': () => renderAdminOverview(),
+        '/admin/entreprises': () => renderAdminCompanies((payload) => { adminOneTimePasswordState = payload; renderApp(); }),
+        '/admin/utilisateurs': () => renderAdminUsers((payload) => { adminOneTimePasswordState = payload; renderApp(); }),
+        '/admin/acces': () => renderAdminUsers((payload) => { adminOneTimePasswordState = payload; renderApp(); }),
+        '/admin/logs': () => renderAdminLogs(),
+        '/admin/parametres': () => renderAdminSettings()
+      };
+      const renderer = adminRenderers[pathAdmin] || null;
+      if (!renderer) {
+        const notFound = document.createElement('article');
+        notFound.className = 'content-card card-soft';
+        notFound.innerHTML = "<h2>Page admin introuvable</h2><p>La sous-route demandée n'existe pas.</p>";
+        app.append(createAdminShell(notFound));
+        return;
+      }
       Promise.resolve(renderer()).then((contentEl) => {
         const appShell = createAdminShell(contentEl);
         if (adminOneTimePasswordState) {
@@ -1228,6 +1235,17 @@ window.addEventListener('qhse-navigate', (e) => {
     console.error('[QHSE] qhse-navigate renderApp', err);
     captureQhseException(err, { phase: 'qhse-navigate' });
     showFatalShell('Erreur de navigation', String(err?.message || err));
+  }
+});
+
+
+window.addEventListener('popstate', () => {
+  try {
+    initRouting();
+    renderApp();
+  } catch (err) {
+    console.error('[QHSE] popstate renderApp', err);
+    captureQhseException(err, { phase: 'popstate' });
   }
 });
 
