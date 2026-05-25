@@ -43,6 +43,10 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
     message.style.color = tone === 'success' ? 'var(--admin-gate-success)' : 'var(--admin-gate-danger)';
   }
 
+  function clearMessage() {
+    setMessage('', 'error');
+  }
+
   function renderSecret() {
     if (!oneTimePassword) {
       secretBox.hidden = true;
@@ -127,7 +131,7 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    setMessage('');
+    clearMessage();
     const companyName = String(root.querySelector('.js-company')?.value || '').trim();
     const contactName = String(root.querySelector('.js-contact')?.value || '').trim();
     const email = String(root.querySelector('.js-email')?.value || '').trim().toLowerCase();
@@ -139,9 +143,14 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
     }, { onAuthError: onSessionExpired });
     const payload = await jsonOrEmpty(res);
     if (!res.ok) {
-      setMessage(getApiErrorMessage(res.status, payload));
+      if (res.status === 409) {
+        setMessage('Un compte existe déjà pour cet e-mail.');
+      } else {
+        setMessage(getApiErrorMessage(res.status, payload));
+      }
       return;
     }
+    clearMessage();
     oneTimePassword = extractOneTimePassword(payload);
     renderSecret();
     form.reset();
@@ -156,7 +165,7 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
     if (!id) return;
     const current = String(el.dataset.toggleStatus || 'active').toLowerCase();
     const nextStatus = current === 'suspended' ? 'active' : 'suspended';
-    setMessage('');
+    clearMessage();
     const res = await adminGateApi(`/clients/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

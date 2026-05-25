@@ -59,7 +59,14 @@ export function getApiErrorMessage(status, payload) {
 
 export function extractOneTimePassword(payload) {
   if (!payload || typeof payload !== 'object') return null;
-  const pwd = typeof payload.temporaryPasswordOneTime === 'string' ? payload.temporaryPasswordOneTime.trim() : '';
+  const candidate =
+    payload?.temporaryPasswordOneTime
+    ?? payload?.temporaryPassword
+    ?? payload?.password
+    ?? payload?.user?.temporaryPasswordOneTime
+    ?? payload?.createdUser?.temporaryPasswordOneTime
+    ?? payload?.initialUser?.temporaryPasswordOneTime;
+  const pwd = typeof candidate === 'string' ? candidate.trim() : '';
   if (!pwd) return null;
   return pwd;
 }
