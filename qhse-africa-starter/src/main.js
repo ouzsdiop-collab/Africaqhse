@@ -832,7 +832,13 @@ function renderApp() {
 
     if (isAdminGatePath) {
       if (isAdminGateUnlocked()) {
-        app.append(createAdminGateHomeView());
+        Promise.resolve(createAdminGateHomeView())
+          .then((view) => {
+            if (view) app.append(view);
+          })
+          .catch((e) => {
+            showFatalShell('Erreur espace Admin QHSE Control', String(e?.message || e));
+          });
       } else {
         app.append(createAdminGateLoginView({ onUnlock: () => renderApp() }));
       }
