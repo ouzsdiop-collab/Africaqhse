@@ -23,6 +23,7 @@ export function requireAdminGate(req, res, next) {
 
   try {
     const verified = verifyAdminGateToken(token);
+    console.info(`[ADMIN_GATE] verify result: ${verified.ok ? 'ok' : verified.reason || 'invalid'}`);
     if (!verified.ok) {
       return res.status(403).json({ error: 'Accès admin expiré. Veuillez ressaisir le code.', code: 'ADMIN_GATE_TOKEN_INVALID' });
     }

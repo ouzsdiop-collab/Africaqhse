@@ -22,6 +22,7 @@ export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
   console.info(`[ADMIN_GATE] authorization header will be sent: ${authHeaderWillBeSent}`);
 
   const res = await qhseFetch(`/api/admin-gate${path}`, { ...options, headers });
+  console.info(`[ADMIN_GATE] response status for ${path}: ${res.status}`);
   if (res.status === 401 || res.status === 403) {
     resetAdminGateSession();
     onAuthError?.();
