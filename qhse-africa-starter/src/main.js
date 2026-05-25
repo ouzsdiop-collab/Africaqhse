@@ -48,6 +48,7 @@ import { ensureProductionDemoModeOff, isDemoMode } from './services/demoMode.ser
 import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
 import './styles/ui-density-saas.css';
+import './styles/admin-gate.css';
 
 import { createAdminShell, withPasswordModal } from './pages/admin/AdminShell.js';
 import { renderAdminOverview } from './pages/admin/AdminOverview.js';
@@ -55,6 +56,9 @@ import { renderAdminCompanies } from './pages/admin/AdminCompanies.js';
 import { renderAdminUsers } from './pages/admin/AdminUsers.js';
 import { renderAdminLogs } from './pages/admin/AdminLogs.js';
 import { renderAdminSettings } from './pages/admin/AdminSettings.js';
+import { createAdminGateLoginView } from './pages/adminGate/AdminGateLogin.js';
+import { createAdminGateHomeView } from './pages/adminGate/AdminGateHome.js';
+import { isAdminGateUnlocked } from './utils/adminGateSession.js';
 
 ensureProductionDemoModeOff();
 initTheme();
@@ -740,6 +744,7 @@ function renderApp() {
     const su = getSessionUser();
     const path = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
     const isAdminPath = path === '/admin' || path.startsWith('/admin/');
+    const isAdminGatePath = path === '/admin-qhse-control' || path.startsWith('/admin-qhse-control/');
     const isLegacyAdminPath = path === '/saas-admin' || path.startsWith('/saas-admin/');
     const isAppPath = path === '/app' || path.startsWith('/app');
     if (su) {
@@ -822,6 +827,26 @@ function renderApp() {
           onNavigate: onAuthNavigate
         })
       );
+      return;
+    }
+
+    if (isAdminGatePath) {
+      if (isAdminGateUnlocked()) {
+        Promise.resolve(createAdminGateHomeView({
+          onSessionExpired: () => {
+            showToast('Accès admin expiré. Veuillez ressaisir le code.', 'error');
+            renderApp();
+          }
+        }))
+          .then((view) => {
+            if (view) app.append(view);
+          })
+          .catch((e) => {
+            showFatalShell('Erreur espace Admin QHSE Control', String(e?.message || e));
+          });
+      } else {
+        app.append(createAdminGateLoginView({ onUnlock: () => renderApp() }));
+      }
       return;
     }
 
@@ -1122,6 +1147,11 @@ function sleep(ms) {
   });
 }
 
+function isAdminGateLocation() {
+  const path = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/admin-qhse-control' || path.startsWith('/admin-qhse-control/');
+}
+
 let expertMobileNavEscapeRegistered = false;
 function ensureExpertMobileNavEscape() {
   if (expertMobileNavEscapeRegistered) return;
@@ -1169,18 +1199,20 @@ async function boot() {
       void registerTerrainBackgroundSync();
       void syncTerrainIncidentQueue().catch(() => {});
     }
-    Promise.all([
-      loadNotificationsFromApi(),
-      refreshConformityStatusCacheFromApi(),
-      refreshPermitsFromApi(),
-      refreshDocComplianceNotifications(),
-      refreshNotificationSmartContext()
-    ])
-      .then(() => renderApp())
-      .catch((err) => {
-        console.error('[QHSE] loadNotificationsFromApi', err);
-        renderApp();
-      });
+    if (!isAdminGateLocation()) {
+      Promise.all([
+        loadNotificationsFromApi(),
+        refreshConformityStatusCacheFromApi(),
+        refreshPermitsFromApi(),
+        refreshDocComplianceNotifications(),
+        refreshNotificationSmartContext()
+      ])
+        .then(() => renderApp())
+        .catch((err) => {
+          console.error('[QHSE] loadNotificationsFromApi', err);
+          renderApp();
+        });
+    }
   } catch (err) {
     console.error(err);
     captureQhseException(err, { phase: 'boot' });

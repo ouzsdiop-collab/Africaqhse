@@ -13,6 +13,7 @@ export function isApiTenantOptionalPath(pathWithoutQuery) {
   if (raw === '/api/health' || raw.startsWith('/api/health/')) return true;
   if (raw === '/api/auth' || raw.startsWith('/api/auth/')) return true;
   if (raw === '/api/admin' || raw.startsWith('/api/admin/')) return true;
+  if (raw === '/api/admin-gate' || raw.startsWith('/api/admin-gate/')) return true;
   if (raw.startsWith('/api/docs')) return true;
   if (/^\/api\/controlled-documents\/stream\/?$/.test(raw)) return true;
   if (/^\/api\/fds\/analyze\/?$/.test(raw)) return true;
