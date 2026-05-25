@@ -55,6 +55,9 @@ import { renderAdminCompanies } from './pages/admin/AdminCompanies.js';
 import { renderAdminUsers } from './pages/admin/AdminUsers.js';
 import { renderAdminLogs } from './pages/admin/AdminLogs.js';
 import { renderAdminSettings } from './pages/admin/AdminSettings.js';
+import { createAdminGateLoginView } from './pages/adminGate/AdminGateLogin.js';
+import { createAdminGateHomeView } from './pages/adminGate/AdminGateHome.js';
+import { isAdminGateUnlocked } from './utils/adminGateSession.js';
 
 ensureProductionDemoModeOff();
 initTheme();
@@ -740,6 +743,7 @@ function renderApp() {
     const su = getSessionUser();
     const path = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
     const isAdminPath = path === '/admin' || path.startsWith('/admin/');
+    const isAdminGatePath = path === '/admin-qhse-control' || path.startsWith('/admin-qhse-control/');
     const isLegacyAdminPath = path === '/saas-admin' || path.startsWith('/saas-admin/');
     const isAppPath = path === '/app' || path.startsWith('/app');
     if (su) {
@@ -822,6 +826,15 @@ function renderApp() {
           onNavigate: onAuthNavigate
         })
       );
+      return;
+    }
+
+    if (isAdminGatePath) {
+      if (isAdminGateUnlocked()) {
+        app.append(createAdminGateHomeView());
+      } else {
+        app.append(createAdminGateLoginView({ onUnlock: () => renderApp() }));
+      }
       return;
     }
 
