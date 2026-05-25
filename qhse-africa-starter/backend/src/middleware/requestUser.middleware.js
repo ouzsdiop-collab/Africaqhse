@@ -14,8 +14,14 @@ export async function attachRequestUser(req, res, next) {
 
   const authHeader = req.get('authorization') || req.get('Authorization') || '';
   const bearerMatch = /^Bearer\s+(\S+)/i.exec(authHeader);
+  const rawPath = String(req.originalUrl || req.url || '').split('?')[0];
+  const isAdminGateApiPath = rawPath === '/api/admin-gate' || rawPath.startsWith('/api/admin-gate/');
 
   if (bearerMatch) {
+    if (isAdminGateApiPath) {
+      req.qhseUser = null;
+      return next();
+    }
     const token = bearerMatch[1];
     try {
       const payload = jwt.verify(token, getJwtSecret());
