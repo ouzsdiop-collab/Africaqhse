@@ -5,6 +5,7 @@ import {
   jsonOrEmpty,
   normalizeClient
 } from './AdminGateApi.js';
+import { getGateToken } from '../../utils/adminGateSession.js';
 
 export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   const root = document.createElement('section');
@@ -33,6 +34,8 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   const secretBox = root.querySelector('.js-secret');
 
   let oneTimePassword = null;
+  let isLoadingCompanies = false;
+  let didInitialLoad = false;
 
   function setMessage(text, tone = 'error') {
     const value = String(text || '').trim();
@@ -69,11 +72,27 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   }
 
   async function loadCompanies() {
+    if (isLoadingCompanies) {
+      console.info('[ADMIN_GATE] request skipped (/clients) reason: already loading');
+      return;
+    }
+    if (!getGateToken()) {
+      console.info('[ADMIN_GATE] request skipped (/clients) reason: missing token before load');
+      list.innerHTML = '<p class="admin-gate-subtitle">Session admin en cours d’initialisation...</p>';
+      return;
+    }
+    isLoadingCompanies = true;
     list.innerHTML = '<p class="admin-gate-subtitle">Chargement des entreprises…</p>';
     const res = await adminGateApi('/clients', {}, { onAuthError: onSessionExpired });
     const payload = await jsonOrEmpty(res);
     if (!res.ok) {
+      if (payload?.code === 'MISSING_GATE_TOKEN_LOCAL') {
+        list.innerHTML = '<p class="admin-gate-subtitle">Session admin en cours d’initialisation...</p>';
+        isLoadingCompanies = false;
+        return;
+      }
       list.innerHTML = `<p class="admin-gate-message">${getApiErrorMessage(res.status, payload)}</p>`;
+      isLoadingCompanies = false;
       return;
     }
     const rawItems = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
@@ -81,6 +100,8 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
 
     if (!items.length) {
       list.innerHTML = '<p class="admin-gate-subtitle">Aucune entreprise pour le moment.</p>';
+      didInitialLoad = true;
+      isLoadingCompanies = false;
       return;
     }
 
@@ -100,6 +121,8 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
         </table>
       </div>
     `;
+    didInitialLoad = true;
+    isLoadingCompanies = false;
   }
 
   form?.addEventListener('submit', async (event) => {
@@ -149,6 +172,6 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   });
 
   renderSecret();
-  await loadCompanies();
+  if (!didInitialLoad) await loadCompanies();
   return root;
 }

@@ -108,9 +108,10 @@ export async function qhseFetch(path, init = {}) {
   if (fetchInit.body instanceof FormData) {
     headers.delete('Content-Type');
   }
-  if (isAdminGateApiUrl) {
+  if (isAdminGateApiUrl && !isAdminGateLoginUrl) {
     const finalAuth = headers.get('Authorization') || headers.get('authorization') || '';
     const scheme = finalAuth.startsWith('Bearer ') ? 'Bearer' : finalAuth ? 'other' : 'none';
+    console.info(`[ADMIN_GATE] final fetch url: ${url}`);
     console.info(`[ADMIN_GATE] final fetch Authorization present: ${Boolean(finalAuth)}`);
     console.info(`[ADMIN_GATE] final fetch Authorization scheme: ${scheme}`);
   }

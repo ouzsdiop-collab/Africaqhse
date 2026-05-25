@@ -6,14 +6,13 @@ export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
   console.info(`[ADMIN_GATE] token present: ${Boolean(token)}`);
   console.info(`[ADMIN_GATE] token length: ${token ? token.length : 0}`);
   if (!token) {
-    resetAdminGateSession();
-    onAuthError?.();
+    console.info(`[ADMIN_GATE] request skipped (${path}) reason: missing token`);
     return new Response(
       JSON.stringify({
-        error: 'Accès admin expiré. Veuillez ressaisir le code.',
-        code: 'ADMIN_GATE_TOKEN_MISSING'
+        error: 'Session admin en cours d’initialisation...',
+        code: 'MISSING_GATE_TOKEN_LOCAL'
       }),
-      { status: 401, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      { status: 428, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
   const headers = new Headers(options.headers || undefined);
