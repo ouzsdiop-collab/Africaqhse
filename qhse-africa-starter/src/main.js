@@ -1135,6 +1135,11 @@ function sleep(ms) {
   });
 }
 
+function isAdminGateLocation() {
+  const path = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/admin-qhse-control' || path.startsWith('/admin-qhse-control/');
+}
+
 let expertMobileNavEscapeRegistered = false;
 function ensureExpertMobileNavEscape() {
   if (expertMobileNavEscapeRegistered) return;
@@ -1182,18 +1187,20 @@ async function boot() {
       void registerTerrainBackgroundSync();
       void syncTerrainIncidentQueue().catch(() => {});
     }
-    Promise.all([
-      loadNotificationsFromApi(),
-      refreshConformityStatusCacheFromApi(),
-      refreshPermitsFromApi(),
-      refreshDocComplianceNotifications(),
-      refreshNotificationSmartContext()
-    ])
-      .then(() => renderApp())
-      .catch((err) => {
-        console.error('[QHSE] loadNotificationsFromApi', err);
-        renderApp();
-      });
+    if (!isAdminGateLocation()) {
+      Promise.all([
+        loadNotificationsFromApi(),
+        refreshConformityStatusCacheFromApi(),
+        refreshPermitsFromApi(),
+        refreshDocComplianceNotifications(),
+        refreshNotificationSmartContext()
+      ])
+        .then(() => renderApp())
+        .catch((err) => {
+          console.error('[QHSE] loadNotificationsFromApi', err);
+          renderApp();
+        });
+    }
   } catch (err) {
     console.error(err);
     captureQhseException(err, { phase: 'boot' });

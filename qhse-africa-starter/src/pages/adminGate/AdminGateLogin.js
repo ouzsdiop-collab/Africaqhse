@@ -46,6 +46,13 @@ export function createAdminGateLoginView({ onUnlock }) {
   form.style.display = 'grid';
   form.style.gap = '.75rem';
 
+  const usernameField = document.createElement('input');
+  usernameField.type = 'text';
+  usernameField.name = 'username';
+  usernameField.autocomplete = 'username';
+  usernameField.value = 'admin-qhse-control';
+  usernameField.hidden = true;
+
   const input = createInput();
   const msg = document.createElement('p');
   msg.style.margin = '0';
@@ -85,19 +92,21 @@ export function createAdminGateLoginView({ onUnlock }) {
         onUnlock?.();
         return;
       }
-      if (payload?.code === 'ADMIN_GATE_CONFIG_MISSING') {
+      if (res.status === 503 || payload?.code === 'ADMIN_GATE_CONFIG_MISSING') {
         msg.textContent = 'Configuration admin indisponible.';
-      } else {
+      } else if (res.status === 401 || res.status === 403) {
         msg.textContent = 'Code d’accès incorrect.';
+      } else {
+        msg.textContent = 'Impossible de contacter le serveur.';
       }
     } catch {
-      msg.textContent = 'Configuration admin indisponible.';
+      msg.textContent = 'Impossible de contacter le serveur.';
     } finally {
       setLoading(false);
     }
   });
 
-  form.append(input, btn, msg);
+  form.append(usernameField, input, btn, msg);
   card.append(title, subtitle, form);
   root.append(card);
   return root;
