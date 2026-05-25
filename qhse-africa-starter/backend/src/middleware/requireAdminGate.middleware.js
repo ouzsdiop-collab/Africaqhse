@@ -1,10 +1,4 @@
-import jwt from 'jsonwebtoken';
-
-function getAdminGateTokenSecret() {
-  const dedicated = String(process.env.QHSE_ADMIN_GATE_TOKEN_SECRET || '').trim();
-  if (dedicated) return dedicated;
-  return String(process.env.JWT_SECRET || '').trim();
-}
+import { resolveAdminGateTokenSecret, verifyAdminGateToken } from '../lib/adminGateToken.js';
 
 export function requireAdminGate(req, res, next) {
   const auth = String(req.headers.authorization || '');
@@ -16,7 +10,7 @@ export function requireAdminGate(req, res, next) {
     return res.status(401).json({ error: 'Accès admin gate requis.', code: 'ADMIN_GATE_TOKEN_MISSING' });
   }
 
-  const secret = getAdminGateTokenSecret();
+  const secret = resolveAdminGateTokenSecret();
   if (!secret) {
     return res.status(503).json({
       error: 'Configuration admin indisponible.',
@@ -25,10 +19,11 @@ export function requireAdminGate(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, secret);
-    if (!payload || payload.scope !== 'admin-gate') {
+    const verified = verifyAdminGateToken(token);
+    if (!verified.ok) {
       return res.status(403).json({ error: 'Accès admin expiré. Veuillez ressaisir le code.', code: 'ADMIN_GATE_TOKEN_INVALID' });
     }
+    const payload = verified.payload;
     req.adminGate = payload;
     return next();
   } catch {
