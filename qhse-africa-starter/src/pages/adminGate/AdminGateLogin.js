@@ -8,43 +8,27 @@ function createInput() {
   input.autocomplete = 'current-password';
   input.required = true;
   input.placeholder = 'Code d’accès';
-  input.className = 'sc-input';
-  input.style.width = '100%';
-  input.style.padding = '.85rem .95rem';
-  input.style.borderRadius = '.7rem';
-  input.style.border = '1px solid #334155';
-  input.style.background = '#0b1220';
-  input.style.color = '#e2e8f0';
+  input.className = 'sc-input admin-gate-input';
   return input;
 }
 
 export function createAdminGateLoginView({ onUnlock }) {
   const root = document.createElement('main');
-  root.style.minHeight = '100vh';
-  root.style.display = 'grid';
-  root.style.placeItems = 'center';
-  root.style.background = 'radial-gradient(circle at top, #111827 0%, #020617 55%, #000 100%)';
-  root.style.color = '#e2e8f0';
+  root.className = 'admin-gate-root';
 
   const card = document.createElement('section');
-  card.className = 'content-card card-soft';
-  card.style.width = 'min(460px, calc(100vw - 2rem))';
-  card.style.padding = '1.5rem';
+  card.className = 'content-card card-soft admin-gate-card';
 
   const title = document.createElement('h1');
   title.textContent = 'Admin QHSE Control';
-  title.style.margin = '0 0 .35rem';
-  title.style.fontSize = '1.5rem';
-  title.style.color = '#f8fafc';
+  title.className = 'admin-gate-title';
 
   const subtitle = document.createElement('p');
   subtitle.textContent = 'Espace réservé';
-  subtitle.style.margin = '0 0 1rem';
-  subtitle.style.color = '#94a3b8';
+  subtitle.className = 'admin-gate-subtitle';
 
   const form = document.createElement('form');
-  form.style.display = 'grid';
-  form.style.gap = '.75rem';
+  form.className = 'admin-gate-form';
 
   const usernameField = document.createElement('input');
   usernameField.type = 'text';
@@ -55,9 +39,7 @@ export function createAdminGateLoginView({ onUnlock }) {
 
   const input = createInput();
   const msg = document.createElement('p');
-  msg.style.margin = '0';
-  msg.style.minHeight = '1.2rem';
-  msg.style.fontSize = '.92rem';
+  msg.className = 'admin-gate-message';
 
   const btn = document.createElement('button');
   btn.type = 'submit';
@@ -73,7 +55,6 @@ export function createAdminGateLoginView({ onUnlock }) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     msg.textContent = '';
-    msg.style.color = '#fca5a5';
     const code = String(input.value || '').trim();
     if (!code) {
       msg.textContent = 'Code d’accès incorrect.';

@@ -48,6 +48,7 @@ import { ensureProductionDemoModeOff, isDemoMode } from './services/demoMode.ser
 import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
 import './styles/ui-density-saas.css';
+import './styles/admin-gate.css';
 
 import { createAdminShell, withPasswordModal } from './pages/admin/AdminShell.js';
 import { renderAdminOverview } from './pages/admin/AdminOverview.js';
