@@ -65,12 +65,13 @@ export async function qhseFetch(path, init = {}) {
 
   const isRefreshUrl = url.includes('/api/auth/refresh');
   const isLoginUrl = url.includes('/api/auth/login');
+  const isAdminGateLoginUrl = url.includes('/api/admin-gate/login');
 
   let token = getAccessTokenForRequest() || getAuthToken();
 
   /* Profil encore en session mais jeton absent (onglet rouvert, clés effacées) : tenter le refresh
    * cookie avant de retomber sur X-User-Id · en production ce dernier est ignoré → 403 « contexte org ». */
-  if (!isRefreshUrl && !isLoginUrl && !token && getSessionUser()) {
+  if (!isRefreshUrl && !isLoginUrl && !isAdminGateLoginUrl && !token && getSessionUser()) {
     const fromRefresh = await sharedRefreshAccessToken();
     if (fromRefresh) {
       token = fromRefresh;
@@ -112,7 +113,8 @@ export async function qhseFetch(path, init = {}) {
     sentBearer &&
     !_retry &&
     !isRefreshUrl &&
-    !isLoginUrl
+    !isLoginUrl &&
+    !isAdminGateLoginUrl
   ) {
     const newToken = await sharedRefreshAccessToken();
     if (newToken) {
@@ -124,7 +126,7 @@ export async function qhseFetch(path, init = {}) {
     return res;
   }
 
-  if (res.status === 401 && sentBearer && !isLoginUrl) {
+  if (res.status === 401 && sentBearer && !isLoginUrl && !isAdminGateLoginUrl) {
     clearSession();
   }
   if (res.status === 403) {
