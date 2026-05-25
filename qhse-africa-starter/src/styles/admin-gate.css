@@ -1,0 +1,162 @@
+:root {
+  --admin-gate-bg: #06122b;
+  --admin-gate-surface: #0f172a;
+  --admin-gate-surface-2: #1e293b;
+  --admin-gate-border: #334155;
+  --admin-gate-text: #f8fafc;
+  --admin-gate-text-muted: #cbd5e1;
+  --admin-gate-text-subtle: #94a3b8;
+  --admin-gate-accent: #22c55e;
+  --admin-gate-danger: #ef4444;
+  --admin-gate-success: #22c55e;
+}
+
+.admin-gate-root {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: radial-gradient(circle at top, color-mix(in srgb, var(--admin-gate-bg) 80%, #111827) 0%, #020617 58%, #01040d 100%);
+  color: var(--admin-gate-text);
+}
+
+.admin-gate-card {
+  width: min(560px, calc(100vw - 2rem));
+  background: linear-gradient(170deg, color-mix(in srgb, var(--admin-gate-surface) 92%, black), color-mix(in srgb, var(--admin-gate-surface-2) 82%, black));
+  border: 1px solid color-mix(in srgb, var(--admin-gate-border) 86%, #0b1220);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+  padding: 1.5rem;
+  color: var(--admin-gate-text);
+}
+
+.admin-gate-root .content-card.admin-gate-card,
+.admin-gate-root .card-soft.admin-gate-card {
+  background: linear-gradient(170deg, color-mix(in srgb, var(--admin-gate-surface) 92%, black), color-mix(in srgb, var(--admin-gate-surface-2) 82%, black)) !important;
+  border-color: color-mix(in srgb, var(--admin-gate-border) 86%, #0b1220) !important;
+  color: var(--admin-gate-text) !important;
+}
+
+.admin-gate-title {
+  margin: 0 0 .35rem;
+  font-size: clamp(1.4rem, 2vw, 1.65rem);
+  color: var(--admin-gate-text);
+}
+
+.admin-gate-subtitle {
+  margin: 0 0 1rem;
+  color: var(--admin-gate-text-muted);
+  font-size: .97rem;
+}
+
+.admin-gate-form {
+  display: grid;
+  gap: .75rem;
+}
+
+.admin-gate-input {
+  width: 100%;
+  padding: .85rem .95rem;
+  border-radius: .7rem;
+  border: 1px solid var(--admin-gate-border);
+  background: color-mix(in srgb, var(--admin-gate-surface) 84%, black);
+  color: var(--admin-gate-text);
+}
+
+.admin-gate-input::placeholder {
+  color: var(--admin-gate-text-subtle);
+  opacity: 1;
+}
+
+.admin-gate-input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--admin-gate-accent) 70%, white);
+  outline-offset: 1px;
+}
+
+.admin-gate-message {
+  margin: 0;
+  min-height: 1.3rem;
+  font-size: .92rem;
+  color: var(--admin-gate-danger);
+}
+
+.admin-gate-root .btn.btn-primary {
+  background: color-mix(in srgb, var(--admin-gate-accent) 78%, #052e16);
+  border: 1px solid color-mix(in srgb, var(--admin-gate-accent) 62%, #14532d);
+  color: #f0fdf4;
+}
+
+.admin-gate-root .btn.btn-primary:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+.admin-gate-card--success {
+  text-align: center;
+}
+
+.admin-gate-success {
+  margin: 0;
+  color: var(--admin-gate-success);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.admin-gate-shell {
+  width: min(1200px, calc(100vw - 2rem));
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1rem;
+}
+
+.admin-gate-nav,
+.admin-gate-panel {
+  background: linear-gradient(170deg, color-mix(in srgb, var(--admin-gate-surface) 92%, black), color-mix(in srgb, var(--admin-gate-surface-2) 82%, black)) !important;
+  border: 1px solid color-mix(in srgb, var(--admin-gate-border) 86%, #0b1220);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.admin-gate-main {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-gate-inline-secret {
+  margin-top: .75rem;
+  border: 1px solid color-mix(in srgb, var(--admin-gate-success) 40%, var(--admin-gate-border));
+  background: color-mix(in srgb, var(--admin-gate-success) 8%, var(--admin-gate-surface));
+  border-radius: 12px;
+  padding: .8rem;
+  color: var(--admin-gate-text);
+}
+
+.admin-gate-inline-secret code {
+  display: block;
+  margin: .4rem 0 .7rem;
+  padding: .55rem;
+  border-radius: 10px;
+  background: #020617;
+  border: 1px solid var(--admin-gate-border);
+  color: #dcfce7;
+  word-break: break-all;
+}
+
+.admin-gate-table-wrap { overflow-x: auto; }
+.admin-gate-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--admin-gate-text);
+}
+.admin-gate-table th,
+.admin-gate-table td {
+  text-align: left;
+  padding: .65rem .55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--admin-gate-border) 70%, transparent);
+}
+
+@media (max-width: 920px) {
+  .admin-gate-shell {
+    grid-template-columns: 1fr;
+  }
+}
