@@ -28,6 +28,7 @@ import reportingRouter from './routes/reporting.routes.js';
 import sitesRouter from './routes/sites.routes.js';
 import authRouter from './routes/auth.routes.js';
 import adminRouter from './routes/admin.routes.js';
+import adminGateRouter from './routes/adminGate.routes.js';
 import automationRouter from './routes/automation.routes.js';
 import complianceAssistRouter from './routes/complianceAssist.routes.js';
 import aiSuggestionRouter, { mistralAiRouter } from './routes/aiSuggestion.routes.js';
@@ -245,6 +246,7 @@ app.use('/api', globalApiLimiter);
 
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/admin-gate', adminGateRouter);
 app.use('/api/incidents', incidentsRouter);
 app.use('/api/risks', risksRouter);
 app.use('/api/actions', actionsRouter);
