@@ -1,12 +1,20 @@
 import { timingSafeEqual } from 'crypto';
+import jwt from 'jsonwebtoken';
 import { sendJsonError } from '../lib/apiErrors.js';
 import { adminGateLoginBodySchema } from '../validation/adminGateSchemas.js';
+import { listClients, createClient, patchTenant } from './admin.controller.js';
 
 function safeCodeEquals(a, b) {
   const ab = Buffer.from(String(a), 'utf8');
   const bb = Buffer.from(String(b), 'utf8');
   if (ab.length !== bb.length) return false;
   return timingSafeEqual(ab, bb);
+}
+
+function getAdminGateTokenSecret() {
+  const dedicated = String(process.env.QHSE_ADMIN_GATE_TOKEN_SECRET || '').trim();
+  if (dedicated) return dedicated;
+  return String(process.env.JWT_SECRET || '').trim();
 }
 
 export async function loginAdminGate(req, res) {
@@ -38,5 +46,25 @@ export async function loginAdminGate(req, res) {
     });
   }
 
-  return res.json({ ok: true });
+  const tokenSecret = getAdminGateTokenSecret();
+  if (!tokenSecret) {
+    return sendJsonError(res, 503, 'Configuration admin indisponible.', req, {
+      code: 'ADMIN_GATE_CONFIG_MISSING'
+    });
+  }
+
+  const token = jwt.sign(
+    {
+      scope: 'admin-gate',
+      typ: 'admin-gate'
+    },
+    tokenSecret,
+    { expiresIn: '45m' }
+  );
+
+  return res.json({ ok: true, token });
 }
+
+export const listGateClients = listClients;
+export const createGateClient = createClient;
+export const patchGateClient = patchTenant;

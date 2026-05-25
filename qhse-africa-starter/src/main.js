@@ -832,7 +832,12 @@ function renderApp() {
 
     if (isAdminGatePath) {
       if (isAdminGateUnlocked()) {
-        Promise.resolve(createAdminGateHomeView())
+        Promise.resolve(createAdminGateHomeView({
+          onSessionExpired: () => {
+            showToast('Accès admin expiré. Veuillez ressaisir le code.', 'error');
+            renderApp();
+          }
+        }))
           .then((view) => {
             if (view) app.append(view);
           })

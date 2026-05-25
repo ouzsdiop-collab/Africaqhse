@@ -6,7 +6,7 @@ import {
   normalizeClient
 } from './AdminGateApi.js';
 
-export async function createAdminGateCompaniesView() {
+export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   const root = document.createElement('section');
   root.className = 'admin-gate-companies';
   root.innerHTML = `
@@ -70,7 +70,7 @@ export async function createAdminGateCompaniesView() {
 
   async function loadCompanies() {
     list.innerHTML = '<p class="admin-gate-subtitle">Chargement des entreprises…</p>';
-    const res = await adminGateApi('/clients');
+    const res = await adminGateApi('/clients', {}, { onAuthError: onSessionExpired });
     const payload = await jsonOrEmpty(res);
     if (!res.ok) {
       list.innerHTML = `<p class="admin-gate-message">${getApiErrorMessage(res.status, payload)}</p>`;
@@ -113,7 +113,7 @@ export async function createAdminGateCompaniesView() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ companyName, contactName, email })
-    });
+    }, { onAuthError: onSessionExpired });
     const payload = await jsonOrEmpty(res);
     if (!res.ok) {
       setMessage(getApiErrorMessage(res.status, payload));
@@ -138,7 +138,7 @@ export async function createAdminGateCompaniesView() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: nextStatus })
-    });
+    }, { onAuthError: onSessionExpired });
     const payload = await jsonOrEmpty(res);
     if (!res.ok) {
       setMessage(getApiErrorMessage(res.status, payload));

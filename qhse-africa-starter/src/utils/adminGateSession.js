@@ -1,13 +1,17 @@
-let unlocked = false;
+let gateToken = '';
 
-export function unlockAdminGateSession() {
-  unlocked = true;
+export function setGateToken(token) {
+  gateToken = String(token || '').trim();
+}
+
+export function getGateToken() {
+  return gateToken;
 }
 
 export function isAdminGateUnlocked() {
-  return unlocked;
+  return Boolean(gateToken);
 }
 
 export function resetAdminGateSession() {
-  unlocked = false;
+  gateToken = '';
 }

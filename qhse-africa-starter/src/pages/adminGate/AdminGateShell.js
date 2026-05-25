@@ -1,6 +1,7 @@
 import { createAdminGateCompaniesView } from './AdminGateCompanies.js';
+import { resetAdminGateSession } from '../../utils/adminGateSession.js';
 
-export async function createAdminGateShellView() {
+export async function createAdminGateShellView({ onSessionExpired } = {}) {
   const root = document.createElement('main');
   root.className = 'admin-gate-root';
 
@@ -16,7 +17,12 @@ export async function createAdminGateShellView() {
   `;
 
   const mount = shell.querySelector('.admin-gate-main');
-  const companiesView = await createAdminGateCompaniesView();
+  const companiesView = await createAdminGateCompaniesView({
+    onSessionExpired: () => {
+      resetAdminGateSession();
+      onSessionExpired?.();
+    }
+  });
   mount?.append(companiesView);
 
   root.append(shell);

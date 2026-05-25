@@ -1,5 +1,5 @@
 import { qhseFetch } from '../../utils/qhseFetch.js';
-import { unlockAdminGateSession } from '../../utils/adminGateSession.js';
+import { setGateToken } from '../../utils/adminGateSession.js';
 
 function createInput() {
   const input = document.createElement('input');
@@ -69,7 +69,11 @@ export function createAdminGateLoginView({ onUnlock }) {
       });
       const payload = await res.json().catch(() => ({}));
       if (res.ok && payload?.ok) {
-        unlockAdminGateSession();
+        if (!payload?.token || typeof payload.token !== 'string') {
+          msg.textContent = 'Session admin indisponible.';
+          return;
+        }
+        setGateToken(payload.token);
         onUnlock?.();
         return;
       }

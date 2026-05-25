@@ -1,7 +1,17 @@
 import { qhseFetch } from '../../utils/qhseFetch.js';
+import { getGateToken, resetAdminGateSession } from '../../utils/adminGateSession.js';
 
-export async function adminGateApi(path, options = {}) {
-  return qhseFetch(`/api/admin${path}`, options);
+export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
+  const token = getGateToken();
+  const headers = new Headers(options.headers || undefined);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await qhseFetch(`/api/admin-gate${path}`, { ...options, headers });
+  if (res.status === 401 || res.status === 403) {
+    resetAdminGateSession();
+    onAuthError?.();
+  }
+  return res;
 }
 
 export async function jsonOrEmpty(response) {
