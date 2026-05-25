@@ -1,7 +1,7 @@
 import { resolveAdminGateTokenSecret, verifyAdminGateToken } from '../lib/adminGateToken.js';
 
 export function requireAdminGate(req, res, next) {
-  const auth = String(req.headers.authorization || '');
+  const auth = String(req.get('authorization') || req.headers.authorization || '');
   console.info(`[ADMIN_GATE] backend auth header present: ${Boolean(auth)}`);
   if (!auth.startsWith('Bearer ')) {
     console.info('[ADMIN_GATE] backend reject reason: missing_authorization');
