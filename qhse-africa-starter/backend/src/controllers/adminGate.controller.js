@@ -1,7 +1,14 @@
 import { timingSafeEqual } from 'crypto';
 import { sendJsonError } from '../lib/apiErrors.js';
 import { adminGateLoginBodySchema } from '../validation/adminGateSchemas.js';
-import { listClients, createClient, patchTenant } from './admin.controller.js';
+import {
+  listClients,
+  createClient,
+  patchTenant,
+  createTenantUser,
+  patchTenantUser,
+  resetUserPassword
+} from './admin.controller.js';
 import { signAdminGateToken, resolveAdminGateTokenSecret } from '../lib/adminGateToken.js';
 
 function safeCodeEquals(a, b) {
@@ -58,3 +65,6 @@ export async function loginAdminGate(req, res) {
 export const listGateClients = listClients;
 export const createGateClient = createClient;
 export const patchGateClient = patchTenant;
+export const createGateTenantUser = createTenantUser;
+export const patchGateTenantUser = patchTenantUser;
+export const resetGateUserPassword = resetUserPassword;
