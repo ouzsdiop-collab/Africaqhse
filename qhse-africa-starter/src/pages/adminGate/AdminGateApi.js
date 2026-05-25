@@ -3,6 +3,8 @@ import { getGateToken, resetAdminGateSession } from '../../utils/adminGateSessio
 
 export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
   const token = getGateToken();
+  console.info(`[ADMIN_GATE] token present: ${Boolean(token)}`);
+  console.info(`[ADMIN_GATE] token length: ${token ? token.length : 0}`);
   if (!token) {
     resetAdminGateSession();
     onAuthError?.();
@@ -16,6 +18,8 @@ export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
   }
   const headers = new Headers(options.headers || undefined);
   headers.set('Authorization', `Bearer ${token}`);
+  const authHeaderWillBeSent = Boolean(headers.get('Authorization') || headers.get('authorization'));
+  console.info(`[ADMIN_GATE] authorization header will be sent: ${authHeaderWillBeSent}`);
 
   const res = await qhseFetch(`/api/admin-gate${path}`, { ...options, headers });
   if (res.status === 401 || res.status === 403) {

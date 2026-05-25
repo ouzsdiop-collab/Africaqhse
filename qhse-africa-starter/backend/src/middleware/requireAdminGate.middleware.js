@@ -2,10 +2,13 @@ import { resolveAdminGateTokenSecret, verifyAdminGateToken } from '../lib/adminG
 
 export function requireAdminGate(req, res, next) {
   const auth = String(req.headers.authorization || '');
+  console.info(`[ADMIN_GATE] auth header present: ${Boolean(auth)}`);
   if (!auth.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Accès admin gate requis.', code: 'ADMIN_GATE_TOKEN_MISSING' });
   }
   const token = auth.slice(7).trim();
+  console.info(`[ADMIN_GATE] bearer token present: ${Boolean(token)}`);
+  console.info(`[ADMIN_GATE] token length: ${token ? token.length : 0}`);
   if (!token) {
     return res.status(401).json({ error: 'Accès admin gate requis.', code: 'ADMIN_GATE_TOKEN_MISSING' });
   }
