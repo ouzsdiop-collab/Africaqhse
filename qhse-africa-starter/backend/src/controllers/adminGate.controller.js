@@ -62,7 +62,7 @@ export async function loginAdminGate(req, res) {
     { expiresIn: '45m' }
   );
 
-  return res.json({ ok: true, token });
+  return res.json({ ok: true, token, expiresIn: 45 * 60 });
 }
 
 export const listGateClients = listClients;

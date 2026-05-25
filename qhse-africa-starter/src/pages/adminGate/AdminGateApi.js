@@ -3,8 +3,19 @@ import { getGateToken, resetAdminGateSession } from '../../utils/adminGateSessio
 
 export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
   const token = getGateToken();
+  if (!token) {
+    resetAdminGateSession();
+    onAuthError?.();
+    return new Response(
+      JSON.stringify({
+        error: 'Accès admin expiré. Veuillez ressaisir le code.',
+        code: 'ADMIN_GATE_TOKEN_MISSING'
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
   const headers = new Headers(options.headers || undefined);
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  headers.set('Authorization', `Bearer ${token}`);
 
   const res = await qhseFetch(`/api/admin-gate${path}`, { ...options, headers });
   if (res.status === 401 || res.status === 403) {
