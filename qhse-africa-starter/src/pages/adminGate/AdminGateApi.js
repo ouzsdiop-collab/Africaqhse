@@ -1,32 +1,50 @@
 import { qhseFetch } from '../../utils/qhseFetch.js';
 import { getGateToken, resetAdminGateSession } from '../../utils/adminGateSession.js';
 
-export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
+function buildLocalMissingTokenResponse() {
+  return {
+    status: 428,
+    data: {
+      error: 'Session admin en cours d’initialisation...',
+      code: 'MISSING_GATE_TOKEN_LOCAL'
+    }
+  };
+}
+
+export async function adminGateRequest(path, options = {}, { onAuthError } = {}) {
   const token = getGateToken();
-  console.info(`[ADMIN_GATE] token present: ${Boolean(token)}`);
-  console.info(`[ADMIN_GATE] token length: ${token ? token.length : 0}`);
   if (!token) {
-    console.info(`[ADMIN_GATE] request skipped (${path}) reason: missing token`);
-    return new Response(
-      JSON.stringify({
-        error: 'Session admin en cours d’initialisation...',
-        code: 'MISSING_GATE_TOKEN_LOCAL'
-      }),
-      { status: 428, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-    );
+    return buildLocalMissingTokenResponse();
   }
+
   const headers = new Headers(options.headers || undefined);
   headers.set('Authorization', `Bearer ${token}`);
-  const authHeaderWillBeSent = Boolean(headers.get('Authorization') || headers.get('authorization'));
-  console.info(`[ADMIN_GATE] authorization header will be sent: ${authHeaderWillBeSent}`);
 
-  const res = await qhseFetch(`/api/admin-gate${path}`, { ...options, headers });
-  console.info(`[ADMIN_GATE] response status for ${path}: ${res.status}`);
-  if (res.status === 401 || res.status === 403) {
+  const response = await qhseFetch(`/api/admin-gate${path}`, { ...options, headers });
+  const data = await jsonOrEmpty(response);
+  const result = { status: response.status, data };
+
+  if (response.status === 401 || response.status === 403) {
     resetAdminGateSession();
     onAuthError?.();
   }
-  return res;
+
+  if (response.status === 200 || response.status === 201) {
+    return result;
+  }
+
+  const error = new Error(getApiErrorMessage(response.status, data));
+  error.status = response.status;
+  error.data = data;
+  throw error;
+}
+
+export async function adminGateApi(path, options = {}, { onAuthError } = {}) {
+  const { status, data } = await adminGateRequest(path, options, { onAuthError });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+  });
 }
 
 export async function jsonOrEmpty(response) {
@@ -65,7 +83,9 @@ export function extractOneTimePassword(payload) {
     ?? payload?.password
     ?? payload?.user?.temporaryPasswordOneTime
     ?? payload?.createdUser?.temporaryPasswordOneTime
-    ?? payload?.initialUser?.temporaryPasswordOneTime;
+    ?? payload?.initialUser?.temporaryPasswordOneTime
+    ?? payload?.data?.temporaryPasswordOneTime
+    ?? payload?.data?.user?.temporaryPasswordOneTime;
   const pwd = typeof candidate === 'string' ? candidate.trim() : '';
   if (!pwd) return null;
   return pwd;

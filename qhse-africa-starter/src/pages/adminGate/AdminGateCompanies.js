@@ -1,8 +1,7 @@
 import {
-  adminGateApi,
+  adminGateRequest,
   extractOneTimePassword,
   getApiErrorMessage,
-  jsonOrEmpty,
   normalizeClient
 } from './AdminGateApi.js';
 import { getGateToken } from '../../utils/adminGateSession.js';
@@ -32,6 +31,7 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   const list = root.querySelector('.js-list');
   const message = root.querySelector('.js-message');
   const secretBox = root.querySelector('.js-secret');
+  const submitButton = form?.querySelector('button[type="submit"]');
 
   let oneTimePassword = null;
   let isLoadingCompanies = false;
@@ -76,86 +76,96 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   }
 
   async function loadCompanies() {
-    if (isLoadingCompanies) {
-      console.info('[ADMIN_GATE] request skipped (/clients) reason: already loading');
-      return;
-    }
+    if (isLoadingCompanies) return;
     if (!getGateToken()) {
-      console.info('[ADMIN_GATE] request skipped (/clients) reason: missing token before load');
       list.innerHTML = '<p class="admin-gate-subtitle">Session admin en cours d’initialisation...</p>';
       return;
     }
+
     isLoadingCompanies = true;
     list.innerHTML = '<p class="admin-gate-subtitle">Chargement des entreprises…</p>';
-    const res = await adminGateApi('/clients', {}, { onAuthError: onSessionExpired });
-    const payload = await jsonOrEmpty(res);
-    if (!res.ok) {
-      if (payload?.code === 'MISSING_GATE_TOKEN_LOCAL') {
-        list.innerHTML = '<p class="admin-gate-subtitle">Session admin en cours d’initialisation...</p>';
-        isLoadingCompanies = false;
+    try {
+      const { data: payload } = await adminGateRequest('/clients', {}, { onAuthError: onSessionExpired });
+      const rawItems = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
+      const items = rawItems.map(normalizeClient).filter((c) => c.id);
+
+      if (!items.length) {
+        list.innerHTML = '<p class="admin-gate-subtitle">Aucune entreprise pour le moment.</p>';
+        didInitialLoad = true;
         return;
       }
-      list.innerHTML = `<p class="admin-gate-message">${getApiErrorMessage(res.status, payload)}</p>`;
-      isLoadingCompanies = false;
-      return;
-    }
-    const rawItems = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
-    const items = rawItems.map(normalizeClient).filter((c) => c.id);
 
-    if (!items.length) {
-      list.innerHTML = '<p class="admin-gate-subtitle">Aucune entreprise pour le moment.</p>';
+      list.innerHTML = `
+        <div class="admin-gate-table-wrap">
+          <table class="admin-gate-table">
+            <thead><tr><th>Entreprise</th><th>Statut</th><th>Utilisateurs</th><th>Actifs</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${items.map((c) => `<tr>
+                <td>${c.name}</td>
+                <td>${statusLabel(c.status)}</td>
+                <td>${c.usersCount}</td>
+                <td>${c.activeUsersCount}</td>
+                <td><button class="btn" data-toggle-id="${c.id}" data-toggle-status="${c.status}">${c.status === 'suspended' ? 'Réactiver' : 'Suspendre'}</button></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
       didInitialLoad = true;
+    } catch (error) {
+      if (error?.data?.code === 'MISSING_GATE_TOKEN_LOCAL') {
+        list.innerHTML = '<p class="admin-gate-subtitle">Session admin en cours d’initialisation...</p>';
+      } else {
+        list.innerHTML = `<p class="admin-gate-message">${error?.message || 'Erreur de chargement.'}</p>`;
+      }
+    } finally {
       isLoadingCompanies = false;
-      return;
     }
-
-    list.innerHTML = `
-      <div class="admin-gate-table-wrap">
-        <table class="admin-gate-table">
-          <thead><tr><th>Entreprise</th><th>Statut</th><th>Utilisateurs</th><th>Actifs</th><th>Actions</th></tr></thead>
-          <tbody>
-            ${items.map((c) => `<tr>
-              <td>${c.name}</td>
-              <td>${statusLabel(c.status)}</td>
-              <td>${c.usersCount}</td>
-              <td>${c.activeUsersCount}</td>
-              <td><button class="btn" data-toggle-id="${c.id}" data-toggle-status="${c.status}">${c.status === 'suspended' ? 'Réactiver' : 'Suspendre'}</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
-    didInitialLoad = true;
-    isLoadingCompanies = false;
   }
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    console.info('[ADMIN_GATE] action clicked: create company');
     clearMessage();
+    oneTimePassword = null;
+    renderSecret();
+
     const companyName = String(root.querySelector('.js-company')?.value || '').trim();
     const contactName = String(root.querySelector('.js-contact')?.value || '').trim();
     const email = String(root.querySelector('.js-email')?.value || '').trim().toLowerCase();
 
-    const res = await adminGateApi('/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyName, contactName, email })
-    }, { onAuthError: onSessionExpired });
-    const payload = await jsonOrEmpty(res);
-    if (!res.ok) {
-      if (res.status === 409) {
-        setMessage('Un compte existe déjà pour cet e-mail.');
-      } else {
-        setMessage(getApiErrorMessage(res.status, payload));
-      }
-      return;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Création en cours...';
     }
-    clearMessage();
-    oneTimePassword = extractOneTimePassword(payload);
-    renderSecret();
-    form.reset();
-    setMessage('Entreprise créée avec succès.', 'success');
-    await loadCompanies();
+
+    try {
+      const { status, data } = await adminGateRequest('/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName, contactName, email })
+      }, { onAuthError: onSessionExpired });
+      console.info(`[ADMIN_GATE] create company status: ${status}`);
+      console.info('[ADMIN_GATE] create company success: true');
+      oneTimePassword = extractOneTimePassword(data);
+      console.info(`[ADMIN_GATE] response has one-time password: ${Boolean(oneTimePassword)}`);
+      renderSecret();
+      form.reset();
+      setMessage('Entreprise créée avec succès.', 'success');
+      console.info('[ADMIN_GATE] reload companies after create: started');
+      await loadCompanies();
+      console.info('[ADMIN_GATE] reload companies after create: done');
+    } catch (error) {
+      console.info(`[ADMIN_GATE] create company status: ${error?.status || 'unknown'}`);
+      console.info('[ADMIN_GATE] create company success: false');
+      if (error?.status === 409) setMessage('Un compte existe déjà pour cet e-mail.');
+      else setMessage(error?.message || getApiErrorMessage(error?.status, error?.data));
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Créer l’entreprise';
+      }
+    }
   });
 
   list?.addEventListener('click', async (event) => {
@@ -166,18 +176,17 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
     const current = String(el.dataset.toggleStatus || 'active').toLowerCase();
     const nextStatus = current === 'suspended' ? 'active' : 'suspended';
     clearMessage();
-    const res = await adminGateApi(`/clients/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus })
-    }, { onAuthError: onSessionExpired });
-    const payload = await jsonOrEmpty(res);
-    if (!res.ok) {
-      setMessage(getApiErrorMessage(res.status, payload));
-      return;
+    try {
+      await adminGateRequest(`/clients/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      }, { onAuthError: onSessionExpired });
+      setMessage(nextStatus === 'suspended' ? 'Entreprise suspendue.' : 'Entreprise réactivée.', 'success');
+      await loadCompanies();
+    } catch (error) {
+      setMessage(error?.message || getApiErrorMessage(error?.status, error?.data));
     }
-    setMessage(nextStatus === 'suspended' ? 'Entreprise suspendue.' : 'Entreprise réactivée.', 'success');
-    await loadCompanies();
   });
 
   renderSecret();
