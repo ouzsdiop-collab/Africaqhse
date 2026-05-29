@@ -95,7 +95,7 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
               <td>${u.role || 'USER'}</td>
               <td>${u.isActive === false ? 'Désactivé' : 'Actif'}</td>
               <td>
-                <button class="btn" data-action="reset" data-user-id="${u.id}">Reset mot de passe</button>
+                <button class="btn" data-action="reset" data-user-id="${u.id}" data-tenant-id="${c.id}">Reset mot de passe</button>
                 <button class="btn" data-action="toggle" data-user-id="${u.id}" data-active="${u.isActive === false ? '0' : '1'}">${u.isActive === false ? 'Réactiver' : 'Désactiver'}</button>
               </td>
             </tr>`).join('')}
@@ -162,36 +162,53 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
     if (!(el instanceof HTMLElement)) return;
     const action = el.dataset.action;
     const userId = String(el.dataset.userId || '').trim();
-    if (!action || !userId || !selectedTenantId) return;
+    const rowTenantId = String(el.dataset.tenantId || '').trim();
+    if (!action || !userId) return;
     setMessage('');
 
     if (action === 'reset') {
+      const tenantId = rowTenantId || String(selectedTenantId || tenantSelect?.value || '').trim();
+      oneTimePassword = null;
+      renderSecret();
       console.info('[ADMIN_GATE] reset password clicked: true');
+      console.info(`[ADMIN_GATE] tenantId present: ${Boolean(tenantId)}`);
+
+      if (!tenantId) {
+        setMessage('Champ manquant ou invalide.');
+        return;
+      }
+
       const resetButtonLabel = el.textContent;
       el.setAttribute('disabled', 'disabled');
       el.textContent = 'Reset en cours...';
-      let payload;
       try {
-        ({ data: payload } = await adminGateRequest(`/users/${encodeURIComponent(userId)}/reset-password`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: selectedTenantId })
-        }, { onAuthError: onSessionExpired }));
-        console.info('[ADMIN_GATE] reset password endpoint available: true');
+        const { status, data: payload } = await adminGateRequest(`/users/${encodeURIComponent(userId)}/reset-password`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId })
+        }, { onAuthError: onSessionExpired });
+        oneTimePassword = extractOneTimePassword(payload);
+        console.info(`[ADMIN_GATE] reset status: ${status}`);
+        console.info('[ADMIN_GATE] reset success: true');
+        console.info(`[ADMIN_GATE] response has one-time password: ${Boolean(oneTimePassword)}`);
+        renderSecret();
+        setMessage('Mot de passe réinitialisé.', 'success');
       } catch (error) {
-        if (error?.status === 404) {
-          setMessage('Reset mot de passe disponible après activation de la section Utilisateurs.');
+        console.info(`[ADMIN_GATE] reset status: ${error?.status || 'unknown'}`);
+        console.info('[ADMIN_GATE] reset success: false');
+        if (error?.status === 400 || error?.status === 422) {
+          setMessage('Champ manquant ou invalide.');
+        } else if (error?.status === 401 || error?.status === 403) {
+          setMessage('Accès admin expiré, ressaisir le code.');
+        } else if (error?.status === 404) {
+          setMessage('Utilisateur introuvable.');
+        } else if (error?.status >= 500) {
+          setMessage('Erreur serveur.');
         } else {
           setMessage(error?.message || getApiErrorMessage(error?.status, error?.data));
         }
+      } finally {
         el.removeAttribute('disabled');
         el.textContent = resetButtonLabel || 'Reset mot de passe';
-        return;
       }
-      oneTimePassword = extractOneTimePassword(payload);
-      renderSecret();
-      setMessage('Accès réinitialisé avec succès.', 'success');
-      await loadClientsAndUsers();
-      el.removeAttribute('disabled');
-      el.textContent = resetButtonLabel || 'Reset mot de passe';
       return;
     }
 

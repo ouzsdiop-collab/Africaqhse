@@ -82,6 +82,7 @@ export function extractOneTimePassword(payload) {
     ?? payload?.temporaryPassword
     ?? payload?.password
     ?? payload?.user?.temporaryPasswordOneTime
+    ?? payload?.reset?.temporaryPasswordOneTime
     ?? payload?.createdUser?.temporaryPasswordOneTime
     ?? payload?.initialUser?.temporaryPasswordOneTime
     ?? payload?.data?.temporaryPasswordOneTime
