@@ -1,8 +1,7 @@
 import {
-  adminGateApi,
+  adminGateRequest,
   extractOneTimePassword,
   getApiErrorMessage,
-  jsonOrEmpty,
   normalizeClient
 } from './AdminGateApi.js';
 
@@ -96,7 +95,7 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
               <td>${u.role || 'USER'}</td>
               <td>${u.isActive === false ? 'Désactivé' : 'Actif'}</td>
               <td>
-                <button class="btn" data-action="reset" data-user-id="${u.id}">Reset mot de passe</button>
+                <button class="btn" data-action="reset" data-user-id="${u.id}" data-tenant-id="${c.id}">Reset mot de passe</button>
                 <button class="btn" data-action="toggle" data-user-id="${u.id}" data-active="${u.isActive === false ? '0' : '1'}">${u.isActive === false ? 'Réactiver' : 'Désactiver'}</button>
               </td>
             </tr>`).join('')}
@@ -108,10 +107,11 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
 
   async function loadClientsAndUsers() {
     list.innerHTML = '<p class="admin-gate-subtitle">Chargement des utilisateurs…</p>';
-    const res = await adminGateApi('/clients', {}, { onAuthError: onSessionExpired });
-    const payload = await jsonOrEmpty(res);
-    if (!res.ok) {
-      list.innerHTML = `<p class="admin-gate-message">${getApiErrorMessage(res.status, payload)}</p>`;
+    let payload;
+    try {
+      ({ data: payload } = await adminGateRequest('/clients', {}, { onAuthError: onSessionExpired }));
+    } catch (error) {
+      list.innerHTML = `<p class="admin-gate-message">${error?.message || getApiErrorMessage(error?.status, error?.data)}</p>`;
       return;
     }
     const raw = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
@@ -141,12 +141,13 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
       email: String(root.querySelector('.js-email')?.value || '').trim().toLowerCase(),
       role: String(root.querySelector('.js-role')?.value || 'USER').trim().toUpperCase()
     };
-    const res = await adminGateApi(`/clients/${encodeURIComponent(tenantId)}/users`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    }, { onAuthError: onSessionExpired });
-    const payload = await jsonOrEmpty(res);
-    if (!res.ok) {
-      setMessage(res.status === 409 ? 'Un compte existe déjà pour cet e-mail.' : getApiErrorMessage(res.status, payload));
+    let payload;
+    try {
+      ({ data: payload } = await adminGateRequest(`/clients/${encodeURIComponent(tenantId)}/users`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      }, { onAuthError: onSessionExpired }));
+    } catch (error) {
+      setMessage(error?.status === 409 ? 'Un compte existe déjà pour cet e-mail.' : (error?.message || getApiErrorMessage(error?.status, error?.data)));
       return;
     }
     oneTimePassword = extractOneTimePassword(payload);
@@ -161,33 +162,64 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
     if (!(el instanceof HTMLElement)) return;
     const action = el.dataset.action;
     const userId = String(el.dataset.userId || '').trim();
-    if (!action || !userId || !selectedTenantId) return;
+    const rowTenantId = String(el.dataset.tenantId || '').trim();
+    if (!action || !userId) return;
     setMessage('');
 
     if (action === 'reset') {
-      const res = await adminGateApi(`/users/${encodeURIComponent(userId)}/reset-password`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: selectedTenantId })
-      }, { onAuthError: onSessionExpired });
-      const payload = await jsonOrEmpty(res);
-      if (!res.ok) {
-        setMessage(getApiErrorMessage(res.status, payload));
+      const tenantId = rowTenantId || String(selectedTenantId || tenantSelect?.value || '').trim();
+      oneTimePassword = null;
+      renderSecret();
+      console.info('[ADMIN_GATE] reset password clicked: true');
+      console.info(`[ADMIN_GATE] tenantId present: ${Boolean(tenantId)}`);
+
+      if (!tenantId) {
+        setMessage('Champ manquant ou invalide.');
         return;
       }
-      oneTimePassword = extractOneTimePassword(payload);
-      renderSecret();
-      setMessage('Accès réinitialisé avec succès.', 'success');
-      await loadClientsAndUsers();
+
+      const resetButtonLabel = el.textContent;
+      el.setAttribute('disabled', 'disabled');
+      el.textContent = 'Reset en cours...';
+      try {
+        const { status, data: payload } = await adminGateRequest(`/users/${encodeURIComponent(userId)}/reset-password`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId })
+        }, { onAuthError: onSessionExpired });
+        oneTimePassword = extractOneTimePassword(payload);
+        console.info(`[ADMIN_GATE] reset status: ${status}`);
+        console.info('[ADMIN_GATE] reset success: true');
+        console.info(`[ADMIN_GATE] response has one-time password: ${Boolean(oneTimePassword)}`);
+        renderSecret();
+        setMessage('Mot de passe réinitialisé.', 'success');
+      } catch (error) {
+        console.info(`[ADMIN_GATE] reset status: ${error?.status || 'unknown'}`);
+        console.info('[ADMIN_GATE] reset success: false');
+        if (error?.status === 400 || error?.status === 422) {
+          setMessage('Champ manquant ou invalide.');
+        } else if (error?.status === 401 || error?.status === 403) {
+          setMessage('Accès admin expiré, ressaisir le code.');
+        } else if (error?.status === 404) {
+          setMessage('Utilisateur introuvable.');
+        } else if (error?.status >= 500) {
+          setMessage('Erreur serveur.');
+        } else {
+          setMessage(error?.message || getApiErrorMessage(error?.status, error?.data));
+        }
+      } finally {
+        el.removeAttribute('disabled');
+        el.textContent = resetButtonLabel || 'Reset mot de passe';
+      }
       return;
     }
 
     if (action === 'toggle') {
       const active = el.dataset.active === '1';
-      const res = await adminGateApi(`/users/${encodeURIComponent(userId)}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: selectedTenantId, isActive: !active })
-      }, { onAuthError: onSessionExpired });
-      const payload = await jsonOrEmpty(res);
-      if (!res.ok) {
-        setMessage(getApiErrorMessage(res.status, payload));
+      try {
+        await adminGateRequest(`/users/${encodeURIComponent(userId)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: selectedTenantId, isActive: !active })
+        }, { onAuthError: onSessionExpired });
+      } catch (error) {
+        setMessage(error?.message || getApiErrorMessage(error?.status, error?.data));
         return;
       }
       setMessage(!active ? 'Utilisateur activé.' : 'Utilisateur désactivé.', 'success');
