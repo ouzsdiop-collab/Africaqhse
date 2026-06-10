@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { sendJsonError } from '../lib/apiErrors.js';
+import { encryptSecret, decryptSecret } from '../lib/secretCrypto.js';
 import * as authService from '../services/auth.service.js';
 import {
   adminCreateClientBodySchema,
@@ -96,6 +97,7 @@ export async function listClients(req, res, next) {
                 isActive: true,
                 status: true,
                 mustChangePassword: true,
+                temporaryPasswordEncrypted: true,
                 lastLoginAt: true,
                 createdAt: true
               }
@@ -117,6 +119,9 @@ export async function listClients(req, res, next) {
           isActive: m.user.isActive,
           status: authService.resolveUserStatus(m.user),
           mustChangePassword: m.user.mustChangePassword,
+          temporaryPasswordCurrent: m.user.mustChangePassword
+            ? decryptSecret(m.user.temporaryPasswordEncrypted)
+            : null,
           lastLoginAt: m.user.lastLoginAt,
           createdAt: m.user.createdAt
         }));
@@ -195,7 +200,8 @@ export async function createClient(req, res, next) {
           isActive: true,
           status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
-          temporaryPasswordCreatedAt: new Date()
+          temporaryPasswordCreatedAt: new Date(),
+          temporaryPasswordEncrypted: encryptSecret(provisional)
         }
       });
       await tx.tenantMember.create({
@@ -326,7 +332,8 @@ export async function resetClientPassword(req, res, next) {
           passwordHash,
           status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
-          temporaryPasswordCreatedAt: new Date()
+          temporaryPasswordCreatedAt: new Date(),
+          temporaryPasswordEncrypted: encryptSecret(provisional)
         }
       }),
       prisma.refreshToken.deleteMany({ where: { userId: member.user.id } })
@@ -507,7 +514,8 @@ export async function createTenantUser(req, res, next) {
           isActive: true,
           status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
-          temporaryPasswordCreatedAt: new Date()
+          temporaryPasswordCreatedAt: new Date(),
+          temporaryPasswordEncrypted: encryptSecret(provisional)
         },
         select: { id: true, name: true, email: true, role: true }
       });
@@ -730,7 +738,8 @@ export async function resetUserPassword(req, res, next) {
           passwordHash,
           status: authService.USER_STATUS.INVITED,
           mustChangePassword: true,
-          temporaryPasswordCreatedAt: new Date()
+          temporaryPasswordCreatedAt: new Date(),
+          temporaryPasswordEncrypted: encryptSecret(provisional)
         }
       }),
       prisma.refreshToken.deleteMany({ where: { userId } })

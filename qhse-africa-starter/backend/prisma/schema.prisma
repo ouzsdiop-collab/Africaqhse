@@ -156,6 +156,10 @@ model User {
   /// Horodatage de la dernière attribution d’un mot de passe provisoire (audit / support).
   temporaryPasswordCreatedAt DateTime?
 
+  /// Mot de passe provisoire chiffré (AES-256-GCM), visible par l’admin tant que mustChangePassword=true.
+  /// Effacé dès que l’utilisateur change son mot de passe.
+  temporaryPasswordEncrypted String?
+
   lastLoginAt DateTime?
 
   onboardingCompleted Boolean @default(false)
