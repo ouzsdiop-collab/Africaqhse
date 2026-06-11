@@ -42,7 +42,8 @@ function sharedRefreshAccessToken() {
 export async function qhseFetch(path, init = {}) {
   const { _retry, ...fetchInit } = init;
 
-  if (isDemoMode()) {
+  const demoTenant = String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+  if (isDemoMode() && demoTenant) {
     const demoRes = await tryDemoFetchResponse(path, fetchInit);
     if (demoRes) return demoRes;
     return new Response(
