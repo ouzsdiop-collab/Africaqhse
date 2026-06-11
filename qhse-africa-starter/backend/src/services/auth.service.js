@@ -192,7 +192,8 @@ export async function fulfillMandatoryPasswordChange(rawToken, newPassword) {
         passwordHash,
         status: USER_STATUS.ACTIVE,
         mustChangePassword: false,
-        temporaryPasswordCreatedAt: null
+        temporaryPasswordCreatedAt: null,
+        temporaryPasswordEncrypted: null
       }
     }),
     prisma.refreshToken.deleteMany({ where: { userId: parsed.sub } })

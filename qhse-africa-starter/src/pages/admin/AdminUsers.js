@@ -94,11 +94,12 @@ export async function renderAdminUsers(_onOneTimePassword) {
     }
     const clients = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
     const rows = clients.flatMap((c) => (Array.isArray(c.users) ? c.users.map((u) => ({ c, u })) : []));
-    list.innerHTML = `<table class="admin-table"><thead><tr><th>Email</th><th>Entreprise</th><th>Statut</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
+    list.innerHTML = `<table class="admin-table"><thead><tr><th>Email</th><th>Entreprise</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
       const tenantId = c?.tenant?.id || c?.id || '';
       const tenantName = c?.tenant?.name || c?.companyName || c?.name || '—';
       const isActive = u?.isActive !== false;
-      return `<tr><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
+      const tempPwd = u?.mustChangePassword && u?.temporaryPasswordCurrent ? `<code>${u.temporaryPasswordCurrent}</code>` : '—';
+      return `<tr><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
     }).join('')}</tbody></table>`;
   }
 
