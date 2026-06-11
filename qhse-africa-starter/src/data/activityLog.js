@@ -1,3 +1,5 @@
+import { getSessionUser } from './sessionUser.js';
+
 /** Entité métier pour filtrage ISO (exigence registre). */
 export const ENTITY_ISO_REQUIREMENT = 'iso_requirement';
 
@@ -68,7 +70,16 @@ export function buildAiSuggestionJournalEntry(opts) {
   };
 }
 
-const entries = [
+/** Le journal d'exemple n'est affiché que pour les comptes de démonstration interne. */
+function isSampleJournalAllowed() {
+  try {
+    return String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+  } catch {
+    return false;
+  }
+}
+
+const DEMO_ENTRIES = [
   {
     id: 1,
     at: 1,
@@ -115,6 +126,8 @@ const entries = [
     timestamp: 'Lun. · 14:30'
   }
 ];
+
+const entries = isSampleJournalAllowed() ? [...DEMO_ENTRIES] : [];
 
 export const activityLogStore = {
   all() {

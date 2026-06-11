@@ -5,6 +5,16 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { appState } from '../utils/state.js';
 import { isoRequirementStatusNormKey } from '../utils/isoRequirementStatus.js';
+import { getSessionUser } from './sessionUser.js';
+
+/** Les écarts/statuts d'exemple ne sont affichés que pour les comptes de démonstration interne. */
+function isSampleConformityAllowed() {
+  try {
+    return String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+  } catch {
+    return false;
+  }
+}
 
 const IMPORTED_PROOFS_STORAGE_KEY = 'qhse-iso-imported-proofs-v1';
 
@@ -173,22 +183,24 @@ export const CONTROLLED_DOCUMENTS = [
  * Repères pilotage documentaire : à afficher en « points d’attention » (n’altère pas CONTROLLED_DOCUMENTS).
  * @type {{ critical: { name: string; version?: string; note: string }[]; missing: { name: string; note: string }[]; obsolete: { name: string; version?: string; note: string }[] }}
  */
-export const DOCUMENT_ATTENTION = {
-  critical: [{ name: 'Manuel intégré SMS', version: '4.2', note: 'Document de référence certification' }],
-  missing: [
-    {
-      name: 'Plan de réponse aux déversements (version signée)',
-      note: 'Exigé pour la surveillance environnementale : pièce à produire.'
+export const DOCUMENT_ATTENTION = isSampleConformityAllowed()
+  ? {
+      critical: [{ name: 'Manuel intégré SMS', version: '4.2', note: 'Document de référence certification' }],
+      missing: [
+        {
+          name: 'Plan de réponse aux déversements (version signée)',
+          note: 'Exigé pour la surveillance environnementale : pièce à produire.'
+        }
+      ],
+      obsolete: [
+        {
+          name: 'Procédure audits internes',
+          version: '3.1',
+          note: 'Révision à planifier selon le cycle documentaire interne.'
+        }
+      ]
     }
-  ],
-  obsolete: [
-    {
-      name: 'Procédure audits internes',
-      version: '3.1',
-      note: 'Révision à planifier selon le cycle documentaire interne.'
-    }
-  ]
-};
+  : { critical: [], missing: [], obsolete: [] };
 
 /** Audits / contrôles à mener : pilotage (données locales). */
 export const AUDITS_TO_SCHEDULE = [
@@ -312,9 +324,11 @@ export const REQUIREMENTS_SEED = [
  * @returns {Array<ConformityRequirementSeed & { status: ConformityStatus }>}
  */
 export function getRequirements() {
+  const sampleAllowed = isSampleConformityAllowed();
   return REQUIREMENTS_SEED.map((r) => {
     const st = getCachedRequirementStatus(r.id);
-    const status = isValidConformityStatus(st) ? st : r.defaultStatus;
+    const fallback = sampleAllowed ? r.defaultStatus : 'conforme';
+    const status = isValidConformityStatus(st) ? st : fallback;
     return {
       ...r,
       status
