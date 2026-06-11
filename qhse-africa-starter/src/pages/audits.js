@@ -25,18 +25,24 @@ import { scheduleScrollIntoView } from '../utils/navScrollAnchor.js';
 import { qhseNavigate } from '../utils/qhseNavigate.js';
 import { consumeAiPrefillForPage, buildAuditDefaultsFromStructured } from '../utils/aiPrefillIntent.js';
 
-/** Constantes cockpit Audits (extrait illustratif, complété par l’API quand disponible). */
-const AUDITS_RETARD_COUNT = 2;
-const NC_OUVERTES_COUNT = 8;
-const ACTIONS_RETARD_COUNT = 5;
+/** Le jeu d'exemple cockpit n'est affiché que pour les comptes de démonstration interne. */
+function isSampleAuditAllowed() {
+  return String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+}
 
-const AUDIT_PROOFS = [
+/** Constantes cockpit Audits (extrait illustratif, complété par l’API quand disponible).
+ *  Valeurs par défaut (démo @qhse.local) ; recalculées dans renderAudits() selon le tenant. */
+let AUDITS_RETARD_COUNT = 2;
+let NC_OUVERTES_COUNT = 8;
+let ACTIONS_RETARD_COUNT = 5;
+
+let AUDIT_PROOFS = [
   { name: 'PV d’audit signé', status: 'present' },
   { name: 'Photos zones de stockage', status: 'missing' },
   { name: 'Registre déchets (extrait)', status: 'verify' }
 ];
 
-const AUDIT_PRIORITY_LINES = [
+let AUDIT_PRIORITY_LINES = [
   {
     label: 'NC critiques',
     detail:
@@ -57,7 +63,7 @@ const AUDIT_NC_MAJEURES = 2;
 const AUDIT_NC_MINEURES = 3;
 
 /** Scores par domaine (pilotage cockpit) */
-const AUDIT_PROCESS_DOMAIN_SCORES = [
+let AUDIT_PROCESS_DOMAIN_SCORES = [
   { domain: 'Management', score: 82 },
   { domain: 'Terrain', score: 74 },
   { domain: 'Environnement', score: 71 }
@@ -440,7 +446,7 @@ const PLANNED_AUDITS = [
   }
 ];
 
-const LAST_AUDIT = {
+let LAST_AUDIT = {
   date: '28/03/2026',
   site: 'Site principal',
   score: 78,
@@ -486,14 +492,16 @@ const AUDIT_TRACE_ROWS = [
   }
 ];
 
-const AUDIT_ISO_NORM_SCORES = (() => {
+function computeAuditIsoNormScores() {
   const base = Number(LAST_AUDIT.score) || 0;
   return [
     { norm: 'ISO 9001', score: Math.min(100, Math.max(0, base + 4)) },
     { norm: 'ISO 14001', score: Math.min(100, Math.max(0, base - 5)) },
     { norm: 'ISO 45001', score: Math.min(100, Math.max(0, base + 1)) }
   ];
-})();
+}
+
+let AUDIT_ISO_NORM_SCORES = computeAuditIsoNormScores();
 
 const CHECKLIST = [
   {
@@ -560,6 +568,129 @@ async function loadLatestAuditRow() {
 async function loadLatestAuditRef() {
   const { ok, row, status } = await loadLatestAuditRow();
   return { ok, ref: row?.ref ?? null, status, row };
+}
+
+/**
+ * Recalcule les constantes cockpit (LAST_AUDIT, AUDIT_PROOFS, compteurs, etc.) à partir des
+ * audits réels du tenant. Pour les comptes de démonstration (@qhse.local), conserve les
+ * valeurs illustratives historiques inchangées.
+ */
+async function initAuditCockpitData() {
+  if (isSampleAuditAllowed()) return;
+
+  let realAudits = [];
+  try {
+    const res = await qhseFetch('/api/audits?limit=500');
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (Array.isArray(data)) realAudits = data;
+    }
+  } catch {
+    realAudits = [];
+  }
+
+  if (!realAudits.length) {
+    LAST_AUDIT = {
+      date: '',
+      site: '—',
+      score: 0,
+      progress: 0,
+      conforme: null,
+      ref: '—',
+      ncCount: 0,
+      statusLabel: 'Aucun audit',
+      auditeur: '—'
+    };
+    AUDIT_PROOFS = [];
+    AUDIT_PRIORITY_LINES = [];
+    AUDIT_PROCESS_DOMAIN_SCORES = [];
+    AUDITS_RETARD_COUNT = 0;
+    NC_OUVERTES_COUNT = 0;
+    ACTIONS_RETARD_COUNT = 0;
+    AUDIT_ISO_NORM_SCORES = computeAuditIsoNormScores();
+    return;
+  }
+
+  const parseDateAny = (a) => {
+    const fr = parseAuditPlanDateFr(a?.date);
+    if (fr) return fr.getTime();
+    const d = new Date(a?.date || a?.createdAt || a?.updatedAt || 0);
+    return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+  };
+
+  const sorted = [...realAudits].sort((a, b) => parseDateAny(b) - parseDateAny(a));
+  const top = sorted[0] || {};
+
+  const score = Number(top.score) || 0;
+  const ncCount = Number(top.ncCount ?? top.nonConformitesCount ?? 0) || 0;
+  const statut = String(top.statut || top.status || '').toLowerCase();
+  const conforme =
+    typeof top.conforme === 'boolean'
+      ? top.conforme
+      : statut
+        ? statut === 'conforme' || statut === 'terminé'
+        : score >= 70;
+  const progress =
+    statut === 'terminé' || statut === 'cloturé' || statut === 'clôturé'
+      ? 100
+      : statut === 'en cours'
+        ? 50
+        : 0;
+
+  LAST_AUDIT = {
+    date: top.date || '',
+    site: top.site || '—',
+    score,
+    progress,
+    conforme,
+    ref: top.ref || top.id || '—',
+    ncCount,
+    statusLabel: conforme ? 'Conforme' : 'Non conforme : actions requises',
+    auditeur: top.auditeur || '—'
+  };
+
+  AUDIT_PROOFS = [];
+
+  const today = new Date();
+  AUDITS_RETARD_COUNT = realAudits.filter((a) => {
+    const st = String(a?.statut || a?.status || '').toLowerCase();
+    if (st !== 'à venir' && st !== 'a venir') return false;
+    const d = parseAuditPlanDateFr(a?.date);
+    return d ? auditCalendarDaysDiff(today, d) <= 0 : false;
+  }).length;
+
+  NC_OUVERTES_COUNT = realAudits.reduce(
+    (sum, a) => sum + (Number(a?.ncCount ?? a?.nonConformitesCount ?? 0) || 0),
+    0
+  );
+
+  ACTIONS_RETARD_COUNT = 0;
+
+  AUDIT_PRIORITY_LINES = [
+    {
+      label: 'NC critiques',
+      detail:
+        ncCount > 0
+          ? `${ncCount} écart(s) sur le dernier audit. Suivez le plan d’actions associé.`
+          : 'Aucun écart majeur recensé sur le dernier audit.'
+    },
+    {
+      label: 'Preuves manquantes',
+      detail: '0 pièce(s) sans justificatif. Complétez le dossier probatoire.'
+    },
+    {
+      label: 'Audits en retard',
+      detail: `${AUDITS_RETARD_COUNT} position(s) à reprogrammer. Consultez le planning et les alertes.`
+    }
+  ];
+
+  AUDIT_PROCESS_DOMAIN_SCORES = [
+    { domain: 'Management', score },
+    { domain: 'Terrain', score },
+    { domain: 'Environnement', score }
+  ];
+
+  AUDIT_ISO_NORM_SCORES = computeAuditIsoNormScores();
 }
 
 function statutBadgeClass(statut) {
@@ -999,6 +1130,8 @@ export async function renderAudits() {
   ensureDashboardStyles();
   ensureAuditPremiumSaaSStyles();
   ensureAuditExpertUxStyles();
+
+  await initAuditCockpitData();
 
   const su = getSessionUser();
   const canAuditWrite = canResource(su?.role, 'audits', 'write');
