@@ -392,12 +392,12 @@ export async function changeTemporaryPassword(req, res, next) {
       return res.status(500).json({ error: 'Organisation introuvable après mise à jour.' });
     }
     const { tenant } = resolved;
+    const role = String(user.role ?? '').trim().toUpperCase();
     const accessToken = authService.issueAccessToken(user, tenant.id);
     const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
     const refreshToken = authService.issueRefreshToken(user, tenant.id);
     res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
     const tenants = await tenantAuth.listTenantsForUser(user.id);
-    const role = String(user.role ?? '').trim().toUpperCase();
 
     await prisma.user
       .update({
