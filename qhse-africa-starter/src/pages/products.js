@@ -181,9 +181,17 @@ function savePersistedProducts(rows) {
   }
 }
 
+/** Le registre d'exemple n'est affiché que pour les comptes de démonstration interne. */
+function isSampleRegistryAllowed() {
+  return String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+}
+
 function getAllProducts() {
+  const sampleRows = isSampleRegistryAllowed()
+    ? PRODUCT_REGISTRY.map((x) => normalizeProductRow(x))
+    : [];
   if (!apiProductsLoaded && !chemicalProductsLoaded) {
-    return [...PRODUCT_REGISTRY.map((x) => normalizeProductRow(x)), ...loadPersistedProducts()];
+    return [...sampleRows, ...loadPersistedProducts()];
   }
   const merged = [];
   const seen = new Set();
@@ -203,7 +211,7 @@ function getAllProducts() {
     }
   }
   if (merged.length === 0) {
-    return [...PRODUCT_REGISTRY.map((x) => normalizeProductRow(x)), ...loadPersistedProducts()];
+    return [...sampleRows, ...loadPersistedProducts()];
   }
   return merged;
 }
