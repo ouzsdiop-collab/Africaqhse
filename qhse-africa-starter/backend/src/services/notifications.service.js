@@ -6,6 +6,7 @@ const MAX_SOURCE_ACTIONS = 120;
 const MAX_SOURCE_INCIDENTS = 80;
 const MAX_SOURCE_NC = 25;
 const MAX_SOURCE_AUDITS = 20;
+const MAX_SOURCE_PROCESSES = 20;
 
 const ASSIGNED_ACTION_MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
 const AUDIT_RECENT_MS = 14 * 24 * 60 * 60 * 1000;
@@ -83,7 +84,7 @@ function withinMs(date, ms) {
  */
 export async function getNotificationsFeed(qhseUser, tenantId) {
   const tf = prismaTenantFilter(tenantId);
-  const [incidentRows, actionRows, openNcs, auditRows] = await Promise.all([
+  const [incidentRows, actionRows, openNcs, auditRows, overdueProcesses] = await Promise.all([
     prisma.incident.findMany({
       where: { ...tf },
       orderBy: { createdAt: 'desc' },
@@ -106,6 +107,12 @@ export async function getNotificationsFeed(qhseUser, tenantId) {
       where: { ...tf },
       orderBy: { createdAt: 'desc' },
       take: MAX_SOURCE_AUDITS
+    }),
+    prisma.process.findMany({
+      where: { ...tf, nextReviewAt: { lt: new Date() } },
+      orderBy: { nextReviewAt: 'asc' },
+      take: MAX_SOURCE_PROCESSES,
+      include: { owner: { select: { id: true, name: true } } }
     })
   ]);
 
@@ -238,6 +245,30 @@ export async function getNotificationsFeed(qhseUser, tenantId) {
         level: 'info',
         read: false,
         timestamp: formatTimestamp(au.createdAt)
+      }
+    });
+  }
+
+  const processAudience = {
+    type: 'roles',
+    roles: [ROLES.ADMIN, ROLES.QHSE, ROLES.DIRECTION]
+  };
+
+  for (const p of overdueProcesses) {
+    const audience = p.ownerUserId
+      ? { type: 'userOrRoles', userId: p.ownerUserId, roles: processAudience.roles }
+      : processAudience;
+    combined.push({
+      at: p.nextReviewAt,
+      audience,
+      item: {
+        id: `process-review-${p.id}`,
+        kind: 'process_review',
+        title: `Revue de processus en retard — ${p.name}`,
+        detail: `Échéance dépassée le ${formatTimestamp(p.nextReviewAt)}${p.owner?.name ? ` · Pilote ${p.owner.name}` : ''}`,
+        level: 'warning',
+        read: false,
+        timestamp: formatTimestamp(p.nextReviewAt)
       }
     });
   }
