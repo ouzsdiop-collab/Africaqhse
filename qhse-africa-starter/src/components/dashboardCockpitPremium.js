@@ -435,14 +435,19 @@ export function createDashboardCockpitPremium(opts = {}) {
     confCard.append(tC);
 
     const base = avgAuditScore(audits);
-    const proxy = base != null ? base : 72;
-    const rows = [
-      { label: 'ISO 45001', pct: Math.min(100, Math.max(0, proxy)) },
-      { label: 'ISO 14001', pct: Math.min(100, Math.max(0, proxy - 2)) },
-      { label: 'ISO 9001', pct: Math.min(100, Math.max(0, proxy - 4)) },
-      { label: 'Cadre minier (réf.)', pct: Math.min(100, Math.max(0, proxy - 6)) }
-    ];
-    rows.forEach((r) => {
+    if (base == null) {
+      const empty = document.createElement('p');
+      empty.className = 'dcp-trend-footer';
+      empty.textContent = 'Aucun audit noté pour le moment.';
+      confCard.append(empty);
+    } else {
+      const rows = [
+        { label: 'ISO 45001', pct: Math.min(100, Math.max(0, base)) },
+        { label: 'ISO 14001', pct: Math.min(100, Math.max(0, base - 2)) },
+        { label: 'ISO 9001', pct: Math.min(100, Math.max(0, base - 4)) },
+        { label: 'Cadre minier (réf.)', pct: Math.min(100, Math.max(0, base - 6)) }
+      ];
+      rows.forEach((r) => {
       const item = document.createElement('div');
       item.className = 'dcp-conf-item';
       const head = document.createElement('div');
@@ -461,7 +466,8 @@ export function createDashboardCockpitPremium(opts = {}) {
       track.append(fill);
       item.append(head, track);
       confCard.append(item);
-    });
+      });
+    }
 
     bottomEl.append(trendCard, confCard);
 
