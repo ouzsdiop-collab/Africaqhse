@@ -6,6 +6,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
+import { getRequirements, getNormById } from '../data/conformityStore.js';
 
 const TYPE_LABELS = {
   management: 'Processus de management',
@@ -115,6 +116,19 @@ const LINK_CANDIDATE_ENDPOINTS = {
   incident: '/api/incidents',
   document: '/api/controlled-documents'
 };
+
+let isoRequirementsById = null;
+function getIsoRequirementsMap() {
+  if (!isoRequirementsById) {
+    isoRequirementsById = new Map(getRequirements().map((r) => [r.id, r]));
+  }
+  return isoRequirementsById;
+}
+function isoRequirementLabel(id) {
+  const r = getIsoRequirementsMap().get(id);
+  if (!r) return id;
+  return `${getNormById(r.normId)?.code || r.normId} · ${r.clause} ${r.title}`;
+}
 
 function candidateLabel(row) {
   const text = row.title || row.name || row.ref || row.fileName || row.label || row.id;
@@ -232,6 +246,15 @@ export function renderProcesses() {
   /** @type {Map<string, any[]>} */
   const linkCandidatesCache = new Map();
   async function fetchLinkCandidates(type) {
+    if (type === 'isoRequirement') {
+      if (linkCandidatesCache.has(type)) return linkCandidatesCache.get(type);
+      const rows = getRequirements().map((r) => ({
+        id: r.id,
+        title: `${(getNormById(r.normId)?.code || r.normId)} · ${r.clause} ${r.title}`
+      }));
+      linkCandidatesCache.set(type, rows);
+      return rows;
+    }
     const endpoint = LINK_CANDIDATE_ENDPOINTS[type];
     if (!endpoint) return null;
     if (linkCandidatesCache.has(type)) return linkCandidatesCache.get(type);
@@ -1031,12 +1054,19 @@ export function renderProcesses() {
         issue: docExpired ? docExpired.label : null
       });
 
-      const isoCount = countLinks('isoRequirement');
+      const isoLinks = links.filter((l) => l.linkedType === 'isoRequirement');
       const isoMissing = penaltyByKey.get('isoEvidenceMissing');
+      const normCounts = new Map();
+      isoLinks.forEach((l) => {
+        const r = getIsoRequirementsMap().get(l.linkedId);
+        const code = r ? (getNormById(r.normId)?.code || r.normId) : null;
+        if (code) normCounts.set(code, (normCounts.get(code) || 0) + 1);
+      });
+      const normDetail = [...normCounts.entries()].map(([code, n]) => `${code} (${n})`).join(', ');
       rows.push({
         label: 'Exigences ISO',
-        ok: isoCount > 0 && !isoMissing,
-        detail: isoCount ? `${isoCount} exigence(s) reliée(s)` : 'Aucune exigence ISO reliée',
+        ok: isoLinks.length > 0 && !isoMissing,
+        detail: isoLinks.length ? `${isoLinks.length} exigence(s) reliée(s)${normDetail ? ` — ${normDetail}` : ''}` : 'Aucune exigence ISO reliée',
         issue: isoMissing ? isoMissing.label : null
       });
 
@@ -1253,7 +1283,8 @@ export function renderProcesses() {
           li.style.justifyContent = 'space-between';
           li.style.gap = '8px';
           const span = document.createElement('span');
-          span.textContent = `${l.linkedId}${l.role ? ` (${l.role})` : ''}`;
+          const idLabel = type === 'isoRequirement' ? isoRequirementLabel(l.linkedId) : l.linkedId;
+          span.textContent = `${idLabel}${l.role ? ` (${l.role})` : ''}`;
           li.append(span);
           if (canWrite) {
             const rm = document.createElement('button');
