@@ -83,6 +83,8 @@ export async function getSmiOverview(ctx) {
   const computeNormScore = (std) => {
     const reqs = Array.isArray(std?.requirements) ? std.requirements : [];
     if (!reqs.length) return 0;
+    // Compte neuf sans aucune preuve importée : pas de pénalité (cohérent avec isoScore.js côté frontend).
+    if (byReq.size === 0) return 100;
     let pts = 0;
     for (const r of reqs) {
       const rid = String(r?.id || '').trim();
