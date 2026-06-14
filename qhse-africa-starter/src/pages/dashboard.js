@@ -2126,8 +2126,8 @@ export function renderDashboard() {
             siteLabel: siteName,
             risks: Array.isArray(risksR) ? risksR : null,
             // Sur tenant neuf (vraies données vides), on n’affiche pas de recommandations “mockées”.
-            allowGenericPilotageMocks: isDemoMode(),
-            isDemoContext: isDemoMode()
+            allowGenericPilotageMocks: useDemoLists,
+            isDemoContext: useDemoLists
           });
           const ai = await fetchPilotageAiSuggestActions(dashboardContext);
           pilotageAssistant.setAiResult({
