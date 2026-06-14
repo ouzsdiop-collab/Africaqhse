@@ -1059,7 +1059,7 @@ function pickWeeklyStat(source, keys) {
 }
 
 function formatWeeklyStat(value, suffix = '') {
-  if (!Number.isFinite(value)) return 'Non renseigné';
+  if (!Number.isFinite(value)) return suffix ? 'Non disponible' : '0';
   return `${value}${suffix}`;
 }
 

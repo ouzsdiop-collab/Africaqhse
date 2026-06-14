@@ -231,10 +231,10 @@ function renderIaNarrativeRows(host, narrative) {
   host.replaceChildren();
   const rows = [
     { label: 'Pilotage', detail: 'Maintenir le suivi sur les indicateurs transmis.' },
-    { label: 'Actions', detail: `${extractCountFromText(narrative, /(\d+)\s+action\(s\)\s+en\s+retard/i, 'Non renseigné')} en retard, prioriser arbitrage / réaffectation / jalons.` },
-    { label: 'Incidents', detail: `${extractCountFromText(narrative, /(\d+)\s+incident\(s\)\s+critique/i, 'Non renseigné')} critiques, sécuriser réponse terrain et traçabilité.` },
-    { label: 'Risques', detail: `${extractCountFromText(narrative, /(\d+)\s+risque\(s\)\s+critique/i, 'Non renseigné')} critiques, consolider registre et mesures.` },
-    { label: 'Non-conformités', detail: `${extractCountFromText(narrative, /(\d+)\s+non-conformit[ée]\(s\)\s+ouverte/i, 'Non renseigné')} ouvertes, prioriser le plan d’actions associé.` },
+    { label: 'Actions', detail: `${extractCountFromText(narrative, /(\d+)\s+action\(s\)\s+en\s+retard/i, '0')} en retard, prioriser arbitrage / réaffectation / jalons.` },
+    { label: 'Incidents', detail: `${extractCountFromText(narrative, /(\d+)\s+incident\(s\)\s+critique/i, '0')} critiques, sécuriser réponse terrain et traçabilité.` },
+    { label: 'Risques', detail: `${extractCountFromText(narrative, /(\d+)\s+risque\(s\)\s+critique/i, '0')} critiques, consolider registre et mesures.` },
+    { label: 'Non-conformités', detail: `${extractCountFromText(narrative, /(\d+)\s+non-conformit[ée]\(s\)\s+ouverte/i, '0')} ouvertes, prioriser le plan d’actions associé.` },
     { label: 'Tendance', detail: 'Séries temporelles agrégées, intégrer la tendance incidents / audits / NC.' }
   ];
   rows.forEach((row) => {
