@@ -10,6 +10,7 @@ export const TERRAIN_ALLOWED_PAGE_IDS = new Set([
   'audits',
   'permits',
   'risks',
+  'processes',
   'actions',
   'settings',
   'ai-center'
