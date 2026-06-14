@@ -57,6 +57,14 @@ function ensureProcessesPageStyles() {
     .proc-table th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--text2);background:var(--surface2, rgba(148,163,184,0.06));padding:10px 12px}
     .proc-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px}
     .proc-table tbody tr:hover{background:var(--surface2, rgba(148,163,184,0.06))}
+    .proc-graph-line{stroke-dasharray:4 4;animation:proc-graph-flow 12s linear infinite}
+    @keyframes proc-graph-flow{to{stroke-dashoffset:-200}}
+    .proc-graph-node{transition:transform .2s ease}
+    .proc-graph-node:hover{transform:scale(1.12)}
+    .proc-graph-node circle.proc-graph-ring{animation:proc-graph-pulse 2.4s ease-in-out infinite}
+    @keyframes proc-graph-pulse{0%,100%{opacity:.35;r:16}50%{opacity:0;r:26}}
+    .proc-graph-node circle.proc-graph-core{transition:filter .2s ease}
+    .proc-graph-node:hover circle.proc-graph-core{filter:brightness(1.15)}
   `;
   document.head.append(el);
 }
@@ -410,6 +418,23 @@ export function renderProcesses() {
     svg.style.display = 'block';
     svg.style.margin = '0 auto';
 
+    const defs = document.createElementNS(svgNS, 'defs');
+    rows.forEach((p) => {
+      const grad = document.createElementNS(svgNS, 'radialGradient');
+      grad.setAttribute('id', `proc-grad-${p.id}`);
+      const stop1 = document.createElementNS(svgNS, 'stop');
+      stop1.setAttribute('offset', '0%');
+      stop1.setAttribute('stop-color', scoreColor(p.score));
+      stop1.setAttribute('stop-opacity', '0.35');
+      const stop2 = document.createElementNS(svgNS, 'stop');
+      stop2.setAttribute('offset', '100%');
+      stop2.setAttribute('stop-color', scoreColor(p.score));
+      stop2.setAttribute('stop-opacity', '0.05');
+      grad.append(stop1, stop2);
+      defs.append(grad);
+    });
+    svg.append(defs);
+
     edges.forEach(([a, b]) => {
       const pa = positions.get(a);
       const pb = positions.get(b);
@@ -419,18 +444,42 @@ export function renderProcesses() {
       line.setAttribute('y1', String(pa.y));
       line.setAttribute('x2', String(pb.x));
       line.setAttribute('y2', String(pb.y));
-      line.setAttribute('stroke', 'var(--border)');
+      line.setAttribute('stroke', 'var(--app-accent,#14b8a6)');
       line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('stroke-opacity', '0.45');
+      line.classList.add('proc-graph-line');
       svg.append(line);
     });
 
     rows.forEach((p) => {
       const pos = positions.get(p.id);
       const g = document.createElementNS(svgNS, 'g');
+      g.classList.add('proc-graph-node');
       g.style.cursor = 'pointer';
+      g.style.transformOrigin = `${pos.x}px ${pos.y}px`;
       g.addEventListener('click', () => openDrawer(p.id));
 
+      if (Number(p.score) < 75) {
+        const ring = document.createElementNS(svgNS, 'circle');
+        ring.classList.add('proc-graph-ring');
+        ring.setAttribute('cx', String(pos.x));
+        ring.setAttribute('cy', String(pos.y));
+        ring.setAttribute('r', '16');
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', scoreColor(p.score));
+        ring.setAttribute('stroke-width', '2');
+        g.append(ring);
+      }
+
+      const glow = document.createElementNS(svgNS, 'circle');
+      glow.setAttribute('cx', String(pos.x));
+      glow.setAttribute('cy', String(pos.y));
+      glow.setAttribute('r', '26');
+      glow.setAttribute('fill', `url(#proc-grad-${p.id})`);
+      g.append(glow);
+
       const circle = document.createElementNS(svgNS, 'circle');
+      circle.classList.add('proc-graph-core');
       circle.setAttribute('cx', String(pos.x));
       circle.setAttribute('cy', String(pos.y));
       circle.setAttribute('r', '16');
