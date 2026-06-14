@@ -6,7 +6,6 @@
 import { escapeHtml } from './escapeHtml.js';
 import { saveElementAsPdf } from './html2pdfExport.js';
 import { showToast } from '../components/toast.js';
-import { qhseFetch } from './qhseFetch.js';
 
 export const QHSE_PDF_BRAND = '#1D9E75';
 
@@ -192,6 +191,7 @@ export async function downloadQhsePremiumPdf(html, filename, opts = {}) {
   const name = safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
   showToast('Génération du PDF en cours...', 'info');
   try {
+    const { qhseFetch } = await import('./qhseFetch.js');
     const fullHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body>${html}</body></html>`;
     const res = await qhseFetch('/api/pdf/render', {
       method: 'POST',
