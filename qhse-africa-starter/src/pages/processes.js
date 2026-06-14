@@ -74,6 +74,15 @@ function ensureProcessesPageStyles() {
     .proc-pilot-item:last-child{border-bottom:none}
     .proc-pilot-item:hover .proc-pilot-item-name{text-decoration:underline}
     .proc-pilot-item-score{font-weight:800;white-space:nowrap}
+    .proc-priorities{padding:12px 14px;border-left:3px solid #e8590c}
+    .proc-priorities h4{margin:0 0 8px}
+    .proc-priority-list{display:flex;flex-direction:column;gap:6px}
+    .proc-priority-row{display:flex;align-items:baseline;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
+    .proc-priority-row:last-child{border-bottom:none}
+    .proc-priority-row:hover .proc-priority-name{text-decoration:underline}
+    .proc-priority-score{font-weight:800;min-width:48px}
+    .proc-priority-name{font-weight:700}
+    .proc-priority-reasons{color:var(--text2);font-size:12px}
   `;
   document.head.append(el);
 }
@@ -173,6 +182,7 @@ export function renderProcesses() {
           <input type="text" class="control-input proc-search" placeholder="Nom, pilote..." />
         </label>
       </div>
+      <div class="proc-priority-host" style="margin-top:14px"></div>
       <div class="proc-summary-host" style="margin-top:14px"></div>
       <div class="proc-list-host stack" style="margin-top:14px"></div>
     </article>
@@ -184,6 +194,7 @@ export function renderProcesses() {
     </article>
   `;
 
+  const priorityHost = page.querySelector('.proc-priority-host');
   const summaryHost = page.querySelector('.proc-summary-host');
   const listHost = page.querySelector('.proc-list-host');
   const drawerCard = page.querySelector('.proc-drawer');
@@ -248,6 +259,7 @@ export function renderProcesses() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
       processes = Array.isArray(rows) ? rows : [];
+      renderPriorities();
       renderSummary();
       renderList();
     } catch (err) {
@@ -257,6 +269,51 @@ export function renderProcesses() {
         createEmptyState('⚠', 'Liste indisponible', 'Vérifiez la connexion à l’API et réessayez.')
       );
     }
+  }
+
+  function renderPriorities() {
+    priorityHost.replaceChildren();
+    if (!processes.length) return;
+
+    const items = [];
+    processes.forEach((p) => {
+      const reasons = [];
+      if (!p.ownerUserId) reasons.push('Sans pilote');
+      if (p.status === 'critique') reasons.push('Statut critique');
+      if (p.status === 'a_revoir') reasons.push('À revoir');
+      (p.penalties || []).forEach((pen) => reasons.push(pen.label));
+      if (reasons.length) items.push({ process: p, reasons });
+    });
+
+    if (!items.length) return;
+
+    items.sort((a, b) => (Number(a.process.score) || 0) - (Number(b.process.score) || 0));
+
+    const wrap = document.createElement('div');
+    wrap.className = 'proc-priorities content-card-soft';
+
+    const h = document.createElement('h4');
+    h.textContent = `À traiter en priorité (${items.length})`;
+    wrap.append(h);
+
+    const list = document.createElement('div');
+    list.className = 'proc-priority-list';
+    items.slice(0, 8).forEach(({ process, reasons }) => {
+      const row = document.createElement('div');
+      row.className = 'proc-priority-row';
+      row.style.cursor = 'pointer';
+      const score = Number.isFinite(Number(process.score)) ? `${process.score}/100` : 'NA';
+      row.innerHTML = `
+        <span class="proc-priority-score" style="color:${scoreColor(process.score)}">${score}</span>
+        <span class="proc-priority-name">${escapeHtml(process.name || '')}</span>
+        <span class="proc-priority-reasons">${reasons.map((r) => escapeHtml(r)).join(' · ')}</span>
+      `;
+      row.addEventListener('click', () => openDrawer(process.id));
+      list.append(row);
+    });
+    wrap.append(list);
+
+    priorityHost.append(wrap);
   }
 
   function renderSummary() {
