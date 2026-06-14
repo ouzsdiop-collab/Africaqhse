@@ -359,6 +359,124 @@ export function renderProcesses() {
     return card;
   }
 
+  function buildProcessGraph(rows) {
+    if (rows.length < 2) return null;
+
+    // Détermine les paires de processus partageant un même élément lié (risque, audit, action...)
+    const byKey = new Map();
+    rows.forEach((p) => {
+      (Array.isArray(p.links) ? p.links : []).forEach((l) => {
+        const key = `${l.linkedType}:${l.linkedId}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(p.id);
+      });
+    });
+    const edgeSet = new Set();
+    const edges = [];
+    byKey.forEach((ids) => {
+      const uniq = [...new Set(ids)];
+      for (let i = 0; i < uniq.length; i++) {
+        for (let j = i + 1; j < uniq.length; j++) {
+          const key = [uniq[i], uniq[j]].sort().join('|');
+          if (edgeSet.has(key)) continue;
+          edgeSet.add(key);
+          edges.push([uniq[i], uniq[j]]);
+        }
+      }
+    });
+
+    const wrap = document.createElement('div');
+    wrap.className = 'proc-section';
+    const title = document.createElement('h4');
+    title.textContent = 'Cartographie des interactions';
+    wrap.append(title);
+
+    const n = rows.length;
+    const size = 360;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = size / 2 - 50;
+    const positions = new Map();
+    rows.forEach((p, i) => {
+      const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+      positions.set(p.id, { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
+    });
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+    svg.setAttribute('width', '100%');
+    svg.style.maxWidth = `${size}px`;
+    svg.style.display = 'block';
+    svg.style.margin = '0 auto';
+
+    edges.forEach(([a, b]) => {
+      const pa = positions.get(a);
+      const pb = positions.get(b);
+      if (!pa || !pb) return;
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', String(pa.x));
+      line.setAttribute('y1', String(pa.y));
+      line.setAttribute('x2', String(pb.x));
+      line.setAttribute('y2', String(pb.y));
+      line.setAttribute('stroke', 'var(--border)');
+      line.setAttribute('stroke-width', '1.5');
+      svg.append(line);
+    });
+
+    rows.forEach((p) => {
+      const pos = positions.get(p.id);
+      const g = document.createElementNS(svgNS, 'g');
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => openDrawer(p.id));
+
+      const circle = document.createElementNS(svgNS, 'circle');
+      circle.setAttribute('cx', String(pos.x));
+      circle.setAttribute('cy', String(pos.y));
+      circle.setAttribute('r', '16');
+      circle.setAttribute('fill', scoreColor(p.score));
+      circle.setAttribute('fill-opacity', '0.18');
+      circle.setAttribute('stroke', scoreColor(p.score));
+      circle.setAttribute('stroke-width', '2');
+      g.append(circle);
+
+      const scoreText = document.createElementNS(svgNS, 'text');
+      scoreText.setAttribute('x', String(pos.x));
+      scoreText.setAttribute('y', String(pos.y + 4));
+      scoreText.setAttribute('text-anchor', 'middle');
+      scoreText.setAttribute('font-size', '11');
+      scoreText.setAttribute('font-weight', '800');
+      scoreText.setAttribute('fill', scoreColor(p.score));
+      scoreText.textContent = Number.isFinite(Number(p.score)) ? String(p.score) : 'NA';
+      g.append(scoreText);
+
+      const label = document.createElementNS(svgNS, 'text');
+      label.setAttribute('x', String(pos.x));
+      label.setAttribute('y', String(pos.y + (pos.y >= cy ? 30 : -22)));
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-size', '10');
+      label.setAttribute('fill', 'var(--text2)');
+      const name = p.name || '';
+      label.textContent = name.length > 18 ? `${name.slice(0, 17)}…` : name;
+      g.append(label);
+
+      svg.append(g);
+    });
+
+    wrap.append(svg);
+
+    if (!edges.length) {
+      const hint = document.createElement('p');
+      hint.style.fontSize = '12px';
+      hint.style.color = 'var(--text2)';
+      hint.style.margin = '8px 0 0';
+      hint.textContent = 'Aucune interaction détectée : liez vos processus aux mêmes risques, audits ou actions pour visualiser les relations.';
+      wrap.append(hint);
+    }
+
+    return wrap;
+  }
+
   function renderList() {
     const rows = filteredProcesses();
     listHost.replaceChildren();
@@ -408,6 +526,10 @@ export function renderProcesses() {
       listHost.append(table);
       return;
     }
+    // Vue cartographie : graphe des interactions (processus reliés via un même élément SMI)
+    const graph = buildProcessGraph(rows);
+    if (graph) listHost.append(graph);
+
     // Vue cartographie : groupée par type
     ['management', 'realisation', 'support'].forEach((type) => {
       const group = rows.filter((p) => p.type === type);

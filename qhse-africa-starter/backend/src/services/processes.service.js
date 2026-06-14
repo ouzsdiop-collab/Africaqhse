@@ -74,7 +74,8 @@ export async function listProcesses(tenantId, { type, siteId } = {}) {
     include: {
       owner: { select: { id: true, name: true, email: true } },
       deputy: { select: { id: true, name: true, email: true } },
-      _count: { select: { links: true } }
+      _count: { select: { links: true } },
+      links: { select: { linkedType: true, linkedId: true } }
     },
     orderBy: [{ type: 'asc' }, { name: 'asc' }]
   });
