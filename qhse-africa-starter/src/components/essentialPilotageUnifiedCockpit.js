@@ -75,7 +75,7 @@ export function createEssentialPilotageUnifiedCockpit() {
       </div>
 
       <div class="dashboard-essential-pilotage__summary-box">
-        <div class="dashboard-essential-pilotage__k">Executive summary</div>
+        <div class="dashboard-essential-pilotage__k">Synthèse exécutive</div>
         <p class="dashboard-essential-pilotage__summary">Chargement…</p>
       </div>
     </article>
@@ -95,6 +95,7 @@ export function createEssentialPilotageUnifiedCockpit() {
   const miniActions = root.querySelector('.dashboard-essential-pilotage__mini-count--actions');
 
   const state = { expiredHab: 0, expiringHab: 0, lastHabError: null };
+  let lastRawSummary = '';
 
   function deriveAvailabilityState() {
     const hasScore = scoreVal && scoreVal.textContent && scoreVal.textContent.trim() !== '—';
@@ -117,8 +118,15 @@ export function createEssentialPilotageUnifiedCockpit() {
 
     const availability = deriveAvailabilityState();
     if (status && statusLabel) {
-      status.className = `dashboard-essential-pilotage__status dashboard-essential-pilotage__status--${availability}`;
-      statusLabel.textContent = availability === 'ready' ? 'Données disponibles' : 'Données à compléter';
+      const scoreNum = scoreVal ? Number(scoreVal.textContent) : NaN;
+      const cleanScore = Number.isFinite(scoreNum) && alertCount === 0 && scoreNum >= 80;
+      const tone = cleanScore ? 'ready' : availability;
+      status.className = `dashboard-essential-pilotage__status dashboard-essential-pilotage__status--${tone}`;
+      statusLabel.textContent = cleanScore
+        ? 'Aucune alerte critique'
+        : availability === 'ready'
+          ? 'Données disponibles'
+          : 'Données à compléter';
     }
   }
 
@@ -230,7 +238,7 @@ export function createEssentialPilotageUnifiedCockpit() {
     if (summary && narrative) {
       const clean = narrative.replaceAll('—', '-').replaceAll('–', '-').split('\n').join(' ').trim();
       const short = clean.length > 240 ? `${clean.slice(0, 237)}…` : clean;
-      renderSummary(`${summary.textContent} ${short}`.trim());
+      renderSummary(`${lastRawSummary} ${short}`.trim());
     }
     refreshUiMeta();
   }
@@ -248,6 +256,7 @@ export function createEssentialPilotageUnifiedCockpit() {
 
   function renderSummary(raw) {
     if (!summary) return;
+    lastRawSummary = String(raw || '').trim();
     const { keyTakeaway, context } = splitSummary(raw);
     const take = keyTakeaway || 'Données de pilotage à compléter.';
     const ctx = context || 'Ajoutez vos premiers risques, incidents, actions ou audits pour générer une synthèse fiable.';
