@@ -1339,8 +1339,174 @@ async function main() {
     });
   }
 
+  /** Pilotage des processus : cartographie démo (8 processus, gérée uniquement pour ce tenant). */
+  await prisma.processLink.deleteMany({ where: { tenantId: DEFAULT_TENANT_ID } });
+  await prisma.process.deleteMany({ where: { tenantId: DEFAULT_TENANT_ID } });
+
+  const riskByRef = async (ref) =>
+    prisma.risk.findFirst({ where: { ref, tenantId: DEFAULT_TENANT_ID }, select: { id: true } });
+
+  const processesSeed = [
+    {
+      name: 'Management',
+      type: 'management',
+      purpose: 'Définir la politique QHSE, les objectifs et piloter la revue de direction.',
+      ownerUserId: direction?.id ?? null,
+      deputyUserId: adminUser?.id ?? null,
+      inputs: ['Exigences réglementaires', 'Résultats des audits', 'Indicateurs QHSE'],
+      outputs: ['Politique QHSE', 'Objectifs annuels', 'Décisions de revue de direction'],
+      interestedParties: ['Direction', 'Actionnaires', 'Autorités'],
+      status: 'conforme',
+      reviewFrequency: 'Annuelle',
+      nextReviewAt: daysFromNow(120),
+      riskRefs: [],
+      auditRefs: ['AUD-2026-101']
+    },
+    {
+      name: 'Administratif',
+      type: 'support',
+      purpose: 'Gérer les ressources humaines, la documentation et les achats administratifs.',
+      ownerUserId: assistant?.id ?? null,
+      deputyUserId: null,
+      inputs: ['Besoins en personnel', 'Demandes documentaires'],
+      outputs: ['Contrats', 'Documents archivés'],
+      interestedParties: ['Personnel', 'Direction'],
+      status: 'a_surveiller',
+      reviewFrequency: 'Semestrielle',
+      nextReviewAt: daysFromNow(45),
+      riskRefs: [],
+      auditRefs: []
+    },
+    {
+      name: 'Commercial',
+      type: 'realisation',
+      purpose: 'Gérer les relations clients, les contrats de vente et le suivi commercial.',
+      ownerUserId: adminUser?.id ?? null,
+      deputyUserId: null,
+      inputs: ['Demandes clients', 'Conditions de marché'],
+      outputs: ['Contrats commerciaux', 'Prévisions de vente'],
+      interestedParties: ['Clients', 'Direction'],
+      status: 'conforme',
+      reviewFrequency: 'Annuelle',
+      nextReviewAt: daysFromNow(200),
+      riskRefs: [],
+      auditRefs: []
+    },
+    {
+      name: 'Logistique',
+      type: 'realisation',
+      purpose: 'Organiser les flux d’approvisionnement, le stockage et la distribution interne.',
+      ownerUserId: terrain?.id ?? null,
+      deputyUserId: extraction?.id ?? null,
+      inputs: ['Plans d’approvisionnement', 'Niveaux de stock'],
+      outputs: ['Stocks disponibles', 'Plans de livraison'],
+      interestedParties: ['Production', 'Transport', 'Fournisseurs'],
+      status: 'a_surveiller',
+      reviewFrequency: 'Trimestrielle',
+      nextReviewAt: daysAgo(10),
+      riskRefs: ['RSK-2026-03'],
+      auditRefs: []
+    },
+    {
+      name: 'Transport',
+      type: 'realisation',
+      purpose: 'Assurer le transport des minerais et du personnel en sécurité.',
+      ownerUserId: extraction?.id ?? null,
+      deputyUserId: forage?.id ?? null,
+      inputs: ['Plans de transport', 'État des engins'],
+      outputs: ['Minerai acheminé', 'Registre des trajets'],
+      interestedParties: ['Production', 'Sécurité'],
+      status: 'critique',
+      reviewFrequency: 'Mensuelle',
+      nextReviewAt: daysAgo(30),
+      riskRefs: ['RSK-2026-01', 'RSK-2026-04'],
+      auditRefs: ['AUD-2026-107']
+    },
+    {
+      name: 'Conditionnement',
+      type: 'realisation',
+      purpose: 'Conditionner et préparer le produit avant expédition.',
+      ownerUserId: concassage?.id ?? null,
+      deputyUserId: null,
+      inputs: ['Produit traité', 'Spécifications client'],
+      outputs: ['Produit conditionné', 'Bons d’expédition'],
+      interestedParties: ['Production', 'Clients'],
+      status: 'conforme',
+      reviewFrequency: 'Trimestrielle',
+      nextReviewAt: daysFromNow(80),
+      riskRefs: [],
+      auditRefs: []
+    },
+    {
+      name: 'Maintenance',
+      type: 'support',
+      purpose: 'Assurer la disponibilité et la fiabilité des équipements et installations.',
+      ownerUserId: forage?.id ?? null,
+      deputyUserId: concassage?.id ?? null,
+      inputs: ['Plans de maintenance préventive', 'Signalements de pannes'],
+      outputs: ['Équipements opérationnels', 'Historique d’interventions'],
+      interestedParties: ['Production', 'Sécurité'],
+      status: 'a_surveiller',
+      reviewFrequency: 'Mensuelle',
+      nextReviewAt: daysFromNow(15),
+      riskRefs: ['RSK-2026-02'],
+      auditRefs: []
+    },
+    {
+      name: 'Énergie',
+      type: 'support',
+      purpose: 'Gérer l’approvisionnement et l’optimisation de la consommation énergétique des sites.',
+      ownerUserId: adminUser?.id ?? null,
+      deputyUserId: qhse?.id ?? null,
+      inputs: ['Contrats énergie', 'Relevés de consommation'],
+      outputs: ['Bilan énergétique', 'Plan d’optimisation'],
+      interestedParties: ['Direction', 'Production'],
+      status: 'a_surveiller',
+      reviewFrequency: 'Annuelle',
+      nextReviewAt: daysFromNow(150),
+      riskRefs: [],
+      auditRefs: []
+    }
+  ];
+
+  for (const p of processesSeed) {
+    const created = await prisma.process.create({
+      data: {
+        tenantId: DEFAULT_TENANT_ID,
+        name: p.name,
+        type: p.type,
+        purpose: p.purpose,
+        ownerUserId: p.ownerUserId,
+        deputyUserId: p.deputyUserId,
+        inputs: p.inputs,
+        outputs: p.outputs,
+        interestedParties: p.interestedParties,
+        status: p.status,
+        reviewFrequency: p.reviewFrequency,
+        nextReviewAt: p.nextReviewAt
+      }
+    });
+
+    for (const ref of p.riskRefs) {
+      const risk = await riskByRef(ref);
+      if (risk) {
+        await prisma.processLink.create({
+          data: { tenantId: DEFAULT_TENANT_ID, processId: created.id, linkedType: 'risk', linkedId: risk.id, role: 'main' }
+        });
+      }
+    }
+    for (const ref of p.auditRefs) {
+      const audit = await auditByRef(ref);
+      if (audit) {
+        await prisma.processLink.create({
+          data: { tenantId: DEFAULT_TENANT_ID, processId: created.id, linkedType: 'audit', linkedId: audit.id, role: 'main' }
+        });
+      }
+    }
+  }
+
   console.log(
-    '[seed] 3 sites (KATIOLA_MINE_YAKRO, KATIOLA_USINE_ABJ, KATIOLA_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits.'
+    '[seed] 3 sites (KATIOLA_MINE_YAKRO, KATIOLA_USINE_ABJ, KATIOLA_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits, 8 processus.'
   );
   console.log(
     '[seed] Données rattachées au tenant par défaut (qhse_default_tenant).'
