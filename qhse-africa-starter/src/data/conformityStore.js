@@ -132,7 +132,8 @@ export const CONFORMITY_NORMS = [
 ];
 
 /** Documents maîtrisés : stockage local (échéances / responsable enrichis pour statuts conformité). */
-export const CONTROLLED_DOCUMENTS = [
+export const CONTROLLED_DOCUMENTS = isSampleConformityAllowed()
+  ? [
   {
     name: 'Manuel intégré SMS',
     version: '4.2',
@@ -177,7 +178,8 @@ export const CONTROLLED_DOCUMENTS = [
     expiresAt: '2026-12-01',
     responsible: 'Qualité site'
   }
-];
+]
+  : [];
 
 /**
  * Repères pilotage documentaire : à afficher en « points d’attention » (n’altère pas CONTROLLED_DOCUMENTS).
@@ -203,10 +205,12 @@ export const DOCUMENT_ATTENTION = isSampleConformityAllowed()
   : { critical: [], missing: [], obsolete: [] };
 
 /** Audits / contrôles à mener : pilotage (données locales). */
-export const AUDITS_TO_SCHEDULE = [
-  { title: 'Audit interne ISO 45001 (Q2)', horizon: 'Avant le 15/04/2026', owner: 'Qualité site' },
-  { title: 'Surveillance certification ISO 9001', horizon: 'Fenêtre juin 2026', owner: 'Direction' }
-];
+export const AUDITS_TO_SCHEDULE = isSampleConformityAllowed()
+  ? [
+      { title: 'Audit interne ISO 45001 (Q2)', horizon: 'Avant le 15/04/2026', owner: 'Qualité site' },
+      { title: 'Surveillance certification ISO 9001', horizon: 'Fenêtre juin 2026', owner: 'Direction' }
+    ]
+  : [];
 
 /** @type {ConformityRequirementSeed[]} */
 export const REQUIREMENTS_SEED = [
