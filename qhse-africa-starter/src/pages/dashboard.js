@@ -1848,7 +1848,6 @@ export function renderDashboard() {
     bandExecutiveSummary,
     bandCriticalAlerts,
     bandShortcuts,
-    decisionAlertsBand,
     kpiSection,
     primaryChartSection,
     bandPriority,
