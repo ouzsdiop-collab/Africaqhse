@@ -13,6 +13,8 @@ router.delete('/:id', requirePermission('processes', 'write'), controller.remove
 router.post('/:id/links', requirePermission('processes', 'write'), controller.addLink);
 router.delete('/:id/links/:linkId', requirePermission('processes', 'write'), controller.removeLink);
 
+router.post('/assistant', requirePermission('processes', 'read'), controller.assistant);
+
 router.post('/:id/analyze', requirePermission('processes', 'read'), controller.analyze);
 
 router.get('/:id/reviews', requirePermission('processes', 'read'), controller.listReviews);

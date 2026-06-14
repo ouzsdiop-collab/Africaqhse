@@ -1273,3 +1273,50 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
     penalties
   };
 }
+
+/**
+ * Assistant IA du module Pilotage des processus : répond à une question libre
+ * en se basant sur la liste des processus (nom, type, statut, score, pénalités, prochaine revue).
+ * @param {{ question: string, processes: Array<{name:string,type:string,status:string,score:number,penalties:Array,nextReviewAt:any,owner?:{name?:string}}> }} opts
+ */
+export async function askProcessAssistant(opts) {
+  const question = String(opts?.question || '').trim().slice(0, 1000);
+  const processes = Array.isArray(opts?.processes) ? opts.processes : [];
+
+  const context = processes.map((p) => ({
+    name: p.name,
+    type: p.type,
+    status: p.status,
+    owner: p.owner?.name || null,
+    score: p.score,
+    nextReviewAt: p.nextReviewAt,
+    penalties: (p.penalties || []).map((x) => x.label)
+  }));
+
+  const systemPrompt = `Tu es un consultant QHSE senior qui aide un responsable a piloter ses processus.
+On te fournit un JSON "processes" listant les processus de l'organisation (nom, type, statut, pilote, score de maitrise sur 100, prochaine revue, et les points de vigilance "penalties").
+Reponds en francais a la question de l'utilisateur de maniere concrete et synthetique (5 phrases maximum), en t'appuyant sur ces donnees quand c'est pertinent, sans aucun tiret ni trait d'union.
+Reponds UNIQUEMENT par un JSON objet valide avec la cle "answer" (string). Sans markdown ni texte hors JSON.`;
+
+  const userMessage = JSON.stringify({ question, processes: context });
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] askProcessAssistant provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
+  let answer = obj ? stripDashesText(String(obj.answer ?? '')).slice(0, 2500) : '';
+  if (!answer.trim()) {
+    answer = 'Aucune reponse disponible pour le moment. Reessayez plus tard ou reformulez votre question.';
+  }
+
+  return {
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
+    answer: answer.trim()
+  };
+}

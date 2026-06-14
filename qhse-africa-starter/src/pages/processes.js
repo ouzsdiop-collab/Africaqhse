@@ -157,6 +157,14 @@ export function renderProcesses() {
         </label>
       </div>
       <div class="proc-summary-host" style="margin-top:14px"></div>
+      <div class="proc-section" style="margin-top:14px">
+        <h4>Assistant IA pilotage</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+          <textarea class="control-input proc-assistant-question" rows="2" style="flex:1;min-width:240px" placeholder="Posez une question sur le pilotage de vos processus (priorités, risques, revues...)"></textarea>
+          <button type="button" class="btn btn-primary proc-assistant-ask">Demander</button>
+        </div>
+        <div class="proc-assistant-answer" style="margin-top:10px;font-size:13px"></div>
+      </div>
       <div class="proc-list-host stack" style="margin-top:14px"></div>
     </article>
     <article class="content-card card-soft proc-drawer" hidden>
@@ -218,6 +226,37 @@ export function renderProcesses() {
   typeFilter.addEventListener('change', renderList);
   statusFilter.addEventListener('change', renderList);
   searchInput.addEventListener('input', renderList);
+
+  const assistantQuestion = page.querySelector('.proc-assistant-question');
+  const assistantBtn = page.querySelector('.proc-assistant-ask');
+  const assistantAnswer = page.querySelector('.proc-assistant-answer');
+  assistantBtn.addEventListener('click', async () => {
+    const question = assistantQuestion.value.trim();
+    if (!question) {
+      showToast('Posez une question', 'error');
+      return;
+    }
+    assistantBtn.disabled = true;
+    assistantAnswer.innerHTML = '<p style="color:var(--text2)">Analyse en cours…</p>';
+    try {
+      const res = await qhseFetch('/api/processes/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      const p = document.createElement('p');
+      p.style.margin = '0';
+      p.textContent = body.answer || 'Aucune réponse disponible.';
+      assistantAnswer.replaceChildren(p);
+    } catch (err) {
+      console.error('[processes] assistant', err);
+      assistantAnswer.innerHTML = `<p style="color:var(--text2)">${escapeHtml(err.message || 'Assistant indisponible')}</p>`;
+    } finally {
+      assistantBtn.disabled = false;
+    }
+  });
 
   if (canWrite && btnNew) {
     btnNew.addEventListener('click', () => openForm(null));
