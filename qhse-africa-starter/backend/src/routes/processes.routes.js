@@ -5,6 +5,7 @@ import { requirePermission } from '../middleware/requirePermission.middleware.js
 const router = Router();
 
 router.get('/', requirePermission('processes', 'read'), controller.getAll);
+router.get('/by-link', requirePermission('processes', 'read'), controller.byLink);
 router.get('/:id', requirePermission('processes', 'read'), controller.getById);
 router.post('/', requirePermission('processes', 'write'), controller.create);
 router.patch('/:id', requirePermission('processes', 'write'), controller.patchById);

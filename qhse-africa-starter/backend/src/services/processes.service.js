@@ -99,6 +99,21 @@ export async function getProcessById(tenantId, id) {
   return row;
 }
 
+export async function getProcessesForLink(tenantId, linkedType, linkedId) {
+  const tf = prismaTenantFilter(tenantId);
+  if (!LINK_TYPES.has(linkedType) || !linkedId) return [];
+  const links = await prisma.processLink.findMany({
+    where: { linkedType, linkedId, ...tf },
+    select: { processId: true }
+  });
+  if (!links.length) return [];
+  const ids = [...new Set(links.map((l) => l.processId))];
+  return prisma.process.findMany({
+    where: { id: { in: ids }, ...tf },
+    select: { id: true, name: true, type: true, owner: { select: { id: true, name: true } } }
+  });
+}
+
 export async function listProcessReviews(tenantId, processId) {
   const tf = prismaTenantFilter(tenantId);
   const process = await prisma.process.findFirst({ where: { id: processId, ...tf }, select: { id: true } });

@@ -67,6 +67,15 @@ export function openAuditResult(audit, opts = {}) {
     </div>
   `;
 
+  if (audit?.id) {
+    const relatedHost = document.createElement('div');
+    relatedHost.style.marginTop = '12px';
+    body.append(relatedHost);
+    import('./relatedProcesses.js').then(({ renderRelatedProcesses }) => {
+      renderRelatedProcesses(relatedHost, 'audit', String(audit.id));
+    });
+  }
+
   dlg.append(toolbar, body);
   document.body.append(dlg);
   dlg.addEventListener('close', () => {

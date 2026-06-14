@@ -507,6 +507,17 @@ export function openRiskSheetModal(risk, ctx = {}) {
   });
   grid.append(section('Historique des modifications', histUl));
 
+  if (risk?.id) {
+    const relatedHost = document.createElement('div');
+    import('./relatedProcesses.js').then(({ renderRelatedProcesses }) => {
+      renderRelatedProcesses(relatedHost, 'risk', String(risk.id)).then(() => {
+        if (relatedHost.children.length) {
+          grid.append(section('Pilotage des processus', relatedHost));
+        }
+      });
+    });
+  }
+
   inner.append(head, grid);
   if (typeof ctx.onSheetBodyReady === 'function') {
     try {

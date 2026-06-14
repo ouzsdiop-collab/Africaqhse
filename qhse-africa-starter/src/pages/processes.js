@@ -7,6 +7,7 @@ import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { getRequirements, getNormById } from '../data/conformityStore.js';
+import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
 const TYPE_LABELS = {
   management: 'Processus de management',
@@ -183,6 +184,8 @@ export function renderProcesses() {
   ensureProcessesPageStyles();
 
   const su = getSessionUser();
+  const dashboardIntentNav = consumeDashboardIntent();
+  let pendingProcessId = dashboardIntentNav?.processId ? String(dashboardIntentNav.processId).trim() : null;
   const canRead = canResource(su?.role, 'processes', 'read');
   const canWrite = canResource(su?.role, 'processes', 'write');
 
@@ -216,6 +219,7 @@ export function renderProcesses() {
             <button type="button" class="btn proc-toggle-btn proc-btn-map is-active" aria-pressed="true">Vue cartographie</button>
             <button type="button" class="btn proc-toggle-btn proc-btn-table" aria-pressed="false">Vue tableau</button>
           </div>
+          <button type="button" class="btn btn-secondary proc-btn-export-all">Export PDF (tous les processus)</button>
           ${canWrite ? '<button type="button" class="btn btn-primary proc-btn-new">Nouveau processus</button>' : ''}
         </div>
       </div>
@@ -278,6 +282,7 @@ export function renderProcesses() {
   const btnTable = page.querySelector('.proc-btn-table');
   const btnMap = page.querySelector('.proc-btn-map');
   const btnNew = page.querySelector('.proc-btn-new');
+  const btnExportAll = page.querySelector('.proc-btn-export-all');
 
   /** @type {Map<string, any[]>} */
   const linkCandidatesCache = new Map();
@@ -332,6 +337,56 @@ export function renderProcesses() {
     mineFilterField.style.display = 'none';
   }
 
+  btnExportAll?.addEventListener('click', async () => {
+    if (!processes.length) {
+      showToast('Aucun processus à exporter', 'error');
+      return;
+    }
+    btnExportAll.disabled = true;
+    const prevLabel = btnExportAll.textContent;
+    btnExportAll.textContent = 'Export en cours…';
+    try {
+      const { saveElementAsPdf } = await import('../utils/html2pdfExport.js');
+      const wrap = document.createElement('div');
+      wrap.style.padding = '24px';
+      wrap.style.fontFamily = 'inherit';
+      wrap.innerHTML = `
+        <h2 style="margin:0 0 4px">Pilotage des processus — synthèse</h2>
+        <p style="margin:0 0 16px;font-size:12px;color:var(--text2)">Généré le ${new Date().toLocaleDateString('fr-FR')}</p>
+      `;
+      const sorted = [...processes].sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0));
+      sorted.forEach((p) => {
+        const row = document.createElement('div');
+        row.style.border = '1px solid #ddd';
+        row.style.borderRadius = '8px';
+        row.style.padding = '10px 14px';
+        row.style.marginBottom = '8px';
+        const penalties = Array.isArray(p.penalties) && p.penalties.length
+          ? p.penalties.map((pen) => pen.label).join(', ')
+          : 'Aucun point de vigilance';
+        row.innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:12px">
+            <strong>${escapeHtml(p.name || '')}</strong>
+            <span style="font-weight:800;color:${scoreColor(p.score)}">${Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'NA'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">
+            ${escapeHtml(TYPE_LABELS[p.type] || p.type || '')} · ${escapeHtml(STATUS_LABELS[p.status] || p.status || '')}
+            ${p.owner?.name ? ` · Pilote ${escapeHtml(p.owner.name)}` : ''}
+          </div>
+          <div style="font-size:12px;margin-top:6px">${escapeHtml(penalties)}</div>
+        `;
+        wrap.append(row);
+      });
+      await saveElementAsPdf(wrap, 'pilotage-processus-synthese');
+    } catch (err) {
+      console.error('[processes] export all pdf', err);
+      showToast('Export PDF impossible', 'error');
+    } finally {
+      btnExportAll.disabled = false;
+      btnExportAll.textContent = prevLabel;
+    }
+  });
+
   if (canWrite && btnNew) {
     btnNew.addEventListener('click', () => openForm(null));
   }
@@ -347,6 +402,13 @@ export function renderProcesses() {
       renderPriorities();
       renderSummary();
       renderList();
+      if (pendingProcessId) {
+        const target = pendingProcessId;
+        pendingProcessId = null;
+        if (processes.some((p) => p.id === target)) {
+          openDrawer(target);
+        }
+      }
     } catch (err) {
       console.error('[processes] GET', err);
       listHost.replaceChildren();
@@ -1056,11 +1118,29 @@ export function renderProcesses() {
           return `${x.toFixed(1)},${y.toFixed(1)}`;
         }).join(' ');
         const last = scores[scores.length - 1];
+
+        function trendFor(days) {
+          const target = Date.now() - days * 24 * 60 * 60 * 1000;
+          let ref = null;
+          for (const r of rows) {
+            const t = new Date(r.capturedAt).getTime();
+            if (Number.isFinite(t) && t <= target) ref = r;
+          }
+          if (!ref) return '';
+          const diff = Math.round(last - Number(ref.score));
+          if (diff === 0) return `<span style="color:var(--text2)">${days}j : stable</span>`;
+          const arrow = diff > 0 ? '▲' : '▼';
+          const color = diff > 0 ? '#22c55e' : '#ef4444';
+          return `<span style="color:${color};font-weight:700">${days}j : ${arrow} ${Math.abs(diff)}</span>`;
+        }
+        const trends = [trendFor(30), trendFor(90)].filter(Boolean).join(' · ');
+
         sparkHost.innerHTML = `
           <div style="font-size:11px;color:var(--text2);text-transform:uppercase;margin-bottom:2px">Évolution du score</div>
           <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block">
             <polyline points="${points}" fill="none" stroke="${scoreColor(last)}" stroke-width="2" />
           </svg>
+          ${trends ? `<div style="font-size:11px;margin-top:2px">${trends}</div>` : ''}
         `;
       })
       .catch(() => {});

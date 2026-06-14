@@ -95,6 +95,10 @@ export function createActionDetailDialog(opts = {}) {
         <dt>Incident lié</dt><dd data-ad-incident></dd>
       </dl>
     </div>
+    <div class="action-detail-dialog__block" data-ad-process-block hidden>
+      <div class="action-detail-dialog__block-label">Pilotage des processus</div>
+      <div data-ad-process></div>
+    </div>
     <div class="action-detail-dialog__block">
       <div class="action-detail-dialog__block-label">Description</div>
       <p class="action-detail-dialog__detail" data-ad-detail></p>
@@ -295,6 +299,17 @@ export function createActionDetailDialog(opts = {}) {
       currentActionId = String(row.id || '');
       editMode = false;
       inner.classList.remove('action-detail-dialog--edit');
+
+      const procBlock = inner.querySelector('[data-ad-process-block]');
+      const procHost = inner.querySelector('[data-ad-process]');
+      if (procBlock && procHost && currentActionId) {
+        procBlock.hidden = true;
+        import('./relatedProcesses.js').then(({ renderRelatedProcesses }) => {
+          renderRelatedProcesses(procHost, 'action', currentActionId).then(() => {
+            procBlock.hidden = procHost.children.length === 0;
+          });
+        });
+      }
 
       ensureDefaultOverlayFromRow(row, currentActionId);
       const o = getActionOverlay(currentActionId);

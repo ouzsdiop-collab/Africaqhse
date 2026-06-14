@@ -20,6 +20,18 @@ export async function getAll(req, res, next) {
   }
 }
 
+export async function byLink(req, res, next) {
+  try {
+    const linkedType = String(req.query.linkedType || '').trim();
+    const linkedId = String(req.query.linkedId || '').trim();
+    if (!linkedType || !linkedId) return res.json([]);
+    const rows = await processesService.getProcessesForLink(req.qhseTenantId, linkedType, linkedId);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getById(req, res, next) {
   try {
     const id = String(req.params.id || '').trim();
