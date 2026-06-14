@@ -6,7 +6,6 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
-import { saveElementAsPdf } from '../utils/html2pdfExport.js';
 
 const TYPE_LABELS = {
   management: 'Processus de management',
@@ -462,6 +461,7 @@ export function renderProcesses() {
     pdfBtn.addEventListener('click', async () => {
       pdfBtn.disabled = true;
       try {
+        const { saveElementAsPdf } = await import('../utils/html2pdfExport.js');
         await saveElementAsPdf(exportEl, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}`);
       } catch (err) {
         console.error('[processes] export pdf', err);
