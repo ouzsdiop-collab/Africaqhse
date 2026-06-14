@@ -83,6 +83,14 @@ function ensureProcessesPageStyles() {
     .proc-priority-score{font-weight:800;min-width:48px}
     .proc-priority-name{font-weight:700}
     .proc-priority-reasons{color:var(--text2);font-size:12px}
+    .proc-proof-row{display:flex;align-items:baseline;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px}
+    .proc-proof-row:last-child{border-bottom:none}
+    .proc-proof-status{font-weight:800;width:18px;text-align:center}
+    .proc-proof-status.proc-proof-ok{color:#2f9e44}
+    .proc-proof-status.proc-proof-warn{color:#e8590c}
+    .proc-proof-status.proc-proof-none{color:var(--text2)}
+    .proc-proof-label{font-weight:700;min-width:120px}
+    .proc-proof-detail{color:var(--text2);font-size:12px}
   `;
   document.head.append(el);
 }
@@ -937,6 +945,78 @@ export function renderProcesses() {
       });
       pen.append(ul);
       exportEl.append(pen);
+    }
+
+    // Preuves de maîtrise : disponibles vs manquantes
+    {
+      const links = Array.isArray(proc.links) ? proc.links : [];
+      const countLinks = (type) => links.filter((l) => l.linkedType === type).length;
+      const penaltyByKey = new Map((proc.penalties || []).map((p) => [p.key, p]));
+
+      const rows = [];
+      const docCount = countLinks('document');
+      const docExpired = penaltyByKey.get('documentsExpired');
+      rows.push({
+        label: 'Documents liés',
+        ok: docCount > 0,
+        detail: docCount ? `${docCount} document(s) lié(s)` : 'Aucun document lié',
+        issue: docExpired ? docExpired.label : null
+      });
+
+      const isoCount = countLinks('isoRequirement');
+      const isoMissing = penaltyByKey.get('isoEvidenceMissing');
+      rows.push({
+        label: 'Exigences ISO',
+        ok: isoCount > 0 && !isoMissing,
+        detail: isoCount ? `${isoCount} exigence(s) reliée(s)` : 'Aucune exigence ISO reliée',
+        issue: isoMissing ? isoMissing.label : null
+      });
+
+      const auditCount = countLinks('audit');
+      const ncOpen = penaltyByKey.get('ncOpen');
+      rows.push({
+        label: 'Audits liés',
+        ok: auditCount > 0 && !ncOpen,
+        detail: auditCount ? `${auditCount} audit(s) lié(s)` : 'Aucun audit lié',
+        issue: ncOpen ? ncOpen.label : null
+      });
+
+      const riskCount = countLinks('risk');
+      const risksCritical = penaltyByKey.get('risksCritical');
+      rows.push({
+        label: 'Risques liés',
+        ok: riskCount > 0 && !risksCritical,
+        detail: riskCount ? `${riskCount} risque(s) lié(s)` : 'Aucun risque lié',
+        issue: risksCritical ? risksCritical.label : null
+      });
+
+      const actionCount = countLinks('action');
+      const actionsOverdue = penaltyByKey.get('actionsOverdue');
+      rows.push({
+        label: 'Actions liées',
+        ok: actionCount > 0 && !actionsOverdue,
+        detail: actionCount ? `${actionCount} action(s) liée(s)` : 'Aucune action liée',
+        issue: actionsOverdue ? actionsOverdue.label : null
+      });
+
+      const proofSection = document.createElement('div');
+      proofSection.className = 'proc-section proc-proofs';
+      const proofTitle = document.createElement('h4');
+      proofTitle.textContent = 'Preuves de maîtrise';
+      proofSection.append(proofTitle);
+      rows.forEach((r) => {
+        const row = document.createElement('div');
+        row.className = 'proc-proof-row';
+        const status = r.issue ? '⚠' : r.ok ? '✓' : '–';
+        const statusClass = r.issue ? 'proc-proof-warn' : r.ok ? 'proc-proof-ok' : 'proc-proof-none';
+        row.innerHTML = `
+          <span class="proc-proof-status ${statusClass}">${status}</span>
+          <span class="proc-proof-label">${escapeHtml(r.label)}</span>
+          <span class="proc-proof-detail">${escapeHtml(r.issue ? r.issue : r.detail)}</span>
+        `;
+        proofSection.append(row);
+      });
+      exportEl.append(proofSection);
     }
 
     const infoGrid = document.createElement('div');
