@@ -146,7 +146,7 @@ export function createDashboardExpertPilotagePanel() {
       </section>
 
       <details style="margin-top:14px" data-compliance-details>
-        <summary style="cursor:pointer;font-weight:900">Conformité (CI · ISO 45001 · mines) - charger à la demande</summary>
+        <summary style="cursor:pointer;font-weight:900">Conformité ISO 45001 - charger à la demande</summary>
         <div style="margin-top:10px;border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px 12px 14px">
           <p style="margin:0 0 10px;font-size:12px;color:var(--text2,#94a3b8)" data-compliance-disclaimer></p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">

@@ -444,8 +444,7 @@ export function createDashboardCockpitPremium(opts = {}) {
       const rows = [
         { label: 'ISO 45001', pct: Math.min(100, Math.max(0, base)) },
         { label: 'ISO 14001', pct: Math.min(100, Math.max(0, base - 2)) },
-        { label: 'ISO 9001', pct: Math.min(100, Math.max(0, base - 4)) },
-        { label: 'Cadre minier (réf.)', pct: Math.min(100, Math.max(0, base - 6)) }
+        { label: 'ISO 9001', pct: Math.min(100, Math.max(0, base - 4)) }
       ];
       rows.forEach((r) => {
       const item = document.createElement('div');

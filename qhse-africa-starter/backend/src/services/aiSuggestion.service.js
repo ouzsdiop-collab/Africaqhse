@@ -811,7 +811,7 @@ function buildHeuristicPilotageNarrative(dashboardContext) {
   const rc = ctx.risksCritical != null && Number.isFinite(Number(ctx.risksCritical)) ? Number(ctx.risksCritical) : 0;
   const nc = Number(ctx.nonConformities ?? 0) || 0;
   const parts = [
-    'Synthèse automatique (IA locale ou fournisseur indisponible) : maintenir le pilotage sur les indicateurs transmis (KPI serveur / extraits).'
+    'Synthèse automatique : maintenir le pilotage sur les indicateurs transmis (KPI serveur / extraits).'
   ];
   if (overdue) {
     parts.push(`${overdue} action(s) en retard — prioriser arbitrage, réaffectation et jalons.`);
