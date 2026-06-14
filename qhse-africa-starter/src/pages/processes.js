@@ -34,6 +34,33 @@ const LINK_TYPE_LABELS = {
 
 const LINK_TYPE_ORDER = ['risk', 'action', 'audit', 'document', 'indicator', 'incident', 'isoRequirement', 'evidence', 'conformityStatus'];
 
+const PROCESSES_STYLE_ID = 'qhse-processes-page-styles';
+function ensureProcessesPageStyles() {
+  if (document.getElementById(PROCESSES_STYLE_ID)) return;
+  const el = document.createElement('style');
+  el.id = PROCESSES_STYLE_ID;
+  el.textContent = `
+    .proc-view-toggle{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .proc-view-toggle .proc-toggle-btn{border:0;border-radius:0;margin:0;background:transparent;color:var(--text2)}
+    .proc-view-toggle .proc-toggle-btn + .proc-toggle-btn{border-left:1px solid var(--border)}
+    .proc-view-toggle .proc-toggle-btn.is-active{background:var(--app-accent,#14b8a6);color:#fff;font-weight:700}
+    .proc-type-section{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--surface2, rgba(148,163,184,0.04))}
+    .proc-type-section h4{margin:0 0 10px;font-size:14px;font-weight:800}
+    .proc-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface1,#fff);transition:box-shadow .15s, border-color .15s}
+    .proc-card:hover{box-shadow:0 2px 10px rgba(15,23,42,.08);border-color:var(--app-accent,#14b8a6)}
+    .proc-summary-tile{border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface2, rgba(148,163,184,0.04))}
+    .proc-section{border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px;background:var(--surface2, rgba(148,163,184,0.04))}
+    .proc-section h4{margin:0 0 10px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text2)}
+    .proc-link-group{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--surface1,#fff)}
+    .proc-link-group h5{margin:0 0 4px;font-size:12px;font-weight:700}
+    .proc-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .proc-table th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--text2);background:var(--surface2, rgba(148,163,184,0.06));padding:10px 12px}
+    .proc-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px}
+    .proc-table tbody tr:hover{background:var(--surface2, rgba(148,163,184,0.06))}
+  `;
+  document.head.append(el);
+}
+
 const LINK_CANDIDATE_ENDPOINTS = {
   risk: '/api/risks',
   action: '/api/actions',
@@ -65,6 +92,7 @@ function scoreColor(score) {
 
 export function renderProcesses() {
   ensureQhsePilotageStyles();
+  ensureProcessesPageStyles();
 
   const su = getSessionUser();
   const canRead = canResource(su?.role, 'processes', 'read');
@@ -95,9 +123,11 @@ export function renderProcesses() {
             avec un score de maîtrise par processus pour savoir où agir en priorité.
           </p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-secondary proc-btn-table" aria-pressed="false">Vue tableau</button>
-          <button type="button" class="btn btn-secondary proc-btn-map" aria-pressed="true">Vue cartographie</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <div class="proc-view-toggle">
+            <button type="button" class="btn proc-toggle-btn proc-btn-map is-active" aria-pressed="true">Vue cartographie</button>
+            <button type="button" class="btn proc-toggle-btn proc-btn-table" aria-pressed="false">Vue tableau</button>
+          </div>
           ${canWrite ? '<button type="button" class="btn btn-primary proc-btn-new">Nouveau processus</button>' : ''}
         </div>
       </div>
@@ -160,8 +190,11 @@ export function renderProcesses() {
 
   function setViewMode(mode) {
     viewMode = mode;
-    btnTable.setAttribute('aria-pressed', mode === 'table' ? 'true' : 'false');
-    btnMap.setAttribute('aria-pressed', mode === 'map' ? 'true' : 'false');
+    const tableActive = mode === 'table';
+    btnTable.setAttribute('aria-pressed', tableActive ? 'true' : 'false');
+    btnMap.setAttribute('aria-pressed', tableActive ? 'false' : 'true');
+    btnTable.classList.toggle('is-active', tableActive);
+    btnMap.classList.toggle('is-active', !tableActive);
     renderList();
   }
   btnTable.addEventListener('click', () => setViewMode('table'));
@@ -207,9 +240,7 @@ export function renderProcesses() {
 
     function tile(label, value, color) {
       const d = document.createElement('div');
-      d.style.border = '1px solid var(--border)';
-      d.style.borderRadius = '10px';
-      d.style.padding = '12px';
+      d.className = 'proc-summary-tile';
       d.innerHTML = `<div style="font-size:11px;color:var(--text2);text-transform:uppercase">${escapeHtml(label)}</div><div style="font-size:24px;font-weight:800;color:${color || 'var(--text1)'}">${escapeHtml(String(value))}</div>`;
       return d;
     }
@@ -261,7 +292,7 @@ export function renderProcesses() {
 
   function processCard(p) {
     const card = document.createElement('article');
-    card.className = 'list-row';
+    card.className = 'proc-card';
     card.style.cursor = 'pointer';
     card.style.display = 'flex';
     card.style.justifyContent = 'space-between';
@@ -319,8 +350,7 @@ export function renderProcesses() {
     }
     if (viewMode === 'table') {
       const table = document.createElement('table');
-      table.className = 'data-table';
-      table.style.width = '100%';
+      table.className = 'proc-table';
       table.innerHTML = `
         <thead>
           <tr>
@@ -355,9 +385,8 @@ export function renderProcesses() {
       const group = rows.filter((p) => p.type === type);
       if (!group.length) return;
       const section = document.createElement('div');
-      section.style.marginBottom = '14px';
+      section.className = 'proc-type-section';
       const h = document.createElement('h4');
-      h.style.margin = '0 0 8px';
       h.textContent = TYPE_LABELS[type];
       section.append(h);
       const grid = document.createElement('div');
@@ -462,7 +491,7 @@ export function renderProcesses() {
 
     if (Array.isArray(proc.penalties) && proc.penalties.length) {
       const pen = document.createElement('div');
-      pen.style.marginBottom = '14px';
+      pen.className = 'proc-section';
       pen.innerHTML = `<strong>Points de vigilance</strong>`;
       const ul = document.createElement('ul');
       ul.style.margin = '6px 0 0';
@@ -478,10 +507,10 @@ export function renderProcesses() {
     }
 
     const infoGrid = document.createElement('div');
+    infoGrid.className = 'proc-section';
     infoGrid.style.display = 'grid';
     infoGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
     infoGrid.style.gap = '10px';
-    infoGrid.style.marginBottom = '14px';
     function infoItem(label, value) {
       const d = document.createElement('div');
       d.innerHTML = `<div style="font-size:11px;color:var(--text2);text-transform:uppercase">${escapeHtml(label)}</div><div style="font-size:13px;font-weight:600">${escapeHtml(value || 'Non renseigné')}</div>`;
@@ -502,11 +531,14 @@ export function renderProcesses() {
       d.innerHTML = `<div style="font-size:11px;color:var(--text2);text-transform:uppercase">${escapeHtml(label)}</div><div style="font-size:13px">${items}</div>`;
       return d;
     }
-    exportEl.append(
+    const ioSection = document.createElement('div');
+    ioSection.className = 'proc-section';
+    ioSection.append(
       listField('Entrées', proc.inputs),
       listField('Sorties', proc.outputs),
       listField('Parties intéressées', proc.interestedParties)
     );
+    exportEl.append(ioSection);
 
     drawerHost.append(head, exportEl);
 
@@ -526,10 +558,7 @@ export function renderProcesses() {
           return;
         }
         const block = document.createElement('div');
-        block.className = 'content-card-soft';
-        block.style.border = '1px solid var(--border)';
-        block.style.borderRadius = '10px';
-        block.style.padding = '12px';
+        block.className = 'proc-link-group';
         const narr = document.createElement('p');
         narr.style.margin = '0 0 10px';
         narr.style.fontSize = '13px';
@@ -572,7 +601,7 @@ export function renderProcesses() {
 
     // Links section
     const linksSection = document.createElement('div');
-    linksSection.style.marginTop = '16px';
+    linksSection.className = 'proc-section';
     const linksTitle = document.createElement('h4');
     linksTitle.textContent = 'Éléments liés';
     linksSection.append(linksTitle);
@@ -586,11 +615,8 @@ export function renderProcesses() {
     LINK_TYPE_ORDER.forEach((type) => {
       const items = byType.get(type) || [];
       const block = document.createElement('div');
-      block.style.marginBottom = '10px';
-      const h = document.createElement('div');
-      h.style.fontSize = '12px';
-      h.style.fontWeight = '700';
-      h.style.marginBottom = '4px';
+      block.className = 'proc-link-group';
+      const h = document.createElement('h5');
       h.textContent = `${LINK_TYPE_LABELS[type]} (${items.length})`;
       block.append(h);
       if (items.length) {
