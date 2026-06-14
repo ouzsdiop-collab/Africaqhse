@@ -22,6 +22,7 @@ import { createPermit } from '../services/ptw.service.js';
 import { linkModules } from '../services/moduleLinks.service.js';
 import { createSkeletonCard, createEmptyState } from '../utils/designSystem.js';
 import { isOnline } from '../utils/networkStatus.js';
+import { downloadRisksRegisterPdf } from '../services/qhseReportsPdf.service.js';
 
 /* Extraction : intent dashboard + modèle registre risques (API, cache, analyses) + bloc IA Mistral, évite ~350 lignes dupliquées. */
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
@@ -1776,7 +1777,6 @@ export function renderRisks() {
     exportPdfRisks.disabled = true;
     exportPdfRisks.textContent = 'Génération…';
     try {
-      const { downloadRisksRegisterPdf } = await import('../services/qhseReportsPdf.service.js');
       const tenant = getActiveTenant();
       await downloadRisksRegisterPdf(localRisks, {
         organizationName: tenant?.name || undefined,
