@@ -108,6 +108,8 @@ function ensureProcessesPageStyles() {
     .proc-iso-suggest-host:empty{display:none}
     .proc-iso-suggest-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
     .proc-iso-suggest-row:last-child{border-bottom:none}
+    .proc-filter-mine-toggle{display:flex;align-items:center;gap:6px;height:38px;font-size:13px}
+    .proc-filter-mine-toggle input{width:16px;height:16px}
   `;
   document.head.append(el);
 }
@@ -241,6 +243,13 @@ export function renderProcesses() {
           <span>Recherche</span>
           <input type="text" class="control-input proc-search" placeholder="Nom, pilote..." />
         </label>
+        <label class="field proc-filter-mine-field" style="justify-content:flex-end">
+          <span>&nbsp;</span>
+          <span class="proc-filter-mine-toggle">
+            <input type="checkbox" class="proc-filter-mine" />
+            <span>Mes processus</span>
+          </span>
+        </label>
       </div>
       <div class="proc-priority-host" style="margin-top:14px"></div>
       <div class="proc-summary-host" style="margin-top:14px"></div>
@@ -264,6 +273,8 @@ export function renderProcesses() {
   const typeFilter = page.querySelector('.proc-filter-type');
   const statusFilter = page.querySelector('.proc-filter-status');
   const searchInput = page.querySelector('.proc-search');
+  const mineFilter = page.querySelector('.proc-filter-mine');
+  const mineFilterField = page.querySelector('.proc-filter-mine-field');
   const btnTable = page.querySelector('.proc-btn-table');
   const btnMap = page.querySelector('.proc-btn-map');
   const btnNew = page.querySelector('.proc-btn-new');
@@ -315,6 +326,11 @@ export function renderProcesses() {
   typeFilter.addEventListener('change', renderList);
   statusFilter.addEventListener('change', renderList);
   searchInput.addEventListener('input', renderList);
+  if (su?.id) {
+    mineFilter.addEventListener('change', renderList);
+  } else if (mineFilterField) {
+    mineFilterField.style.display = 'none';
+  }
 
   if (canWrite && btnNew) {
     btnNew.addEventListener('click', () => openForm(null));
@@ -501,6 +517,9 @@ export function renderProcesses() {
       if (q) {
         const hay = `${p.name || ''} ${p.owner?.name || ''} ${p.deputy?.name || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
+      }
+      if (su?.id && mineFilter?.checked) {
+        if (p.ownerUserId !== su.id && p.deputyUserId !== su.id) return false;
       }
       return true;
     });
