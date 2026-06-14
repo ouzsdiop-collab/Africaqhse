@@ -314,6 +314,12 @@ export function normalizeDashboardPayload(raw) {
   if (r.intelligence != null && typeof r.intelligence === 'object' && !Array.isArray(r.intelligence)) {
     /** @type {any} */ (out).intelligence = r.intelligence;
   }
+  if (r.pilotageEssential != null && typeof r.pilotageEssential === 'object' && !Array.isArray(r.pilotageEssential)) {
+    /** @type {any} */ (out).pilotageEssential = r.pilotageEssential;
+  }
+  if (r.pilotageExpert != null && typeof r.pilotageExpert === 'object' && !Array.isArray(r.pilotageExpert)) {
+    /** @type {any} */ (out).pilotageExpert = r.pilotageExpert;
+  }
   if (r.siteId != null && r.siteId !== '') {
     /** @type {any} */ (out).siteId = r.siteId;
   }
