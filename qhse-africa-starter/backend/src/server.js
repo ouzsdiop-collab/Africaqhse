@@ -44,6 +44,7 @@ import isoRouter from './routes/iso.routes.js';
 import ptwRouter from './routes/ptw.routes.js';
 import templatesRouter from './routes/templates.routes.js';
 import smiRouter from './routes/smi.routes.js';
+import pdfRenderRouter from './routes/pdfRender.routes.js';
 import { attachRequestUser } from './middleware/requestUser.middleware.js';
 import { requireTenantContext } from './middleware/requireTenantContext.middleware.js';
 import { attachRequestId } from './middleware/requestId.middleware.js';
@@ -273,6 +274,7 @@ app.use('/api/fds', fdsParserRouter);
 app.use('/api/conformity', conformityRouter);
 app.use('/api/iso', isoRouter);
 app.use('/api/smi', smiRouter);
+app.use('/api/pdf', pdfRenderRouter);
 app.use('/api/ptw', ptwRouter);
 app.use('/api/templates', templatesRouter);
 

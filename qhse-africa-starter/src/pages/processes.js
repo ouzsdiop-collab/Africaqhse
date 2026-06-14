@@ -7,7 +7,7 @@ import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { assemblePremiumPdfDocument, generatePremiumPdf, escapePdfText } from '../utils/pdfPremiumTemplate.js';
-import { downloadQhseChromePdf, chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
+import { downloadQhsePremiumPdf, chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
 let conformityModPromise = null;
 function loadConformity() {
   if (!conformityModPromise) conformityModPromise = import('../data/conformityStore.js');
@@ -433,11 +433,10 @@ export function renderProcesses() {
         subtitle: 'Synthèse consolidée pour revue de direction',
         includeCover: false
       });
-      await downloadQhseChromePdf(html, 'pilotage-processus-synthese.pdf', {
-        margin: [12, 12, 16, 12],
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-      }, { silentToasts: true });
-      showToast('PDF téléchargé avec succès', 'success');
+      await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', {
+        landscape: true,
+        margin: { top: '12mm', right: '12mm', bottom: '14mm', left: '12mm' }
+      });
     } catch (err) {
       console.error('[processes] export all pdf', err);
       showToast('Export PDF impossible', 'error');
@@ -1495,7 +1494,7 @@ export function renderProcesses() {
           includeCover: false,
           hideNarrativeIfEmpty: true
         });
-        await downloadQhseChromePdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`);
+        await downloadQhsePremiumPdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`);
       } catch (err) {
         console.error('[processes] export pdf', err);
         showToast('Export PDF impossible', 'error');

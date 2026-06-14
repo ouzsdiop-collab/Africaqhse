@@ -2,7 +2,9 @@
 FROM node:20-alpine
 WORKDIR /app
 
-RUN apk add --no-cache openssl libstdc++
+RUN apk add --no-cache openssl libstdc++ chromium nss freetype harfbuzz ca-certificates ttf-freefont
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # 1) Métadonnées npm
 # 2) Schéma Prisma AVANT `npm ci` : le script postinstall exécute `prisma generate`
