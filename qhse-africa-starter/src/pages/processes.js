@@ -6,6 +6,8 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
+import { assemblePremiumPdfDocument, generatePremiumPdf, escapePdfText } from '../utils/pdfPremiumTemplate.js';
+import { downloadQhseChromePdf, chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
 let conformityModPromise = null;
 function loadConformity() {
   if (!conformityModPromise) conformityModPromise = import('../data/conformityStore.js');
@@ -351,10 +353,6 @@ export function renderProcesses() {
     const prevLabel = btnExportAll.textContent;
     btnExportAll.textContent = 'Export en cours…';
     try {
-      const [{ assemblePremiumPdfDocument }, { downloadQhseChromePdf, chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate }] = await Promise.all([
-        import('../utils/pdfPremiumTemplate.js'),
-        import('../utils/qhsePdfChrome.js')
-      ]);
       const sorted = [...processes].sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0));
       const total = sorted.length;
       const moy = total ? Math.round(sorted.reduce((s, p) => s + (Number(p.score) || 0), 0) / total) : null;
@@ -1428,11 +1426,6 @@ export function renderProcesses() {
     pdfBtn.addEventListener('click', async () => {
       pdfBtn.disabled = true;
       try {
-        const [{ generatePremiumPdf, escapePdfText }, { downloadQhseChromePdf }] = await Promise.all([
-          import('../utils/pdfPremiumTemplate.js'),
-          import('../utils/qhsePdfChrome.js')
-        ]);
-
         const links = Array.isArray(proc.links) ? proc.links : [];
         const countLinks = (type) => links.filter((l) => l.linkedType === type).length;
         const penaltyByKey = new Map((proc.penalties || []).map((p) => [p.key, p]));
