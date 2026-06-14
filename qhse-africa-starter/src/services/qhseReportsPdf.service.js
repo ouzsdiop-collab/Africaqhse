@@ -8,6 +8,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import {
   chunkRowsForPdf,
   downloadQhseChromePdf,
+  downloadQhsePremiumPdf,
   formatQhsePdfGenerationDate,
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
@@ -190,9 +191,9 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     reportDate: formatQhsePdfGenerationDate(),
     coverSubtitle: 'Export registre risques'
   });
-  await downloadQhseChromePdf(html, 'registre-risques.pdf', {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  await downloadQhsePremiumPdf(html, 'registre-risques.pdf', {
+    landscape: true,
+    margin: { top: '12mm', right: '12mm', bottom: '14mm', left: '12mm' }
   });
 }
 
