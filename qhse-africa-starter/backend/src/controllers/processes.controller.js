@@ -10,6 +10,7 @@ export async function getAll(req, res, next) {
       rows.map(async (row) => {
         const full = await processesService.getProcessById(req.qhseTenantId, row.id);
         const { score, penalties } = await processesService.computeProcessScore(req.qhseTenantId, full);
+        await processesService.recordScoreSnapshot(req.qhseTenantId, row.id, score);
         return { ...row, score, penalties };
       })
     );
@@ -85,6 +86,18 @@ export async function removeLink(req, res, next) {
     const ok = await processesService.removeProcessLink(req.qhseTenantId, id, linkId);
     if (!ok) return res.status(404).json({ error: 'Lien introuvable' });
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function scoreHistory(req, res, next) {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'Identifiant processus requis' });
+    const rows = await processesService.getProcessScoreHistory(req.qhseTenantId, id);
+    if (rows === null) return res.status(404).json({ error: 'Processus introuvable' });
+    res.json(rows);
   } catch (err) {
     next(err);
   }

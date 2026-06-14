@@ -541,6 +541,7 @@ model Process {
 
   links ProcessLink[]
   reviews ProcessReview[]
+  scoreSnapshots ProcessScoreSnapshot[]
 
   @@index([tenantId])
   @@index([siteId])
@@ -563,6 +564,19 @@ model ProcessReview {
   @@index([tenantId])
   @@index([processId])
   @@map("process_reviews")
+}
+
+model ProcessScoreSnapshot {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  processId   String
+  process     Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  score       Int
+  capturedAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([processId])
+  @@map("process_score_snapshots")
 }
 
 model ProcessLink {

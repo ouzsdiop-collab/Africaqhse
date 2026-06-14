@@ -514,8 +514,37 @@ export function renderProcesses() {
     scoreNum.textContent = Number.isFinite(Number(proc.score)) ? `${proc.score}/100` : 'NA';
     const scoreLabel = document.createElement('div');
     scoreLabel.innerHTML = `<strong>Score de maîtrise</strong><div style="font-size:12px;color:var(--text2)">Statut : ${escapeHtml(STATUS_LABELS[proc.status] || proc.status || '')}</div>`;
-    scoreBlock.append(scoreNum, scoreLabel);
+    const sparkHost = document.createElement('div');
+    sparkHost.className = 'proc-score-spark';
+    sparkHost.style.flex = '1';
+    sparkHost.style.minWidth = '120px';
+    scoreBlock.append(scoreNum, scoreLabel, sparkHost);
     exportEl.append(scoreBlock);
+
+    qhseFetch(`/api/processes/${encodeURIComponent(proc.id)}/score-history`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => {
+        if (!Array.isArray(rows) || rows.length < 2) return;
+        const w = 160;
+        const h = 36;
+        const scores = rows.map((r) => Number(r.score));
+        const min = Math.min(...scores);
+        const max = Math.max(...scores);
+        const range = max - min || 1;
+        const points = scores.map((s, i) => {
+          const x = (i / (scores.length - 1)) * w;
+          const y = h - ((s - min) / range) * h;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        const last = scores[scores.length - 1];
+        sparkHost.innerHTML = `
+          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;margin-bottom:2px">Évolution du score</div>
+          <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block">
+            <polyline points="${points}" fill="none" stroke="${scoreColor(last)}" stroke-width="2" />
+          </svg>
+        `;
+      })
+      .catch(() => {});
 
     if (Array.isArray(proc.penalties) && proc.penalties.length) {
       const pen = document.createElement('div');

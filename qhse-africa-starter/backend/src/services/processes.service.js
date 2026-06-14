@@ -318,3 +318,37 @@ export async function computeProcessScore(tenantId, process) {
   const score = Math.max(0, Math.min(100, Math.round(100 - total)));
   return { score, penalties };
 }
+
+/**
+ * Enregistre un instantané du score si aucun n'a encore été pris aujourd'hui pour ce processus.
+ */
+export async function recordScoreSnapshot(tenantId, processId, score) {
+  const tenant = normalizeTenantId(tenantId);
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const existing = await prisma.processScoreSnapshot.findFirst({
+    where: { processId, capturedAt: { gte: startOfDay } },
+    select: { id: true }
+  });
+  if (existing) return;
+  await prisma.processScoreSnapshot.create({
+    data: {
+      processId,
+      score,
+      ...(tenant ? { tenantId: tenant } : {})
+    }
+  });
+}
+
+export async function getProcessScoreHistory(tenantId, processId, days = 90) {
+  const tf = prismaTenantFilter(tenantId);
+  const process = await prisma.process.findFirst({ where: { id: processId, ...tf }, select: { id: true } });
+  if (!process) return null;
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  return prisma.processScoreSnapshot.findMany({
+    where: { processId: process.id, capturedAt: { gte: since } },
+    orderBy: { capturedAt: 'asc' },
+    select: { score: true, capturedAt: true }
+  });
+}
