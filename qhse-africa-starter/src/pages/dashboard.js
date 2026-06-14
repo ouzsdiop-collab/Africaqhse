@@ -9,6 +9,7 @@ import { ensureDashboardStyles } from '../components/dashboardStyles.js';
 import { createDashboardCeoHero } from '../components/dashboardCeoHero.js';
 import { createDashboardAlertsPriorites } from '../components/dashboardAlertsPriorites.js';
 import { qhseFetch } from '../utils/qhseFetch.js';
+import { canResource } from '../utils/permissionsUi.js';
 import { getApiBase } from '../config.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import {
@@ -1641,6 +1642,51 @@ export function renderDashboard() {
     ...(kpiQuick ? [kpiFoot] : [])
   );
 
+  // Tuile "Processus à risque" (top 3 scores les plus bas) — pointe vers le module Pilotage des processus.
+  const processRiskSection = document.createElement('section');
+  processRiskSection.className = 'dashboard-section dashboard-section--process-risk';
+  processRiskSection.style.display = 'none';
+  if (canResource(getSessionUser()?.role, 'processes', 'read')) {
+    qhseFetch('/api/processes')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => {
+        const list = Array.isArray(rows) ? rows : [];
+        const top = list
+          .filter((p) => Number.isFinite(Number(p.score)))
+          .sort((a, b) => Number(a.score) - Number(b.score))
+          .slice(0, 3)
+          .filter((p) => Number(p.score) < 100);
+        if (!top.length) return;
+        const card = document.createElement('div');
+        card.className = 'content-card card-soft';
+        card.style.cursor = 'pointer';
+        const head = document.createElement('div');
+        head.className = 'content-card-head';
+        head.innerHTML = `
+          <div>
+            <div class="section-kicker">Pilotage</div>
+            <h3>Processus à risque</h3>
+            <p class="content-card-lead" style="margin:0;font-size:13px">Score de maîtrise le plus faible · cliquez pour ouvrir le pilotage des processus.</p>
+          </div>
+        `;
+        const ul = document.createElement('ul');
+        ul.style.margin = '10px 0 0';
+        ul.style.paddingLeft = '20px';
+        top.forEach((p) => {
+          const li = document.createElement('li');
+          li.style.fontSize = '13px';
+          const color = Number(p.score) < 50 ? '#ef4444' : Number(p.score) < 75 ? '#f59e0b' : '#10b981';
+          li.innerHTML = `<strong style="color:${color}">${p.score}/100</strong> · ${String(p.name || '')}`;
+          ul.append(li);
+        });
+        card.append(head, ul);
+        card.addEventListener('click', () => qhseNavigate('processes', { source: 'dashboard_process_risk_tile' }));
+        processRiskSection.replaceChildren(card);
+        processRiskSection.style.display = '';
+      })
+      .catch(() => {});
+  }
+
   const chartsSection = document.createElement('section');
   chartsSection.className = 'dashboard-section dashboard-section--charts';
 
@@ -1849,6 +1895,7 @@ export function renderDashboard() {
     bandCriticalAlerts,
     bandShortcuts,
     kpiSection,
+    processRiskSection,
     primaryChartSection,
     bandPriority,
     bandIntelligence,
