@@ -141,6 +141,20 @@ export function renderProcesses() {
             <option value="support">Support</option>
           </select>
         </label>
+        <label class="field">
+          <span>Statut</span>
+          <select class="control-input proc-filter-status">
+            <option value="">Tous les statuts</option>
+            <option value="maitrise">Maîtrisé</option>
+            <option value="a_surveiller">À surveiller</option>
+            <option value="a_revoir">À revoir</option>
+            <option value="critique">Critique</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Recherche</span>
+          <input type="text" class="control-input proc-search" placeholder="Nom, pilote..." />
+        </label>
       </div>
       <div class="proc-summary-host" style="margin-top:14px"></div>
       <div class="proc-list-host stack" style="margin-top:14px"></div>
@@ -160,6 +174,8 @@ export function renderProcesses() {
   const formCard = page.querySelector('.proc-form');
   const formHost = page.querySelector('.proc-form-host');
   const typeFilter = page.querySelector('.proc-filter-type');
+  const statusFilter = page.querySelector('.proc-filter-status');
+  const searchInput = page.querySelector('.proc-search');
   const btnTable = page.querySelector('.proc-btn-table');
   const btnMap = page.querySelector('.proc-btn-map');
   const btnNew = page.querySelector('.proc-btn-new');
@@ -200,6 +216,8 @@ export function renderProcesses() {
   btnTable.addEventListener('click', () => setViewMode('table'));
   btnMap.addEventListener('click', () => setViewMode('map'));
   typeFilter.addEventListener('change', renderList);
+  statusFilter.addEventListener('change', renderList);
+  searchInput.addEventListener('input', renderList);
 
   if (canWrite && btnNew) {
     btnNew.addEventListener('click', () => openForm(null));
@@ -287,7 +305,17 @@ export function renderProcesses() {
 
   function filteredProcesses() {
     const t = typeFilter.value;
-    return t ? processes.filter((p) => p.type === t) : processes;
+    const s = statusFilter.value;
+    const q = searchInput.value.trim().toLowerCase();
+    return processes.filter((p) => {
+      if (t && p.type !== t) return false;
+      if (s && p.status !== s) return false;
+      if (q) {
+        const hay = `${p.name || ''} ${p.owner?.name || ''} ${p.deputy?.name || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
   }
 
   function processCard(p) {
