@@ -351,38 +351,66 @@ export function renderProcesses() {
     const prevLabel = btnExportAll.textContent;
     btnExportAll.textContent = 'Export en cours…';
     try {
-      const { saveElementAsPdf } = await import('../utils/html2pdfExport.js');
-      const wrap = document.createElement('div');
-      wrap.style.padding = '24px';
-      wrap.style.fontFamily = 'inherit';
-      wrap.innerHTML = `
-        <h2 style="margin:0 0 4px">Pilotage des processus — synthèse</h2>
-        <p style="margin:0 0 16px;font-size:12px;color:var(--text2)">Généré le ${new Date().toLocaleDateString('fr-FR')}</p>
-      `;
+      const [{ assemblePremiumPdfDocument }, { downloadQhseChromePdf, chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate }] = await Promise.all([
+        import('../utils/pdfPremiumTemplate.js'),
+        import('../utils/qhsePdfChrome.js')
+      ]);
       const sorted = [...processes].sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0));
-      sorted.forEach((p) => {
-        const row = document.createElement('div');
-        row.style.border = '1px solid #ddd';
-        row.style.borderRadius = '8px';
-        row.style.padding = '10px 14px';
-        row.style.marginBottom = '8px';
+      const total = sorted.length;
+      const moy = total ? Math.round(sorted.reduce((s, p) => s + (Number(p.score) || 0), 0) / total) : null;
+      const critiques = sorted.filter((p) => (Number(p.score) || 0) < 50).length;
+      const sansPilote = sorted.filter((p) => !p.ownerUserId).length;
+
+      const summary = `
+        <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+        <div class="qhse-premium-kpi-grid">
+          <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${total}</div><div class="qhse-premium-kpi-lbl">Processus</div></div>
+          <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${moy != null ? moy : 'N/A'}</div><div class="qhse-premium-kpi-lbl">Score moyen</div></div>
+          <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${critiques}</div><div class="qhse-premium-kpi-lbl">Sous 50/100</div></div>
+          <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${sansPilote}</div><div class="qhse-premium-kpi-lbl">Sans pilote</div></div>
+        </div>
+      `;
+
+      const rowHtml = (p) => {
         const penalties = Array.isArray(p.penalties) && p.penalties.length
           ? p.penalties.map((pen) => pen.label).join(', ')
           : 'Aucun point de vigilance';
-        row.innerHTML = `
-          <div style="display:flex;justify-content:space-between;gap:12px">
-            <strong>${escapeHtml(p.name || '')}</strong>
-            <span style="font-weight:800;color:${scoreColor(p.score)}">${Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'NA'}</span>
-          </div>
-          <div style="font-size:12px;color:var(--text2);margin-top:4px">
-            ${escapeHtml(TYPE_LABELS[p.type] || p.type || '')} · ${escapeHtml(STATUS_LABELS[p.status] || p.status || '')}
-            ${p.owner?.name ? ` · Pilote ${escapeHtml(p.owner.name)}` : ''}
-          </div>
-          <div style="font-size:12px;margin-top:6px">${escapeHtml(penalties)}</div>
-        `;
-        wrap.append(row);
+        const tone = scoreTone(p.score);
+        const badgeBg = tone === 'good' ? '#dcfce7' : tone === 'warning' ? '#ffedd5' : tone === 'critical' ? '#fee2e2' : '#f1f5f9';
+        const badgeFg = tone === 'good' ? '#166534' : tone === 'warning' ? '#c2410c' : tone === 'critical' ? '#991b1b' : '#475569';
+        return `<tr>
+          <td>${escapeHtml(p.name || '')}</td>
+          <td>${escapeHtml(TYPE_LABELS[p.type] || p.type || '')}</td>
+          <td>${escapeHtml(STATUS_LABELS[p.status] || p.status || '')}</td>
+          <td><span class="qhse-premium-badge" style="background:${badgeBg};color:${badgeFg}">${Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'N/A'}</span></td>
+          <td>${escapeHtml(p.owner?.name || 'Non renseigné')}</td>
+          <td>${escapeHtml(penalties)}</td>
+        </tr>`;
+      };
+
+      const chunks = chunkRowsForPdf(sorted, 12);
+      const pages = [];
+      chunks.forEach((chunk, idx) => {
+        const table = chunk.length
+          ? `<table class="qhse-premium-table"><thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
+          : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+        if (idx === 0) {
+          pages.push(`${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`);
+        } else {
+          pages.push(`<h2 class="qhse-premium-h2">Détail des processus (suite)</h2>${table}`);
+        }
       });
-      await saveElementAsPdf(wrap, 'pilotage-processus-synthese');
+      if (!pages.length) pages.push(`${summary}<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
+
+      const html = assemblePremiumPdfDocument('Pilotage des processus — synthèse', pages, {
+        reportDate: formatQhsePdfGenerationDate(),
+        coverSubtitle: 'Synthèse consolidée pour revue de direction'
+      });
+      await downloadQhseChromePdf(html, 'pilotage-processus-synthese.pdf', {
+        margin: [12, 12, 16, 12],
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      }, { silentToasts: true });
+      showToast('PDF téléchargé avec succès', 'success');
     } catch (err) {
       console.error('[processes] export all pdf', err);
       showToast('Export PDF impossible', 'error');
@@ -1372,8 +1400,61 @@ export function renderProcesses() {
     pdfBtn.addEventListener('click', async () => {
       pdfBtn.disabled = true;
       try {
-        const { saveElementAsPdf } = await import('../utils/html2pdfExport.js');
-        await saveElementAsPdf(exportEl, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}`);
+        const [{ generatePremiumPdf, escapePdfText }, { downloadQhseChromePdf }] = await Promise.all([
+          import('../utils/pdfPremiumTemplate.js'),
+          import('../utils/qhsePdfChrome.js')
+        ]);
+
+        const links = Array.isArray(proc.links) ? proc.links : [];
+        const countLinks = (type) => links.filter((l) => l.linkedType === type).length;
+        const penaltyByKey = new Map((proc.penalties || []).map((p) => [p.key, p]));
+        const isoLinks = links.filter((l) => l.linkedType === 'isoRequirement');
+        const normCounts = new Map();
+        isoLinks.forEach((l) => {
+          const r = getIsoRequirementsMap(iso).get(l.linkedId);
+          const code = r ? (iso.getNormById(r.normId)?.code || r.normId) : null;
+          if (code) normCounts.set(code, (normCounts.get(code) || 0) + 1);
+        });
+        const normDetail = [...normCounts.entries()].map(([code, n]) => `${code} (${n})`).join(', ');
+
+        const proofRows = [
+          { label: 'Documents liés', ok: countLinks('document') > 0, detail: countLinks('document') ? `${countLinks('document')} document(s) lié(s)` : 'Aucun document lié', issue: penaltyByKey.get('documentsExpired')?.label },
+          { label: 'Exigences ISO', ok: isoLinks.length > 0 && !penaltyByKey.get('isoEvidenceMissing'), detail: isoLinks.length ? `${isoLinks.length} exigence(s) reliée(s)${normDetail ? ` — ${normDetail}` : ''}` : 'Aucune exigence ISO reliée', issue: penaltyByKey.get('isoEvidenceMissing')?.label },
+          { label: 'Audits liés', ok: countLinks('audit') > 0 && !penaltyByKey.get('ncOpen'), detail: countLinks('audit') ? `${countLinks('audit')} audit(s) lié(s)` : 'Aucun audit lié', issue: penaltyByKey.get('ncOpen')?.label },
+          { label: 'Risques liés', ok: countLinks('risk') > 0 && !penaltyByKey.get('risksCritical'), detail: countLinks('risk') ? `${countLinks('risk')} risque(s) lié(s)` : 'Aucun risque lié', issue: penaltyByKey.get('risksCritical')?.label },
+          { label: 'Actions liées', ok: countLinks('action') > 0 && !penaltyByKey.get('actionsOverdue'), detail: countLinks('action') ? `${countLinks('action')} action(s) liée(s)` : 'Aucune action liée', issue: penaltyByKey.get('actionsOverdue')?.label }
+        ];
+        const proofsHtml = `<ul class="qhse-premium-ul">${proofRows.map((r) => {
+          const status = r.issue ? '⚠' : r.ok ? '✓' : '–';
+          return `<li>${status} ${escapePdfText(r.label)} : ${escapePdfText(r.issue || r.detail)}</li>`;
+        }).join('')}</ul>`;
+
+        const penaltiesHtml = Array.isArray(proc.penalties) && proc.penalties.length
+          ? `<ul class="qhse-premium-ul">${proc.penalties.map((p) => `<li>${escapePdfText(p.label)} (${escapePdfText(String(p.points))} pts)</li>`).join('')}</ul>`
+          : '<p class="qhse-premium-muted" style="margin:0">Aucun point de vigilance.</p>';
+
+        const infoHtml = `<table class="qhse-premium-table"><tbody>
+          <tr><td><strong>Pilote</strong></td><td>${escapePdfText(proc.owner?.name || 'Non renseigné')}</td></tr>
+          <tr><td><strong>Suppléant</strong></td><td>${escapePdfText(proc.deputy?.name || 'Non renseigné')}</td></tr>
+          <tr><td><strong>Fréquence de revue</strong></td><td>${escapePdfText(proc.reviewFrequency || 'Non renseigné')}</td></tr>
+          <tr><td><strong>Prochaine revue</strong></td><td>${escapePdfText(proc.nextReviewAt ? new Date(proc.nextReviewAt).toLocaleDateString('fr-FR') : 'Non renseigné')}</td></tr>
+          <tr><td><strong>Entrées</strong></td><td>${escapePdfText(Array.isArray(proc.inputs) && proc.inputs.length ? proc.inputs.join(', ') : 'Non renseigné')}</td></tr>
+          <tr><td><strong>Sorties</strong></td><td>${escapePdfText(Array.isArray(proc.outputs) && proc.outputs.length ? proc.outputs.join(', ') : 'Non renseigné')}</td></tr>
+          <tr><td><strong>Parties intéressées</strong></td><td>${escapePdfText(Array.isArray(proc.interestedParties) && proc.interestedParties.length ? proc.interestedParties.join(', ') : 'Non renseigné')}</td></tr>
+        </tbody></table>`;
+
+        const html = generatePremiumPdf({
+          title: proc.name || 'Processus',
+          subtitle: `${TYPE_LABELS[proc.type] || proc.type || ''} · ${STATUS_LABELS[proc.status] || proc.status || ''}`,
+          summary: `<p style="margin:0">Score de maîtrise : <strong>${Number.isFinite(Number(proc.score)) ? `${proc.score}/100` : 'Non disponible'}</strong></p>`,
+          compliancePct: Number.isFinite(Number(proc.score)) ? Number(proc.score) : null,
+          sections: [
+            { title: 'Points de vigilance', html: penaltiesHtml },
+            { title: 'Preuves de maîtrise', html: proofsHtml },
+            { title: 'Informations générales', html: infoHtml }
+          ]
+        });
+        await downloadQhseChromePdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`);
       } catch (err) {
         console.error('[processes] export pdf', err);
         showToast('Export PDF impossible', 'error');
