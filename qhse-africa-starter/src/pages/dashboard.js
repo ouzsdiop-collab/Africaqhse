@@ -20,7 +20,6 @@ import {
 } from '../components/dashboardCharts.js';
 import { createDashboardAuditChartBlock } from '../components/dashboardAuditChartBlock.js';
 import { createDashboardActivitySection } from '../components/dashboardActivity.js';
-import { createDashboardCockpit } from '../components/dashboardCockpit.js';
 import { createDashboardCockpitPremium } from '../components/dashboardCockpitPremium.js';
 import { createDashboardExecutivePanel } from '../components/dashboardExecutivePanel.js';
 import { createDashboardShortcutsSection } from '../components/dashboardShortcuts.js';
@@ -1307,7 +1306,6 @@ export function renderDashboard() {
   connectivitySlot.className = 'dashboard-connectivity-slot';
   connectivitySlot.hidden = true;
 
-  const cockpit = createDashboardCockpit();
   const executivePanel = createDashboardExecutivePanel(siteName);
 
   const alertsSection = document.createElement('section');
@@ -1493,10 +1491,6 @@ export function renderDashboard() {
     });
   }
   bandAssistant.append(noAiWrap, pilotageAssistant.root);
-
-  const bandCockpit = document.createElement('div');
-  bandCockpit.className = 'dashboard-band dashboard-band--cockpit qhse-page-advanced-only';
-  bandCockpit.append(cockpit.root);
 
   const bandShortcuts = document.createElement('div');
   bandShortcuts.className = 'dashboard-band dashboard-band--shortcuts';
@@ -1842,7 +1836,6 @@ export function renderDashboard() {
     chartsSection,
     decisionSection,
     bandAnalysisLecture,
-    bandCockpit,
     cockpitPremium.root,
     bandSecondary,
     bandAssistant
@@ -1886,13 +1879,6 @@ export function renderDashboard() {
     audits: [],
     incidents: [],
     siteLabel: siteName
-  });
-  cockpit.update({
-    stats: lastStats,
-    incidents: [],
-    actions: [],
-    audits: [],
-    ncs: []
   });
   cockpitPremium.update({
     data: lastStats,
@@ -2055,13 +2041,6 @@ export function renderDashboard() {
       ncs,
       audits,
       siteLabel: siteName
-    });
-    cockpit.update({
-      stats: lastStats,
-      incidents,
-      actions,
-      audits,
-      ncs
     });
     cockpitPremium.update({
       data: lastStats,
@@ -2288,13 +2267,6 @@ export function renderDashboard() {
         ncs: [],
         audits: [],
         siteLabel: siteName
-      });
-      cockpit.update({
-        stats: lastStats,
-        incidents: [],
-        actions: [],
-        audits: [],
-        ncs: []
       });
       cockpitPremium.update({
         data: lastStats,
