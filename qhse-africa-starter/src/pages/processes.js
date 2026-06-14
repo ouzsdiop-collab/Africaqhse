@@ -6,7 +6,11 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
-import { getRequirements, getNormById } from '../data/conformityStore.js';
+let conformityModPromise = null;
+function loadConformity() {
+  if (!conformityModPromise) conformityModPromise = import('../data/conformityStore.js');
+  return conformityModPromise;
+}
 import { consumeDashboardIntent } from '../utils/dashboardNavigationIntent.js';
 
 const TYPE_LABELS = {
@@ -124,25 +128,25 @@ const LINK_CANDIDATE_ENDPOINTS = {
 };
 
 let isoRequirementsById = null;
-function getIsoRequirementsMap() {
+function getIsoRequirementsMap(iso) {
   if (!isoRequirementsById) {
-    isoRequirementsById = new Map(getRequirements().map((r) => [r.id, r]));
+    isoRequirementsById = new Map(iso.getRequirements().map((r) => [r.id, r]));
   }
   return isoRequirementsById;
 }
-function isoRequirementLabel(id) {
-  const r = getIsoRequirementsMap().get(id);
+function isoRequirementLabel(iso, id) {
+  const r = getIsoRequirementsMap(iso).get(id);
   if (!r) return id;
-  return `${getNormById(r.normId)?.code || r.normId} · ${r.clause} ${r.title}`;
+  return `${iso.getNormById(r.normId)?.code || r.normId} · ${r.clause} ${r.title}`;
 }
 
 const STOPWORDS = new Set(['les','des','aux','une','un','le','la','de','du','et','en','au','pour','sur','par','avec','dans','ce','ces','que','qui','est','son','sa','ses','ou','non']);
 
-function suggestIsoRequirementsForProcess(proc, alreadyLinkedIds) {
+function suggestIsoRequirementsForProcess(iso, proc, alreadyLinkedIds) {
   const text = [proc.name, proc.purpose, ...(proc.inputs || []), ...(proc.outputs || [])].join(' ').toLowerCase();
   const words = new Set(text.split(/[^a-zàâçéèêëîïôûùüÿñæœ0-9]+/i).filter((w) => w.length > 3 && !STOPWORDS.has(w)));
 
-  const scored = getRequirements()
+  const scored = iso.getRequirements()
     .filter((r) => !alreadyLinkedIds.has(r.id))
     .map((r) => {
       const reqText = `${r.title} ${r.summary}`.toLowerCase();
@@ -289,9 +293,10 @@ export function renderProcesses() {
   async function fetchLinkCandidates(type) {
     if (type === 'isoRequirement') {
       if (linkCandidatesCache.has(type)) return linkCandidatesCache.get(type);
-      const rows = getRequirements().map((r) => ({
+      const iso = await loadConformity();
+      const rows = iso.getRequirements().map((r) => ({
         id: r.id,
-        title: `${(getNormById(r.normId)?.code || r.normId)} · ${r.clause} ${r.title}`
+        title: `${(iso.getNormById(r.normId)?.code || r.normId)} · ${r.clause} ${r.title}`
       }));
       linkCandidatesCache.set(type, rows);
       return rows;
@@ -1018,7 +1023,7 @@ export function renderProcesses() {
       const res = await qhseFetch(`/api/processes/${encodeURIComponent(id)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const proc = await res.json();
-      renderDrawer(proc);
+      await renderDrawer(proc);
     } catch (err) {
       console.error('[processes] GET by id', err);
       drawerHost.replaceChildren();
@@ -1026,7 +1031,8 @@ export function renderProcesses() {
     }
   }
 
-  function renderDrawer(proc) {
+  async function renderDrawer(proc) {
+    const iso = await loadConformity();
     drawerHost.replaceChildren();
 
     const head = document.createElement('div');
@@ -1182,8 +1188,8 @@ export function renderProcesses() {
       const isoMissing = penaltyByKey.get('isoEvidenceMissing');
       const normCounts = new Map();
       isoLinks.forEach((l) => {
-        const r = getIsoRequirementsMap().get(l.linkedId);
-        const code = r ? (getNormById(r.normId)?.code || r.normId) : null;
+        const r = getIsoRequirementsMap(iso).get(l.linkedId);
+        const code = r ? (iso.getNormById(r.normId)?.code || r.normId) : null;
         if (code) normCounts.set(code, (normCounts.get(code) || 0) + 1);
       });
       const normDetail = [...normCounts.entries()].map(([code, n]) => `${code} (${n})`).join(', ');
@@ -1399,7 +1405,7 @@ export function renderProcesses() {
       isoSuggestHost.className = 'proc-iso-suggest-host';
       isoSuggestBtn.addEventListener('click', () => {
         const alreadyLinked = new Set((byType.get('isoRequirement') || []).map((l) => l.linkedId));
-        const suggestions = suggestIsoRequirementsForProcess(proc, alreadyLinked);
+        const suggestions = suggestIsoRequirementsForProcess(iso, proc, alreadyLinked);
         isoSuggestHost.replaceChildren();
         if (!suggestions.length) {
           isoSuggestHost.innerHTML = '<p style="font-size:13px;color:var(--text2);margin:0">Aucune exigence supplémentaire suggérée pour ce processus.</p>';
@@ -1409,7 +1415,7 @@ export function renderProcesses() {
           const row = document.createElement('div');
           row.className = 'proc-iso-suggest-row';
           row.innerHTML = `
-            <span class="proc-iso-suggest-label">${escapeHtml(getNormById(req.normId)?.code || req.normId)} · ${escapeHtml(req.clause)} ${escapeHtml(req.title)}</span>
+            <span class="proc-iso-suggest-label">${escapeHtml(iso.getNormById(req.normId)?.code || req.normId)} · ${escapeHtml(req.clause)} ${escapeHtml(req.title)}</span>
             <button type="button" class="btn btn-secondary proc-iso-suggest-link" style="padding:2px 8px;font-size:11px">Lier</button>
           `;
           row.querySelector('.proc-iso-suggest-link').addEventListener('click', async (ev) => {
@@ -1457,7 +1463,7 @@ export function renderProcesses() {
           li.style.justifyContent = 'space-between';
           li.style.gap = '8px';
           const span = document.createElement('span');
-          const idLabel = type === 'isoRequirement' ? isoRequirementLabel(l.linkedId) : l.linkedId;
+          const idLabel = type === 'isoRequirement' ? isoRequirementLabel(iso, l.linkedId) : l.linkedId;
           span.textContent = `${idLabel}${l.role ? ` (${l.role})` : ''}`;
           li.append(span);
           if (canWrite) {
