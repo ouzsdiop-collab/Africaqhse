@@ -360,8 +360,32 @@ export function renderProcesses() {
       const moy = total ? Math.round(sorted.reduce((s, p) => s + (Number(p.score) || 0), 0) / total) : null;
       const critiques = sorted.filter((p) => (Number(p.score) || 0) < 50).length;
       const sansPilote = sorted.filter((p) => !p.ownerUserId).length;
+      const aRevoir = sorted.filter((p) => p.status === 'a_revoir' || p.status === 'critique').length;
+
+      const execText = total
+        ? `Cette synthèse couvre ${total} processus pilotés, pour un score de maîtrise moyen de ${moy != null ? moy : 'non disponible'}/100. `
+          + (critiques
+            ? `${critiques} processus présentent un score sous 50/100 et nécessitent une action corrective rapprochée. `
+            : `Aucun processus ne présente de score critique (sous 50/100) sur ce périmètre. `)
+          + (sansPilote ? `${sansPilote} processus n'ont pas de pilote désigné. ` : `Tous les processus disposent d'un pilote désigné. `)
+          + (aRevoir ? `${aRevoir} processus sont en statut "à revoir" ou "critique" et devraient faire l'objet d'une revue prioritaire.` : `Aucun processus n'est en statut "à revoir" ou "critique".`)
+        : 'Aucun processus n\'est enregistré sur ce périmètre.';
+
+      const priorities = sorted.filter((p) => (Number(p.score) || 0) < 50 || !p.ownerUserId || p.status === 'a_revoir' || p.status === 'critique').slice(0, 5);
+      const recommendationsHtml = priorities.length
+        ? `<ul class="qhse-premium-ul">${priorities.map((p) => {
+            const reasons = [];
+            if ((Number(p.score) || 0) < 50) reasons.push('score sous 50/100');
+            if (!p.ownerUserId) reasons.push('sans pilote désigné');
+            if (p.status === 'a_revoir') reasons.push('revue requise');
+            if (p.status === 'critique') reasons.push('statut critique');
+            return `<li><strong>${escapeHtml(p.name || '')}</strong> : ${escapeHtml(reasons.join(', '))}</li>`;
+          }).join('')}</ul>`
+        : '<p class="qhse-premium-muted" style="margin:0">Aucun processus ne nécessite d\'action prioritaire immédiate.</p>';
 
       const summary = `
+        <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+        <div class="qhse-premium-card"><p style="margin:0">${escapeHtml(execText)}</p></div>
         <h2 class="qhse-premium-h2">Indicateurs clés</h2>
         <div class="qhse-premium-kpi-grid">
           <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${total}</div><div class="qhse-premium-kpi-lbl">Processus</div></div>
@@ -369,6 +393,8 @@ export function renderProcesses() {
           <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${critiques}</div><div class="qhse-premium-kpi-lbl">Sous 50/100</div></div>
           <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${sansPilote}</div><div class="qhse-premium-kpi-lbl">Sans pilote</div></div>
         </div>
+        <h2 class="qhse-premium-h2">Processus à traiter en priorité</h2>
+        ${recommendationsHtml}
       `;
 
       const rowHtml = (p) => {
@@ -1445,16 +1471,28 @@ export function renderProcesses() {
           <tr><td><strong>Parties intéressées</strong></td><td>${escapePdfText(Array.isArray(proc.interestedParties) && proc.interestedParties.length ? proc.interestedParties.join(', ') : 'Non renseigné')}</td></tr>
         </tbody></table>`;
 
+        const scoreNum = Number(proc.score);
+        const scoreLabel = Number.isFinite(scoreNum) ? `${scoreNum}/100` : 'non disponible';
+        const nbPenalties = Array.isArray(proc.penalties) ? proc.penalties.length : 0;
+        const execText = `Le processus « ${proc.name || ''} » (${(TYPE_LABELS[proc.type] || proc.type || '').toLowerCase()}) affiche un score de maîtrise de ${scoreLabel}, pour un statut « ${(STATUS_LABELS[proc.status] || proc.status || '').toLowerCase()} ». `
+          + (nbPenalties
+            ? `${nbPenalties} point(s) de vigilance ${nbPenalties > 1 ? 'sont identifiés' : 'est identifié'} et doivent être traités en priorité (cf. ci-dessous). `
+            : `Aucun point de vigilance n'est identifié sur ce processus. `)
+          + (proc.owner?.name ? `Le pilotage est assuré par ${proc.owner.name}.` : `Aucun pilote n'est désigné pour ce processus, ce qui constitue un point d'attention.`);
+
+        const conclusionHtml = `<p class="qhse-premium-muted" style="margin:0">Cette fiche reflète l'état des données à la date d'édition. Les actions de traitement des points de vigilance relèvent du pilote du processus, avec appui de la fonction QHSE.</p>`;
+
         const html = generatePremiumPdf({
           title: proc.name || 'Processus',
           subtitle: `${TYPE_LABELS[proc.type] || proc.type || ''} · ${STATUS_LABELS[proc.status] || proc.status || ''}`,
-          summary: `<p style="margin:0">Score de maîtrise : <strong>${Number.isFinite(Number(proc.score)) ? `${proc.score}/100` : 'Non disponible'}</strong></p>`,
-          compliancePct: Number.isFinite(Number(proc.score)) ? Number(proc.score) : null,
+          summary: `<p style="margin:0">${escapePdfText(execText)}</p>`,
+          compliancePct: Number.isFinite(scoreNum) ? scoreNum : null,
           sections: [
             { title: 'Points de vigilance', html: penaltiesHtml },
             { title: 'Preuves de maîtrise', html: proofsHtml },
             { title: 'Informations générales', html: infoHtml }
-          ]
+          ],
+          conclusion: conclusionHtml
         });
         await downloadQhseChromePdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`);
       } catch (err) {
