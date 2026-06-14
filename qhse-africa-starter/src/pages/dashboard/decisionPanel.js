@@ -270,7 +270,7 @@ export function updateDecisionAlerts(refs, stats, data) {
             padding: 12,
             cornerRadius: 10,
             callbacks: {
-              title: (ctx) => `Période : ${ctx?.[0]?.label || 'N/A'}`,
+              title: (ctx) => `Période : ${ctx?.[0]?.label || 'Non disponible'}`,
               footer: (items) => {
                 if (!items?.length) return '';
                 let sum = 0;

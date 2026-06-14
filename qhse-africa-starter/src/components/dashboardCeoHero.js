@@ -590,7 +590,7 @@ export function createDashboardCeoHero(siteName, opts = {}) {
           Math.round((scored.reduce((a, b) => a + b, 0) / scored.length) * 10) / 10;
         auditAvgBadge.textContent = `Moy. ${m} %`;
       } else {
-        auditAvgBadge.textContent = 'N/A';
+        auditAvgBadge.textContent = 'Non disponible';
       }
     }
     if (primeFootHint) {
