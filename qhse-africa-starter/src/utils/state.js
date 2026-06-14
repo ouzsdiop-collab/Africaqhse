@@ -6,6 +6,7 @@ const allowedPages = [
   'incidents',
   'permits',
   'risks',
+  'processes',
   'actions',
   'iso',
   'audits',
