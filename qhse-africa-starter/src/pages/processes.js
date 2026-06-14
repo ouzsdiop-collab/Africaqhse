@@ -44,18 +44,24 @@ function ensureProcessesPageStyles() {
     .proc-view-toggle .proc-toggle-btn{border:0;border-radius:0;margin:0;background:transparent;color:var(--text2)}
     .proc-view-toggle .proc-toggle-btn + .proc-toggle-btn{border-left:1px solid var(--border)}
     .proc-view-toggle .proc-toggle-btn.is-active{background:var(--app-accent,#14b8a6);color:#fff;font-weight:700}
-    .proc-type-section{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--surface2, rgba(148,163,184,0.04))}
-    .proc-type-section h4{margin:0 0 10px;font-size:14px;font-weight:800}
-    .proc-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface1,#fff);transition:box-shadow .15s, border-color .15s}
-    .proc-card:hover{box-shadow:0 2px 10px rgba(15,23,42,.08);border-color:var(--app-accent,#14b8a6)}
+    .proc-type-section{border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;background:linear-gradient(180deg, var(--surface2, rgba(148,163,184,0.05)) 0%, transparent 100%)}
+    .proc-type-section h4{margin:0 0 12px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);display:flex;align-items:center;gap:8px}
+    .proc-type-section h4::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--app-accent,#14b8a6)}
+    .proc-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--surface1,#fff);transition:box-shadow .2s ease, border-color .2s ease, transform .15s ease}
+    .proc-card:hover{box-shadow:0 8px 24px rgba(15,23,42,.10);border-color:var(--app-accent,#14b8a6);transform:translateY(-2px)}
+    .proc-score-pill{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:64px;height:64px;border:2px solid;border-radius:50%;background:var(--surface1,#fff)}
+    .proc-score-pill-num{font-size:20px;font-weight:800;line-height:1.1}
+    .proc-score-pill-label{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-top:1px}
     .proc-summary-tile{border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface2, rgba(148,163,184,0.04))}
-    .proc-section{border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px;background:var(--surface2, rgba(148,163,184,0.04))}
-    .proc-section h4{margin:0 0 10px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text2)}
-    .proc-link-group{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--surface1,#fff)}
+    .proc-section{border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:14px;background:var(--surface2, rgba(148,163,184,0.04))}
+    .proc-section h4{margin:0 0 10px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+    .proc-link-group{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--surface1,#fff);transition:border-color .15s ease}
+    .proc-link-group:hover{border-color:var(--app-accent,#14b8a6)}
     .proc-link-group h5{margin:0 0 4px;font-size:12px;font-weight:700}
-    .proc-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-    .proc-table th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--text2);background:var(--surface2, rgba(148,163,184,0.06));padding:10px 12px}
-    .proc-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px}
+    .proc-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .proc-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);background:var(--surface2, rgba(148,163,184,0.06));padding:12px 14px}
+    .proc-table td{padding:12px 14px;border-top:1px solid var(--border);font-size:13px}
+    .proc-table tbody tr{transition:background .15s ease}
     .proc-table tbody tr:hover{background:var(--surface2, rgba(148,163,184,0.06))}
     .proc-graph-line{stroke-dasharray:4 4;animation:proc-graph-flow 12s linear infinite}
     @keyframes proc-graph-flow{to{stroke-dashoffset:-200}}
@@ -68,14 +74,17 @@ function ensureProcessesPageStyles() {
     .proc-pilots{margin-top:16px}
     .proc-pilots h4{margin:0 0 8px}
     .proc-pilots-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-    .proc-pilot-card{padding:10px 12px}
-    .proc-pilot-name{font-weight:800;margin-bottom:6px}
+    .proc-pilot-card{padding:14px;border-radius:12px;transition:box-shadow .2s ease,transform .15s ease}
+    .proc-pilot-card:hover{box-shadow:0 8px 24px rgba(15,23,42,.10);transform:translateY(-2px)}
+    .proc-pilot-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .proc-pilot-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--app-accent,#14b8a6);color:#fff;font-size:12px;font-weight:800;flex:none}
+    .proc-pilot-name{font-weight:800}
     .proc-pilot-item{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px}
     .proc-pilot-item:last-child{border-bottom:none}
     .proc-pilot-item:hover .proc-pilot-item-name{text-decoration:underline}
     .proc-pilot-item-score{font-weight:800;white-space:nowrap}
-    .proc-priorities{padding:12px 14px;border-left:3px solid #e8590c}
-    .proc-priorities h4{margin:0}
+    .proc-priorities{padding:14px 16px;border-left:4px solid #e8590c;border-radius:12px;background:linear-gradient(135deg, rgba(232,89,12,0.08), transparent 70%)}
+    .proc-priorities h4{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);font-weight:800}
     .proc-priorities-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap}
     .proc-audit-all-btn{font-size:12px;padding:6px 10px}
     .proc-audit-all-host{margin-top:10px}
@@ -473,15 +482,14 @@ export function renderProcesses() {
     left.append(title, sub);
 
     const right = document.createElement('div');
-    right.style.textAlign = 'right';
+    right.className = 'proc-score-pill';
+    right.style.borderColor = scoreColor(p.score);
     const scoreEl = document.createElement('div');
-    scoreEl.style.fontSize = '20px';
-    scoreEl.style.fontWeight = '800';
+    scoreEl.className = 'proc-score-pill-num';
     scoreEl.style.color = scoreColor(p.score);
-    scoreEl.textContent = Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'NA';
+    scoreEl.textContent = Number.isFinite(Number(p.score)) ? `${p.score}` : 'NA';
     const scoreSub = document.createElement('div');
-    scoreSub.style.fontSize = '11px';
-    scoreSub.style.color = 'var(--text2)';
+    scoreSub.className = 'proc-score-pill-label';
     scoreSub.textContent = 'Maîtrise';
     right.append(scoreEl, scoreSub);
 
@@ -758,10 +766,17 @@ export function renderProcesses() {
       const card = document.createElement('div');
       card.className = 'proc-pilot-card content-card-soft';
 
+      const head = document.createElement('div');
+      head.className = 'proc-pilot-head';
+      const avatar = document.createElement('div');
+      avatar.className = 'proc-pilot-avatar';
+      const label = owner.name || owner.email || 'Pilote';
+      avatar.textContent = label.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
       const name = document.createElement('div');
       name.className = 'proc-pilot-name';
-      name.textContent = owner.name || owner.email || 'Pilote';
-      card.append(name);
+      name.textContent = label;
+      head.append(avatar, name);
+      card.append(head);
 
       const list = document.createElement('div');
       list.className = 'proc-pilot-list';
