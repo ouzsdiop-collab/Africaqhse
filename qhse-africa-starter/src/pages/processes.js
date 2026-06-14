@@ -412,7 +412,7 @@ export function renderProcesses() {
         </tr>`;
       };
 
-      const colgroup = '<colgroup><col style="width:14%"><col style="width:13%"><col style="width:11%"><col style="width:8%"><col style="width:14%"><col style="width:40%"></colgroup>';
+      const colgroup = '<colgroup><col style="width:19%"><col style="width:12%"><col style="width:10%"><col style="width:10%"><col style="width:13%"><col style="width:36%"></colgroup>';
       const chunks = chunkRowsForPdf(sorted, 18);
       const pages = [];
       chunks.forEach((chunk, idx) => {
@@ -1445,10 +1445,15 @@ export function renderProcesses() {
           { label: 'Risques liés', ok: countLinks('risk') > 0 && !penaltyByKey.get('risksCritical'), detail: countLinks('risk') ? `${countLinks('risk')} risque(s) lié(s)` : 'Aucun risque lié', issue: penaltyByKey.get('risksCritical')?.label },
           { label: 'Actions liées', ok: countLinks('action') > 0 && !penaltyByKey.get('actionsOverdue'), detail: countLinks('action') ? `${countLinks('action')} action(s) liée(s)` : 'Aucune action liée', issue: penaltyByKey.get('actionsOverdue')?.label }
         ];
-        const proofsHtml = `<ul class="qhse-premium-ul">${proofRows.map((r) => {
-          const status = r.issue ? '⚠' : r.ok ? '✓' : '–';
-          return `<li>${status} ${escapePdfText(r.label)} : ${escapePdfText(r.issue || r.detail)}</li>`;
-        }).join('')}</ul>`;
+        const proofsHtml = `<table class="qhse-premium-table"><colgroup><col style="width:28%"><col style="width:14%"><col style="width:58%"></colgroup>
+          <thead><tr><th>Élément</th><th>État</th><th>Détail</th></tr></thead>
+          <tbody>${proofRows.map((r) => {
+            const tone = r.issue ? 'warning' : r.ok ? 'good' : 'neutral';
+            const bg = tone === 'good' ? '#dcfce7' : tone === 'warning' ? '#ffedd5' : '#f1f5f9';
+            const fg = tone === 'good' ? '#166534' : tone === 'warning' ? '#c2410c' : '#475569';
+            const label = tone === 'good' ? 'OK' : tone === 'warning' ? 'À traiter' : 'Absent';
+            return `<tr><td>${escapePdfText(r.label)}</td><td><span class="qhse-premium-badge" style="background:${bg};color:${fg}">${label}</span></td><td>${escapePdfText(r.issue || r.detail)}</td></tr>`;
+          }).join('')}</tbody></table>`;
 
         const penaltiesHtml = Array.isArray(proc.penalties) && proc.penalties.length
           ? `<ul class="qhse-premium-ul">${proc.penalties.map((p) => `<li>${escapePdfText(p.label)} (${escapePdfText(String(p.points))} pts)</li>`).join('')}</ul>`
@@ -1485,7 +1490,9 @@ export function renderProcesses() {
             { title: 'Preuves de maîtrise', html: proofsHtml },
             { title: 'Informations générales', html: infoHtml }
           ],
-          conclusion: conclusionHtml
+          conclusion: conclusionHtml,
+          includeCover: false,
+          hideNarrativeIfEmpty: true
         });
         await downloadQhseChromePdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`);
       } catch (err) {

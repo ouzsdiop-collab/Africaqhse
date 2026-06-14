@@ -367,9 +367,10 @@ export function buildPremiumComplianceBlock(compliancePct) {
  * @param {null | undefined | { summary?: string; strengths?: string[]; weaknesses?: string[]; priorityActions?: string[]; confidence?: number }} narrative
  * @param {string} [narrativeSource] 'ai' | 'fallback' | ''
  */
-export function buildPremiumNarrativeBlock(narrative, narrativeSource = '') {
+export function buildPremiumNarrativeBlock(narrative, narrativeSource = '', opts = {}) {
   const hasSummary = narrative && String(narrative.summary || '').trim();
   if (!hasSummary) {
+    if (opts.hideIfEmpty) return '';
     return `<h2 class="qhse-premium-h2">Analyse globale</h2>
       <div class="qhse-premium-card">
         <p class="qhse-premium-muted" style="margin:0">Aucune analyse rédigée n'est disponible pour cet export. Se reporter au résumé exécutif et au détail des constats.</p>
@@ -625,7 +626,7 @@ export function generatePremiumPdf(opts) {
     <h2 class="qhse-premium-h2">Résumé exécutif</h2>
     <div class="qhse-premium-card">${summary || '<p class="qhse-premium-muted">Non renseigné.</p>'}</div>
     ${kpisSection}
-    ${buildPremiumNarrativeBlock(opts.narrative ?? null, opts.narrativeSource || '')}
+    ${buildPremiumNarrativeBlock(opts.narrative ?? null, opts.narrativeSource || '', { hideIfEmpty: opts.hideNarrativeIfEmpty })}
     ${sectionsHtml}
     ${actionsBlock}
     ${traceBlock}
