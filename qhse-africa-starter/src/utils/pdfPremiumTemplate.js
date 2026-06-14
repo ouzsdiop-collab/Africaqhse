@@ -69,7 +69,7 @@ export function premiumPdfStyles() {
       overflow-wrap: anywhere;
       word-break: break-word;
     }
-    .qhse-premium-page-shell { page-break-after: always; padding-bottom: 18px; }
+    .qhse-premium-page-shell { page-break-after: always; padding-bottom: 8px; }
     .qhse-premium-page-shell:last-child { page-break-after: auto; }
     .qhse-premium-topbar {
       height: 4px;
@@ -114,8 +114,8 @@ export function premiumPdfStyles() {
       font-size: 11.5pt;
       font-weight: 800;
       color: #0f172a;
-      margin: 18px 0 10px 0;
-      padding-bottom: 6px;
+      margin: 12px 0 8px 0;
+      padding-bottom: 5px;
       border-bottom: 2px solid ${brand};
       page-break-after: avoid;
       break-after: avoid;
@@ -125,8 +125,8 @@ export function premiumPdfStyles() {
       background: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
-      padding: 12px 14px;
-      margin: 10px 0;
+      padding: 10px 14px;
+      margin: 8px 0;
       page-break-inside: avoid;
       break-inside: avoid;
     }

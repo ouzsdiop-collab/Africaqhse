@@ -395,6 +395,7 @@ export function renderProcesses() {
         ${recommendationsHtml}
       `;
 
+      const TYPE_LABELS_SHORT = { management: 'Management', realisation: 'Réalisation', support: 'Support' };
       const rowHtml = (p) => {
         const penalties = Array.isArray(p.penalties) && p.penalties.length
           ? p.penalties.map((pen) => pen.label).join(', ')
@@ -404,7 +405,7 @@ export function renderProcesses() {
         const badgeFg = tone === 'good' ? '#166534' : tone === 'warning' ? '#c2410c' : tone === 'critical' ? '#991b1b' : '#475569';
         return `<tr>
           <td style="font-weight:700">${escapeHtml(p.name || '')}</td>
-          <td>${escapeHtml(TYPE_LABELS[p.type] || p.type || '')}</td>
+          <td>${escapeHtml(TYPE_LABELS_SHORT[p.type] || p.type || '')}</td>
           <td>${escapeHtml(STATUS_LABELS[p.status] || p.status || '')}</td>
           <td style="text-align:center"><span class="qhse-premium-badge" style="background:${badgeBg};color:${badgeFg}">${Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'N/A'}</span></td>
           <td>${escapeHtml(p.owner?.name || 'Non renseigné')}</td>
@@ -412,7 +413,7 @@ export function renderProcesses() {
         </tr>`;
       };
 
-      const colgroup = '<colgroup><col style="width:19%"><col style="width:12%"><col style="width:10%"><col style="width:10%"><col style="width:13%"><col style="width:36%"></colgroup>';
+      const colgroup = '<colgroup><col style="width:18%"><col style="width:10%"><col style="width:10%"><col style="width:9%"><col style="width:13%"><col style="width:40%"></colgroup>';
       const chunks = chunkRowsForPdf(sorted, 18);
       const pages = [];
       chunks.forEach((chunk, idx) => {
