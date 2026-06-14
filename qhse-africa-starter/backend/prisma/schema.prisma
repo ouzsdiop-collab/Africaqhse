@@ -171,6 +171,7 @@ model User {
   assignedActions            Action[]           @relation("ActionAssignee")
   ownedProcesses             Process[]          @relation("ProcessOwner")
   deputyProcesses            Process[]          @relation("ProcessDeputy")
+  processReviews             ProcessReview[]
   auditLogs                  AuditLog[]
   createdAiSuggestions       AiSuggestion[]     @relation("AiSuggestionCreatedBy")
   validatedAiSuggestions     AiSuggestion[]     @relation("AiSuggestionValidatedBy")
