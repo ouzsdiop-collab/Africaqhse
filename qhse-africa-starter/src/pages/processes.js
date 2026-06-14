@@ -75,7 +75,11 @@ function ensureProcessesPageStyles() {
     .proc-pilot-item:hover .proc-pilot-item-name{text-decoration:underline}
     .proc-pilot-item-score{font-weight:800;white-space:nowrap}
     .proc-priorities{padding:12px 14px;border-left:3px solid #e8590c}
-    .proc-priorities h4{margin:0 0 8px}
+    .proc-priorities h4{margin:0}
+    .proc-priorities-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+    .proc-audit-all-btn{font-size:12px;padding:6px 10px}
+    .proc-audit-all-host{margin-top:10px}
+    .proc-audit-all-host:empty{display:none}
     .proc-priority-list{display:flex;flex-direction:column;gap:6px}
     .proc-priority-row{display:flex;align-items:baseline;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
     .proc-priority-row:last-child{border-bottom:none}
@@ -300,10 +304,55 @@ export function renderProcesses() {
     const wrap = document.createElement('div');
     wrap.className = 'proc-priorities content-card-soft';
 
+    const headRow = document.createElement('div');
+    headRow.className = 'proc-priorities-head';
     const h = document.createElement('h4');
     h.textContent = `À traiter en priorité (${items.length})`;
-    wrap.append(h);
+    headRow.append(h);
 
+    const auditAllBtn = document.createElement('button');
+    auditAllBtn.type = 'button';
+    auditAllBtn.className = 'btn btn-secondary proc-audit-all-btn';
+    auditAllBtn.textContent = '🤖 Préparer l’audit';
+    headRow.append(auditAllBtn);
+    wrap.append(headRow);
+
+    const auditAllHost = document.createElement('div');
+    auditAllHost.className = 'proc-audit-all-host';
+    auditAllBtn.addEventListener('click', async () => {
+      auditAllBtn.disabled = true;
+      auditAllBtn.textContent = 'Préparation en cours…';
+      auditAllHost.replaceChildren();
+      const targets = items.slice(0, 5);
+      for (const { process } of targets) {
+        const block = document.createElement('div');
+        block.className = 'proc-link-group';
+        block.innerHTML = `<h5>${escapeHtml(process.name || '')}</h5><p style="font-size:13px;color:var(--text2);margin:0">Analyse en cours…</p>`;
+        auditAllHost.append(block);
+        try {
+          const res = await qhseFetch(`/api/processes/${encodeURIComponent(process.id)}/audit-prep`, { method: 'POST' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            block.innerHTML = `<h5>${escapeHtml(process.name || '')}</h5><p style="font-size:13px;color:var(--text2);margin:0">${escapeHtml(body.error || 'Synthèse indisponible')}</p>`;
+            continue;
+          }
+          const checkpointsHtml = Array.isArray(body.checkpoints) && body.checkpoints.length
+            ? `<ul style="margin:6px 0 0;padding-left:20px">${body.checkpoints.map((c) => `<li style="font-size:13px">${escapeHtml(c)}</li>`).join('')}</ul>`
+            : '';
+          block.innerHTML = `
+            <h5 style="cursor:pointer">${escapeHtml(process.name || '')}</h5>
+            <p style="font-size:13px;margin:0 0 6px">${escapeHtml(body.summary || '')}</p>
+            ${checkpointsHtml}
+          `;
+          block.querySelector('h5').addEventListener('click', () => openDrawer(process.id));
+        } catch (err) {
+          console.error('[processes] audit-prep all', err);
+          block.innerHTML = `<h5>${escapeHtml(process.name || '')}</h5><p style="font-size:13px;color:var(--text2);margin:0">Synthèse indisponible.</p>`;
+        }
+      }
+      auditAllBtn.disabled = false;
+      auditAllBtn.textContent = '🤖 Préparer l’audit';
+    });
     const list = document.createElement('div');
     list.className = 'proc-priority-list';
     items.slice(0, 8).forEach(({ process, reasons }) => {
@@ -319,7 +368,7 @@ export function renderProcesses() {
       row.addEventListener('click', () => openDrawer(process.id));
       list.append(row);
     });
-    wrap.append(list);
+    wrap.append(list, auditAllHost);
 
     priorityHost.append(wrap);
   }
