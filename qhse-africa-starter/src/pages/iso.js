@@ -97,8 +97,17 @@ function requirementLinesForIsoPdf() {
   }));
 }
 
+/** Le contenu narratif d'exemple n'est affiché que pour les comptes de démonstration interne. */
+function isSampleIsoNarrativeAllowed() {
+  try {
+    return String(getSessionUser()?.email || '').toLowerCase().endsWith('@qhse.local');
+  } catch {
+    return false;
+  }
+}
+
 /** Normes : cartes allégées (statut + une phrase). */
-const NORMS_LITE = [
+const NORMS_LITE_DEMO = [
   {
     id: 'ISO 9001',
     status: 'Sous contrôle',
@@ -119,12 +128,30 @@ const NORMS_LITE = [
   }
 ];
 
-const REVIEW_PREP = [
+const NORMS_LITE_NEUTRAL = NORMS_LITE_DEMO.map((n) => ({
+  id: n.id,
+  status: 'Conforme',
+  badge: 'green',
+  line: 'Aucune donnée enregistrée.'
+}));
+
+const NORMS_LITE = isSampleIsoNarrativeAllowed() ? NORMS_LITE_DEMO : NORMS_LITE_NEUTRAL;
+
+const REVIEW_PREP_DEMO = [
   { label: 'Incidents', value: '4', detail: '3 clos · 1 analyse en cours (terrain nord)' },
   { label: 'Audits', value: '2', detail: '1 interne planifié · 1 surveillance ISO' },
   { label: 'Actions', value: '12', detail: '7 en retard < 15 j · 5 dans les délais' },
   { label: 'Indicateurs', value: '8/10', detail: '2 indicateurs en attente de consolidation groupe' }
 ];
+
+const REVIEW_PREP_NEUTRAL = [
+  { label: 'Incidents', value: '0', detail: 'Aucune donnée enregistrée' },
+  { label: 'Audits', value: '0', detail: 'Aucune donnée enregistrée' },
+  { label: 'Actions', value: '0', detail: 'Aucune donnée enregistrée' },
+  { label: 'Indicateurs', value: '—', detail: 'Aucune donnée enregistrée' }
+];
+
+const REVIEW_PREP = isSampleIsoNarrativeAllowed() ? REVIEW_PREP_DEMO : REVIEW_PREP_NEUTRAL;
 
 /**
  * @param {'conforme'|'partiel'|'non_conforme'} st
