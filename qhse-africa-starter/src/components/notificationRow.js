@@ -15,6 +15,8 @@ const KIND_META = {
   audit: { chip: 'Audit', icon: '☑', className: 'notif-item--audit' },
   nonconformity: { chip: 'Non-conformité', icon: '⚠', className: 'notif-item--action' },
   doc_compliance: { chip: 'Documents', icon: '📄', className: 'notif-item--audit' },
+  process_review: { chip: 'Revue de processus', icon: '🔄', className: 'notif-item--audit' },
+  process_critical: { chip: 'Processus critique', icon: '⚠', className: 'notif-item--incident' },
   info: { chip: 'Information', icon: '◆', className: 'notif-item--info' }
 };
 
