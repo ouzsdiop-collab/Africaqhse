@@ -855,11 +855,15 @@ export function renderProcesses() {
     aiBtn.type = 'button';
     aiBtn.className = 'btn btn-secondary';
     aiBtn.textContent = 'Analyser ce processus';
+    const auditPrepBtn = document.createElement('button');
+    auditPrepBtn.type = 'button';
+    auditPrepBtn.className = 'btn btn-secondary';
+    auditPrepBtn.textContent = 'Synthèse avant audit';
     const pdfBtn = document.createElement('button');
     pdfBtn.type = 'button';
     pdfBtn.className = 'btn btn-secondary';
     pdfBtn.textContent = 'Export PDF';
-    actions.append(aiBtn, pdfBtn);
+    actions.append(aiBtn, auditPrepBtn, pdfBtn);
     if (canWrite) {
       const editBtn = document.createElement('button');
       editBtn.type = 'button';
@@ -1096,6 +1100,48 @@ export function renderProcesses() {
         aiHost.innerHTML = '<p style="font-size:13px;color:var(--text2)">Analyse indisponible.</p>';
       } finally {
         aiBtn.disabled = false;
+      }
+    });
+
+    auditPrepBtn.addEventListener('click', async () => {
+      auditPrepBtn.disabled = true;
+      aiHost.innerHTML = '<p style="font-size:13px;color:var(--text2)">Préparation en cours…</p>';
+      try {
+        const res = await qhseFetch(`/api/processes/${encodeURIComponent(proc.id)}/audit-prep`, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          aiHost.innerHTML = `<p style="font-size:13px;color:var(--text2)">${escapeHtml(body.error || 'Synthèse indisponible')}</p>`;
+          return;
+        }
+        const block = document.createElement('div');
+        block.className = 'proc-link-group';
+        const h = document.createElement('h5');
+        h.textContent = 'Synthèse avant audit';
+        block.append(h);
+        const summary = document.createElement('p');
+        summary.style.margin = '0 0 10px';
+        summary.style.fontSize = '13px';
+        summary.textContent = body.summary || 'Aucune synthèse disponible.';
+        block.append(summary);
+        if (Array.isArray(body.checkpoints) && body.checkpoints.length) {
+          const ul = document.createElement('ul');
+          ul.style.margin = '0';
+          ul.style.paddingLeft = '20px';
+          body.checkpoints.forEach((c) => {
+            const li = document.createElement('li');
+            li.style.fontSize = '13px';
+            li.style.marginBottom = '4px';
+            li.textContent = c;
+            ul.append(li);
+          });
+          block.append(ul);
+        }
+        aiHost.replaceChildren(block);
+      } catch (err) {
+        console.error('[processes] audit-prep', err);
+        aiHost.innerHTML = '<p style="font-size:13px;color:var(--text2)">Synthèse indisponible.</p>';
+      } finally {
+        auditPrepBtn.disabled = false;
       }
     });
 

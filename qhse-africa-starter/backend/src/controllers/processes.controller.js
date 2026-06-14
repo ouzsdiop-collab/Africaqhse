@@ -1,5 +1,5 @@
 import * as processesService from '../services/processes.service.js';
-import { buildProcessAnalysis, suggestProcessReviewConclusion } from '../services/aiSuggestion.service.js';
+import { buildProcessAnalysis, suggestProcessReviewConclusion, suggestProcessAuditPrep } from '../services/aiSuggestion.service.js';
 
 export async function getAll(req, res, next) {
   try {
@@ -136,6 +136,20 @@ export async function suggestReviewConclusion(req, res, next) {
     const { score, penalties } = await processesService.computeProcessScore(req.qhseTenantId, row);
     const lastReviews = (row.reviews || []).slice(0, 3);
     const result = await suggestProcessReviewConclusion({ process: row, score, penalties, lastReviews });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function auditPrep(req, res, next) {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'Identifiant processus requis' });
+    const row = await processesService.getProcessById(req.qhseTenantId, id);
+    if (!row) return res.status(404).json({ error: 'Processus introuvable' });
+    const { score, penalties } = await processesService.computeProcessScore(req.qhseTenantId, row);
+    const result = await suggestProcessAuditPrep({ process: row, score, penalties, links: row.links || [] });
     res.json(result);
   } catch (err) {
     next(err);

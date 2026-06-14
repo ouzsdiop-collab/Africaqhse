@@ -1325,3 +1325,73 @@ Reponds UNIQUEMENT par un JSON objet valide avec la cle "conclusion" (string). S
     conclusion: conclusion.trim()
   };
 }
+
+/**
+ * Synthese avant audit pour un processus (module Pilotage des processus).
+ * @param {{ process: any, score: number, penalties: Array<{label:string}>, links: Array<{linkedType:string}> }} opts
+ */
+export async function suggestProcessAuditPrep(opts) {
+  const process = opts?.process || {};
+  const score = Number.isFinite(Number(opts?.score)) ? Number(opts.score) : 0;
+  const penalties = Array.isArray(opts?.penalties) ? opts.penalties : [];
+  const links = Array.isArray(opts?.links) ? opts.links : [];
+
+  const linkCounts = {};
+  links.forEach((l) => {
+    linkCounts[l.linkedType] = (linkCounts[l.linkedType] || 0) + 1;
+  });
+
+  const context = {
+    name: process.name,
+    type: process.type,
+    purpose: process.purpose,
+    status: process.status,
+    owner: process.owner?.name || null,
+    score,
+    penalties: penalties.map((p) => p.label),
+    linkedElements: linkCounts,
+    lastReviewAt: process.lastReviewAt,
+    nextReviewAt: process.nextReviewAt
+  };
+
+  const systemPrompt = `Tu es un consultant QHSE senior qui prepare un pilote de processus avant un audit interne ou externe.
+On te fournit un JSON "process" decrivant le processus (nom, type, finalite, statut, pilote, score de maitrise sur 100, points de vigilance "penalties", nombre d'elements lies par categorie "linkedElements", dates de revue).
+Redige une synthese avant audit en francais dans la cle "summary" (3 a 5 phrases courtes), qui indique l'etat de preparation du processus.
+Propose une liste de points a verifier avant l'audit dans "checkpoints" (3 a 6 items courts, chaines de texte), centres sur les preuves a rassembler ou les ecarts a corriger.
+Aucun tiret ni trait d'union dans les textes.
+Reponds UNIQUEMENT par un JSON objet valide avec les cles "summary" (string) et "checkpoints" (tableau de strings). Sans markdown ni texte hors JSON.`;
+
+  const userMessage = JSON.stringify({ process: context });
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] suggestProcessAuditPrep provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
+  let summary = obj ? stripDashesText(String(obj.summary ?? '')).slice(0, 2500) : '';
+  let checkpoints = [];
+  if (obj && Array.isArray(obj.checkpoints)) {
+    checkpoints = obj.checkpoints
+      .map((c) => stripDashesText(String(c ?? '')).trim())
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+  if (!summary.trim()) {
+    summary = buildHeuristicProcessNarrative({ process, score, penalties });
+  }
+  if (!checkpoints.length) {
+    checkpoints = penalties.map((p) => `Traiter : ${p.label}`).slice(0, 6);
+    if (!checkpoints.length) checkpoints = ['Verifier que les documents lies sont a jour.', 'Verifier que la revue de processus est planifiee.'];
+  }
+
+  return {
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
+    summary: summary.trim(),
+    checkpoints
+  };
+}

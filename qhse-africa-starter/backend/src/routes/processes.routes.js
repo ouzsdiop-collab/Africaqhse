@@ -14,6 +14,7 @@ router.post('/:id/links', requirePermission('processes', 'write'), controller.ad
 router.delete('/:id/links/:linkId', requirePermission('processes', 'write'), controller.removeLink);
 
 router.post('/:id/analyze', requirePermission('processes', 'read'), controller.analyze);
+router.post('/:id/audit-prep', requirePermission('processes', 'read'), controller.auditPrep);
 
 router.get('/:id/score-history', requirePermission('processes', 'read'), controller.scoreHistory);
 
