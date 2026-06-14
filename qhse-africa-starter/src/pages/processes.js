@@ -65,6 +65,15 @@ function ensureProcessesPageStyles() {
     @keyframes proc-graph-pulse{0%,100%{opacity:.35;r:16}50%{opacity:0;r:26}}
     .proc-graph-node circle.proc-graph-core{transition:filter .2s ease}
     .proc-graph-node:hover circle.proc-graph-core{filter:brightness(1.15)}
+    .proc-pilots{margin-top:16px}
+    .proc-pilots h4{margin:0 0 8px}
+    .proc-pilots-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+    .proc-pilot-card{padding:10px 12px}
+    .proc-pilot-name{font-weight:800;margin-bottom:6px}
+    .proc-pilot-item{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px}
+    .proc-pilot-item:last-child{border-bottom:none}
+    .proc-pilot-item:hover .proc-pilot-item-name{text-decoration:underline}
+    .proc-pilot-item-score{font-weight:800;white-space:nowrap}
   `;
   document.head.append(el);
 }
@@ -608,6 +617,60 @@ export function renderProcesses() {
     return wrap;
   }
 
+  function buildPilotsSection(rows) {
+    const groups = new Map();
+    rows.forEach((p) => {
+      const owner = p.owner;
+      const key = owner?.id || '__none__';
+      if (!groups.has(key)) groups.set(key, { owner, processes: [] });
+      groups.get(key).processes.push(p);
+    });
+    const withOwner = [...groups.values()].filter((g) => g.owner);
+    if (!withOwner.length) return null;
+
+    withOwner.sort((a, b) => (a.owner?.name || '').localeCompare(b.owner?.name || ''));
+
+    const wrap = document.createElement('div');
+    wrap.className = 'proc-pilots';
+
+    const h = document.createElement('h4');
+    h.textContent = 'Pilotes de processus';
+    wrap.append(h);
+
+    const grid = document.createElement('div');
+    grid.className = 'proc-pilots-grid';
+
+    withOwner.forEach(({ owner, processes }) => {
+      const card = document.createElement('div');
+      card.className = 'proc-pilot-card content-card-soft';
+
+      const name = document.createElement('div');
+      name.className = 'proc-pilot-name';
+      name.textContent = owner.name || owner.email || 'Pilote';
+      card.append(name);
+
+      const list = document.createElement('div');
+      list.className = 'proc-pilot-list';
+      processes.forEach((p) => {
+        const item = document.createElement('div');
+        item.className = 'proc-pilot-item';
+        item.style.cursor = 'pointer';
+        const score = Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'NA';
+        item.innerHTML = `
+          <span class="proc-pilot-item-name">${escapeHtml(p.name || '')}</span>
+          <span class="proc-pilot-item-score" style="color:${scoreColor(p.score)}">${score}</span>
+        `;
+        item.addEventListener('click', () => openDrawer(p.id));
+        list.append(item);
+      });
+      card.append(list);
+      grid.append(card);
+    });
+
+    wrap.append(grid);
+    return wrap;
+  }
+
   function renderList() {
     const rows = filteredProcesses();
     listHost.replaceChildren();
@@ -660,6 +723,9 @@ export function renderProcesses() {
     // Vue cartographie : graphe des interactions (processus reliés via un même élément SMI)
     const graph = buildProcessGraph(rows);
     if (graph) listHost.append(graph);
+
+    const pilots = buildPilotsSection(rows);
+    if (pilots) listHost.append(pilots);
 
     // Vue cartographie : groupée par type
     ['management', 'realisation', 'support'].forEach((type) => {
