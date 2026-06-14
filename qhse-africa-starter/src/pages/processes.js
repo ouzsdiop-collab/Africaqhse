@@ -399,24 +399,51 @@ export function renderProcesses() {
     title.textContent = 'Cartographie des interactions';
     wrap.append(title);
 
-    const n = rows.length;
-    const size = 360;
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = size / 2 - 50;
+    // Disposition en couloirs horizontaux par type (management / réalisation / support),
+    // plus lisible qu'un cercle unique quand il y a beaucoup de processus.
+    const width = 720;
+    const laneTypes = ['management', 'realisation', 'support'].filter((t) => rows.some((p) => p.type === t));
+    const laneHeight = 110;
+    const height = laneTypes.length * laneHeight;
     const positions = new Map();
-    rows.forEach((p, i) => {
-      const angle = (2 * Math.PI * i) / n - Math.PI / 2;
-      positions.set(p.id, { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
+    laneTypes.forEach((type, laneIdx) => {
+      const laneRows = rows.filter((p) => p.type === type);
+      const laneY = laneIdx * laneHeight + laneHeight / 2;
+      const step = width / (laneRows.length + 1);
+      laneRows.forEach((p, i) => {
+        positions.set(p.id, { x: step * (i + 1), y: laneY, type });
+      });
     });
 
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     svg.setAttribute('width', '100%');
-    svg.style.maxWidth = `${size}px`;
     svg.style.display = 'block';
     svg.style.margin = '0 auto';
+
+    laneTypes.forEach((type, laneIdx) => {
+      const laneY = laneIdx * laneHeight;
+      if (laneIdx > 0) {
+        const sep = document.createElementNS(svgNS, 'line');
+        sep.setAttribute('x1', '0');
+        sep.setAttribute('y1', String(laneY));
+        sep.setAttribute('x2', String(width));
+        sep.setAttribute('y2', String(laneY));
+        sep.setAttribute('stroke', 'var(--border)');
+        sep.setAttribute('stroke-width', '1');
+        svg.append(sep);
+      }
+      const laneLabel = document.createElementNS(svgNS, 'text');
+      laneLabel.setAttribute('x', '6');
+      laneLabel.setAttribute('y', String(laneY + 16));
+      laneLabel.setAttribute('font-size', '10');
+      laneLabel.setAttribute('font-weight', '800');
+      laneLabel.setAttribute('fill', 'var(--text2)');
+      laneLabel.setAttribute('text-transform', 'uppercase');
+      laneLabel.textContent = (TYPE_LABELS[type] || type).toUpperCase();
+      svg.append(laneLabel);
+    });
 
     const defs = document.createElementNS(svgNS, 'defs');
     rows.forEach((p) => {
@@ -501,7 +528,7 @@ export function renderProcesses() {
 
       const label = document.createElementNS(svgNS, 'text');
       label.setAttribute('x', String(pos.x));
-      label.setAttribute('y', String(pos.y + (pos.y >= cy ? 30 : -22)));
+      label.setAttribute('y', String(pos.y + 32));
       label.setAttribute('text-anchor', 'middle');
       label.setAttribute('font-size', '10');
       label.setAttribute('fill', 'var(--text2)');
