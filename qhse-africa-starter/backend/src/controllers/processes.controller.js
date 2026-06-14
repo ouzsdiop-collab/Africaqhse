@@ -1,5 +1,5 @@
 import * as processesService from '../services/processes.service.js';
-import { buildProcessAnalysis, askProcessAssistant } from '../services/aiSuggestion.service.js';
+import { buildProcessAnalysis, suggestProcessReviewConclusion } from '../services/aiSuggestion.service.js';
 
 export async function getAll(req, res, next) {
   try {
@@ -114,19 +114,15 @@ export async function addReview(req, res, next) {
   }
 }
 
-export async function assistant(req, res, next) {
+export async function suggestReviewConclusion(req, res, next) {
   try {
-    const question = String(req.body?.question || '').trim();
-    if (!question) return res.status(400).json({ error: 'Question requise' });
-    const rows = await processesService.listProcesses(req.qhseTenantId, {});
-    const withScores = await Promise.all(
-      rows.map(async (row) => {
-        const full = await processesService.getProcessById(req.qhseTenantId, row.id);
-        const { score, penalties } = await processesService.computeProcessScore(req.qhseTenantId, full);
-        return { ...row, score, penalties };
-      })
-    );
-    const result = await askProcessAssistant({ question, processes: withScores });
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'Identifiant processus requis' });
+    const row = await processesService.getProcessById(req.qhseTenantId, id);
+    if (!row) return res.status(404).json({ error: 'Processus introuvable' });
+    const { score, penalties } = await processesService.computeProcessScore(req.qhseTenantId, row);
+    const lastReviews = (row.reviews || []).slice(0, 3);
+    const result = await suggestProcessReviewConclusion({ process: row, score, penalties, lastReviews });
     res.json(result);
   } catch (err) {
     next(err);

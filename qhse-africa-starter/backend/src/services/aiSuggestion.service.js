@@ -1275,48 +1275,53 @@ Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string)
 }
 
 /**
- * Assistant IA du module Pilotage des processus : répond à une question libre
- * en se basant sur la liste des processus (nom, type, statut, score, pénalités, prochaine revue).
- * @param {{ question: string, processes: Array<{name:string,type:string,status:string,score:number,penalties:Array,nextReviewAt:any,owner?:{name?:string}}> }} opts
+ * Aide a la redaction de la conclusion de revue d'un processus (module Pilotage des processus).
+ * @param {{ process: any, score: number, penalties: Array<{label:string}>, lastReviews: Array<{conclusion:string, reviewedAt:any}> }} opts
  */
-export async function askProcessAssistant(opts) {
-  const question = String(opts?.question || '').trim().slice(0, 1000);
-  const processes = Array.isArray(opts?.processes) ? opts.processes : [];
+export async function suggestProcessReviewConclusion(opts) {
+  const process = opts?.process || {};
+  const score = Number.isFinite(Number(opts?.score)) ? Number(opts.score) : 0;
+  const penalties = Array.isArray(opts?.penalties) ? opts.penalties : [];
+  const lastReviews = Array.isArray(opts?.lastReviews) ? opts.lastReviews : [];
 
-  const context = processes.map((p) => ({
-    name: p.name,
-    type: p.type,
-    status: p.status,
-    owner: p.owner?.name || null,
-    score: p.score,
-    nextReviewAt: p.nextReviewAt,
-    penalties: (p.penalties || []).map((x) => x.label)
-  }));
+  const context = {
+    name: process.name,
+    type: process.type,
+    purpose: process.purpose,
+    status: process.status,
+    owner: process.owner?.name || null,
+    score,
+    penalties: penalties.map((p) => p.label),
+    previousReviews: lastReviews.map((r) => ({
+      reviewedAt: r.reviewedAt,
+      conclusion: r.conclusion
+    }))
+  };
 
-  const systemPrompt = `Tu es un consultant QHSE senior qui aide un responsable a piloter ses processus.
-On te fournit un JSON "processes" listant les processus de l'organisation (nom, type, statut, pilote, score de maitrise sur 100, prochaine revue, et les points de vigilance "penalties").
-Reponds en francais a la question de l'utilisateur de maniere concrete et synthetique (5 phrases maximum), en t'appuyant sur ces donnees quand c'est pertinent, sans aucun tiret ni trait d'union.
-Reponds UNIQUEMENT par un JSON objet valide avec la cle "answer" (string). Sans markdown ni texte hors JSON.`;
+  const systemPrompt = `Tu es un consultant QHSE senior qui redige la conclusion d'une revue de processus dans un systeme de management qualite.
+On te fournit un JSON "process" decrivant le processus (nom, type, finalite, statut, pilote, score de maitrise sur 100, points de vigilance "penalties") et "previousReviews" (conclusions des revues precedentes les plus recentes).
+Redige un projet de conclusion de revue en francais (4 a 6 phrases), factuel et actionnable : etat actuel du processus, points de vigilance a traiter, et orientation pour la periode a venir. Sans aucun tiret ni trait d'union.
+Reponds UNIQUEMENT par un JSON objet valide avec la cle "conclusion" (string). Sans markdown ni texte hors JSON.`;
 
-  const userMessage = JSON.stringify({ question, processes: context });
+  const userMessage = JSON.stringify({ process: context });
   const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
   if (ext.error) {
-    console.error('[ai] askProcessAssistant provider error', {
+    console.error('[ai] suggestProcessReviewConclusion provider error', {
       provider: ext.provider,
       model: ext.model ?? null,
       error: ext.error
     });
   }
   const obj = pickCompletionObject(ext);
-  let answer = obj ? stripDashesText(String(obj.answer ?? '')).slice(0, 2500) : '';
-  if (!answer.trim()) {
-    answer = 'Aucune reponse disponible pour le moment. Reessayez plus tard ou reformulez votre question.';
+  let conclusion = obj ? stripDashesText(String(obj.conclusion ?? '')).slice(0, 4000) : '';
+  if (!conclusion.trim()) {
+    conclusion = buildHeuristicProcessNarrative({ process, score, penalties });
   }
 
   return {
     provider: ext.provider,
     model: ext.model ?? null,
     error: toPublicAiError(ext.error),
-    answer: answer.trim()
+    conclusion: conclusion.trim()
   };
 }
