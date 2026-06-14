@@ -595,12 +595,6 @@ export function updateDecisionAlerts(refs, stats, data) {
   const habH3 = document.createElement('h3');
   habH3.style.margin = '4px 0 8px';
   habH3.textContent = 'Postes critiques & conformité';
-  if (!allowDemo) {
-    const note = document.createElement('p');
-    note.className = 'dashboard-chart-foot dashboard-chart-foot--tight';
-    note.textContent = 'Données insuffisantes pour afficher les habilitations (module démo uniquement).';
-    habSummaryCard.append(habKick, habH3, note);
-  }
   const habList = document.createElement('div');
   habList.className = 'dashboard-hab-list';
   function habItem(label, value) {
@@ -636,11 +630,6 @@ export function updateDecisionAlerts(refs, stats, data) {
   b3.dataset.habIntent = 'subcontractors_incomplete';
   b3.textContent = 'Voir sous-traitants';
   habAct1.append(b1, b2, b3);
-  if (!allowDemo) {
-    b1.disabled = true;
-    b2.disabled = true;
-    b3.disabled = true;
-  }
   habSummaryCard.append(habKick, habH3, habList, habAct1);
 
   const bySite = computeHabilitationsBySite(habRows);
