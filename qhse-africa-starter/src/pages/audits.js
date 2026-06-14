@@ -419,7 +419,7 @@ function createAuditIntelligentNotificationsCard(opts) {
   return card;
 }
 
-const PLANNED_AUDITS = [
+let PLANNED_AUDITS = [
   {
     id: 'AUD-P-021',
     ref: 'AUD-P-021',
@@ -461,7 +461,7 @@ let LAST_AUDIT = {
 const AUDIT_REFERENTIEL_LABEL = 'ISO 9001 · 14001 · 45001';
 
 /** Lignes traitement NC / actions (affichage certification). */
-const AUDIT_TREATMENT_ROWS = [
+let AUDIT_TREATMENT_ROWS = [
   {
     nc: 'NC-2026-014-A',
     action: 'ACT-441',
@@ -477,7 +477,7 @@ const AUDIT_TREATMENT_ROWS = [
 ];
 
 /** Piste d’audit locale (journal des événements affichés). */
-const AUDIT_TRACE_ROWS = [
+let AUDIT_TRACE_ROWS = [
   {
     who: 'M. Diallo',
     when: '28/03/2026 · 14:20',
@@ -503,7 +503,7 @@ function computeAuditIsoNormScores() {
 
 let AUDIT_ISO_NORM_SCORES = computeAuditIsoNormScores();
 
-const CHECKLIST = [
+let CHECKLIST = [
   {
     point: 'Contrôles opérationnels documentés',
     conforme: true,
@@ -526,7 +526,7 @@ const CHECKLIST = [
   }
 ];
 
-const HISTORY = [
+let HISTORY = [
   { date: '15/02/2026', score: 82 },
   { date: '20/11/2025', score: 79 },
   { date: '05/08/2025', score: 74 }
@@ -545,7 +545,7 @@ function getCockpitPreviousAuditScore() {
 }
 
 /** Points pour la checklist chantier (même thématique que la synthèse) */
-const FIELD_POINTS = [
+let FIELD_POINTS = [
   { id: 'f1', point: 'Contrôles opérationnels documentés' },
   { id: 'f2', point: 'Gestion des déchets dangereux (registres)' },
   { id: 'f3', point: 'Habilitations et autorisations à jour' },
@@ -608,6 +608,12 @@ async function initAuditCockpitData() {
     NC_OUVERTES_COUNT = 0;
     ACTIONS_RETARD_COUNT = 0;
     AUDIT_ISO_NORM_SCORES = computeAuditIsoNormScores();
+    PLANNED_AUDITS = [];
+    AUDIT_TREATMENT_ROWS = [];
+    AUDIT_TRACE_ROWS = [];
+    CHECKLIST = [];
+    HISTORY = [];
+    FIELD_POINTS = [];
     return;
   }
 
@@ -691,6 +697,22 @@ async function initAuditCockpitData() {
   ];
 
   AUDIT_ISO_NORM_SCORES = computeAuditIsoNormScores();
+
+  PLANNED_AUDITS = sorted.map((a, i) => ({
+    id: a.id || a.ref || `audit-${i}`,
+    ref: a.ref || a.id || `audit-${i}`,
+    site: a.site || '—',
+    auditeur: a.auditeur || '—',
+    date: a.date || '',
+    statut: String(a.statut || a.status || '').toLowerCase() || 'à venir'
+  }));
+  AUDIT_TREATMENT_ROWS = [];
+  AUDIT_TRACE_ROWS = [];
+  CHECKLIST = [];
+  HISTORY = sorted
+    .filter((a) => Number.isFinite(Number(a.score)))
+    .map((a) => ({ date: a.date || '', score: Number(a.score) }));
+  FIELD_POINTS = [];
 }
 
 function statutBadgeClass(statut) {
