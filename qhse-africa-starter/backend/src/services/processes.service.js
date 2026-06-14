@@ -96,7 +96,72 @@ export async function getProcessById(tenantId, id) {
       }
     }
   });
+  if (row) await attachLinkLabels(tenantId, row.links);
   return row;
+}
+
+/**
+ * Renseigne `linkedLabel` (libellé lisible) sur chaque lien, en allant chercher
+ * la référence/titre de l'élément cible selon son type.
+ */
+async function attachLinkLabels(tenantId, links) {
+  if (!Array.isArray(links) || !links.length) return;
+  const tf = prismaTenantFilter(tenantId);
+  const idsByType = (type) => [...new Set(links.filter((l) => l.linkedType === type).map((l) => l.linkedId))];
+
+  const [risks, actions, audits, docs, incidents, evidences] = await Promise.all([
+    idsByType('risk').length ? prisma.risk.findMany({ where: { id: { in: idsByType('risk') }, ...tf }, select: { id: true, ref: true, title: true } }) : [],
+    idsByType('action').length ? prisma.action.findMany({ where: { id: { in: idsByType('action') }, ...tf }, select: { id: true, title: true } }) : [],
+    idsByType('audit').length ? prisma.audit.findMany({ where: { id: { in: idsByType('audit') }, ...tf }, select: { id: true, ref: true, site: true } }) : [],
+    idsByType('document').length ? prisma.controlledDocument.findMany({ where: { id: { in: idsByType('document') }, ...tf }, select: { id: true, name: true } }) : [],
+    idsByType('incident').length ? prisma.incident.findMany({ where: { id: { in: idsByType('incident') }, ...tf }, select: { id: true, ref: true, type: true } }) : [],
+    idsByType('evidence').length ? prisma.isoEvidence.findMany({ where: { id: { in: idsByType('evidence') }, ...tf }, select: { id: true, meta: true, type: true } }) : []
+  ]);
+
+  const byId = (rows) => new Map(rows.map((r) => [r.id, r]));
+  const riskMap = byId(risks);
+  const actionMap = byId(actions);
+  const auditMap = byId(audits);
+  const docMap = byId(docs);
+  const incidentMap = byId(incidents);
+  const evidenceMap = byId(evidences);
+
+  for (const l of links) {
+    switch (l.linkedType) {
+      case 'risk': {
+        const r = riskMap.get(l.linkedId);
+        l.linkedLabel = r ? (r.ref ? `${r.ref} — ${r.title}` : r.title) : null;
+        break;
+      }
+      case 'action': {
+        const a = actionMap.get(l.linkedId);
+        l.linkedLabel = a ? a.title : null;
+        break;
+      }
+      case 'audit': {
+        const a = auditMap.get(l.linkedId);
+        l.linkedLabel = a ? `Audit ${a.ref}${a.site ? ` (${a.site})` : ''}` : null;
+        break;
+      }
+      case 'document': {
+        const d = docMap.get(l.linkedId);
+        l.linkedLabel = d ? d.name : null;
+        break;
+      }
+      case 'incident': {
+        const i = incidentMap.get(l.linkedId);
+        l.linkedLabel = i ? `Incident ${i.ref}${i.type ? ` (${i.type})` : ''}` : null;
+        break;
+      }
+      case 'evidence': {
+        const e = evidenceMap.get(l.linkedId);
+        l.linkedLabel = e ? String(e.meta?.displayName || e.meta?.fileName || `Preuve ${e.type}`) : null;
+        break;
+      }
+      default:
+        break;
+    }
+  }
 }
 
 export async function getProcessesForLink(tenantId, linkedType, linkedId) {

@@ -1584,7 +1584,7 @@ export function renderProcesses() {
           li.style.justifyContent = 'space-between';
           li.style.gap = '8px';
           const span = document.createElement('span');
-          const idLabel = type === 'isoRequirement' ? isoRequirementLabel(iso, l.linkedId) : l.linkedId;
+          const idLabel = type === 'isoRequirement' ? isoRequirementLabel(iso, l.linkedId) : (l.linkedLabel || l.linkedId);
           span.textContent = `${idLabel}${l.role ? ` (${l.role})` : ''}`;
           li.append(span);
           if (canWrite) {
