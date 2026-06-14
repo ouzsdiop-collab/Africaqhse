@@ -105,6 +105,9 @@ function ensureProcessesPageStyles() {
     .proc-proof-status.proc-proof-none{color:var(--text2)}
     .proc-proof-label{font-weight:700;min-width:120px}
     .proc-proof-detail{color:var(--text2);font-size:12px}
+    .proc-iso-suggest-host:empty{display:none}
+    .proc-iso-suggest-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+    .proc-iso-suggest-row:last-child{border-bottom:none}
   `;
   document.head.append(el);
 }
@@ -128,6 +131,28 @@ function isoRequirementLabel(id) {
   const r = getIsoRequirementsMap().get(id);
   if (!r) return id;
   return `${getNormById(r.normId)?.code || r.normId} · ${r.clause} ${r.title}`;
+}
+
+const STOPWORDS = new Set(['les','des','aux','une','un','le','la','de','du','et','en','au','pour','sur','par','avec','dans','ce','ces','que','qui','est','son','sa','ses','ou','non']);
+
+function suggestIsoRequirementsForProcess(proc, alreadyLinkedIds) {
+  const text = [proc.name, proc.purpose, ...(proc.inputs || []), ...(proc.outputs || [])].join(' ').toLowerCase();
+  const words = new Set(text.split(/[^a-zàâçéèêëîïôûùüÿñæœ0-9]+/i).filter((w) => w.length > 3 && !STOPWORDS.has(w)));
+
+  const scored = getRequirements()
+    .filter((r) => !alreadyLinkedIds.has(r.id))
+    .map((r) => {
+      const reqText = `${r.title} ${r.summary}`.toLowerCase();
+      let score = 0;
+      words.forEach((w) => {
+        if (reqText.includes(w)) score += 1;
+      });
+      return { req: r, score };
+    })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, 3).map((s) => s.req);
 }
 
 function candidateLabel(row) {
@@ -1264,6 +1289,56 @@ export function renderProcesses() {
       if (!byType.has(l.linkedType)) byType.set(l.linkedType, []);
       byType.get(l.linkedType).push(l);
     });
+
+    if (canWrite) {
+      const isoSuggestBtn = document.createElement('button');
+      isoSuggestBtn.type = 'button';
+      isoSuggestBtn.className = 'btn btn-secondary';
+      isoSuggestBtn.style.marginBottom = '10px';
+      isoSuggestBtn.textContent = '🤖 Suggérer des exigences ISO';
+      const isoSuggestHost = document.createElement('div');
+      isoSuggestHost.className = 'proc-iso-suggest-host';
+      isoSuggestBtn.addEventListener('click', () => {
+        const alreadyLinked = new Set((byType.get('isoRequirement') || []).map((l) => l.linkedId));
+        const suggestions = suggestIsoRequirementsForProcess(proc, alreadyLinked);
+        isoSuggestHost.replaceChildren();
+        if (!suggestions.length) {
+          isoSuggestHost.innerHTML = '<p style="font-size:13px;color:var(--text2);margin:0">Aucune exigence supplémentaire suggérée pour ce processus.</p>';
+          return;
+        }
+        suggestions.forEach((req) => {
+          const row = document.createElement('div');
+          row.className = 'proc-iso-suggest-row';
+          row.innerHTML = `
+            <span class="proc-iso-suggest-label">${escapeHtml(getNormById(req.normId)?.code || req.normId)} · ${escapeHtml(req.clause)} ${escapeHtml(req.title)}</span>
+            <button type="button" class="btn btn-secondary proc-iso-suggest-link" style="padding:2px 8px;font-size:11px">Lier</button>
+          `;
+          row.querySelector('.proc-iso-suggest-link').addEventListener('click', async (ev) => {
+            const btn = ev.currentTarget;
+            btn.disabled = true;
+            try {
+              const res = await qhseFetch(`/api/processes/${encodeURIComponent(proc.id)}/links`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ linkedType: 'isoRequirement', linkedId: req.id })
+              });
+              if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || `HTTP ${res.status}`);
+              }
+              await openDrawer(proc.id);
+              await refresh();
+            } catch (err) {
+              console.error('[processes] link iso suggestion', err);
+              showToast(err.message || 'Liaison impossible', 'error');
+              btn.disabled = false;
+            }
+          });
+          isoSuggestHost.append(row);
+        });
+      });
+      linksSection.append(isoSuggestBtn, isoSuggestHost);
+    }
 
     LINK_TYPE_ORDER.forEach((type) => {
       const items = byType.get(type) || [];
