@@ -788,7 +788,8 @@ export function renderPermits() {
     pdfBtn.textContent = 'Export PDF';
     pdfBtn.addEventListener('click', async () => {
       try {
-        const { downloadQhseChromePdf, formatQhsePdfGenerationDate } = await import('../utils/qhsePdfChrome.js');
+        const { formatQhsePdfGenerationDate } = await import('../utils/qhsePdfChrome.js');
+        const { downloadQhsePremiumPdf } = await import('../utils/qhsePdfPremiumDelivery.js');
         const { assemblePremiumPdfDocument } = await import('../utils/pdfPremiumTemplate.js');
         const sigText = signatures.length
           ? signatures.map((s) => `${s.name} (${signatureRoleLabel(s.role)})`).join(', ')
@@ -816,9 +817,8 @@ export function renderPermits() {
           reportDate: formatQhsePdfGenerationDate(),
           coverSubtitle: 'Sécurité des interventions'
         });
-        await downloadQhseChromePdf(html, `permis-${it.id}.pdf`, {
-          margin: [12, 12, 16, 12],
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        await downloadQhsePremiumPdf(html, `permis-${it.id}.pdf`, {
+          margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
         });
       } catch (e) {
         console.error(e);

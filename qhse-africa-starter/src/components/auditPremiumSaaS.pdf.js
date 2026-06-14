@@ -11,12 +11,11 @@ import {
 } from '../utils/pdfPremiumTemplate.js';
 
 export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
-  const { downloadQhseChromePdf } = await import('../utils/qhsePdfChrome.js');
+  const { downloadQhsePremiumPdf } = await import('../utils/qhsePdfPremiumDelivery.js');
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w.-]+/g, '_');
   const pdfName = safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`;
-  await downloadQhseChromePdf(htmlString, pdfName, {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  await downloadQhsePremiumPdf(htmlString, pdfName, {
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
 

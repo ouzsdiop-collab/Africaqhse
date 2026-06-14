@@ -7,7 +7,6 @@
 import { escapeHtml } from '../utils/escapeHtml.js';
 import {
   chunkRowsForPdf,
-  downloadQhseChromePdf,
   formatQhsePdfGenerationDate,
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
@@ -258,9 +257,9 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
     reportDate: formatQhsePdfGenerationDate(),
     coverSubtitle: 'Export registre incidents'
   });
-  await downloadQhseChromePdf(html, 'registre-incidents.pdf', {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  await downloadQhsePremiumPdf(html, 'registre-incidents.pdf', {
+    landscape: true,
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
 
@@ -508,9 +507,8 @@ export async function downloadPerformanceQhsePdf(ctx) {
     reportDate: formatQhsePdfGenerationDate(),
     coverSubtitle: 'Pilotage performance'
   });
-  await downloadQhseChromePdf(html, 'rapport-performance-qhse.pdf', {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  await downloadQhsePremiumPdf(html, 'rapport-performance-qhse.pdf', {
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
 
@@ -560,9 +558,8 @@ export async function downloadAnalyticsSummaryPdf(data) {
     reportDate: formatQhsePdfGenerationDate(),
     coverSubtitle: 'Cockpit analytique'
   });
-  await downloadQhseChromePdf(html, 'analytics-synthese-qhse.pdf', {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  await downloadQhsePremiumPdf(html, 'analytics-synthese-qhse.pdf', {
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
 
@@ -616,9 +613,8 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
     reportDate: formatQhsePdfGenerationDate(),
     coverSubtitle: 'Reporting périodique'
   });
-  await downloadQhseChromePdf(html, 'reporting-periodique-qhse.pdf', {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  await downloadQhsePremiumPdf(html, 'reporting-periodique-qhse.pdf', {
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
 

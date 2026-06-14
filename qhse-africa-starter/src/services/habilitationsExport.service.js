@@ -13,6 +13,11 @@ function loadQhsePdfChrome() {
   return import('../utils/qhsePdfChrome.js');
 }
 
+/** @returns {Promise<typeof import('../utils/qhsePdfPremiumDelivery.js')>} */
+function loadQhsePdfPremiumDelivery() {
+  return import('../utils/qhsePdfPremiumDelivery.js');
+}
+
 const CSV_COLS = [
   'collaborateur',
   'entreprise',
@@ -296,9 +301,10 @@ export async function downloadHabilitationsPdf(opts) {
   const pdf = await loadQhsePdfChrome();
   const html = await buildHabilitationsPdfHtml(opts, pdf);
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
-  await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
+  await downloadQhsePremiumPdf(html, `${safeName}.pdf`, {
+    landscape: true,
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
 
@@ -397,11 +403,10 @@ export async function downloadHabilitationsConformitePdf({
   rows = [],
   filename
 }) {
-  const pdf = await loadQhsePdfChrome();
   const html = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
-  await pdf.downloadQhseChromePdf(html, `${safeName}.pdf`, {
-    margin: [12, 12, 16, 12],
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
+  await downloadQhsePremiumPdf(html, `${safeName}.pdf`, {
+    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
   });
 }
