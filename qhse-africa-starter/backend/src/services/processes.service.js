@@ -88,10 +88,70 @@ export async function getProcessById(tenantId, id) {
     include: {
       owner: { select: { id: true, name: true, email: true } },
       deputy: { select: { id: true, name: true, email: true } },
-      links: { orderBy: { createdAt: 'asc' } }
+      links: { orderBy: { createdAt: 'asc' } },
+      reviews: {
+        orderBy: { reviewedAt: 'desc' },
+        include: { reviewedBy: { select: { id: true, name: true, email: true } } }
+      }
     }
   });
   return row;
+}
+
+export async function listProcessReviews(tenantId, processId) {
+  const tf = prismaTenantFilter(tenantId);
+  const process = await prisma.process.findFirst({ where: { id: processId, ...tf }, select: { id: true } });
+  if (!process) return null;
+  return prisma.processReview.findMany({
+    where: { processId: process.id },
+    orderBy: { reviewedAt: 'desc' },
+    include: { reviewedBy: { select: { id: true, name: true, email: true } } }
+  });
+}
+
+export async function createProcessReview(tenantId, processId, body = {}, userId = null) {
+  const tf = prismaTenantFilter(tenantId);
+  const process = await prisma.process.findFirst({ where: { id: processId, ...tf }, select: { id: true } });
+  if (!process) return null;
+
+  const conclusion = String(body.conclusion || '').trim();
+  if (!conclusion) {
+    const err = new Error('La conclusion de la revue est requise');
+    err.statusCode = 400;
+    throw err;
+  }
+  let status = null;
+  if (body.status !== undefined && body.status !== null && body.status !== '') {
+    status = String(body.status).trim();
+    if (!PROCESS_STATUSES.has(status)) {
+      const err = new Error('Statut de processus invalide');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  const reviewedAt = body.reviewedAt ? new Date(body.reviewedAt) : new Date();
+  const nextReviewAt = body.nextReviewAt ? new Date(body.nextReviewAt) : null;
+  const tenant = normalizeTenantId(tenantId);
+
+  const review = await prisma.processReview.create({
+    data: {
+      processId: process.id,
+      conclusion: conclusion.slice(0, 4000),
+      status,
+      reviewedAt,
+      nextReviewAt,
+      reviewedByUserId: userId || null,
+      ...(tenant ? { tenantId: tenant } : {})
+    },
+    include: { reviewedBy: { select: { id: true, name: true, email: true } } }
+  });
+
+  const updateData = { lastReviewAt: reviewedAt };
+  if (nextReviewAt) updateData.nextReviewAt = nextReviewAt;
+  if (status) updateData.status = status;
+  await prisma.process.update({ where: { id: process.id }, data: updateData });
+
+  return review;
 }
 
 export async function createProcess(tenantId, body = {}) {

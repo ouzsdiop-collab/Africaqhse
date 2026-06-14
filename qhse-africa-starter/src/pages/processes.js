@@ -759,6 +759,94 @@ export function renderProcesses() {
     }
 
     drawerHost.append(linksSection);
+
+    // Reviews section
+    const reviewsSection = document.createElement('div');
+    reviewsSection.className = 'proc-section';
+    const reviewsTitle = document.createElement('h4');
+    reviewsTitle.textContent = `Historique des revues (${(proc.reviews || []).length})`;
+    reviewsSection.append(reviewsTitle);
+
+    const reviews = Array.isArray(proc.reviews) ? proc.reviews : [];
+    if (reviews.length) {
+      reviews.forEach((r) => {
+        const block = document.createElement('div');
+        block.className = 'proc-link-group';
+        const h = document.createElement('h5');
+        const date = r.reviewedAt ? new Date(r.reviewedAt).toLocaleDateString('fr-FR') : '';
+        const by = r.reviewedBy?.name ? ` · ${escapeHtml(r.reviewedBy.name)}` : '';
+        h.textContent = `${date}${by}${r.status ? ` · ${STATUS_LABELS[r.status] || r.status}` : ''}`;
+        const p = document.createElement('p');
+        p.style.margin = '4px 0 0';
+        p.style.fontSize = '12px';
+        p.textContent = r.conclusion || '';
+        block.append(h, p);
+        reviewsSection.append(block);
+      });
+    } else {
+      const empty = document.createElement('p');
+      empty.style.fontSize = '12px';
+      empty.style.color = 'var(--text2)';
+      empty.textContent = 'Aucune revue enregistrée pour ce processus.';
+      reviewsSection.append(empty);
+    }
+
+    if (canWrite) {
+      const form = document.createElement('div');
+      form.style.marginTop = '10px';
+      form.style.display = 'flex';
+      form.style.flexDirection = 'column';
+      form.style.gap = '8px';
+      form.innerHTML = `
+        <textarea class="control-input proc-review-conclusion" rows="3" placeholder="Conclusion de la revue..."></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select class="control-input proc-review-status" style="max-width:220px">
+            <option value="">Statut inchangé</option>
+            <option value="conforme">Maîtrisé</option>
+            <option value="a_surveiller">À surveiller</option>
+            <option value="a_revoir">À revoir</option>
+            <option value="critique">Critique</option>
+          </select>
+          <label class="field" style="margin:0">
+            <span>Prochaine revue</span>
+            <input type="date" class="control-input proc-review-next" />
+          </label>
+          <button type="button" class="btn btn-primary proc-review-add">Enregistrer la revue</button>
+        </div>
+      `;
+      reviewsSection.append(form);
+      form.querySelector('.proc-review-add').addEventListener('click', async () => {
+        const conclusion = form.querySelector('.proc-review-conclusion').value.trim();
+        const status = form.querySelector('.proc-review-status').value;
+        const nextReviewAt = form.querySelector('.proc-review-next').value;
+        if (!conclusion) {
+          showToast('Conclusion requise', 'error');
+          return;
+        }
+        try {
+          const res = await qhseFetch(`/api/processes/${encodeURIComponent(proc.id)}/reviews`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conclusion,
+              status: status || undefined,
+              nextReviewAt: nextReviewAt || undefined
+            })
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `HTTP ${res.status}`);
+          }
+          await openDrawer(proc.id);
+          await refresh();
+        } catch (err) {
+          console.error('[processes] add review', err);
+          showToast(err.message || 'Enregistrement de la revue impossible', 'error');
+        }
+      });
+    }
+
+    drawerHost.append(reviewsSection);
   }
 
   async function deleteProcess(proc) {

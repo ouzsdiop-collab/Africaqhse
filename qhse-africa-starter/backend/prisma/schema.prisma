@@ -540,10 +540,29 @@ model Process {
   updatedAt       DateTime  @updatedAt
 
   links ProcessLink[]
+  reviews ProcessReview[]
 
   @@index([tenantId])
   @@index([siteId])
   @@map("processes")
+}
+
+model ProcessReview {
+  id              String   @id @default(cuid())
+  tenantId        String?
+  processId       String
+  process         Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  reviewedAt      DateTime @default(now())
+  reviewedByUserId String?
+  reviewedBy      User?    @relation(fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  conclusion      String
+  status          String?
+  nextReviewAt    DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([processId])
+  @@map("process_reviews")
 }
 
 model ProcessLink {

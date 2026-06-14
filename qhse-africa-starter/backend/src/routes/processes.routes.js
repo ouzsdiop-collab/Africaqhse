@@ -15,4 +15,7 @@ router.delete('/:id/links/:linkId', requirePermission('processes', 'write'), con
 
 router.post('/:id/analyze', requirePermission('processes', 'read'), controller.analyze);
 
+router.get('/:id/reviews', requirePermission('processes', 'read'), controller.listReviews);
+router.post('/:id/reviews', requirePermission('processes', 'write'), controller.addReview);
+
 export default router;

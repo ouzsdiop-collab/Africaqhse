@@ -90,6 +90,30 @@ export async function removeLink(req, res, next) {
   }
 }
 
+export async function listReviews(req, res, next) {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'Identifiant processus requis' });
+    const rows = await processesService.listProcessReviews(req.qhseTenantId, id);
+    if (rows === null) return res.status(404).json({ error: 'Processus introuvable' });
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addReview(req, res, next) {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'Identifiant processus requis' });
+    const review = await processesService.createProcessReview(req.qhseTenantId, id, req.body || {}, req.qhseUser?.id || null);
+    if (!review) return res.status(404).json({ error: 'Processus introuvable' });
+    res.status(201).json(review);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function analyze(req, res, next) {
   try {
     const id = String(req.params.id || '').trim();
