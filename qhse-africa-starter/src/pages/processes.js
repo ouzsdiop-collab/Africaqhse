@@ -393,6 +393,20 @@ export function renderProcesses() {
       }
     });
 
+    // Flux directionnel : sortie d'un processus correspondant à une entrée d'un autre.
+    const flowEdges = [];
+    rows.forEach((from) => {
+      const outputs = (Array.isArray(from.outputs) ? from.outputs : []).map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+      if (!outputs.length) return;
+      rows.forEach((to) => {
+        if (to.id === from.id) return;
+        const inputs = (Array.isArray(to.inputs) ? to.inputs : []).map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+        if (outputs.some((o) => inputs.includes(o))) {
+          flowEdges.push([from.id, to.id]);
+        }
+      });
+    });
+
     const wrap = document.createElement('div');
     wrap.className = 'proc-section';
     const title = document.createElement('h4');
@@ -403,7 +417,7 @@ export function renderProcesses() {
     // plus lisible qu'un cercle unique quand il y a beaucoup de processus.
     const width = 720;
     const laneTypes = ['management', 'realisation', 'support'].filter((t) => rows.some((p) => p.type === t));
-    const laneHeight = 110;
+    const laneHeight = 125;
     const height = laneTypes.length * laneHeight;
     const positions = new Map();
     laneTypes.forEach((type, laneIdx) => {
@@ -460,6 +474,19 @@ export function renderProcesses() {
       grad.append(stop1, stop2);
       defs.append(grad);
     });
+    const marker = document.createElementNS(svgNS, 'marker');
+    marker.setAttribute('id', 'proc-arrow');
+    marker.setAttribute('viewBox', '0 0 10 10');
+    marker.setAttribute('refX', '8');
+    marker.setAttribute('refY', '5');
+    marker.setAttribute('markerWidth', '6');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('orient', 'auto-start-reverse');
+    const arrowPath = document.createElementNS(svgNS, 'path');
+    arrowPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+    arrowPath.setAttribute('fill', 'var(--app-accent,#14b8a6)');
+    marker.append(arrowPath);
+    defs.append(marker);
     svg.append(defs);
 
     edges.forEach(([a, b]) => {
@@ -475,6 +502,21 @@ export function renderProcesses() {
       line.setAttribute('stroke-width', '1.5');
       line.setAttribute('stroke-opacity', '0.45');
       line.classList.add('proc-graph-line');
+      svg.append(line);
+    });
+
+    flowEdges.forEach(([a, b]) => {
+      const pa = positions.get(a);
+      const pb = positions.get(b);
+      if (!pa || !pb) return;
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', String(pa.x));
+      line.setAttribute('y1', String(pa.y));
+      line.setAttribute('x2', String(pb.x));
+      line.setAttribute('y2', String(pb.y));
+      line.setAttribute('stroke', 'var(--text2)');
+      line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('marker-end', 'url(#proc-arrow)');
       svg.append(line);
     });
 
@@ -535,6 +577,19 @@ export function renderProcesses() {
       const name = p.name || '';
       label.textContent = name.length > 18 ? `${name.slice(0, 17)}…` : name;
       g.append(label);
+
+      if (p.owner?.name) {
+        const ownerLabel = document.createElementNS(svgNS, 'text');
+        ownerLabel.setAttribute('x', String(pos.x));
+        ownerLabel.setAttribute('y', String(pos.y + 44));
+        ownerLabel.setAttribute('text-anchor', 'middle');
+        ownerLabel.setAttribute('font-size', '9');
+        ownerLabel.setAttribute('font-style', 'italic');
+        ownerLabel.setAttribute('fill', 'var(--text2)');
+        const ownerName = p.owner.name;
+        ownerLabel.textContent = ownerName.length > 18 ? `${ownerName.slice(0, 17)}…` : ownerName;
+        g.append(ownerLabel);
+      }
 
       svg.append(g);
     });
