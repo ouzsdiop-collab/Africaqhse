@@ -34,6 +34,19 @@ const LINK_TYPE_LABELS = {
 
 const LINK_TYPE_ORDER = ['risk', 'action', 'audit', 'document', 'indicator', 'incident', 'isoRequirement', 'evidence', 'conformityStatus'];
 
+const LINK_CANDIDATE_ENDPOINTS = {
+  risk: '/api/risks',
+  action: '/api/actions',
+  audit: '/api/audits',
+  incident: '/api/incidents',
+  document: '/api/controlled-documents'
+};
+
+function candidateLabel(row) {
+  const text = row.title || row.name || row.ref || row.fileName || row.label || row.id;
+  return row.ref && row.ref !== text ? `${row.ref} · ${text}` : String(text);
+}
+
 function scoreTone(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return 'neutral';
@@ -99,6 +112,7 @@ export function renderProcesses() {
           </select>
         </label>
       </div>
+      <div class="proc-summary-host" style="margin-top:14px"></div>
       <div class="proc-list-host stack" style="margin-top:14px"></div>
     </article>
     <article class="content-card card-soft proc-drawer" hidden>
@@ -109,6 +123,7 @@ export function renderProcesses() {
     </article>
   `;
 
+  const summaryHost = page.querySelector('.proc-summary-host');
   const listHost = page.querySelector('.proc-list-host');
   const drawerCard = page.querySelector('.proc-drawer');
   const drawerHost = page.querySelector('.proc-drawer-host');
@@ -118,6 +133,26 @@ export function renderProcesses() {
   const btnTable = page.querySelector('.proc-btn-table');
   const btnMap = page.querySelector('.proc-btn-map');
   const btnNew = page.querySelector('.proc-btn-new');
+
+  /** @type {Map<string, any[]>} */
+  const linkCandidatesCache = new Map();
+  async function fetchLinkCandidates(type) {
+    const endpoint = LINK_CANDIDATE_ENDPOINTS[type];
+    if (!endpoint) return null;
+    if (linkCandidatesCache.has(type)) return linkCandidatesCache.get(type);
+    try {
+      const res = await qhseFetch(withSiteQuery(`${endpoint}?limit=200`));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : Array.isArray(data?.rows) ? data.rows : [];
+      linkCandidatesCache.set(type, rows);
+      return rows;
+    } catch (err) {
+      console.error('[processes] candidates', type, err);
+      linkCandidatesCache.set(type, []);
+      return [];
+    }
+  }
 
   /** @type {any[]} */
   let processes = [];
@@ -145,6 +180,7 @@ export function renderProcesses() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
       processes = Array.isArray(rows) ? rows : [];
+      renderSummary();
       renderList();
     } catch (err) {
       console.error('[processes] GET', err);
@@ -152,6 +188,69 @@ export function renderProcesses() {
       listHost.append(
         createEmptyState('⚠', 'Liste indisponible', 'Vérifiez la connexion à l’API et réessayez.')
       );
+    }
+  }
+
+  function renderSummary() {
+    summaryHost.replaceChildren();
+    if (!processes.length) return;
+
+    const scores = processes.map((p) => Number(p.score)).filter((n) => Number.isFinite(n));
+    const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    const critical = processes.filter((p) => p.status === 'critique' || (Number.isFinite(Number(p.score)) && Number(p.score) < 50)).length;
+    const toWatch = processes.filter((p) => p.status === 'a_surveiller' || p.status === 'a_revoir').length;
+
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(160px, 1fr))';
+    grid.style.gap = '10px';
+
+    function tile(label, value, color) {
+      const d = document.createElement('div');
+      d.style.border = '1px solid var(--border)';
+      d.style.borderRadius = '10px';
+      d.style.padding = '12px';
+      d.innerHTML = `<div style="font-size:11px;color:var(--text2);text-transform:uppercase">${escapeHtml(label)}</div><div style="font-size:24px;font-weight:800;color:${color || 'var(--text1)'}">${escapeHtml(String(value))}</div>`;
+      return d;
+    }
+
+    grid.append(
+      tile('Score moyen', avg === null ? 'NA' : `${avg}/100`, avg === null ? undefined : scoreColor(avg)),
+      tile('Processus', processes.length),
+      tile('Critiques', critical, critical > 0 ? '#ef4444' : undefined),
+      tile('À surveiller / revoir', toWatch, toWatch > 0 ? '#f59e0b' : undefined)
+    );
+    summaryHost.append(grid);
+
+    const sorted = [...processes]
+      .filter((p) => Number.isFinite(Number(p.score)))
+      .sort((a, b) => Number(a.score) - Number(b.score))
+      .slice(0, 3)
+      .filter((p) => Number(p.score) < 100);
+
+    if (sorted.length) {
+      const prio = document.createElement('div');
+      prio.style.marginTop = '10px';
+      const h = document.createElement('div');
+      h.style.fontSize = '12px';
+      h.style.fontWeight = '700';
+      h.style.marginBottom = '4px';
+      h.textContent = 'Priorités de pilotage';
+      prio.append(h);
+      const ul = document.createElement('ul');
+      ul.style.margin = '0';
+      ul.style.paddingLeft = '20px';
+      sorted.forEach((p) => {
+        const li = document.createElement('li');
+        li.style.fontSize = '13px';
+        li.style.cursor = 'pointer';
+        const mainPenalty = Array.isArray(p.penalties) && p.penalties.length ? p.penalties[0].label : 'Revue à planifier';
+        li.textContent = `${p.name} (${p.score}/100) : ${mainPenalty}`;
+        li.addEventListener('click', () => openDrawer(p.id));
+        ul.append(li);
+      });
+      prio.append(ul);
+      summaryHost.append(prio);
     }
   }
 
@@ -544,15 +643,46 @@ export function renderProcesses() {
         <select class="control-input proc-link-type" style="max-width:180px">
           ${LINK_TYPE_ORDER.map((t) => `<option value="${t}">${escapeHtml(LINK_TYPE_LABELS[t])}</option>`).join('')}
         </select>
-        <input type="text" class="control-input proc-link-id" placeholder="Identifiant de l’élément lié" style="max-width:240px" />
+        <span class="proc-link-id-host" style="display:inline-flex"></span>
         <button type="button" class="btn btn-secondary proc-link-add">Lier</button>
       `;
       linksSection.append(addForm);
+      const typeSelect = addForm.querySelector('.proc-link-type');
+      const idHost = addForm.querySelector('.proc-link-id-host');
+
+      async function renderLinkIdField() {
+        const type = typeSelect.value;
+        const candidates = await fetchLinkCandidates(type);
+        idHost.replaceChildren();
+        if (candidates) {
+          const sel = document.createElement('select');
+          sel.className = 'control-input proc-link-id';
+          sel.style.maxWidth = '320px';
+          sel.innerHTML = `<option value="">Sélectionner...</option>` + candidates
+            .map((r) => `<option value="${escapeHtml(String(r.id))}">${escapeHtml(candidateLabel(r))}</option>`)
+            .join('');
+          idHost.append(sel);
+          if (!candidates.length) {
+            sel.disabled = true;
+            sel.title = 'Aucun élément disponible pour ce type';
+          }
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'control-input proc-link-id';
+          input.style.maxWidth = '240px';
+          input.placeholder = 'Identifiant de l’élément lié';
+          idHost.append(input);
+        }
+      }
+      typeSelect.addEventListener('change', renderLinkIdField);
+      renderLinkIdField();
+
       addForm.querySelector('.proc-link-add').addEventListener('click', async () => {
-        const linkedType = addForm.querySelector('.proc-link-type').value;
-        const linkedId = addForm.querySelector('.proc-link-id').value.trim();
+        const linkedType = typeSelect.value;
+        const linkedId = (idHost.querySelector('.proc-link-id')?.value || '').trim();
         if (!linkedId) {
-          showToast('Identifiant requis', 'error');
+          showToast('Élément lié requis', 'error');
           return;
         }
         try {
