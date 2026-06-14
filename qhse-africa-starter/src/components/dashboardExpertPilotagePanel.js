@@ -131,7 +131,7 @@ export function createDashboardExpertPilotagePanel() {
         <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:6px">
           <div>
             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
-              <div style="font-weight:900;font-size:16px">SMI Overview</div>
+              <div style="font-weight:900;font-size:16px">Synthèse SMI</div>
               <button type="button" class="btn btn-secondary" data-smi-reload style="font-size:11px;padding:4px 10px">Recharger</button>
             </div>
             <div style="margin-top:4px;font-size:12px;color:var(--text2,#94a3b8)" data-smi-status>Non chargé.</div>
@@ -205,9 +205,9 @@ export function createDashboardExpertPilotagePanel() {
 
   function dataQualityLabel(v) {
     const s = String(v || '').toLowerCase();
-    if (s === 'complete') return 'complete';
-    if (s === 'partial') return 'partial';
-    return 'unavailable';
+    if (s === 'complete') return 'fiable';
+    if (s === 'partial') return 'partielle';
+    return 'non disponible';
   }
 
   function normLabelFr(code) {
@@ -367,25 +367,15 @@ export function createDashboardExpertPilotagePanel() {
 
     const dq = pilotage?.dataQuality && typeof pilotage.dataQuality === 'object' ? pilotage.dataQuality : null;
     if (elDQ) {
-      if (!dq) elDQ.textContent = 'Data quality: unavailable.';
+      if (!dq) elDQ.textContent = 'Fiabilité des données : non disponible.';
       else {
-        elDQ.textContent = `Data quality: incidents ${dataQualityLabel(dq.incidents)}, actions ${dataQualityLabel(
+        elDQ.textContent = `Fiabilité des données : incidents ${dataQualityLabel(dq.incidents)}, actions ${dataQualityLabel(
           dq.actions
-        )}, audits ${dataQualityLabel(dq.audits)}, risks ${dataQualityLabel(dq.risks)}.`;
+        )}, audits ${dataQualityLabel(dq.audits)}, risques ${dataQualityLabel(dq.risks)}.`;
       }
     }
 
-    const ss = pilotage?.signalSources && typeof pilotage.signalSources === 'object' ? pilotage.signalSources : null;
-    if (elSS) {
-      if (!ss) elSS.textContent = 'signalSources: unavailable.';
-      else {
-        elSS.textContent = `signalSources: incidentsTotal ${String(ss.incidentsTotal || 'unavailable')}, actionsOverdue ${String(
-          ss.actionsOverdue || 'unavailable'
-        )}, auditsSummary ${String(ss.auditsSummary || 'unavailable')}, risksCritical ${String(
-          ss.risksCritical || 'unavailable'
-        )}.`;
-      }
-    }
+    if (elSS) elSS.hidden = true;
 
     if (elAll) {
       elAll.replaceChildren();
