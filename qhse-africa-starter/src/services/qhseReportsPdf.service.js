@@ -8,10 +8,10 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import {
   chunkRowsForPdf,
   downloadQhseChromePdf,
-  downloadQhsePremiumPdf,
   formatQhsePdfGenerationDate,
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
+import { downloadQhsePremiumPdf } from '../utils/qhsePdfPremiumDelivery.js';
 import { assemblePremiumPdfDocument, normalizePdfTypography } from '../utils/pdfPremiumTemplate.js';
 import {
   parseRiskMatrixGp,
