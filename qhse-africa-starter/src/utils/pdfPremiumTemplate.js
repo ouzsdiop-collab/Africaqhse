@@ -193,7 +193,7 @@ export function premiumPdfStyles() {
       text-align: left;
       font-weight: 700;
     }
-    .qhse-premium-table td { border: 1px solid #e2e8f0; padding: 8px 6px; vertical-align: top; color: #1e293b; }
+    .qhse-premium-table td { border: 1px solid #e2e8f0; padding: 5px 6px; vertical-align: top; color: #1e293b; line-height: 1.35; }
     .qhse-premium-td-n { width: 32px; text-align: center; font-weight: 700; background: #f8fafc; color: #64748b; }
     .qhse-premium-badge {
       font-size: 7.5pt;

@@ -379,20 +379,21 @@ export function renderProcesses() {
         const badgeBg = tone === 'good' ? '#dcfce7' : tone === 'warning' ? '#ffedd5' : tone === 'critical' ? '#fee2e2' : '#f1f5f9';
         const badgeFg = tone === 'good' ? '#166534' : tone === 'warning' ? '#c2410c' : tone === 'critical' ? '#991b1b' : '#475569';
         return `<tr>
-          <td>${escapeHtml(p.name || '')}</td>
+          <td style="font-weight:700">${escapeHtml(p.name || '')}</td>
           <td>${escapeHtml(TYPE_LABELS[p.type] || p.type || '')}</td>
           <td>${escapeHtml(STATUS_LABELS[p.status] || p.status || '')}</td>
-          <td><span class="qhse-premium-badge" style="background:${badgeBg};color:${badgeFg}">${Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'N/A'}</span></td>
+          <td style="text-align:center"><span class="qhse-premium-badge" style="background:${badgeBg};color:${badgeFg}">${Number.isFinite(Number(p.score)) ? `${p.score}/100` : 'N/A'}</span></td>
           <td>${escapeHtml(p.owner?.name || 'Non renseigné')}</td>
-          <td>${escapeHtml(penalties)}</td>
+          <td style="font-size:8pt">${escapeHtml(penalties)}</td>
         </tr>`;
       };
 
-      const chunks = chunkRowsForPdf(sorted, 12);
+      const colgroup = '<colgroup><col style="width:14%"><col style="width:13%"><col style="width:11%"><col style="width:8%"><col style="width:14%"><col style="width:40%"></colgroup>';
+      const chunks = chunkRowsForPdf(sorted, 18);
       const pages = [];
       chunks.forEach((chunk, idx) => {
         const table = chunk.length
-          ? `<table class="qhse-premium-table"><thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
+          ? `<table class="qhse-premium-table" style="font-size:8.5pt">${colgroup}<thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
           : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
         if (idx === 0) {
           pages.push(`${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`);
@@ -404,7 +405,8 @@ export function renderProcesses() {
 
       const html = assemblePremiumPdfDocument('Pilotage des processus — synthèse', pages, {
         reportDate: formatQhsePdfGenerationDate(),
-        coverSubtitle: 'Synthèse consolidée pour revue de direction'
+        subtitle: 'Synthèse consolidée pour revue de direction',
+        includeCover: false
       });
       await downloadQhseChromePdf(html, 'pilotage-processus-synthese.pdf', {
         margin: [12, 12, 16, 12],
