@@ -15,6 +15,7 @@ export const navigationGroups = [
     collapsible: true,
     items: [
       { id: 'dashboard', label: 'Tableau de bord', icon: '◫' },
+      { id: 'processes', label: 'Pilotage des processus', icon: '⌬' },
       { id: 'analytics', label: 'Analyses & synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
       { id: 'activity-log', label: 'Journal', icon: '≣' },
@@ -148,6 +149,13 @@ export const pageTopbarById = {
     subtitle:
       'Import de fichiers (CSV, PDF, tableur) et contrôle visuel avant traitement ou reprise manuelle.',
     cta: { label: 'Synthèse et assist.', pageId: 'ai-center' }
+  },
+  processes: {
+    title: 'Pilotage des processus',
+    kicker: 'Pilotage',
+    subtitle:
+      'Cartographie des processus reliés à leurs pilotes, documents, risques, actions, audits et preuves ISO, avec un score de maîtrise par processus.',
+    cta: { label: 'Tableau de bord', pageId: 'dashboard' }
   },
   analytics: {
     title: 'Analyses / Synthèse',

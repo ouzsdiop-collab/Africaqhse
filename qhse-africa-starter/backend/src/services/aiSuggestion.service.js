@@ -1114,3 +1114,162 @@ export async function reviewSuggestion(opts) {
     data: updateData
   });
 }
+
+function stripDashesText(s) {
+  return String(s || '')
+    .replace(/[‒-―−]/g, ',')
+    .replace(/\s-\s/g, ', ')
+    .replace(/\s*-\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function buildHeuristicProcessNarrative({ process, score, penalties }) {
+  const name = String(process?.name || 'Ce processus');
+  const parts = [];
+  parts.push(`Synthèse automatique : ${name} obtient un score de maîtrise de ${score} sur 100.`);
+  if (Array.isArray(penalties) && penalties.length) {
+    const labels = penalties.map((p) => p.label).filter(Boolean);
+    if (labels.length) {
+      parts.push(`Points d'attention identifiés : ${labels.join(', ')}.`);
+    }
+  } else {
+    parts.push('Aucun point de vigilance détecté sur les éléments liés actuellement.');
+  }
+  if (process?.nextReviewAt) {
+    const due = new Date(process.nextReviewAt).getTime();
+    if (Number.isFinite(due) && due < Date.now()) {
+      parts.push('La revue de ce processus doit être reprogrammée en priorité.');
+    }
+  }
+  return stripDashesText(parts.join(' '));
+}
+
+function heuristicProcessActions(penalties) {
+  const out = [];
+  const byKey = new Map((Array.isArray(penalties) ? penalties : []).map((p) => [p.key, p]));
+  if (byKey.has('risksCritical')) {
+    out.push({
+      title: 'Traiter les risques critiques',
+      description: 'Revoir les risques critiques liés à ce processus et vérifier les actions de maîtrise associées.',
+      delayDays: 7,
+      ownerRole: 'Pilote de processus',
+      confidence: 0.7
+    });
+  }
+  if (byKey.has('actionsOverdue')) {
+    out.push({
+      title: 'Résorber les actions en retard',
+      description: 'Replanifier ou clôturer les actions en retard rattachées à ce processus.',
+      delayDays: 5,
+      ownerRole: 'Pilote de processus',
+      confidence: 0.65
+    });
+  }
+  if (byKey.has('ncOpen')) {
+    out.push({
+      title: 'Clôturer les non conformités ouvertes',
+      description: 'Avancer les non conformités issues des audits liés à ce processus avec preuve de clôture.',
+      delayDays: 10,
+      ownerRole: 'Pilote de processus',
+      confidence: 0.6
+    });
+  }
+  if (byKey.has('documentsExpired')) {
+    out.push({
+      title: 'Mettre à jour les documents expirés',
+      description: 'Réviser et republier les documents associés à ce processus dont la date de validité est dépassée.',
+      delayDays: 14,
+      ownerRole: 'Pilote de processus',
+      confidence: 0.55
+    });
+  }
+  if (byKey.has('reviewOverdue')) {
+    out.push({
+      title: 'Reprogrammer la revue de processus',
+      description: 'Planifier rapidement la revue de ce processus avec le pilote et le suppléant.',
+      delayDays: 5,
+      ownerRole: 'Pilote de processus',
+      confidence: 0.6
+    });
+  }
+  if (byKey.has('isoEvidenceMissing')) {
+    out.push({
+      title: 'Compléter les preuves ISO',
+      description: 'Rattacher les preuves manquantes aux exigences ISO liées à ce processus.',
+      delayDays: 14,
+      ownerRole: 'Pilote de processus',
+      confidence: 0.5
+    });
+  }
+  return out.slice(0, 3).map((a) => ({ ...a, description: stripDashesText(a.description), title: stripDashesText(a.title) }));
+}
+
+/**
+ * Analyse IA d'un processus (module Pilotage des processus).
+ * @param {{ process: any, score: number, penalties: Array<{key:string,count:number,points:number,label:string}> }} opts
+ */
+export async function buildProcessAnalysis(opts) {
+  const process = opts?.process || {};
+  const score = Number.isFinite(Number(opts?.score)) ? Number(opts.score) : 0;
+  const penalties = Array.isArray(opts?.penalties) ? opts.penalties : [];
+
+  const processContext = {
+    name: process.name,
+    type: process.type,
+    purpose: process.purpose,
+    status: process.status,
+    owner: process.owner ? { name: process.owner.name } : null,
+    deputy: process.deputy ? { name: process.deputy.name } : null,
+    inputs: process.inputs,
+    outputs: process.outputs,
+    interestedParties: process.interestedParties,
+    reviewFrequency: process.reviewFrequency,
+    nextReviewAt: process.nextReviewAt,
+    score,
+    penalties
+  };
+
+  const systemPrompt = `Tu es un consultant QHSE senior. On te fournit un JSON "process" décrivant un processus (nom, type, finalité, statut, pilote, suppléant, entrées, sorties, parties intéressées, fréquence de revue, prochaine revue, score de maîtrise sur 100, et une liste "penalties" expliquant les points qui font baisser le score).
+Rédige une synthèse opérationnelle en français (3 à 5 phrases courtes) dans la clé "narrative", sans aucun tiret ni trait d'union.
+Propose jusqu'à 3 actions prioritaires pour ce processus dans "actions" : chaque élément { "title", "description", "delayDays", "ownerRole", "confidence" }, sans aucun tiret ni trait d'union dans les textes.
+Réponds UNIQUEMENT par un JSON objet valide avec les clés "narrative" (string) et "actions" (tableau, max 3). Sans markdown ni texte hors JSON.`;
+
+  const userMessage = JSON.stringify({ process: processContext });
+  const ext = await requestJsonCompletion({ system: systemPrompt, user: userMessage });
+  if (ext.error) {
+    console.error('[ai] buildProcessAnalysis provider error', {
+      provider: ext.provider,
+      model: ext.model ?? null,
+      error: ext.error
+    });
+  }
+  const obj = pickCompletionObject(ext);
+  let narrative = '';
+  let actions = [];
+  if (obj) {
+    narrative = stripDashesText(String(obj.narrative ?? obj.summary ?? '')).slice(0, 2500);
+    actions = parseActionsResponse(obj).actions.slice(0, 3).map((a) => ({
+      ...a,
+      title: stripDashesText(a.title),
+      description: stripDashesText(a.description)
+    }));
+  }
+  if (!narrative.trim()) {
+    narrative = buildHeuristicProcessNarrative({ process, score, penalties });
+  }
+  if (actions.length < 1) {
+    actions = heuristicProcessActions(penalties);
+  }
+
+  return {
+    mode: 'process',
+    provider: ext.provider,
+    model: ext.model ?? null,
+    error: toPublicAiError(ext.error),
+    narrative: narrative.trim(),
+    actions,
+    score,
+    penalties
+  };
+}

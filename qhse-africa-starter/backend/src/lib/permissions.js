@@ -18,6 +18,7 @@ const MATRIX = {
     settings: ['read'],
     incidents: ALL,
     risks: ALL,
+    processes: ALL,
     actions: ALL,
     audits: ALL,
     nonconformities: ALL,
@@ -38,6 +39,7 @@ const MATRIX = {
     audit_logs: ['read'],
     incidents: ALL,
     risks: ALL,
+    processes: ALL,
     actions: ALL,
     audits: ALL,
     nonconformities: ALL,
@@ -64,6 +66,7 @@ const MATRIX = {
     dashboard: ['read'],
     compliance: ['read'],
     conformity: ['read'],
+    processes: ['read'],
     ptw: ['read'],
     controlled_documents: ['read'],
     ai_suggestions: ['read'],
@@ -82,6 +85,7 @@ const MATRIX = {
     dashboard: ['read'],
     compliance: ['read'],
     conformity: ['read'],
+    processes: ['read'],
     ptw: ['read'],
     controlled_documents: ['read'],
     ai_suggestions: ['read'],
@@ -100,6 +104,7 @@ const MATRIX = {
     dashboard: ['read'],
     compliance: ['read'],
     conformity: ['read'],
+    processes: ['read'],
     ptw: ['read'],
     controlled_documents: ['read'],
     ai_suggestions: ['read'],
@@ -111,6 +116,7 @@ const MATRIX = {
   ASSISTANT: {
     incidents: ALL,
     risks: ALL,
+    processes: ALL,
     actions: ['read'],
     audits: ['read'],
     nonconformities: ALL,
@@ -130,6 +136,7 @@ const MATRIX = {
   TERRAIN: {
     incidents: ALL,
     risks: ALL,
+    processes: ALL,
     actions: ['read'],
     audits: ['read'],
     nonconformities: ['read'],
@@ -147,6 +154,7 @@ const MATRIX = {
   OPERATEUR: {
     incidents: ALL,
     risks: ALL,
+    processes: ALL,
     actions: ['read'],
     audits: ['read'],
     nonconformities: ['read'],
@@ -164,6 +172,7 @@ const MATRIX = {
   USER: {
     incidents: ALL,
     risks: ALL,
+    processes: ALL,
     actions: ['read'],
     audits: ['read'],
     nonconformities: ['read'],
@@ -215,5 +224,6 @@ export const PERMISSION_RESOURCES = [
   'notifications',
   'users',
   'reports',
-  'imports'
+  'imports',
+  'processes'
 ];

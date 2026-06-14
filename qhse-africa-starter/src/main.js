@@ -448,6 +448,7 @@ const PAGE_IMPORT_LOADERS = {
   iso: () => import('./pages/iso.js'),
   analytics: () => import('./pages/analytics.js'),
   risks: () => import('./pages/risks.js'),
+  processes: () => import('./pages/processes.js'),
   actions: () => import('./pages/actions.js'),
   settings: () => import('./pages/settings.js'),
   habilitations: () => import('./pages/habilitations.js'),
@@ -591,6 +592,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderIncidents(onAddLog);
     case 'risks':
       return mod.renderRisks();
+    case 'processes':
+      return mod.renderProcesses();
     case 'actions':
       return mod.renderActions();
     case 'permits':

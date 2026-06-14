@@ -73,6 +73,7 @@ model Site {
   risks               Risk[]
   habilitations       Habilitation[]
   products            Product[]
+  processes           Process[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -168,6 +169,8 @@ model User {
   memberships                TenantMember[]
   passwordResetTokens        PasswordResetToken[]
   assignedActions            Action[]           @relation("ActionAssignee")
+  ownedProcesses             Process[]          @relation("ProcessOwner")
+  deputyProcesses            Process[]          @relation("ProcessDeputy")
   auditLogs                  AuditLog[]
   createdAiSuggestions       AiSuggestion[]     @relation("AiSuggestionCreatedBy")
   validatedAiSuggestions     AiSuggestion[]     @relation("AiSuggestionValidatedBy")
@@ -510,4 +513,54 @@ model PermitToWork {
   @@index([siteId])
   @@index([status])
   @@map("permits_to_work")
+}
+
+model Process {
+  id              String    @id @default(cuid())
+  tenantId        String?
+  siteId          String?
+  siteRecord      Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  name            String
+  /// management | realisation | support
+  type            String    @default("realisation")
+  purpose         String?
+  ownerUserId     String?
+  owner           User?     @relation("ProcessOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  deputyUserId    String?
+  deputy          User?     @relation("ProcessDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
+  inputs          Json      @default("[]")
+  outputs         Json      @default("[]")
+  interestedParties Json    @default("[]")
+  /// conforme | a_surveiller | critique | a_revoir
+  status          String    @default("a_surveiller")
+  reviewFrequency String?
+  lastReviewAt    DateTime?
+  nextReviewAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  links ProcessLink[]
+
+  @@index([tenantId])
+  @@index([siteId])
+  @@map("processes")
+}
+
+model ProcessLink {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  processId  String
+  process    Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  /// risk | action | audit | document | indicator | incident | isoRequirement | evidence | conformityStatus
+  linkedType String
+  linkedId   String
+  /// main | secondary | evidence | kpi | correctiveAction
+  role       String?
+  createdAt  DateTime @default(now())
+
+  @@unique([processId, linkedType, linkedId])
+  @@index([tenantId])
+  @@index([processId])
+  @@index([linkedType])
+  @@map("process_links")
 }

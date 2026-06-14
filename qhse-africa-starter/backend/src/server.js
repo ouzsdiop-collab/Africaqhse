@@ -17,6 +17,7 @@ import healthRouter from './routes/health.routes.js';
 
 import incidentsRouter from './routes/incidents.routes.js';
 import risksRouter from './routes/risks.routes.js';
+import processesRouter from './routes/processes.routes.js';
 import actionsRouter from './routes/actions.routes.js';
 import auditsRouter from './routes/audits.routes.js';
 import nonconformitiesRouter from './routes/nonconformities.routes.js';
@@ -249,6 +250,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/admin-gate', adminGateRouter);
 app.use('/api/incidents', incidentsRouter);
 app.use('/api/risks', risksRouter);
+app.use('/api/processes', processesRouter);
 app.use('/api/actions', actionsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/audits', auditsRouter);
