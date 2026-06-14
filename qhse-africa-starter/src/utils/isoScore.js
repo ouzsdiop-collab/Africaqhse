@@ -84,7 +84,9 @@ export function computeIsoScore(input = {}) {
       else proofPts += 22;
     }
   }
-  const proofCoveragePct = proofN ? Math.round(proofPts / proofN) : legacy.pct;
+  // Tant qu'aucune preuve n'a été importée sur le compte, on ne pénalise pas le score
+  // (compte neuf : rien à signaler tant que l'utilisateur n'a rien configuré).
+  const proofCoveragePct = !proofs.length ? legacy.pct : proofN ? Math.round(proofPts / proofN) : legacy.pct;
 
   const presentImports = proofs.filter((p) => p.proofStatus === 'present');
   const validatedImports = presentImports.filter((p) => String(p.validatedBy || '').trim());
@@ -92,7 +94,7 @@ export function computeIsoScore(input = {}) {
     ? Math.round((100 * validatedImports.length) / presentImports.length)
     : proofs.length
       ? Math.round((100 * proofs.filter((p) => String(p.validatedBy || '').trim()).length) / proofs.length)
-      : Math.min(legacy.pct, 85);
+      : legacy.pct;
 
   /** @type {number | null} */
   let actionsScore = null;
@@ -118,7 +120,8 @@ export function computeIsoScore(input = {}) {
       return Number.isFinite(t) && now - t <= horizon;
     });
     if (input.audits.length === 0) {
-      auditsScore = 58;
+      // Compte neuf sans audit : pas de pénalité, axe neutre.
+      auditsScore = null;
     } else {
       auditsScore = auditsRecent ? 96 : 72;
     }
