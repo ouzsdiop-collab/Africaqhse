@@ -85,6 +85,7 @@ export default defineConfig(({ mode }) => {
             if (
               n.includes('src/services/qhseReportsPdf.service') ||
               n.includes('src/utils/qhsePdfChrome') ||
+              n.includes('src/utils/pdfPremiumTemplate') ||
               n.includes('src/utils/html2pdfExport')
             ) {
               return 'chunk-qhse-pdf-reports';

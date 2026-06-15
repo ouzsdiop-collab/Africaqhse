@@ -366,6 +366,11 @@ export function createActionKanbanCard(item, columnKey) {
   statusEl.className = statusPillClass(columnKey);
   statusEl.textContent = item.statusLabel || 'Non renseigné';
 
+  const prioBadge = document.createElement('span');
+  prioBadge.className = `action-card__prio-badge ${pb.mod}`;
+  prioBadge.textContent = pb.label;
+  prioBadge.title = 'Priorité pilotage (fiche locale)';
+
   const metaRow = document.createElement('div');
   metaRow.className = 'action-card__premium-meta';
 
