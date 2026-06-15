@@ -243,15 +243,10 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
     </tr>`;
   }
 
-  const chunks = chunkRowsForPdf(list, 18);
-  const pages = [];
-  chunks.forEach((chunk, idx) => {
-    const table = chunk.length
-      ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Type</th><th>Statut</th><th>Gravité</th><th>Site</th><th>Date</th><th>Description</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
-      : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-    pages.push(idx === 0 ? `${summary}<h2 class="qhse-premium-h2">Constats et détail</h2>${table}` : `<h2 class="qhse-premium-h2">Constats et détail (suite)</h2>${table}`);
-  });
-  if (!pages.length) pages.push(`${summary}<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
+  const table = list.length
+    ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Type</th><th>Statut</th><th>Gravité</th><th>Site</th><th>Date</th><th>Description</th></tr></thead><tbody>${list.map(rowHtml).join('')}</tbody></table>`
+    : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+  const pages = [`${summary}<h2 class="qhse-premium-h2">Constats et détail</h2>${table}`];
 
   const html = assemblePremiumPdfDocument(docTitle, pages, {
     reportDate: formatQhsePdfGenerationDate(),
