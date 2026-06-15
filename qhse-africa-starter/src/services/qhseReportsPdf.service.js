@@ -126,11 +126,9 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   matrixHtml += '</tbody></table>';
 
   const matrixSection = `
-    <div class="qhse-premium-avoid-break">
-      <h2 class="qhse-premium-h2">Analyse (matrice G × P)</h2>
-      <p class="qhse-premium-muted">Effectifs par case gravité (G) et probabilité (P).</p>
-      ${matrixHtml}
-    </div>
+    <h2 class="qhse-premium-h2">Analyse (matrice G × P)</h2>
+    <p class="qhse-premium-muted">Effectifs par case gravité (G) et probabilité (P).</p>
+    ${matrixHtml}
     <div class="qhse-premium-avoid-break">
       <h2 class="qhse-premium-h2">Conclusion</h2>
       <p class="qhse-premium-muted">Le détail des fiches figure aux pages suivantes. Les identifiants sont ceux du registre applicatif.</p>

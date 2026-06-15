@@ -248,7 +248,6 @@ export function premiumPdfStyles() {
     }
     .qhse-premium-preuve, .qhse-premium-obs { margin: 4px 0; font-size: 9pt; color: #334155; }
     .qhse-premium-photo img { max-width: 160px; max-height: 120px; border-radius: 4px; border: 1px solid #e2e8f0; margin-top: 6px; }
-    .qhse-premium-matrix-table tr { break-inside: avoid; page-break-inside: avoid; }
     .qhse-premium-avoid-break { page-break-inside: avoid; break-inside: avoid; }
     .qhse-premium-cover-wrap .qhse-premium-cover {
       min-height: 280px;
