@@ -7,7 +7,7 @@ import { createEmptyState, createSkeletonCard } from '../utils/designSystem.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { getSessionUser } from '../data/sessionUser.js';
 import { assemblePremiumPdfDocument, generatePremiumPdf, escapePdfText } from '../utils/pdfPremiumTemplate.js';
-import { chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
+import { QHSE_PDF_EMPTY_MESSAGE, formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
 import { downloadQhsePremiumPdf } from '../utils/qhsePdfPremiumDelivery.js';
 let conformityModPromise = null;
 function loadConformity() {
@@ -415,19 +415,10 @@ export function renderProcesses() {
       };
 
       const colgroup = '<colgroup><col style="width:18%"><col style="width:10%"><col style="width:10%"><col style="width:9%"><col style="width:13%"><col style="width:40%"></colgroup>';
-      const chunks = chunkRowsForPdf(sorted, 18);
-      const pages = [];
-      chunks.forEach((chunk, idx) => {
-        const table = chunk.length
-          ? `<table class="qhse-premium-table" style="font-size:8.5pt">${colgroup}<thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
-          : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-        if (idx === 0) {
-          pages.push(`${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`);
-        } else {
-          pages.push(`<h2 class="qhse-premium-h2">Détail des processus (suite)</h2>${table}`);
-        }
-      });
-      if (!pages.length) pages.push(`${summary}<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
+      const table = sorted.length
+        ? `<table class="qhse-premium-table" style="font-size:8.5pt">${colgroup}<thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${sorted.map(rowHtml).join('')}</tbody></table>`
+        : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+      const pages = [`${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`];
 
       const html = assemblePremiumPdfDocument('Pilotage des processus — synthèse', pages, {
         reportDate: formatQhsePdfGenerationDate(),

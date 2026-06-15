@@ -6,7 +6,6 @@
 
 import { escapeHtml } from '../utils/escapeHtml.js';
 import {
-  chunkRowsForPdf,
   formatQhsePdfGenerationDate,
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
@@ -162,26 +161,10 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     </tr>`;
   }
 
-  const chunks = chunkRowsForPdf(sorted, 16);
-  const pages = [];
-  chunks.forEach((chunk, idx) => {
-    if (idx === 0) {
-      pages.push(
-        `${summary}${matrixSection}<h2 class="qhse-premium-h2">Détail du registre</h2>${
-          chunk.length
-            ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
-            : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`
-        }`
-      );
-    } else {
-      pages.push(
-        `<h2 class="qhse-premium-h2">Traçabilité et détail (suite)</h2><table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${chunk.map(rowHtml).join('')}</tbody></table>`
-      );
-    }
-  });
-  if (!pages.length) {
-    pages.push(`${summary}${matrixSection}<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`);
-  }
+  const table = sorted.length
+    ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${sorted.map(rowHtml).join('')}</tbody></table>`
+    : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
+  const pages = [`${summary}${matrixSection}<h2 class="qhse-premium-h2">Détail du registre</h2>${table}`];
 
   const html = assemblePremiumPdfDocument(docTitle, pages, {
     organizationName: opts.organizationName || '',

@@ -232,7 +232,7 @@ function buildAlertsSectionHtml(rows) {
  * @param {typeof import('../utils/qhsePdfChrome.js')} pdf
  */
 async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, rows }, pdf) {
-  const { chunkRowsForPdf, QHSE_PDF_EMPTY_MESSAGE } = pdf;
+  const { QHSE_PDF_EMPTY_MESSAGE } = pdf;
   const summary = computeHabilitationsSummary(rows);
   const h1 = title.toLowerCase().includes('alerte')
     ? 'RAPPORT ALERTES HABILITATIONS'
@@ -262,25 +262,9 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
     <p class="qhse-premium-muted">Export des fiches visibles. Traçabilité : collaborateurs et dates d'expiration du registre.</p>
   `;
 
-  const chunks = chunkRowsForPdf(rows, 18);
-  const pageBodies = [];
-  chunks.forEach((chunk, idx) => {
-    if (idx === 0) {
-      pageBodies.push(
-        `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
-      );
-    } else {
-      pageBodies.push(
-        `<h2 class="qhse-premium-h2">Traçabilité et détail (suite)</h2>${buildRegistreTableHtml(chunk, QHSE_PDF_EMPTY_MESSAGE)}`
-      );
-    }
-  });
-
-  if (pageBodies.length === 0) {
-    pageBodies.push(
-      `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml([], QHSE_PDF_EMPTY_MESSAGE)}`
-    );
-  }
+  const pageBodies = [
+    `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(rows, QHSE_PDF_EMPTY_MESSAGE)}`
+  ];
 
   return assemblePremiumPdfDocument(docTitle, pageBodies, {
     reportDate: formatQhsePdfGenerationDate(),
