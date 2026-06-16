@@ -10,7 +10,7 @@ import {
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
 import { downloadQhsePremiumPdf } from '../utils/qhsePdfPremiumDelivery.js';
-import { assemblePremiumPdfDocument, normalizePdfTypography, buildPremiumPdfFlow } from '../utils/pdfPremiumTemplate.js';
+import { normalizePdfTypography, buildPremiumPdfFlow } from '../utils/pdfPremiumTemplate.js';
 import {
   parseRiskMatrixGp,
   riskCriticalityFromMeta,

@@ -5,7 +5,7 @@
 
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { HABILITATIONS_STATUS_LABEL, habDaysUntil } from '../data/habilitationsDemo.js';
-import { assemblePremiumPdfDocument, buildPremiumPdfFlow } from '../utils/pdfPremiumTemplate.js';
+import { buildPremiumPdfFlow } from '../utils/pdfPremiumTemplate.js';
 import { formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
 
 /** @returns {Promise<typeof import('../utils/qhsePdfChrome.js')>} */
