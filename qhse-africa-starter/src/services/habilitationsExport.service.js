@@ -263,7 +263,7 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
   `;
 
   const bodyContent = `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(rows, QHSE_PDF_EMPTY_MESSAGE)}`;
-  return buildPremiumPdfFlow(bodyContent, { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() });
+  return { html: buildPremiumPdfFlow(bodyContent, { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() }).html };
 }
 
 /**

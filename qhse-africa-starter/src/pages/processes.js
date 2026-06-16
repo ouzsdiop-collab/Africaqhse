@@ -414,17 +414,23 @@ export function renderProcesses() {
         </tr>`;
       };
 
-      const colgroup = '<colgroup><col style="width:18%"><col style="width:10%"><col style="width:10%"><col style="width:9%"><col style="width:13%"><col style="width:40%"></colgroup>';
-      const table = sorted.length
-        ? `<table class="qhse-premium-table" style="font-size:8.5pt">${colgroup}<thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${sorted.map(rowHtml).join('')}</tbody></table>`
-        : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-      const { buildPremiumPdfFlow } = await import('../utils/pdfPremiumTemplate.js');
-      const bodyContent = `${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`;
-      const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(bodyContent, {
-        reportTitle: 'Pilotage des processus',
-        reportDate: formatQhsePdfGenerationDate()
+      const { buildTableRegisterPdf } = await import('../utils/pdfPremiumTemplate.js');
+      const { html } = buildTableRegisterPdf({
+        docTitle: 'Pilotage des processus',
+        summaryHtml: summary,
+        columns: [
+          { label: 'Processus', style: 'width:18%' },
+          { label: 'Type', style: 'width:10%' },
+          { label: 'Statut', style: 'width:10%' },
+          { label: 'Score', style: 'width:9%' },
+          { label: 'Pilote', style: 'width:13%' },
+          { label: 'Points de vigilance', style: 'width:40%' },
+        ],
+        rowsHtml: sorted.map(rowHtml),
+        landscape: true,
+        reportDate: formatQhsePdfGenerationDate(),
       });
-      await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', { landscape: true, displayHeaderFooter: true, headerTemplate, footerTemplate });
+      await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', { landscape: true });
     } catch (err) {
       console.error('[processes] export all pdf', err);
       showToast('Export PDF impossible', 'error');

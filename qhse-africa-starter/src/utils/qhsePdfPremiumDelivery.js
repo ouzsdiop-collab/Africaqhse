@@ -26,9 +26,6 @@ export async function downloadQhsePremiumPdf(html, filename, opts = {}) {
         filename: name,
         landscape: opts.landscape,
         margin: opts.margin,
-        displayHeaderFooter: opts.displayHeaderFooter,
-        headerTemplate: opts.headerTemplate,
-        footerTemplate: opts.footerTemplate,
       })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
