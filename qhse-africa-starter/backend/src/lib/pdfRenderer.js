@@ -49,7 +49,9 @@ export async function renderHtmlToPdf(html, opts = {}) {
       displayHeaderFooter: Boolean(opts.displayHeaderFooter),
       headerTemplate: opts.headerTemplate || '<span></span>',
       footerTemplate: opts.footerTemplate || '<span></span>',
-      margin: opts.margin || { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+      margin: opts.margin || (opts.displayHeaderFooter
+        ? { top: '24mm', right: '14mm', bottom: '18mm', left: '14mm' }
+        : { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' })
     });
     return Buffer.from(pdf);
   } finally {

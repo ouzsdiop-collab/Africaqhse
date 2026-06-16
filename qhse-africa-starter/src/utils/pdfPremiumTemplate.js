@@ -681,9 +681,7 @@ export function buildPremiumPdfFlow(contentHtml, meta = {}) {
     thead { display: table-header-group; }
     th { background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 7px 6px; text-align: left; font-weight: 700; }
     td { border: 1px solid #e2e8f0; padding: 5px 6px; vertical-align: top; color: #1e293b; line-height: 1.3; }
-    tbody tr { break-inside: avoid; page-break-inside: avoid; }
     .matrix-table td, .matrix-table th { text-align: center; padding: 5px; font-size: 8pt; }
-    .matrix-table tbody tr { break-inside: auto; page-break-inside: auto; }
     .gauge-track { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
     .gauge-fill { height: 100%; background: linear-gradient(90deg, ${brand}, #14b8a6); border-radius: 5px; }
     .disclaimer { font-size: 8.5pt; color: #475569; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 7px 10px; margin: 8px 0; }
@@ -703,9 +701,7 @@ export function buildPremiumPdfFlow(contentHtml, meta = {}) {
     .qhse-premium-table thead { display: table-header-group; }
     .qhse-premium-table th { background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 7px 6px; text-align: left; font-weight: 700; }
     .qhse-premium-table td { border: 1px solid #e2e8f0; padding: 5px 6px; vertical-align: top; color: #1e293b; line-height: 1.3; }
-    .qhse-premium-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
     .qhse-premium-matrix-table td, .qhse-premium-matrix-table th { text-align: center; padding: 5px; font-size: 8pt; }
-    .qhse-premium-matrix-table tbody tr { break-inside: auto; page-break-inside: auto; }
     .qhse-premium-gauge-track { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
     .qhse-premium-gauge-fill { height: 100%; background: linear-gradient(90deg, ${brand}, #14b8a6); border-radius: 5px; }
     .qhse-premium-ul { margin: 6px 0; padding-left: 1.2rem; }
