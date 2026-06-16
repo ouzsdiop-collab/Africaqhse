@@ -892,5 +892,17 @@ td {
 ${contentHtml}
 </body></html>`;
 
-  return { html };
+  // Puppeteer displayHeaderFooter : font-size DOIT être en px (défaut 0 sinon)
+  const headerTemplate = `<div style="-webkit-print-color-adjust:exact;width:100%;padding:0 15mm;display:flex;justify-content:space-between;align-items:flex-end;font-family:Arial,Helvetica,sans-serif;font-size:9px;border-bottom:1.5px solid #e2e8f0;padding-bottom:3px;box-sizing:border-box;">
+    <span style="font-weight:700;color:${brand};text-transform:uppercase;letter-spacing:0.06em;">QHSE Control Africa</span>
+    <span style="color:#334155;font-weight:600;">${headerCenter}</span>
+    <span style="color:#64748b;">${dateCss}</span>
+  </div>`;
+
+  const footerTemplate = `<div style="-webkit-print-color-adjust:exact;width:100%;padding:0 15mm;display:flex;justify-content:space-between;align-items:flex-start;font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:3px;box-sizing:border-box;">
+    <span>Document confidentiel · Usage interne</span>
+    <span style="color:#64748b;font-weight:700;">Page <span class="pageNumber"></span> / <span class="totalPages"></span></span>
+  </div>`;
+
+  return { html, headerTemplate, footerTemplate };
 }

@@ -420,11 +420,11 @@ export function renderProcesses() {
         : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
       const { buildPremiumPdfFlow } = await import('../utils/pdfPremiumTemplate.js');
       const bodyContent = `${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`;
-      const { html } = buildPremiumPdfFlow(bodyContent, {
+      const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(bodyContent, {
         reportTitle: 'Pilotage des processus',
         reportDate: formatQhsePdfGenerationDate()
       });
-      await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', { landscape: true });
+      await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', { landscape: true, displayHeaderFooter: true, headerTemplate, footerTemplate });
     } catch (err) {
       console.error('[processes] export all pdf', err);
       showToast('Export PDF impossible', 'error');
