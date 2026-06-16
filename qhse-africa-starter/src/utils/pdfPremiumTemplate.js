@@ -639,3 +639,93 @@ export function generatePremiumPdf(opts) {
 
   return `${premiumPdfStyles()}<div class="qhse-premium-doc">${docInner}</div>`;
 }
+
+/**
+ * Génère un document PDF premium via la pagination native Puppeteer (displayHeaderFooter).
+ * Retourne { html, headerTemplate, footerTemplate } à passer à downloadQhsePremiumPdf.
+ *
+ * @param {string} contentHtml - Corps du document (HTML continu, sans page-shells)
+ * @param {{
+ *   reportTitle?: string;
+ *   organizationName?: string;
+ *   siteLabel?: string;
+ *   company?: string;
+ *   reportDate?: string;
+ * }} [meta]
+ * @returns {{ html: string; headerTemplate: string; footerTemplate: string }}
+ */
+export function buildPremiumPdfFlow(contentHtml, meta = {}) {
+  const brand = QHSE_PDF_BRAND;
+  const accent = '#0e7490';
+  const dateStr = meta.reportDate || formatQhsePdfGenerationDate();
+  const titleText = normalizePdfTypography(String(meta.reportTitle || 'Document QHSE'));
+  const orgText = meta.organizationName ? normalizePdfTypography(String(meta.organizationName)) : '';
+  const siteText = (meta.siteLabel || meta.company) ? normalizePdfTypography(String(meta.siteLabel || meta.company)) : '';
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><style>
+    *, *::before, *::after { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { margin: 26mm 14mm 20mm 14mm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; line-height: 1.5; color: #0f172a; background: #fff; margin: 0; padding: 0; }
+    h2 { font-size: 11pt; font-weight: 800; color: #0f172a; margin: 16px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid ${brand}; page-break-after: avoid; break-after: avoid; }
+    h3 { font-size: 10pt; font-weight: 700; color: ${accent}; margin: 12px 0 6px 0; page-break-after: avoid; break-after: avoid; }
+    p { margin: 6px 0; }
+    .muted { color: #64748b; font-size: 9pt; }
+    .topbar { height: 4px; background: linear-gradient(90deg, ${brand} 0%, ${accent} 55%, #2dd4bf 100%); margin-bottom: 14px; border-radius: 2px; }
+    .kpi-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 14px 0; }
+    .kpi { flex: 1; min-width: 90px; max-width: 180px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; background: #fafbfc; break-inside: avoid; page-break-inside: avoid; }
+    .kpi-val { font-size: 14pt; font-weight: 800; color: #0f172a; }
+    .kpi-lbl { font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin: 8px 0; break-inside: avoid; page-break-inside: avoid; }
+    .badge { font-size: 7.5pt; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-block; }
+    table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; table-layout: fixed; word-wrap: break-word; }
+    thead { display: table-header-group; }
+    th { background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 7px 6px; text-align: left; font-weight: 700; }
+    td { border: 1px solid #e2e8f0; padding: 5px 6px; vertical-align: top; color: #1e293b; line-height: 1.3; }
+    tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .matrix-table td, .matrix-table th { text-align: center; padding: 5px; font-size: 8pt; }
+    .matrix-table tbody tr { break-inside: auto; page-break-inside: auto; }
+    .gauge-track { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+    .gauge-fill { height: 100%; background: linear-gradient(90deg, ${brand}, #14b8a6); border-radius: 5px; }
+    .disclaimer { font-size: 8.5pt; color: #475569; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 7px 10px; margin: 8px 0; }
+    ul { margin: 6px 0; padding-left: 1.2rem; }
+    li { margin-bottom: 4px; }
+    /* Legacy premium classes (compatibility) */
+    .qhse-premium-h2 { font-size: 11pt; font-weight: 800; color: #0f172a; margin: 16px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid ${brand}; page-break-after: avoid; break-after: avoid; }
+    .qhse-premium-h3 { font-size: 10pt; font-weight: 700; color: ${accent}; margin: 12px 0 6px 0; page-break-after: avoid; break-after: avoid; }
+    .qhse-premium-muted { color: #64748b; font-size: 9pt; }
+    .qhse-premium-kpi-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 14px 0; }
+    .qhse-premium-kpi { flex: 1; min-width: 90px; max-width: 180px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; background: #fafbfc; break-inside: avoid; page-break-inside: avoid; }
+    .qhse-premium-kpi-val { font-size: 14pt; font-weight: 800; color: #0f172a; }
+    .qhse-premium-kpi-lbl { font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+    .qhse-premium-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin: 8px 0; break-inside: avoid; page-break-inside: avoid; }
+    .qhse-premium-badge { font-size: 7.5pt; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-block; }
+    .qhse-premium-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; table-layout: fixed; word-wrap: break-word; }
+    .qhse-premium-table thead { display: table-header-group; }
+    .qhse-premium-table th { background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 7px 6px; text-align: left; font-weight: 700; }
+    .qhse-premium-table td { border: 1px solid #e2e8f0; padding: 5px 6px; vertical-align: top; color: #1e293b; line-height: 1.3; }
+    .qhse-premium-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .qhse-premium-matrix-table td, .qhse-premium-matrix-table th { text-align: center; padding: 5px; font-size: 8pt; }
+    .qhse-premium-matrix-table tbody tr { break-inside: auto; page-break-inside: auto; }
+    .qhse-premium-gauge-track { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+    .qhse-premium-gauge-fill { height: 100%; background: linear-gradient(90deg, ${brand}, #14b8a6); border-radius: 5px; }
+    .qhse-premium-ul { margin: 6px 0; padding-left: 1.2rem; }
+    .qhse-premium-ul li { margin-bottom: 4px; }
+    .qhse-premium-avoid-break { page-break-inside: avoid; break-inside: avoid; }
+  </style></head><body>
+<div class="topbar"></div>
+${contentHtml}
+</body></html>`;
+
+  const headerTemplate = `<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;width:100%;padding:4px 14mm 4px 14mm;font-family:Arial,Helvetica,sans-serif;font-size:8pt;color:#475569;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;">
+    <span style="font-weight:800;color:${brand};text-transform:uppercase;letter-spacing:0.05em;font-size:8pt;">QHSE Control Africa</span>
+    <span style="color:#0f172a;font-weight:600;font-size:8pt;">${escapeHtml(titleText)}${orgText ? ' · ' + escapeHtml(orgText) : ''}${siteText ? ' · ' + escapeHtml(siteText) : ''}</span>
+    <span style="font-size:8pt;">${escapeHtml(dateStr)}</span>
+  </div>`;
+
+  const footerTemplate = `<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;width:100%;padding:4px 14mm 4px 14mm;font-family:Arial,Helvetica,sans-serif;font-size:8pt;color:#64748b;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;">
+    <span>QHSE Control Africa · Document confidentiel · Usage interne</span>
+    <span>Page <span class="pageNumber"></span> / <span class="totalPages"></span></span>
+  </div>`;
+
+  return { html, headerTemplate, footerTemplate };
+}

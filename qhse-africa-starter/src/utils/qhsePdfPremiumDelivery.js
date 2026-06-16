@@ -14,11 +14,22 @@ export async function downloadQhsePremiumPdf(html, filename, opts = {}) {
   showToast('Génération du PDF en cours...', 'info');
   try {
     const { qhseFetch } = await import('./qhseFetch.js');
-    const fullHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body>${html}</body></html>`;
+    // Si html contient déjà <!DOCTYPE ou <html, l'utiliser tel quel, sinon envelopper
+    const fullHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(html)
+      ? html
+      : `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body>${html}</body></html>`;
     const res = await qhseFetch('/api/pdf/render', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html: fullHtml, filename: name, landscape: opts.landscape, margin: opts.margin })
+      body: JSON.stringify({
+        html: fullHtml,
+        filename: name,
+        landscape: opts.landscape,
+        margin: opts.margin,
+        displayHeaderFooter: opts.displayHeaderFooter,
+        headerTemplate: opts.headerTemplate,
+        footerTemplate: opts.footerTemplate,
+      })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();

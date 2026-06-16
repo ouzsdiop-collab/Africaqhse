@@ -21,7 +21,10 @@ router.post('/render', express.json({ limit: '8mb' }), async (req, res, next) =>
     const filename = String(req.body?.filename || 'export.pdf').replace(/[^\w.-]+/g, '_');
     const pdf = await renderHtmlToPdf(html, {
       landscape: Boolean(req.body?.landscape),
-      margin: req.body?.margin
+      margin: req.body?.margin,
+      displayHeaderFooter: Boolean(req.body?.displayHeaderFooter),
+      headerTemplate: req.body?.headerTemplate ? String(req.body.headerTemplate) : undefined,
+      footerTemplate: req.body?.footerTemplate ? String(req.body.footerTemplate) : undefined,
     });
     res.set({
       'Content-Type': 'application/pdf',

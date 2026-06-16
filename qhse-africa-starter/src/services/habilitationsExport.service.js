@@ -5,7 +5,7 @@
 
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { HABILITATIONS_STATUS_LABEL, habDaysUntil } from '../data/habilitationsDemo.js';
-import { assemblePremiumPdfDocument } from '../utils/pdfPremiumTemplate.js';
+import { assemblePremiumPdfDocument, buildPremiumPdfFlow } from '../utils/pdfPremiumTemplate.js';
 import { formatQhsePdfGenerationDate } from '../utils/qhsePdfChrome.js';
 
 /** @returns {Promise<typeof import('../utils/qhsePdfChrome.js')>} */
@@ -262,14 +262,8 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
     <p class="qhse-premium-muted">Export des fiches visibles. Traçabilité : collaborateurs et dates d'expiration du registre.</p>
   `;
 
-  const pageBodies = [
-    `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(rows, QHSE_PDF_EMPTY_MESSAGE)}`
-  ];
-
-  return assemblePremiumPdfDocument(docTitle, pageBodies, {
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Registre habilitations'
-  });
+  const bodyContent = `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(rows, QHSE_PDF_EMPTY_MESSAGE)}`;
+  return buildPremiumPdfFlow(bodyContent, { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() });
 }
 
 /**
@@ -283,12 +277,14 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
  */
 export async function downloadHabilitationsPdf(opts) {
   const pdf = await loadQhsePdfChrome();
-  const html = await buildHabilitationsPdfHtml(opts, pdf);
+  const result = await buildHabilitationsPdfHtml(opts, pdf);
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
   const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
-  await downloadQhsePremiumPdf(html, `${safeName}.pdf`, {
+  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, {
     landscape: true,
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    displayHeaderFooter: true,
+    headerTemplate: result.headerTemplate,
+    footerTemplate: result.footerTemplate,
   });
 }
 
@@ -374,10 +370,7 @@ function buildConformitePdfHtml({ filtersText, kpis, bySite, rows = [] }) {
 
   const page1 = `${gauge}${typeTable}`;
   const page2 = `${siteTable}${ncSection}<h2 class="qhse-premium-h2">Conclusion</h2><p class="qhse-premium-muted">État des habilitations au moment de l'export. Usage interne.</p>`;
-  return assemblePremiumPdfDocument(docTitle, [page1, page2], {
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Conformité habilitations'
-  });
+  return buildPremiumPdfFlow(`${page1}${page2}`, { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() });
 }
 
 export async function downloadHabilitationsConformitePdf({
@@ -387,10 +380,12 @@ export async function downloadHabilitationsConformitePdf({
   rows = [],
   filename
 }) {
-  const html = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
+  const result = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
   const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
-  await downloadQhsePremiumPdf(html, `${safeName}.pdf`, {
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, {
+    displayHeaderFooter: true,
+    headerTemplate: result.headerTemplate,
+    footerTemplate: result.footerTemplate,
   });
 }

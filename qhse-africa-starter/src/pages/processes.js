@@ -418,16 +418,17 @@ export function renderProcesses() {
       const table = sorted.length
         ? `<table class="qhse-premium-table" style="font-size:8.5pt">${colgroup}<thead><tr><th>Processus</th><th>Type</th><th>Statut</th><th>Score</th><th>Pilote</th><th>Points de vigilance</th></tr></thead><tbody>${sorted.map(rowHtml).join('')}</tbody></table>`
         : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-      const pages = [`${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`];
-
-      const html = assemblePremiumPdfDocument('Pilotage des processus — synthèse', pages, {
-        reportDate: formatQhsePdfGenerationDate(),
-        subtitle: 'Synthèse consolidée pour revue de direction',
-        includeCover: false
+      const { buildPremiumPdfFlow } = await import('../utils/pdfPremiumTemplate.js');
+      const bodyContent = `${summary}<h2 class="qhse-premium-h2">Détail des processus</h2>${table}`;
+      const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(bodyContent, {
+        reportTitle: 'Pilotage des processus — synthèse',
+        reportDate: formatQhsePdfGenerationDate()
       });
       await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', {
         landscape: true,
-        margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+        displayHeaderFooter: true,
+        headerTemplate,
+        footerTemplate,
       });
     } catch (err) {
       console.error('[processes] export all pdf', err);

@@ -790,7 +790,7 @@ export function renderPermits() {
       try {
         const { formatQhsePdfGenerationDate } = await import('../utils/qhsePdfChrome.js');
         const { downloadQhsePremiumPdf } = await import('../utils/qhsePdfPremiumDelivery.js');
-        const { assemblePremiumPdfDocument } = await import('../utils/pdfPremiumTemplate.js');
+        const { buildPremiumPdfFlow } = await import('../utils/pdfPremiumTemplate.js');
         const sigText = signatures.length
           ? signatures.map((s) => `${s.name} (${signatureRoleLabel(s.role)})`).join(', ')
           : 'Aucune';
@@ -813,12 +813,14 @@ export function renderPermits() {
           <h2 class="qhse-premium-h2">Traçabilité</h2>
           <p class="qhse-premium-muted">Document généré depuis la fiche permis. Conserver les preuves de validation selon la procédure interne.</p>
         `;
-        const html = assemblePremiumPdfDocument('Permis de travail', [body], {
-          reportDate: formatQhsePdfGenerationDate(),
-          coverSubtitle: 'Sécurité des interventions'
+        const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(body, {
+          reportTitle: 'Permis de travail',
+          reportDate: formatQhsePdfGenerationDate()
         });
         await downloadQhsePremiumPdf(html, `permis-${it.id}.pdf`, {
-          margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+          displayHeaderFooter: true,
+          headerTemplate,
+          footerTemplate,
         });
       } catch (e) {
         console.error(e);

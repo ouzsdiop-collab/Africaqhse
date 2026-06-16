@@ -10,7 +10,7 @@ import {
   QHSE_PDF_EMPTY_MESSAGE
 } from '../utils/qhsePdfChrome.js';
 import { downloadQhsePremiumPdf } from '../utils/qhsePdfPremiumDelivery.js';
-import { assemblePremiumPdfDocument, normalizePdfTypography } from '../utils/pdfPremiumTemplate.js';
+import { assemblePremiumPdfDocument, normalizePdfTypography, buildPremiumPdfFlow } from '../utils/pdfPremiumTemplate.js';
 import {
   parseRiskMatrixGp,
   riskCriticalityFromMeta,
@@ -166,18 +166,15 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
   const table = sorted.length
     ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Cat.</th><th>G</th><th>P</th><th>G×P</th><th>Statut</th><th>Resp.</th></tr></thead><tbody>${sorted.map(rowHtml).join('')}</tbody></table>`
     : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-  const pages = [`${summary}${matrixSection}<h2 class="qhse-premium-h2">Détail du registre</h2>${table}`];
-
-  const html = assemblePremiumPdfDocument(docTitle, pages, {
-    organizationName: opts.organizationName || '',
-    company: opts.siteLabel || '',
-    siteLabel: opts.siteLabel || '',
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Export registre risques'
-  });
+  const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(
+    `${summary}${matrixSection}<h2 class="qhse-premium-h2">Détail du registre</h2>${table}`,
+    { reportTitle: docTitle, organizationName: opts.organizationName, siteLabel: opts.siteLabel, reportDate: formatQhsePdfGenerationDate() }
+  );
   await downloadQhsePremiumPdf(html, 'registre-risques.pdf', {
     landscape: true,
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    displayHeaderFooter: true,
+    headerTemplate,
+    footerTemplate,
   });
 }
 
@@ -231,15 +228,16 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   const table = list.length
     ? `<table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Type</th><th>Statut</th><th>Gravité</th><th>Site</th><th>Date</th><th>Description</th></tr></thead><tbody>${list.map(rowHtml).join('')}</tbody></table>`
     : `<p class="qhse-premium-muted">${escapeHtml(QHSE_PDF_EMPTY_MESSAGE)}</p>`;
-  const pages = [`${summary}<h2 class="qhse-premium-h2">Constats et détail</h2>${table}`];
 
-  const html = assemblePremiumPdfDocument(docTitle, pages, {
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Export registre incidents'
-  });
+  const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(
+    `${summary}<h2 class="qhse-premium-h2">Constats et détail</h2>${table}`,
+    { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() }
+  );
   await downloadQhsePremiumPdf(html, 'registre-incidents.pdf', {
     landscape: true,
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    displayHeaderFooter: true,
+    headerTemplate,
+    footerTemplate,
   });
 }
 
@@ -481,14 +479,15 @@ export async function downloadPerformanceQhsePdf(ctx) {
     <p class="qhse-premium-muted">Document d'appui à la revue de direction. Données figées à l'export.</p>
   `;
 
-  const html = assemblePremiumPdfDocument(docTitle, [page1, page2], {
-    company: ctx.siteLabel || '',
+  const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(`${page1}${page2}`, {
+    reportTitle: docTitle,
     siteLabel: ctx.siteLabel || '',
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Pilotage performance'
+    reportDate: formatQhsePdfGenerationDate()
   });
   await downloadQhsePremiumPdf(html, 'rapport-performance-qhse.pdf', {
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    displayHeaderFooter: true,
+    headerTemplate,
+    footerTemplate,
   });
 }
 
@@ -534,12 +533,14 @@ export async function downloadAnalyticsSummaryPdf(data) {
     <p class="qhse-premium-muted">Vue instantanée à la génération. Usage interne.</p>
   `;
 
-  const html = assemblePremiumPdfDocument(docTitle, [page1, page2], {
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Cockpit analytique'
+  const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(`${page1}${page2}`, {
+    reportTitle: docTitle,
+    reportDate: formatQhsePdfGenerationDate()
   });
   await downloadQhsePremiumPdf(html, 'analytics-synthese-qhse.pdf', {
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    displayHeaderFooter: true,
+    headerTemplate,
+    footerTemplate,
   });
 }
 
@@ -589,12 +590,14 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
     <p class="qhse-premium-muted">Synthèse périodique. Données limitées au périmètre interrogé.</p>
   `;
 
-  const html = assemblePremiumPdfDocument(docTitle, [page1, page2], {
-    reportDate: formatQhsePdfGenerationDate(),
-    coverSubtitle: 'Reporting périodique'
+  const { html, headerTemplate, footerTemplate } = buildPremiumPdfFlow(`${page1}${page2}`, {
+    reportTitle: docTitle,
+    reportDate: formatQhsePdfGenerationDate()
   });
   await downloadQhsePremiumPdf(html, 'reporting-periodique-qhse.pdf', {
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    displayHeaderFooter: true,
+    headerTemplate,
+    footerTemplate,
   });
 }
 

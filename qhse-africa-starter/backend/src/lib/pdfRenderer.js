@@ -46,6 +46,9 @@ export async function renderHtmlToPdf(html, opts = {}) {
       format: opts.format || 'A4',
       landscape: Boolean(opts.landscape),
       printBackground: true,
+      displayHeaderFooter: Boolean(opts.displayHeaderFooter),
+      headerTemplate: opts.headerTemplate || '<span></span>',
+      footerTemplate: opts.footerTemplate || '<span></span>',
       margin: opts.margin || { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
     });
     return Buffer.from(pdf);
