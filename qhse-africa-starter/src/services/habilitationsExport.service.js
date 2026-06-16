@@ -280,12 +280,7 @@ export async function downloadHabilitationsPdf(opts) {
   const result = await buildHabilitationsPdfHtml(opts, pdf);
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
   const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
-  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, {
-    landscape: true,
-    displayHeaderFooter: true,
-    headerTemplate: result.headerTemplate,
-    footerTemplate: result.footerTemplate,
-  });
+  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, { landscape: true });
 }
 
 /**
@@ -383,9 +378,5 @@ export async function downloadHabilitationsConformitePdf({
   const result = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
   const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
-  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, {
-    displayHeaderFooter: true,
-    headerTemplate: result.headerTemplate,
-    footerTemplate: result.footerTemplate,
-  });
+  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`);
 }
