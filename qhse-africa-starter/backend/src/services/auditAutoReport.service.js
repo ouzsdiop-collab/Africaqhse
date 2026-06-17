@@ -1,7 +1,7 @@
-import PDFDocument from 'pdfkit';
 import { prisma } from '../db.js';
 import { prismaTenantFilter } from '../lib/tenantScope.js';
 import * as emailService from './email.service.js';
+import { renderHtmlToPdf } from '../lib/pdfRenderer.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -314,30 +314,25 @@ function isActionOpenStatus(status) {
   return !/\b(termin|clos|cl[oô]tur|ferm|done|compl[eè]t|r[eé]alis)\w*/i.test(s);
 }
 
-function drawPageHeader(doc, auditRef) {
-  const w = doc.page.width;
-  doc.save();
-  doc.rect(0, 0, w, 42).fill(QHSE_GREEN);
-  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9);
-  doc.text('RAPPORT D’AUDIT QHSE', 48, 14, { continued: true });
-  doc.font('Helvetica').fontSize(8);
-  doc.text(`  ·  ${String(auditRef)}`, { continued: false });
-  doc.restore();
-  doc.fillColor('#000000');
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-function drawPageFooter(doc, pageIndex, totalPages) {
-  const y = doc.page.height - 36;
-  doc.save();
-  doc.fontSize(8).fillColor('#475569').font('Helvetica');
-  doc.text(
-    `QHSE Control Africa — Confidentiel — Page ${pageIndex + 1} / ${totalPages}`,
-    48,
-    y,
-    { width: doc.page.width - 96, align: 'center' }
-  );
-  doc.restore();
-  doc.fillColor('#000000');
+function buildAuditPdfHeaderFooterTemplates(auditRef) {
+  const headerTemplate = `<div style="-webkit-print-color-adjust:exact;width:100%;padding:0 14mm;display:flex;justify-content:space-between;align-items:flex-end;font-family:Helvetica,Arial,sans-serif;font-size:9px;border-bottom:1.5px solid #e2e8f0;padding-bottom:3px;box-sizing:border-box;">
+    <span style="font-weight:800;color:${QHSE_GREEN};text-transform:uppercase;letter-spacing:0.06em;">QHSE Control Africa</span>
+    <span style="color:#334155;font-weight:600;">Rapport d'audit · ${escapeHtml(auditRef)}</span>
+  </div>`;
+  const footerTemplate = `<div style="-webkit-print-color-adjust:exact;width:100%;padding:0 14mm;display:flex;justify-content:space-between;align-items:flex-start;font-family:Helvetica,Arial,sans-serif;font-size:8px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:3px;box-sizing:border-box;">
+    <span>Document confidentiel · Usage interne</span>
+    <span style="color:#64748b;font-weight:700;">Page <span class="pageNumber"></span> / <span class="totalPages"></span></span>
+  </div>`;
+  return { headerTemplate, footerTemplate };
 }
 
 /**
@@ -453,263 +448,189 @@ export async function generateAuditPdfReport(auditId, tenantId = null) {
   }
   const sectionOrder = [...bySection.keys()].sort((a, b) => a.localeCompare(b, 'fr'));
 
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    const doc = new PDFDocument({
-      margin: { top: 56, bottom: 56, left: 48, right: 48 },
-      size: 'A4',
-      info: {
-        Title: `Rapport d'audit ${audit.ref}`,
-        Author: 'QHSE Control Africa'
-      },
-      bufferPages: true
-    });
-
-    doc.on('data', (c) => chunks.push(c));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
-
-    const contentWidth = doc.page.width - 96;
-    const innerTop = 56;
-
-    const drawListTable = (title, rows) => {
-      doc.moveDown(0.35);
-      doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text(title);
-      const x0 = 48;
-      let y = doc.y + 4;
-      const w = contentWidth;
-      doc.rect(x0, y, w, 16).fill(QHSE_GREEN);
-      doc.fillColor('#ffffff').fontSize(8).font('Helvetica-Bold').text('  #', x0 + 4, y + 4, { width: 20 });
-      doc.text('  Libellé', x0 + 24, y + 4, { width: w - 28 });
-      y += 16;
-      if (!rows.length) {
-        doc.rect(x0, y, w, 22).stroke('#e2e8f0');
-        doc.fillColor('#64748b').font('Helvetica').fontSize(9).text('  —', x0 + 4, y + 6, { width: w - 8 });
-        y += 22;
-      } else {
-        rows.forEach((line, idx) => {
-          const rowH = 26;
-          doc.rect(x0, y, w, rowH).stroke('#e2e8f0');
-          doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8).text(`  ${idx + 1}.`, x0 + 4, y + 8, { width: 18 });
-          doc.font('Helvetica').fontSize(9).text(line, x0 + 24, y + 6, { width: w - 32 });
-          y += rowH;
-        });
-      }
-      doc.y = y + 6;
-    };
-
-    // —— PAGE 1 — Couverture ——
-    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(24);
-    doc.text('RAPPORT D’AUDIT QHSE', 48, innerTop, { width: contentWidth, align: 'center' });
-    doc.moveDown(1.1);
-    doc.fontSize(12).font('Helvetica');
-    doc.text(`Référence audit : ${audit.ref}`);
-    doc.text(`Site audité : ${audit.site}`);
-    if (audit.siteRecord?.name) {
-      doc.text(`Site référentiel : ${audit.siteRecord.name}`);
-    }
-    doc.text(`Date de l’audit : ${auditDateDisplay}`);
-    doc.text(`Statut : ${statusCategory}${audit.status && audit.status !== statusCategory ? ` (${audit.status})` : ''}`);
-    doc.text(`Auditeur responsable : ${auditeurDisplay}`);
-    doc.moveDown(0.7);
-    doc.font('Helvetica-Bold').fontSize(11).text('Score de conformité');
-    const barX = 48;
-    const barY = doc.y + 4;
-    const barW = Math.min(280, contentWidth - 88);
-    const barH = 20;
-    doc.roundedRect(barX, barY, barW, barH, 4).stroke('#cbd5e1');
-    const fillW = Math.max(0, Math.min(barW, (Math.min(100, Math.max(0, score)) / 100) * barW));
-    if (fillW > 0) {
-      doc.roundedRect(barX + 1, barY + 1, fillW - 2, barH - 2, 3).fill(gaugeColor);
-    }
-    doc.fillColor('#000000').fontSize(13).font('Helvetica-Bold');
-    doc.text(
-      `${Number.isFinite(score) ? `${Math.round(score)}` : '—'} / 100`,
-      barX + barW + 12,
-      barY + 3,
-      { lineBreak: false }
-    );
-    doc.font('Helvetica').fontSize(9).fillColor('#64748b');
-    doc.text(
-      `Document généré le ${formatFrDateTime(new Date())} — usage confidentiel.`,
-      48,
-      doc.page.height - 118,
-      { width: contentWidth, align: 'center' }
-    );
-    doc.fillColor(QHSE_GREEN).font('Helvetica-Bold').fontSize(11);
-    doc.text('QHSE Control Africa', 48, doc.page.height - 90, { width: contentWidth, align: 'center' });
-    doc.fillColor('#000000');
-
-    // —— PAGE 2 — Résumé exécutif ——
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(16).text('Résumé exécutif');
-    doc.moveDown(0.4);
-    doc.fontSize(11).font('Helvetica');
-    doc.text(
-      `Score global : ${Number.isFinite(score) ? `${Math.round(score)} / 100` : '—'} — Lecture : ${interp.label}`,
-      { width: contentWidth }
-    );
-    doc.fontSize(10).fillColor('#334155');
-    doc.text(interp.detail, { width: contentWidth });
-    doc.fillColor('#000000');
-    doc.moveDown(0.5);
-    doc.font('Helvetica-Bold').fontSize(11).text('Synthèse chiffrée');
-    doc.font('Helvetica').fontSize(10).fillColor('#334155');
-    doc.text(
-      `Points checklist : ${checklistItems.length} — ✓ ${conformCount} conforme(s) · ✗ ${ncCount} non conforme(s) · ⚠ ${partialCount} partiel(s) · N/A ${naCount}`
-    );
-    doc.text(`Non-conformités (fiches) : ${ncFiches} — Points checklist NC / partiel : ${checklistNcPoints}`);
-    doc.text(
-      `Actions correctives recensées : ${actionsLinked.length} (dont ${openActions.length} à traiter au sens statut). Réf. audit citée : « ${refToken} ».`
-    );
-    doc.fillColor('#000000');
-    drawListTable('Points forts (extraits checklist — conformes)', strengths);
-    drawListTable('Points faibles / écarts (extraits checklist)', weaknesses);
-
-    if (audit.nonConformities?.length) {
-      doc.moveDown(0.3);
-      doc.font('Helvetica-Bold').fontSize(11).text('Non-conformités référencées (aperçu)');
-      doc.font('Helvetica').fontSize(9).fillColor('#334155');
-      audit.nonConformities.slice(0, 6).forEach((nc, i) => {
-        doc.text(`${i + 1}. ${nc.title}${nc.status ? ` — ${nc.status}` : ''}`, { width: contentWidth });
-      });
-      if (audit.nonConformities.length > 6) {
-        doc.fillColor('#64748b').text(`… ${audit.nonConformities.length - 6} autre(s).`);
-      }
-      doc.fillColor('#000000');
-    }
-
-    // —— Détail checklist par section ——
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(16).text('Détail de la checklist');
-    doc.moveDown(0.35);
-    doc.font('Helvetica').fontSize(9).fillColor('#64748b');
-    doc.text(
-      'Groupé par section / thème. Statuts : ✓ Conforme · ✗ Non conforme · ⚠ Partiel · N/A. Les photos encodées en base64 dans la checklist sont reproduites ci-dessous lorsque possible.',
-      { width: contentWidth }
-    );
-    doc.fillColor('#000000');
-    doc.moveDown(0.4);
-
-    let globalIdx = 0;
-    if (!checklistItems.length) {
-      doc.fontSize(10).fillColor('#64748b').text('Aucun point de checklist structuré pour cet audit.');
-    } else {
-      for (const sec of sectionOrder) {
-        const items = bySection.get(sec) || [];
-        if (doc.y > doc.page.height - 72) doc.addPage();
-        doc.fillColor(QHSE_GREEN).font('Helvetica-Bold').fontSize(11).text(sec, { width: contentWidth });
-        doc.fillColor('#000000');
-        doc.moveDown(0.2);
-        for (const item of items) {
-          globalIdx += 1;
-          if (doc.y > doc.page.height - 120) doc.addPage();
-          doc.font('Helvetica-Bold').fontSize(10).text(`${globalIdx}. ${item.point}`, { width: contentWidth });
-          const badgeFg =
-            item.statusToken === 'C'
-              ? '#166534'
-              : item.statusToken === 'NC'
-                ? '#991b1b'
-                : item.statusToken === 'P'
-                  ? '#854d0e'
-                  : '#475569';
-          doc.font('Helvetica-Bold').fontSize(8).fillColor(badgeFg).text(`   ${item.statusLabel}`, {
-            width: contentWidth,
-            indent: 6
-          });
-          doc.fillColor('#000000');
-          if (item.comment) {
-            doc.font('Helvetica').fontSize(9).fillColor('#334155');
-            doc.text(`Observation : ${item.comment}`, { width: contentWidth, indent: 10 });
-            doc.fillColor('#000000');
+  const listBlock = (title, rows) => `
+    <div class="list-block">
+      <h3>${escapeHtml(title)}</h3>
+      <table class="tbl">
+        <thead><tr><th style="width:32px">#</th><th>Libellé</th></tr></thead>
+        <tbody>
+          ${
+            rows.length
+              ? rows.map((line, idx) => `<tr><td>${idx + 1}.</td><td>${escapeHtml(line)}</td></tr>`).join('')
+              : `<tr><td colspan="2" class="empty">—</td></tr>`
           }
-          const imgBuf = item.photo ? tryDecodeDataUrlImage(item.photo) : null;
-          if (imgBuf) {
-            try {
-              const iy = doc.y + 4;
-              doc.image(imgBuf, 56, iy, { fit: [140, 100] });
-              doc.y = iy + 104;
-            } catch {
-              doc.fontSize(8).fillColor('#94a3b8').text('(Photo non affichable)', { indent: 10 });
-            }
-          }
-          doc.moveDown(0.25);
-          doc.strokeColor('#e2e8f0').lineWidth(0.5).moveTo(48, doc.y).lineTo(48 + contentWidth, doc.y).stroke();
-          doc.moveDown(0.3);
-        }
-      }
-    }
+        </tbody>
+      </table>
+    </div>`;
 
-    // —— Plan d’actions ——
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(16).text('Plan d’actions');
-    doc.moveDown(0.35);
-    doc.font('Helvetica').fontSize(9).fillColor('#64748b');
-    doc.text(
-      'Actions liées (relation audit ou mention de la référence dans le titre / le détail). Priorité déduite des libellés lorsque non structurée.',
-      { width: contentWidth }
-    );
-    doc.fillColor('#000000');
-    doc.moveDown(0.45);
+  const checklistSectionsHtml = !checklistItems.length
+    ? `<p class="muted">Aucun point de checklist structuré pour cet audit.</p>`
+    : sectionOrder
+        .map((sec) => {
+          const items = bySection.get(sec) || [];
+          const itemsHtml = items
+            .map((item) => {
+              const badgeClass =
+                item.statusToken === 'C'
+                  ? 'badge-ok'
+                  : item.statusToken === 'NC'
+                    ? 'badge-nc'
+                    : item.statusToken === 'P'
+                      ? 'badge-partial'
+                      : 'badge-na';
+              const imgBuf = item.photo ? tryDecodeDataUrlImage(item.photo) : null;
+              const imgHtml = imgBuf
+                ? `<img class="ck-photo" src="${escapeHtml(item.photo)}" alt="" />`
+                : '';
+              return `
+                <div class="ck-item">
+                  <div class="ck-item-head">
+                    <span class="ck-point">${escapeHtml(item.point)}</span>
+                    <span class="badge ${badgeClass}">${escapeHtml(item.statusLabel)}</span>
+                  </div>
+                  ${item.comment ? `<p class="ck-comment">Observation : ${escapeHtml(item.comment)}</p>` : ''}
+                  ${imgHtml}
+                </div>`;
+            })
+            .join('');
+          return `
+            <div class="ck-section">
+              <h3 class="ck-section-title">${escapeHtml(sec)}</h3>
+              ${itemsHtml}
+            </div>`;
+        })
+        .join('');
 
-    if (!actionsLinked.length) {
-      doc.fontSize(10).fillColor('#64748b').text('Aucune action liée à cet audit.');
-    } else {
-      const colDesc = contentWidth * 0.42;
-      const colOwn = contentWidth * 0.22;
-      const colDue = contentWidth * 0.18;
-      const colPri = contentWidth * 0.14;
-      let ty = doc.y;
-      const rowHeader = () => {
-        doc.rect(48, ty, contentWidth, 18).fill('#f8fafc').stroke('#e2e8f0');
-        doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8);
-        doc.text('Description', 52, ty + 5, { width: colDesc - 8 });
-        doc.text('Responsable', 48 + colDesc, ty + 5, { width: colOwn - 4 });
-        doc.text('Échéance', 48 + colDesc + colOwn, ty + 5, { width: colDue - 4 });
-        doc.text('Priorité', 48 + colDesc + colOwn + colDue, ty + 5, { width: colPri - 4 });
-        ty += 18;
-      };
-      rowHeader();
-      for (const a of actionsLinked) {
-        const owner = a.assignee?.name || a.owner || '—';
-        const due = a.dueDate ? formatFrDate(a.dueDate) : '—';
-        const pri = inferActionPriority(a);
-        const title = String(a.title || '—');
-        const detail = a.detail && String(a.detail).trim() ? String(a.detail).trim().slice(0, 200) : '';
-        const descBlock = detail ? `${title}\n${detail}` : title;
-        const priColor =
-          pri === 'Critique' ? '#991b1b' : pri === 'Haute' ? '#c2410c' : pri === 'Faible' ? '#64748b' : '#0f766e';
-        const estLines = Math.max(
-          2,
-          Math.ceil(descBlock.length / 52) + (descBlock.includes('\n') ? 1 : 0)
-        );
-        const rowH = Math.min(120, 14 + estLines * 10);
-        if (ty + rowH > doc.page.height - 56) {
-          doc.addPage();
-          ty = doc.y;
-          rowHeader();
-        }
-        const y0 = ty;
-        doc.rect(48, y0, contentWidth, rowH).stroke('#e2e8f0');
-        doc.fillColor('#000000').font('Helvetica').fontSize(8);
-        doc.text(descBlock, 52, y0 + 4, { width: colDesc - 8, lineGap: 1 });
-        doc.text(owner, 48 + colDesc, y0 + 4, { width: colOwn - 4, lineGap: 1 });
-        doc.text(due, 48 + colDesc + colOwn, y0 + 4, { width: colDue - 4, lineGap: 1 });
-        doc.fillColor(priColor).font('Helvetica-Bold');
-        doc.text(pri, 48 + colDesc + colOwn + colDue, y0 + 4, { width: colPri - 4 });
-        doc.fillColor('#000000');
-        ty = y0 + rowH;
-        doc.y = ty;
-      }
-    }
+  const actionsTableHtml = !actionsLinked.length
+    ? `<p class="muted">Aucune action liée à cet audit.</p>`
+    : `<table class="tbl">
+        <thead><tr><th>Description</th><th style="width:120px">Responsable</th><th style="width:90px">Échéance</th><th style="width:80px">Priorité</th></tr></thead>
+        <tbody>
+          ${actionsLinked
+            .map((a) => {
+              const owner = a.assignee?.name || a.owner || '—';
+              const due = a.dueDate ? formatFrDate(a.dueDate) : '—';
+              const pri = inferActionPriority(a);
+              const title = String(a.title || '—');
+              const detail = a.detail && String(a.detail).trim() ? String(a.detail).trim().slice(0, 200) : '';
+              const priClass =
+                pri === 'Critique' ? 'pri-critical' : pri === 'Haute' ? 'pri-high' : pri === 'Faible' ? 'pri-low' : 'pri-mid';
+              return `<tr>
+                <td>${escapeHtml(title)}${detail ? `<br/><span class="muted-inline">${escapeHtml(detail)}</span>` : ''}</td>
+                <td>${escapeHtml(owner)}</td>
+                <td>${escapeHtml(due)}</td>
+                <td><span class="pri ${priClass}">${escapeHtml(pri)}</span></td>
+              </tr>`;
+            })
+            .join('')}
+        </tbody>
+      </table>`;
 
-    const range = doc.bufferedPageRange();
-    for (let i = 0; i < range.count; i += 1) {
-      doc.switchToPage(range.start + i);
-      drawPageHeader(doc, audit.ref);
-      drawPageFooter(doc, i, range.count);
-    }
+  const ncOverviewHtml = audit.nonConformities?.length
+    ? `<div class="list-block">
+        <h3>Non-conformités référencées (aperçu)</h3>
+        <ul class="nc-list">
+          ${audit.nonConformities
+            .slice(0, 6)
+            .map((nc, i) => `<li>${i + 1}. ${escapeHtml(nc.title)}${nc.status ? ` — ${escapeHtml(nc.status)}` : ''}</li>`)
+            .join('')}
+        </ul>
+        ${audit.nonConformities.length > 6 ? `<p class="muted">… ${audit.nonConformities.length - 6} autre(s).</p>` : ''}
+      </div>`
+    : '';
 
-    doc.end();
-  });
+  const scorePct = Math.max(0, Math.min(100, Number.isFinite(score) ? score : 0));
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>Rapport d'audit ${escapeHtml(audit.ref)}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { margin: 0; }
+    body { margin: 0; padding: 0; font-family: Helvetica, Arial, sans-serif; color: #0f172a; font-size: 10pt; }
+    .cover { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24pt; }
+    .cover h1 { font-size: 22pt; margin: 0 0 18pt; }
+    .cover dl { font-size: 11pt; line-height: 1.7; margin: 0 0 18pt; }
+    .cover dl b { color: #334155; }
+    .score-bar-wrap { display: flex; align-items: center; gap: 12pt; margin: 8pt 0 18pt; }
+    .score-bar { width: 220pt; height: 16pt; border: 1pt solid #cbd5e1; border-radius: 8pt; overflow: hidden; background: #f1f5f9; }
+    .score-bar-fill { height: 100%; background: ${gaugeColor}; }
+    .score-label { font-size: 13pt; font-weight: 700; }
+    .cover-footer { color: #64748b; font-size: 9pt; }
+    .cover-brand { color: ${QHSE_GREEN}; font-weight: 800; font-size: 11pt; margin-top: 6pt; }
+    .section { padding: 4pt 0 18pt; }
+    h2 { font-size: 15pt; margin: 0 0 8pt; }
+    .muted { color: #64748b; font-size: 9pt; }
+    .muted-inline { color: #64748b; font-size: 8pt; }
+    .tbl { width: 100%; border-collapse: collapse; margin-top: 6pt; font-size: 9pt; }
+    .tbl th { background: ${QHSE_GREEN}; color: #fff; text-align: left; padding: 5pt 6pt; font-size: 8pt; text-transform: uppercase; }
+    .tbl td { border: 0.5pt solid #e2e8f0; padding: 5pt 6pt; vertical-align: top; }
+    .tbl td.empty { color: #64748b; text-align: center; }
+    .tbl tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .list-block { margin-top: 10pt; }
+    .nc-list { margin: 4pt 0; padding-left: 16pt; font-size: 9pt; color: #334155; }
+    .ck-section { margin-top: 12pt; break-inside: avoid-page; }
+    .ck-section-title { color: ${QHSE_GREEN}; font-size: 11pt; margin: 0 0 4pt; }
+    .ck-item { padding: 6pt 0; border-bottom: 0.5pt solid #e2e8f0; break-inside: avoid; page-break-inside: avoid; }
+    .ck-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8pt; }
+    .ck-point { font-weight: 700; font-size: 10pt; }
+    .badge { font-size: 8pt; font-weight: 700; padding: 2pt 6pt; border-radius: 3pt; white-space: nowrap; }
+    .badge-ok { color: #166534; background: #dcfce7; }
+    .badge-nc { color: #991b1b; background: #fee2e2; }
+    .badge-partial { color: #854d0e; background: #fef3c7; }
+    .badge-na { color: #475569; background: #f1f5f9; }
+    .ck-comment { color: #334155; font-size: 9pt; margin: 4pt 0 0; }
+    .ck-photo { max-width: 180pt; max-height: 130pt; margin-top: 6pt; border: 0.5pt solid #e2e8f0; }
+    .pri { font-size: 8pt; font-weight: 700; padding: 2pt 5pt; border-radius: 3pt; }
+    .pri-critical { color: #991b1b; background: #fee2e2; }
+    .pri-high { color: #c2410c; background: #ffedd5; }
+    .pri-mid { color: #0f766e; background: #ccfbf1; }
+    .pri-low { color: #64748b; background: #f1f5f9; }
+  </style></head><body>
+
+  <div class="cover">
+    <h1>RAPPORT D'AUDIT QHSE</h1>
+    <dl>
+      <div><b>Référence audit :</b> ${escapeHtml(audit.ref)}</div>
+      <div><b>Site audité :</b> ${escapeHtml(audit.site)}</div>
+      ${audit.siteRecord?.name ? `<div><b>Site référentiel :</b> ${escapeHtml(audit.siteRecord.name)}</div>` : ''}
+      <div><b>Date de l'audit :</b> ${escapeHtml(auditDateDisplay)}</div>
+      <div><b>Statut :</b> ${escapeHtml(statusCategory)}${audit.status && audit.status !== statusCategory ? ` (${escapeHtml(audit.status)})` : ''}</div>
+      <div><b>Auditeur responsable :</b> ${escapeHtml(auditeurDisplay)}</div>
+    </dl>
+    <div class="score-bar-wrap">
+      <div class="score-bar"><div class="score-bar-fill" style="width:${scorePct}%"></div></div>
+      <span class="score-label">${Number.isFinite(score) ? Math.round(score) : '—'} / 100</span>
+    </div>
+    <p class="cover-footer">Document généré le ${escapeHtml(formatFrDateTime(new Date()))} — usage confidentiel.</p>
+    <p class="cover-brand">QHSE Control Africa</p>
+  </div>
+
+  <div class="section">
+    <h2>Résumé exécutif</h2>
+    <p>Score global : ${Number.isFinite(score) ? `${Math.round(score)} / 100` : '—'} — Lecture : ${escapeHtml(interp.label)}</p>
+    <p class="muted">${escapeHtml(interp.detail)}</p>
+    <h3>Synthèse chiffrée</h3>
+    <p class="muted">Points checklist : ${checklistItems.length} — ✓ ${conformCount} conforme(s) · ✗ ${ncCount} non conforme(s) · ⚠ ${partialCount} partiel(s) · N/A ${naCount}</p>
+    <p class="muted">Non-conformités (fiches) : ${ncFiches} — Points checklist NC / partiel : ${checklistNcPoints}</p>
+    <p class="muted">Actions correctives recensées : ${actionsLinked.length} (dont ${openActions.length} à traiter au sens statut). Réf. audit citée : « ${escapeHtml(refToken)} ».</p>
+    ${listBlock('Points forts (extraits checklist — conformes)', strengths)}
+    ${listBlock('Points faibles / écarts (extraits checklist)', weaknesses)}
+    ${ncOverviewHtml}
+  </div>
+
+  <div class="section">
+    <h2>Détail de la checklist</h2>
+    <p class="muted">Groupé par section / thème. Statuts : ✓ Conforme · ✗ Non conforme · ⚠ Partiel · N/A. Les photos encodées en base64 dans la checklist sont reproduites ci-dessous lorsque possible.</p>
+    ${checklistSectionsHtml}
+  </div>
+
+  <div class="section">
+    <h2>Plan d'actions</h2>
+    <p class="muted">Actions liées (relation audit ou mention de la référence dans le titre / le détail). Priorité déduite des libellés lorsque non structurée.</p>
+    ${actionsTableHtml}
+  </div>
+
+  </body></html>`;
+
+  const { headerTemplate, footerTemplate } = buildAuditPdfHeaderFooterTemplates(audit.ref);
+  return renderHtmlToPdf(html, { headerTemplate, footerTemplate });
 }
