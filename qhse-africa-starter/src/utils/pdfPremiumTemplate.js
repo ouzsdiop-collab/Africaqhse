@@ -637,7 +637,21 @@ export function generatePremiumPdf(opts) {
 
   const docInner = includeCover ? `${cover}${innerMain}` : innerMain;
 
-  return `${premiumPdfStyles()}<div class="qhse-premium-doc">${docInner}</div>`;
+  const html = `${premiumPdfStyles()}<div class="qhse-premium-doc">${docInner}</div>`;
+
+  const brand = QHSE_PDF_BRAND;
+  const headerCenter = org ? `${title}  ·  ${org}` : title;
+  const headerTemplate = `<div style="-webkit-print-color-adjust:exact;width:100%;padding:0 14mm;display:flex;justify-content:space-between;align-items:flex-end;font-family:Arial,Helvetica,sans-serif;font-size:9px;border-bottom:1.5px solid #e2e8f0;padding-bottom:3px;box-sizing:border-box;">
+    <span style="font-weight:800;color:${brand};text-transform:uppercase;letter-spacing:0.06em;">QHSE Control Africa</span>
+    <span style="color:#334155;font-weight:600;">${escapeHtml(headerCenter)}</span>
+    <span style="color:#64748b;">${escapeHtml(dateStr)}</span>
+  </div>`;
+  const footerTemplate = `<div style="-webkit-print-color-adjust:exact;width:100%;padding:0 14mm;display:flex;justify-content:space-between;align-items:flex-start;font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:3px;box-sizing:border-box;">
+    <span>Document confidentiel · Usage interne</span>
+    <span style="color:#64748b;font-weight:700;">Page <span class="pageNumber"></span> / <span class="totalPages"></span></span>
+  </div>`;
+
+  return { html, headerTemplate, footerTemplate };
 }
 
 /**

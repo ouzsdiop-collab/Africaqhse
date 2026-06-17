@@ -105,27 +105,30 @@ function downloadActivityCsv(entries) {
   URL.revokeObjectURL(a.href);
 }
 
-function openActivityLogPdf(entries) {
-  const rows = entries
-    .map(
-      (e) =>
-        `<tr><td>${escapeHtml(e.module)}</td><td>${escapeHtml(e.action)}</td><td>${escapeHtml(e.detail)}</td><td>${escapeHtml(e.user)}</td><td>${escapeHtml(e.timestamp)}</td></tr>`
-    )
-    .join('');
-  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>Journal QHSE</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;padding:20px;font-size:11px;color:#111}
-h1{font-size:16px;margin:0 0 12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f4f4f5;font-size:10px;text-transform:uppercase}
-.foot{margin-top:16px;font-size:10px;color:#666}</style></head><body>
-<h1>Journal des modifications : export</h1>
-<table><thead><tr><th>Module</th><th>Action</th><th>Détail</th><th>Utilisateur</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>
-<p class="foot">Généré le ${escapeHtml(new Date().toLocaleString('fr-FR'))} · impression ou « Enregistrer au format PDF ».</p>
-<script>addEventListener('load',function(){setTimeout(function(){print()},200)})<\/script>
-</body></html>`;
-  const w = window.open('', '_blank');
-  if (w) {
-    w.document.write(html);
-    w.document.close();
-  }
+async function openActivityLogPdf(entries) {
+  const { buildTableRegisterPdf } = await import('../utils/pdfPremiumTemplate.js');
+  const { downloadQhsePremiumPdf } = await import('../utils/qhsePdfPremiumDelivery.js');
+  const rowsHtml = entries.map(
+    (e) =>
+      `<tr><td>${escapeHtml(e.module)}</td><td>${escapeHtml(e.action)}</td><td>${escapeHtml(e.detail)}</td><td>${escapeHtml(e.user)}</td><td>${escapeHtml(e.timestamp)}</td></tr>`
+  );
+  const { html, headerTemplate, footerTemplate } = buildTableRegisterPdf({
+    docTitle: 'Journal des modifications QHSE',
+    columns: [
+      { label: 'Module' },
+      { label: 'Action' },
+      { label: 'Détail' },
+      { label: 'Utilisateur' },
+      { label: 'Date' }
+    ],
+    rowsHtml,
+    landscape: true
+  });
+  await downloadQhsePremiumPdf(html, `journal-qhse-${new Date().toISOString().slice(0, 10)}.pdf`, {
+    landscape: true,
+    headerTemplate,
+    footerTemplate
+  });
 }
 
 /**

@@ -1474,7 +1474,7 @@ export function renderProcesses() {
 
         const conclusionHtml = `<p class="qhse-premium-muted" style="margin:0">Cette fiche reflète l'état des données à la date d'édition. Les actions de traitement des points de vigilance relèvent du pilote du processus, avec appui de la fonction QHSE.</p>`;
 
-        const html = generatePremiumPdf({
+        const { html, headerTemplate, footerTemplate } = generatePremiumPdf({
           title: proc.name || 'Processus',
           subtitle: `${TYPE_LABELS[proc.type] || proc.type || ''} · ${STATUS_LABELS[proc.status] || proc.status || ''}`,
           summary: `<p style="margin:0">${escapePdfText(execText)}</p>`,
@@ -1488,7 +1488,7 @@ export function renderProcesses() {
           includeCover: false,
           hideNarrativeIfEmpty: true
         });
-        await downloadQhsePremiumPdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`);
+        await downloadQhsePremiumPdf(html, `processus-${(proc.name || 'fiche').toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`, { headerTemplate, footerTemplate });
       } catch (err) {
         console.error('[processes] export pdf', err);
         showToast('Export PDF impossible', 'error');

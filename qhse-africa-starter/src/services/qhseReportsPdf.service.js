@@ -387,7 +387,7 @@ export async function downloadIsoPremiumPdf(standard, opts = {}, overrides = {})
     '../components/auditPremiumSaaS.pdf.js'
   );
 
-  const html = buildIsoPilotagePremiumPdfHtml({
+  const { html, headerTemplate, footerTemplate } = buildIsoPilotagePremiumPdfHtml({
     ...payload,
     // force standard pour le renderer (utile si endpoint compat ne renvoie pas meta.standard)
     meta: { ...(payload?.meta || {}), standard: payload?.meta?.standard || std },
@@ -405,7 +405,7 @@ export async function downloadIsoPremiumPdf(standard, opts = {}, overrides = {})
   }
 
   try {
-    await downloadAuditIsoPdfFromHtml(htmlSafe, base);
+    await downloadAuditIsoPdfFromHtml(htmlSafe, base, { headerTemplate, footerTemplate });
     showToast('PDF ISO premium généré.', 'success');
   } catch (pdfErr) {
     console.error('[iso premium] pdf capture', pdfErr);

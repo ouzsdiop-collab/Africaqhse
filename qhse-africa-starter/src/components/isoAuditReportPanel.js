@@ -332,11 +332,11 @@ export function openIsoAuditReportModal(report) {
     void (async () => {
       btnPdf.disabled = true;
       try {
-        const html = buildIsoAuditReportPdfHtml(report, {
+        const { html, headerTemplate, footerTemplate } = buildIsoAuditReportPdfHtml(report, {
           narrative: lastNarrative,
           narrativeSource: lastNarrativeSource || ''
         });
-        await downloadAuditIsoPdfFromHtml(html, 'rapport-audit-ia-iso');
+        await downloadAuditIsoPdfFromHtml(html, 'rapport-audit-ia-iso', { headerTemplate, footerTemplate });
       } catch (e) {
         console.error(e);
       } finally {
