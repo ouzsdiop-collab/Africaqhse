@@ -33,6 +33,14 @@ router.post('/render', express.json({ limit: '8mb' }), async (req, res, next) =>
     });
     res.send(pdf);
   } catch (e) {
+    console.error(
+      '[pdf/render] échec rendu PDF — filename:',
+      req.body?.filename,
+      'htmlLength:',
+      String(req.body?.html || '').length,
+      'message:',
+      e && e.message
+    );
     next(e);
   }
 });
