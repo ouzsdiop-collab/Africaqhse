@@ -1272,11 +1272,18 @@ export function renderDashboard() {
     return appState.activeSiteId ? 'Aucun sur ce site' : 'Aucune donnée';
   }
 
-  function exportDirectionToast() {
-    showToast(
-      'Export direction (PDF / CSV) : connecteur prêt à être relié à votre système documentaire.',
-      'info'
-    );
+  async function exportDirectionToast() {
+    try {
+      showToast('Génération du rapport PDF en cours…', 'info');
+      const res = await qhseFetch(withSiteQuery('/api/reports/summary'));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const { downloadAnalyticsSummaryPdf } = await import('../services/qhseReportsPdf.service.js');
+      await downloadAnalyticsSummaryPdf(data);
+    } catch (err) {
+      console.error('[dashboard] export direction pdf', err);
+      showToast('Export PDF impossible pour le moment.', 'error');
+    }
   }
 
   const ceoHero = createDashboardCeoHero(siteName, {
