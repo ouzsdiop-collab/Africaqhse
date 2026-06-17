@@ -1300,7 +1300,7 @@ export async function renderAudits() {
         100,
         Math.max(0, Math.round(LAST_AUDIT.score + scoreAdjust))
       );
-      const html = buildAuditIsoPdfHtml({
+      const { html, headerTemplate, footerTemplate } = buildAuditIsoPdfHtml({
         auditRef: LAST_AUDIT.ref,
         site: LAST_AUDIT.site,
         auditeur: LAST_AUDIT.auditeur,
@@ -1313,7 +1313,7 @@ export async function renderAudits() {
         traceRows: AUDIT_TRACE_ROWS,
         signerName: su?.name || 'Responsable audit'
       });
-      await downloadAuditIsoPdfFromHtml(html, `audit-iso-${LAST_AUDIT.ref}`);
+      await downloadAuditIsoPdfFromHtml(html, `audit-iso-${LAST_AUDIT.ref}`, { headerTemplate, footerTemplate });
       activityLogStore.add({
         module: 'audits',
         action: 'Export PDF ISO complet',

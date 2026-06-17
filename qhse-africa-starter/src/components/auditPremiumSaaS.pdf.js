@@ -10,12 +10,13 @@ import {
   QHSE_PDF_FOOTER_TAGLINE
 } from '../utils/pdfPremiumTemplate.js';
 
-export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase) {
+export async function downloadAuditIsoPdfFromHtml(htmlString, fileBase, opts = {}) {
   const { downloadQhsePremiumPdf } = await import('../utils/qhsePdfPremiumDelivery.js');
   const safeName = String(fileBase || 'audit-iso').replace(/[^\w.-]+/g, '_');
   const pdfName = safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`;
   await downloadQhsePremiumPdf(htmlString, pdfName, {
-    margin: { top: '16mm', right: '14mm', bottom: '20mm', left: '14mm' }
+    headerTemplate: opts.headerTemplate,
+    footerTemplate: opts.footerTemplate
   });
 }
 

@@ -2268,13 +2268,13 @@ export function renderIso(onAddLog) {
       );
       const pctEl = heroCard.querySelector('.iso-hero-stat-pct');
       const gapEl = heroCard.querySelector('.iso-hero-stat-gaps');
-      const html = buildIsoConformityPdfHtml({
+      const { html, headerTemplate, footerTemplate } = buildIsoConformityPdfHtml({
         globalScoreLabel: pctEl?.textContent?.trim() || 'Non disponible',
         gapsLabel: gapEl?.textContent?.trim() || 'Non disponible',
         normScores: buildIsoNormScoresForPdf(),
         requirementLines: requirementLinesForIsoPdf()
       });
-      await downloadAuditIsoPdfFromHtml(html, 'rapport-conformite-iso');
+      await downloadAuditIsoPdfFromHtml(html, 'rapport-conformite-iso', { headerTemplate, footerTemplate });
       if (typeof onAddLog === 'function') {
         onAddLog({
           module: 'iso',
