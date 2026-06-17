@@ -31,6 +31,13 @@ async function getBrowser() {
   return browser;
 }
 
+function isBrowserCrashError(err) {
+  const msg = String(err && err.message ? err.message : err || '');
+  return /Target closed|Session closed|Protocol error|Connection closed|Navigating frame was detached|Browser has disconnected/i.test(
+    msg
+  );
+}
+
 /**
  * Rend un document HTML autonome en PDF via Chromium headless (Puppeteer).
  * @param {string} html
@@ -44,6 +51,18 @@ async function getBrowser() {
  * @returns {Promise<Buffer>}
  */
 export async function renderHtmlToPdf(html, opts = {}) {
+  try {
+    return await renderOnce(html, opts);
+  } catch (err) {
+    if (!isBrowserCrashError(err)) throw err;
+    // Le navigateur partagé a planté/perdu son contexte : on le recycle et on retente une fois.
+    console.warn('[pdfRenderer] browser crash detected, recycling and retrying:', err.message);
+    browserPromise = null;
+    return renderOnce(html, opts);
+  }
+}
+
+async function renderOnce(html, opts) {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
@@ -71,7 +90,7 @@ export async function renderHtmlToPdf(html, opts = {}) {
     const pdf = await page.pdf(pdfOpts);
     return Buffer.from(pdf);
   } finally {
-    await page.close();
+    await page.close().catch(() => {});
   }
 }
 
