@@ -415,7 +415,7 @@ export function renderProcesses() {
       };
 
       const { buildTableRegisterPdf } = await import('../utils/pdfPremiumTemplate.js');
-      const { html } = buildTableRegisterPdf({
+      const { html: procHtml, headerTemplate: procHdr, footerTemplate: procFtr } = buildTableRegisterPdf({
         docTitle: 'Pilotage des processus',
         summaryHtml: summary,
         columns: [
@@ -430,7 +430,7 @@ export function renderProcesses() {
         landscape: true,
         reportDate: formatQhsePdfGenerationDate(),
       });
-      await downloadQhsePremiumPdf(html, 'pilotage-processus-synthese.pdf', { landscape: true });
+      await downloadQhsePremiumPdf(procHtml, 'pilotage-processus-synthese.pdf', { landscape: true, headerTemplate: procHdr, footerTemplate: procFtr });
     } catch (err) {
       console.error('[processes] export all pdf', err);
       showToast('Export PDF impossible', 'error');

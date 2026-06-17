@@ -163,7 +163,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     </tr>`;
   }
 
-  const { html } = buildTableRegisterPdf({
+  const { html, headerTemplate, footerTemplate } = buildTableRegisterPdf({
     docTitle,
     summaryHtml: `${summary}${matrixSection}`,
     columns: [
@@ -182,7 +182,7 @@ export async function downloadRisksRegisterPdf(risks, opts = {}) {
     organizationName: opts.organizationName,
     siteLabel: opts.siteLabel,
   });
-  await downloadQhsePremiumPdf(html, 'registre-risques.pdf', { landscape: true });
+  await downloadQhsePremiumPdf(html, 'registre-risques.pdf', { landscape: true, headerTemplate, footerTemplate });
 }
 
 /**
@@ -232,7 +232,7 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
     </tr>`;
   }
 
-  const { html } = buildTableRegisterPdf({
+  const { html: iHtml, headerTemplate: iHdr, footerTemplate: iFtr } = buildTableRegisterPdf({
     docTitle,
     summaryHtml: summary,
     columns: [
@@ -248,7 +248,7 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
     landscape: true,
     reportDate: formatQhsePdfGenerationDate(),
   });
-  await downloadQhsePremiumPdf(html, 'registre-incidents.pdf', { landscape: true });
+  await downloadQhsePremiumPdf(iHtml, 'registre-incidents.pdf', { landscape: true, headerTemplate: iHdr, footerTemplate: iFtr });
 }
 
 /**
@@ -489,12 +489,12 @@ export async function downloadPerformanceQhsePdf(ctx) {
     <p class="qhse-premium-muted">Document d'appui à la revue de direction. Données figées à l'export.</p>
   `;
 
-  const { html } = buildPremiumPdfFlow(`${page1}${page2}`, {
+  const { html: perfHtml, headerTemplate: perfHdr, footerTemplate: perfFtr } = buildPremiumPdfFlow(`${page1}${page2}`, {
     reportTitle: docTitle,
     siteLabel: ctx.siteLabel || '',
     reportDate: formatQhsePdfGenerationDate()
   });
-  await downloadQhsePremiumPdf(html, 'rapport-performance-qhse.pdf', {});
+  await downloadQhsePremiumPdf(perfHtml, 'rapport-performance-qhse.pdf', { headerTemplate: perfHdr, footerTemplate: perfFtr });
 }
 
 /**
@@ -539,11 +539,11 @@ export async function downloadAnalyticsSummaryPdf(data) {
     <p class="qhse-premium-muted">Vue instantanée à la génération. Usage interne.</p>
   `;
 
-  const { html } = buildPremiumPdfFlow(`${page1}${page2}`, {
+  const { html: anHtml, headerTemplate: anHdr, footerTemplate: anFtr } = buildPremiumPdfFlow(`${page1}${page2}`, {
     reportTitle: docTitle,
     reportDate: formatQhsePdfGenerationDate()
   });
-  await downloadQhsePremiumPdf(html, 'analytics-synthese-qhse.pdf', {});
+  await downloadQhsePremiumPdf(anHtml, 'analytics-synthese-qhse.pdf', { headerTemplate: anHdr, footerTemplate: anFtr });
 }
 
 /**
@@ -592,11 +592,11 @@ export async function downloadAnalyticsPeriodicPdf(data, meta) {
     <p class="qhse-premium-muted">Synthèse périodique. Données limitées au périmètre interrogé.</p>
   `;
 
-  const { html } = buildPremiumPdfFlow(`${page1}${page2}`, {
+  const { html: repHtml, headerTemplate: repHdr, footerTemplate: repFtr } = buildPremiumPdfFlow(`${page1}${page2}`, {
     reportTitle: docTitle,
     reportDate: formatQhsePdfGenerationDate()
   });
-  await downloadQhsePremiumPdf(html, 'reporting-periodique-qhse.pdf', {});
+  await downloadQhsePremiumPdf(repHtml, 'reporting-periodique-qhse.pdf', { headerTemplate: repHdr, footerTemplate: repFtr });
 }
 
 function formatPdfIsoDate(v) {

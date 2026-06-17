@@ -813,11 +813,11 @@ export function renderPermits() {
           <h2 class="qhse-premium-h2">Traçabilité</h2>
           <p class="qhse-premium-muted">Document généré depuis la fiche permis. Conserver les preuves de validation selon la procédure interne.</p>
         `;
-        const { html } = buildPremiumPdfFlow(body, {
+        const { html: permitHtml, headerTemplate: permitHdr, footerTemplate: permitFtr } = buildPremiumPdfFlow(body, {
           reportTitle: 'Permis de travail',
           reportDate: formatQhsePdfGenerationDate()
         });
-        await downloadQhsePremiumPdf(html, `permis-${it.id}.pdf`, {});
+        await downloadQhsePremiumPdf(permitHtml, `permis-${it.id}.pdf`, { headerTemplate: permitHdr, footerTemplate: permitFtr });
       } catch (e) {
         console.error(e);
       }

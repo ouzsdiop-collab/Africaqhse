@@ -1,12 +1,15 @@
 import { showToast } from '../components/toast.js';
 
 /**
- * Génère le PDF côté serveur (Chromium headless via Puppeteer) : rendu vectoriel net,
- * sauts de page CSS respectés. Bascule automatiquement sur la capture html2canvas
- * (downloadQhseChromePdf) en cas d'échec (timeout, route indisponible, etc.).
- * @param {string} html · document HTML complet (avec balises <style>)
+ * Génère le PDF côté serveur (Chromium headless via Puppeteer).
+ * Bascule automatiquement sur html2canvas en cas d'échec.
+ * @param {string} html
  * @param {string} filename
- * @param {{ landscape?: boolean; margin?: Record<string, string> }} [opts]
+ * @param {{
+ *   landscape?: boolean;
+ *   headerTemplate?: string;
+ *   footerTemplate?: string;
+ * }} [opts]
  */
 export async function downloadQhsePremiumPdf(html, filename, opts = {}) {
   const safe = String(filename || 'export').replace(/[^\w.-]+/g, '_');
@@ -14,19 +17,20 @@ export async function downloadQhsePremiumPdf(html, filename, opts = {}) {
   showToast('Génération du PDF en cours...', 'info');
   try {
     const { qhseFetch } = await import('./qhseFetch.js');
-    // Si html contient déjà <!DOCTYPE ou <html, l'utiliser tel quel, sinon envelopper
     const fullHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(html)
       ? html
       : `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body>${html}</body></html>`;
+    const body = {
+      html: fullHtml,
+      filename: name,
+      landscape: opts.landscape,
+    };
+    if (opts.headerTemplate) body.headerTemplate = opts.headerTemplate;
+    if (opts.footerTemplate) body.footerTemplate = opts.footerTemplate;
     const res = await qhseFetch('/api/pdf/render', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        html: fullHtml,
-        filename: name,
-        landscape: opts.landscape,
-        margin: opts.margin,
-      })
+      body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();

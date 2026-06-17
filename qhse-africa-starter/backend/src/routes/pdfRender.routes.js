@@ -6,7 +6,7 @@ const router = Router();
 
 /**
  * POST /api/pdf/render
- * Body: { html: string, filename?: string, landscape?: boolean, margin?: {...} }
+ * Body: { html, filename?, landscape?, headerTemplate?, footerTemplate? }
  * Réponse : application/pdf (rendu Chromium headless via Puppeteer).
  */
 router.post('/render', express.json({ limit: '8mb' }), async (req, res, next) => {
@@ -19,9 +19,12 @@ router.post('/render', express.json({ limit: '8mb' }), async (req, res, next) =>
       return res.status(400).json({ error: 'Champ "html" requis.' });
     }
     const filename = String(req.body?.filename || 'export.pdf').replace(/[^\w.-]+/g, '_');
+    const headerTemplate = req.body?.headerTemplate ? String(req.body.headerTemplate) : undefined;
+    const footerTemplate = req.body?.footerTemplate ? String(req.body.footerTemplate) : undefined;
     const pdf = await renderHtmlToPdf(html, {
       landscape: Boolean(req.body?.landscape),
-      margin: req.body?.margin,
+      headerTemplate,
+      footerTemplate,
     });
     res.set({
       'Content-Type': 'application/pdf',

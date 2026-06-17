@@ -15,7 +15,7 @@ export const navigationGroups = [
     collapsible: true,
     items: [
       { id: 'dashboard', label: 'Tableau de bord', icon: '◫' },
-      { id: 'processes', label: 'Pilotage des processus', icon: '⌬' },
+      { id: 'processes', label: 'Pilotage des processus', icon: '⟳' },
       { id: 'analytics', label: 'Analyses & synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
       { id: 'activity-log', label: 'Journal', icon: '≣' },

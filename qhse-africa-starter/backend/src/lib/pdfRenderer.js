@@ -33,8 +33,14 @@ async function getBrowser() {
 
 /**
  * Rend un document HTML autonome en PDF via Chromium headless (Puppeteer).
- * @param {string} html · document HTML complet (avec <style>)
- * @param {{ format?: string; landscape?: boolean; margin?: { top?: string; right?: string; bottom?: string; left?: string } }} [opts]
+ * @param {string} html
+ * @param {{
+ *   format?: string;
+ *   landscape?: boolean;
+ *   margin?: { top?: string; right?: string; bottom?: string; left?: string };
+ *   headerTemplate?: string;
+ *   footerTemplate?: string;
+ * }} [opts]
  * @returns {Promise<Buffer>}
  */
 export async function renderHtmlToPdf(html, opts = {}) {
@@ -42,13 +48,27 @@ export async function renderHtmlToPdf(html, opts = {}) {
   const page = await browser.newPage();
   try {
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
-    const pdf = await page.pdf({
+
+    const hasTemplates = Boolean(opts.headerTemplate || opts.footerTemplate);
+
+    const defaultMargin = hasTemplates
+      ? { top: '20mm', right: '14mm', bottom: '16mm', left: '14mm' }
+      : { top: '15mm', right: '14mm', bottom: '15mm', left: '14mm' };
+
+    const pdfOpts = {
       format: opts.format || 'A4',
       landscape: Boolean(opts.landscape),
       printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      preferCSSPageSize: true,
-    });
+      margin: opts.margin || defaultMargin,
+    };
+
+    if (hasTemplates) {
+      pdfOpts.displayHeaderFooter = true;
+      pdfOpts.headerTemplate = opts.headerTemplate || '<div></div>';
+      pdfOpts.footerTemplate = opts.footerTemplate || '<div></div>';
+    }
+
+    const pdf = await page.pdf(pdfOpts);
     return Buffer.from(pdf);
   } finally {
     await page.close();

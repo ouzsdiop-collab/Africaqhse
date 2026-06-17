@@ -263,7 +263,7 @@ async function buildHabilitationsPdfHtml({ title, subtitle = '', filtersText, ro
   `;
 
   const bodyContent = `${summaryHtml}<h2 class="qhse-premium-h2">Traçabilité et détail</h2>${buildRegistreTableHtml(rows, QHSE_PDF_EMPTY_MESSAGE)}`;
-  return { html: buildPremiumPdfFlow(bodyContent, { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() }).html };
+  return buildPremiumPdfFlow(bodyContent, { reportTitle: docTitle, reportDate: formatQhsePdfGenerationDate() });
 }
 
 /**
@@ -280,7 +280,7 @@ export async function downloadHabilitationsPdf(opts) {
   const result = await buildHabilitationsPdfHtml(opts, pdf);
   const safeName = String(opts.filename || 'rapport-habilitations').replace(/[^\w-]+/g, '_');
   const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
-  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, { landscape: true });
+  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, { landscape: true, headerTemplate: result.headerTemplate, footerTemplate: result.footerTemplate });
 }
 
 /**
@@ -378,5 +378,5 @@ export async function downloadHabilitationsConformitePdf({
   const result = buildConformitePdfHtml({ filtersText, kpis, bySite, rows });
   const safeName = String(filename || 'conformite-habilitations').replace(/[^\w-]+/g, '_');
   const { downloadQhsePremiumPdf } = await loadQhsePdfPremiumDelivery();
-  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`);
+  await downloadQhsePremiumPdf(result.html, `${safeName}.pdf`, { headerTemplate: result.headerTemplate, footerTemplate: result.footerTemplate });
 }
