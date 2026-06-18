@@ -38,7 +38,7 @@ function buildActionCreatedPayload(created, formFallback) {
  * @param {(payload?: ActionCreatedPayload) => void} [opts.onCreated]
  * @param {boolean} [opts.builtInSuccessToast=true] : toast « Action créée » si succès (mettre false si le parent gère tout le feedback).
  * @param {Array<{ id: string, name: string, role: string }>} opts.users
- * @param {Partial<{ title: string, origin: string, actionType: string, priority: string, description: string, dueDate: string, assigneeId: string, linkedRisk: string, linkedRiskId: string, linkedAudit: string, linkedIncident: string, status: string }>} [opts.defaults]
+ * @param {Partial<{ title: string, origin: string, actionType: string, priority: string, description: string, dueDate: string, assigneeId: string, linkedRisk: string, linkedRiskId: string, linkedAudit: string, linkedIncident: string, linkedNearMiss: string, status: string }>} [opts.defaults]
  */
 export function openActionCreateDialog(opts) {
   const { onCreated, users = [], defaults = {}, builtInSuccessToast = true } = opts;
@@ -104,6 +104,9 @@ export function openActionCreateDialog(opts) {
       <label>Incident lié (référence)
         <input type="text" name="linkedIncident" placeholder="Ex. INC-204" maxlength="120" />
       </label>
+      <label>Presque-accident lié (référence)
+        <input type="text" name="linkedNearMiss" placeholder="Ex. Glissade évitée quai 2" maxlength="200" />
+      </label>
       <label>Statut initial
         <select name="status">
           <option value="À lancer" selected>À lancer</option>
@@ -145,6 +148,7 @@ export function openActionCreateDialog(opts) {
     d.linkedRiskId != null && String(d.linkedRiskId).trim() ? String(d.linkedRiskId).trim() : '';
   if (d.linkedAudit != null) form.linkedAudit.value = String(d.linkedAudit);
   if (d.linkedIncident != null) form.linkedIncident.value = String(d.linkedIncident);
+  if (d.linkedNearMiss != null) form.linkedNearMiss.value = String(d.linkedNearMiss);
   if (d.status) form.querySelector('[name="status"]').value = String(d.status);
 
   inner.querySelector('[data-action="suggest-ia"]').addEventListener('click', () => {
@@ -174,6 +178,7 @@ export function openActionCreateDialog(opts) {
     const linkedRisk = String(fd.get('linkedRisk') || '').trim();
     const linkedAudit = String(fd.get('linkedAudit') || '').trim();
     const linkedIncident = String(fd.get('linkedIncident') || '').trim();
+    const linkedNearMiss = String(fd.get('linkedNearMiss') || '').trim();
 
     if (!title || !description || !origin) {
       showToast('Titre, description et origine sont obligatoires.', 'info');
@@ -226,6 +231,7 @@ export function openActionCreateDialog(opts) {
           linkedRisk: linkedRisk || undefined,
           linkedAudit: linkedAudit || undefined,
           linkedIncident: linkedIncident || undefined,
+          linkedNearMiss: linkedNearMiss || undefined,
           comments: [],
           history: []
         });

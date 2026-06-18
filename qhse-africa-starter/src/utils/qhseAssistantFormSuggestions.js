@@ -27,6 +27,26 @@ export function buildActionDefaultsFromIncident(inc) {
 }
 
 /**
+ * @param {{ title?: string, category?: string, occurredAt?: string }} nm
+ */
+export function buildActionDefaultsFromNearMiss(nm) {
+  const title = nm?.title || 'Presque-accident';
+  return {
+    title: `Préventive : ${title}`.slice(0, 240),
+    origin: 'other',
+    actionType: 'preventive',
+    priority: 'normale',
+    description: mockSuggestActionContent({
+      title,
+      origin: 'other',
+      actionType: 'preventive'
+    }).description,
+    linkedNearMiss: title,
+    dueDate: ''
+  };
+}
+
+/**
  * @param {{ title?: string, category?: string, meta?: string, status?: string }} risk
  */
 export function buildActionDefaultsFromCriticalRisk(risk) {
