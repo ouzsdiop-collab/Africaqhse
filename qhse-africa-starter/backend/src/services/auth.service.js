@@ -11,6 +11,7 @@ const REFRESH_EXPIRES = '30d';
 
 /** Jeton court dédié au flux « changement obligatoire du mot de passe » (pas d’accès API métier). */
 const PASSWORD_SETUP_EXPIRES = '15m';
+const MFA_PENDING_EXPIRES = '5m';
 
 /** Durée de validité d’un mot de passe provisoire après attribution (réinitialisation admin). */
 export const PROVISIONAL_PASSWORD_TTL_MS = 48 * 60 * 60 * 1000;
@@ -132,6 +133,42 @@ export function verifyPasswordSetupToken(token) {
   try {
     const payload = jwt.verify(raw, getJwtSecret());
     if (payload.typ !== 'pwd_setup') return null;
+    const sub = typeof payload.sub === 'string' ? payload.sub.trim() : '';
+    const tid = typeof payload.tid === 'string' ? payload.tid.trim() : '';
+    if (!sub || !tid) return null;
+    return { sub, tid };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Jeton intermédiaire émis quand l'identifiant + mot de passe sont valides mais que le
+ * compte a le MFA actif : ne permet rien d'autre que de poser un code TOTP/secours.
+ * @param {string} userId
+ * @param {string} tenantId
+ */
+export function issueMfaPendingToken(userId, tenantId) {
+  const uid = String(userId ?? '').trim();
+  const tid = String(tenantId ?? '').trim();
+  if (!uid || !tid) {
+    throw new Error('issueMfaPendingToken: userId et tenantId requis');
+  }
+  return jwt.sign({ sub: uid, typ: 'mfa_pending', tid }, getJwtSecret(), {
+    expiresIn: MFA_PENDING_EXPIRES
+  });
+}
+
+/**
+ * @param {string} token
+ * @returns {{ sub: string, tid: string } | null}
+ */
+export function verifyMfaPendingToken(token) {
+  const raw = typeof token === 'string' ? token.trim() : '';
+  if (!raw) return null;
+  try {
+    const payload = jwt.verify(raw, getJwtSecret());
+    if (payload.typ !== 'mfa_pending') return null;
     const sub = typeof payload.sub === 'string' ? payload.sub.trim() : '';
     const tid = typeof payload.tid === 'string' ? payload.tid.trim() : '';
     if (!sub || !tid) return null;
@@ -384,7 +421,8 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
           mustChangePassword: true,
           isActive: true,
           temporaryPasswordCreatedAt: true,
-          clientCode: true
+          clientCode: true,
+          mfaEnabled: true
         }
       })
     : await prisma.user.findUnique({
@@ -399,7 +437,8 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
           mustChangePassword: true,
           isActive: true,
           temporaryPasswordCreatedAt: true,
-          clientCode: true
+          clientCode: true,
+          mfaEnabled: true
         }
       });
 
@@ -434,7 +473,8 @@ export async function authenticateWithIdentifierAndPassword(identifier, password
     email: user.email,
     role: String(user.role ?? '').trim().toUpperCase(),
     status: effectiveStatus,
-    mustChangePassword: Boolean(user.mustChangePassword)
+    mustChangePassword: Boolean(user.mustChangePassword),
+    mfaEnabled: Boolean(user.mfaEnabled)
   };
 }
 

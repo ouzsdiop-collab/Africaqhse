@@ -166,6 +166,13 @@ model User {
   onboardingCompleted Boolean @default(false)
   onboardingStep      Int     @default(0)
 
+  /// MFA (TOTP) : secret chiffré (AES-256-GCM), actif seulement une fois confirmé par l'utilisateur.
+  mfaEnabled         Boolean   @default(false)
+  mfaSecretEncrypted String?
+  mfaEnrolledAt      DateTime?
+  /// Codes de secours à usage unique (hashés SHA-256, jamais stockés en clair), tableau JSON.
+  mfaBackupCodesHash String?
+
   memberships                TenantMember[]
   passwordResetTokens        PasswordResetToken[]
   assignedActions            Action[]           @relation("ActionAssignee")
