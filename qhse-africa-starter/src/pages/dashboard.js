@@ -69,6 +69,7 @@ import {
   isDashboardSignalsTotallyEmpty
 } from '../utils/dashboardMetrics.js';
 import { isDemoMode } from '../services/demoMode.service.js';
+import { createDashboardTerrainOpsSummary } from '../components/dashboardTerrainOpsSummary.js';
 
 const DASH_DECISION_STYLE_ID = 'qhse-dashboard-decision-styles';
 const DASH_INTELLIGENCE_STYLE_ID = 'qhse-dashboard-intelligence-styles';
@@ -1328,9 +1329,14 @@ export function renderDashboard() {
     alertsPrio.root
   );
 
+  const terrainOpsSummary = createDashboardTerrainOpsSummary();
+  const terrainOpsSection = document.createElement('section');
+  terrainOpsSection.className = 'dashboard-section';
+  terrainOpsSection.append(terrainOpsSummary.root);
+
   const bandCriticalAlerts = document.createElement('div');
   bandCriticalAlerts.className = 'dashboard-band dashboard-band--alerts dashboard-band--alerts-first';
-  bandCriticalAlerts.append(alertsSection);
+  bandCriticalAlerts.append(alertsSection, terrainOpsSection);
 
   const bandExecutiveSummary = document.createElement('div');
   bandExecutiveSummary.className = 'dashboard-band dashboard-band--executive-summary';
