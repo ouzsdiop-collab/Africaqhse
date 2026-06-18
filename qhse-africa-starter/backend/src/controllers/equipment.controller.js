@@ -1,0 +1,75 @@
+import * as equipmentService from '../services/equipment.service.js';
+import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
+import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
+
+export async function getAll(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const items = await equipmentService.findAllEquipment(req.qhseTenantId, siteId);
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAlerts(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const days = Number(req.query?.daysAhead ?? req.query?.days ?? 30);
+    const limit = Number(req.query?.limit ?? 50);
+    const alerts = await equipmentService.getEquipmentAlerts(req.qhseTenantId, {
+      daysAhead: Number.isFinite(days) ? days : 30,
+      limit: Number.isFinite(limit) ? limit : 50,
+      siteId
+    });
+    res.json({ alerts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function create(req, res, next) {
+  try {
+    const row = await equipmentService.createEquipment(req.qhseTenantId, req.body ?? {});
+    res.status(201).json(row);
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    next(err);
+  }
+}
+
+export async function update(req, res, next) {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    const row = await equipmentService.updateEquipment(req.qhseTenantId, id, req.body ?? {});
+    res.json(row);
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    next(err);
+  }
+}
+
+export async function remove(req, res, next) {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    await equipmentService.deleteEquipment(req.qhseTenantId, id);
+    res.status(204).send();
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    next(err);
+  }
+}
