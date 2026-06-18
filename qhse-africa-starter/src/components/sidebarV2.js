@@ -526,6 +526,9 @@ function ensureSidebarV2Styles() {
 .sidebar-v2__account-toggle[aria-expanded='true'] .sidebar-v2__account-chevron {
   transform: rotate(180deg);
 }
+.sidebar-v2__account-menu[hidden] {
+  display: none;
+}
 .sidebar-v2__account-menu {
   position: absolute;
   left: 0;
