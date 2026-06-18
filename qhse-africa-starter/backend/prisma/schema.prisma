@@ -617,6 +617,26 @@ model PreventionPlan {
   @@map("prevention_plans")
 }
 
+/// Veille réglementaire — registre de textes légaux/normatifs suivis par le client, curé manuellement (résumé assisté par IA, validé par l'utilisateur).
+model RegulatoryWatchEntry {
+  id                 String    @id @default(cuid())
+  tenantId           String?
+  title              String
+  country            String
+  category           String?
+  officialUrl        String?
+  sourceText         String?
+  summary            String?
+  keyObligationsJson Json      @default("[]")
+  effectiveDate      DateTime?
+  createdByUserId    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([tenantId, country])
+  @@map("regulatory_watch_entries")
+}
+
 model Process {
   id              String    @id @default(cuid())
   tenantId        String?
