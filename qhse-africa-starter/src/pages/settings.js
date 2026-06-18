@@ -317,6 +317,7 @@ export function renderSettings() {
       : []),
     { id: 'settings-anchor-exports', label: 'Exportations' },
     { id: 'settings-anchor-security-access', label: 'Sécurité & accès' },
+    { id: 'settings-anchor-mfa', label: 'Double authentification' },
     { id: 'settings-anchor-ref', label: 'Référentiels' },
     { id: 'settings-anchor-ia', label: 'IA' },
     { id: 'settings-anchor-cycle', label: 'Maîtrise' },
@@ -1055,6 +1056,139 @@ export function renderSettings() {
     const sw = secH.querySelector(`[data-sa-act="${key}"]`);
     if (sw) sw.setAttribute('aria-checked', sensitiveCfg.actions[key] ? 'true' : 'false');
   });
+
+  /* Authentification à deux facteurs (TOTP serveur) */
+  const secMfa = document.createElement('section');
+  secMfa.className = 'settings-section settings-section--mfa';
+  secMfa.id = 'settings-anchor-mfa';
+  secMfa.innerHTML = `
+    <header class="settings-section__head">
+      <p class="settings-section__kicker">I · Authentification à deux facteurs</p>
+      <h4 class="settings-section__title">Code de vérification à la connexion (MFA)</h4>
+      <p class="settings-section__lead">
+        Ajoute un code à 6 chiffres généré par une application d’authentification (Google Authenticator, Authy, etc.)
+        à chaque connexion, en plus du mot de passe. Recommandé pour les comptes administrateur.
+      </p>
+    </header>
+    <div data-mfa-idle>
+      <button type="button" class="btn btn-primary" data-mfa-start>Activer le MFA</button>
+    </div>
+    <div class="settings-subsection" data-mfa-enroll style="display:none">
+      <h5 class="settings-subsection__title">1. Scannez ou saisissez la clé dans votre application</h5>
+      <p class="settings-subsection__lead">Clé secrète (à saisir manuellement si pas de scan QR) :</p>
+      <p><code data-mfa-secret style="font-size:14px;word-break:break-all"></code></p>
+      <h5 class="settings-subsection__title">2. Entrez le code généré pour confirmer</h5>
+      <div class="settings-sensitive-pin-grid">
+        <label class="field">
+          <span>Code à 6 chiffres</span>
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" class="control-input" data-mfa-confirm-code maxlength="6" placeholder="123456" />
+        </label>
+      </div>
+      <div class="settings-actions-bar" style="margin-top:12px">
+        <button type="button" class="btn btn-primary" data-mfa-confirm>Confirmer et activer</button>
+        <button type="button" class="btn btn-secondary" data-mfa-cancel>Annuler</button>
+      </div>
+    </div>
+    <div class="settings-subsection" data-mfa-backup-codes style="display:none">
+      <h5 class="settings-subsection__title">Codes de secours</h5>
+      <p class="settings-subsection__lead">
+        Conservez-les en lieu sûr : chacun ne peut être utilisé qu’une seule fois si vous perdez l’accès à votre application d’authentification.
+      </p>
+      <ul data-mfa-codes-list style="font-family:monospace;font-size:14px;line-height:1.8"></ul>
+    </div>
+    <div data-mfa-enabled style="display:none">
+      <p class="settings-section__lead" style="color:var(--success,#22c55e)">MFA activé sur ce compte.</p>
+      <button type="button" class="btn btn-secondary" data-mfa-disable>Désactiver le MFA</button>
+    </div>
+  `;
+
+  const mfaIdle = secMfa.querySelector('[data-mfa-idle]');
+  const mfaStartBtn = secMfa.querySelector('[data-mfa-start]');
+  const mfaEnrollWrap = secMfa.querySelector('[data-mfa-enroll]');
+  const mfaSecretEl = secMfa.querySelector('[data-mfa-secret]');
+  const mfaConfirmCode = secMfa.querySelector('[data-mfa-confirm-code]');
+  const mfaConfirmBtn = secMfa.querySelector('[data-mfa-confirm]');
+  const mfaCancelBtn = secMfa.querySelector('[data-mfa-cancel]');
+  const mfaBackupWrap = secMfa.querySelector('[data-mfa-backup-codes]');
+  const mfaCodesList = secMfa.querySelector('[data-mfa-codes-list]');
+  const mfaEnabledWrap = secMfa.querySelector('[data-mfa-enabled]');
+  const mfaDisableBtn = secMfa.querySelector('[data-mfa-disable]');
+
+  function showMfaState(state) {
+    if (mfaIdle) mfaIdle.style.display = state === 'idle' ? 'block' : 'none';
+    if (mfaEnrollWrap) mfaEnrollWrap.style.display = state === 'enroll' ? 'block' : 'none';
+    if (mfaEnabledWrap) mfaEnabledWrap.style.display = state === 'enabled' ? 'block' : 'none';
+  }
+
+  mfaStartBtn?.addEventListener('click', async () => {
+    try {
+      const res = await qhseFetch('/api/mfa/enroll', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(typeof body.error === 'string' ? body.error : 'Activation impossible.', 'error');
+        return;
+      }
+      if (mfaSecretEl) mfaSecretEl.textContent = body.secret || '';
+      if (mfaConfirmCode) mfaConfirmCode.value = '';
+      if (mfaBackupWrap) mfaBackupWrap.style.display = 'none';
+      showMfaState('enroll');
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    }
+  });
+
+  mfaCancelBtn?.addEventListener('click', () => {
+    showMfaState('idle');
+  });
+
+  mfaConfirmBtn?.addEventListener('click', async () => {
+    const token = String(mfaConfirmCode?.value || '').trim();
+    if (!/^\d{6}$/.test(token)) {
+      showToast('Saisissez un code à 6 chiffres.', 'warning');
+      return;
+    }
+    try {
+      const res = await qhseFetch('/api/mfa/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.ok === false) {
+        showToast('Code invalide. Réessayez.', 'error');
+        return;
+      }
+      if (mfaCodesList) {
+        mfaCodesList.innerHTML = '';
+        (body.backupCodes || []).forEach((code) => {
+          const li = document.createElement('li');
+          li.textContent = code;
+          mfaCodesList.append(li);
+        });
+      }
+      if (mfaBackupWrap) mfaBackupWrap.style.display = 'block';
+      showMfaState('enabled');
+      showToast('MFA activé. Conservez vos codes de secours.', 'success');
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    }
+  });
+
+  mfaDisableBtn?.addEventListener('click', async () => {
+    try {
+      const res = await qhseFetch('/api/mfa/disable', { method: 'POST' });
+      if (!res.ok) {
+        showToast('Désactivation impossible.', 'error');
+        return;
+      }
+      showMfaState('idle');
+      showToast('MFA désactivé.', 'info');
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    }
+  });
+
+  showMfaState('idle');
 
   /* Référentiels */
   const secE = document.createElement('section');
@@ -1829,6 +1963,7 @@ export function renderSettings() {
     ...(secEmail ? [secEmail] : []),
     secD,
     secH,
+    secMfa,
     secE,
     secF,
     secG,
