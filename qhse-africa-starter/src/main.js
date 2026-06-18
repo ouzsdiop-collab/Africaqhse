@@ -444,6 +444,7 @@ const PAGE_IMPORT_LOADERS = {
   dashboard: () => import('./pages/dashboard.js'),
   'mines-demo': () => import('./pages/mines-demo.js'),
   incidents: () => import('./pages/incidents.js'),
+  'near-misses': () => import('./pages/nearMisses.js'),
   audits: () => import('./pages/audits.js'),
   iso: () => import('./pages/iso.js'),
   analytics: () => import('./pages/analytics.js'),
@@ -595,6 +596,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderTerrainMode();
     case 'incidents':
       return mod.renderIncidents(onAddLog);
+    case 'near-misses':
+      return mod.renderNearMisses();
     case 'risks':
       return mod.renderRisks();
     case 'processes':

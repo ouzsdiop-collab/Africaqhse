@@ -4,6 +4,7 @@ const allowedPages = [
   'mines-demo',
   'terrain-mode',
   'incidents',
+  'near-misses',
   'permits',
   'prevention-plans',
   'risks',

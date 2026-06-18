@@ -62,6 +62,7 @@ export const navigationGroups = [
     collapsible: true,
     items: [
       { id: 'incidents', label: 'Incidents', icon: '!' },
+      { id: 'near-misses', label: 'Presque-accidents', icon: '⚠' },
       { id: 'permits', label: 'Permis de travail', icon: '⌁' },
       { id: 'prevention-plans', label: 'Plans de prévention', icon: '🤝' }
     ]
@@ -116,6 +117,12 @@ export const pageTopbarById = {
     kicker: 'Opérations terrain',
     subtitle: 'Fiches événement, gravité, causes et actions liées jusqu’à clôture.',
     cta: { label: 'Aller au plan d’actions', pageId: 'actions' }
+  },
+  'near-misses': {
+    title: 'Presque-accidents',
+    kicker: 'Opérations terrain',
+    subtitle: 'Registre des presque-accidents et retours d’expérience : analyse et enseignements avant qu’un incident ne survienne.',
+    cta: { label: 'Voir les incidents', pageId: 'incidents' }
   },
   permits: {
     title: 'Permis de travail',

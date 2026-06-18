@@ -118,6 +118,7 @@ function signatureRoleLabel(role) {
 
 const MODULE_LABEL_FR = {
   incidents: 'Incidents',
+  'near-misses': 'Presque-accidents',
   risks: 'Risques',
   actions: 'Plan d’actions',
   permits: 'Permis de travail',
