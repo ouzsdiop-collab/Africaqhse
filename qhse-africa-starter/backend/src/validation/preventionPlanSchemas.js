@@ -34,6 +34,6 @@ export const updatePreventionPlanSchema = z
   .refine((o) => Object.keys(o).length > 0, { message: 'Au moins un champ requis' });
 
 export const signPreventionPlanSchema = z.object({
-  name: z.string().min(1),
-  signatureDataUrl: z.string().optional()
+  name: z.string().min(1).max(200),
+  signatureDataUrl: z.string().max(200_000).optional()
 });

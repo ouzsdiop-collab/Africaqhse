@@ -18,6 +18,7 @@ export async function startEnrollment(req, res, next) {
     const result = await mfaService.startMfaEnrollment(u.id, u.email);
     res.json(result);
   } catch (err) {
+    if (err.statusCode === 400) return sendJsonError(res, 400, err.message, req, { code: 'MFA_ALREADY_ENABLED' });
     next(err);
   }
 }
