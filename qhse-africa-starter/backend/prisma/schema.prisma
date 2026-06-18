@@ -76,6 +76,7 @@ model Site {
   processes           Process[]
   trainingSessions    TrainingSession[]
   preventionPlans     PreventionPlan[]
+  equipment           Equipment[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -187,6 +188,7 @@ model User {
   createdControlledDocuments ControlledDocument[] @relation("ControlledDocumentCreatedBy")
   refreshTokens              RefreshToken[]
   habilitations              Habilitation[]
+  assignedEquipment           Equipment[]
   trainingEnrollments        TrainingEnrollment[]
   createdIsoEvidences        IsoEvidence[] @relation("IsoEvidenceCreatedBy")
   validatedIsoEvidences      IsoEvidence[] @relation("IsoEvidenceValidatedBy")
@@ -259,6 +261,30 @@ model Habilitation {
   @@index([siteId])
   @@index([status])
   @@map("habilitations")
+}
+
+/// Registre des équipements et EPI : contrôles périodiques, péremption, affectation.
+model Equipment {
+  id              String    @id @default(cuid())
+  tenantId        String?
+  siteId          String?
+  siteRecord      Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  assignedUserId  String?
+  assignedUser    User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  name            String
+  category        String
+  serialNumber    String?
+  status          String    @default("in_service")
+  lastControlDate DateTime?
+  nextControlDate DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([siteId])
+  @@index([assignedUserId])
+  @@index([status])
+  @@map("equipment")
 }
 
 /// Catalogue des formations proposées (intitulé, obligation, périodicité de recyclage).
