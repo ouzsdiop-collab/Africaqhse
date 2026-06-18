@@ -75,6 +75,7 @@ model Site {
   products            Product[]
   processes           Process[]
   trainingSessions    TrainingSession[]
+  preventionPlans     PreventionPlan[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -580,10 +581,40 @@ model PermitToWork {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  preventionPlans PreventionPlan[]
+
   @@unique([tenantId, ref])
   @@index([siteId])
   @@index([status])
   @@map("permits_to_work")
+}
+
+/// Plan de prévention (coactivité entreprise extérieure) — inspection commune, risques d'interférence, signatures des deux parties.
+model PreventionPlan {
+  id                  String        @id @default(cuid())
+  tenantId            String?
+  ref                 String
+  siteId              String?
+  siteRecord          Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  externalCompanyName String
+  externalContact     String?
+  workDescription     String?
+  startDate           DateTime?
+  endDate             DateTime?
+  status              String        @default("draft")
+  inspectionDate      DateTime?
+  risksJson           Json          @default("[]")
+  clientSignature     Json?
+  contractorSignature Json?
+  permitId            String?
+  permit              PermitToWork? @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@unique([tenantId, ref])
+  @@index([siteId])
+  @@index([status])
+  @@map("prevention_plans")
 }
 
 model Process {
