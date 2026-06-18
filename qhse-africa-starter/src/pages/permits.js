@@ -126,6 +126,7 @@ const MODULE_LABEL_FR = {
   iso: 'ISO & conformité',
   products: 'Produits / FDS',
   habilitations: 'Habilitations',
+  equipment: 'Équipements / EPI',
   trainings: 'Formations',
   'regulatory-watch': 'Veille réglementaire',
   sites: 'Sites',

@@ -39,6 +39,7 @@ export const navigationGroups = [
       { id: 'audits', label: 'Audits', icon: '☑' },
       { id: 'products', label: 'Produits / FDS', icon: '⚗' },
       { id: 'habilitations', label: 'Habilitations', icon: '⛑' },
+      { id: 'equipment', label: 'Équipements / EPI', icon: '🥽' },
       { id: 'trainings', label: 'Formations', icon: '🎓' },
       { id: 'regulatory-watch', label: 'Veille réglementaire', icon: '📜' }
     ]
@@ -145,6 +146,12 @@ export const pageTopbarById = {
     kicker: 'Conformité',
     subtitle: 'Registre des habilitations terrain, sous-traitants, échéances et conformité multi-sites.',
     cta: { label: 'Voir les audits', pageId: 'audits' }
+  },
+  equipment: {
+    title: 'Équipements / EPI',
+    kicker: 'Conformité',
+    subtitle: 'Registre des équipements et EPI : contrôles périodiques, péremption, affectation.',
+    cta: { label: 'Voir les habilitations', pageId: 'habilitations' }
   },
   trainings: {
     title: 'Formations',
