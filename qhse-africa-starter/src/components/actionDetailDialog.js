@@ -93,6 +93,7 @@ export function createActionDetailDialog(opts = {}) {
         <dt>Risque lié</dt><dd data-ad-risk></dd>
         <dt>Audit lié</dt><dd data-ad-audit></dd>
         <dt>Incident lié</dt><dd data-ad-incident></dd>
+        <dt>Presque-accident lié</dt><dd data-ad-near-miss></dd>
       </dl>
     </div>
     <div class="action-detail-dialog__block" data-ad-process-block hidden>
@@ -187,18 +188,21 @@ export function createActionDetailDialog(opts = {}) {
     const riskEl = inner.querySelector('[data-ad-risk]');
     const auditEl = inner.querySelector('[data-ad-audit]');
     const incEl = inner.querySelector('[data-ad-incident]');
-    if (!riskEl || !auditEl || !incEl) return;
+    const nmEl = inner.querySelector('[data-ad-near-miss]');
+    if (!riskEl || !auditEl || !incEl || !nmEl) return;
     if (!editMode) {
       riskEl.textContent = o.linkedRisk?.trim() || 'Non renseigné';
       auditEl.textContent = o.linkedAudit?.trim() || 'Non renseigné';
       const incApi = currentRow?.incident?.ref || currentRow?.incidentId || '';
       incEl.textContent =
         o.linkedIncident?.trim() || (incApi ? String(incApi) : 'Non renseigné');
+      nmEl.textContent = o.linkedNearMiss?.trim() || 'Non renseigné';
       return;
     }
     riskEl.replaceChildren();
     auditEl.replaceChildren();
     incEl.replaceChildren();
+    nmEl.replaceChildren();
     const mk = (val, key) => {
       const inp = document.createElement('input');
       inp.type = 'text';
@@ -215,6 +219,7 @@ export function createActionDetailDialog(opts = {}) {
     riskEl.append(mk(o.linkedRisk || '', 'linkedRisk'));
     auditEl.append(mk(o.linkedAudit || '', 'linkedAudit'));
     incEl.append(mk(o.linkedIncident || '', 'linkedIncident'));
+    nmEl.append(mk(o.linkedNearMiss || '', 'linkedNearMiss'));
   }
 
   function renderProgressControl(row, actionId) {

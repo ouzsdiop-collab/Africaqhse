@@ -3,6 +3,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { createLinkedActionFromNearMiss } from '../utils/nearMissesActions.js';
 
 const STATUS_LABELS = {
   open: 'Ouvert',
@@ -26,6 +27,7 @@ export function renderNearMisses() {
   const su = getSessionUser();
   const canRead = canResource(su?.role, 'near-misses', 'read');
   const canWrite = canResource(su?.role, 'near-misses', 'write');
+  const canWriteActions = canResource(su?.role, 'actions', 'write');
 
   page.innerHTML = `
     <article class="content-card card-soft">
@@ -140,6 +142,19 @@ export function renderNearMisses() {
         sub.textContent = parts.filter(Boolean).join(' · ');
         left.append(title, sub);
         row.append(left);
+        const rowActions = document.createElement('div');
+        rowActions.style.display = 'flex';
+        rowActions.style.gap = '8px';
+        if (canWriteActions) {
+          const linkBtn = document.createElement('button');
+          linkBtn.type = 'button';
+          linkBtn.className = 'btn btn-secondary';
+          linkBtn.textContent = 'Créer une action liée';
+          linkBtn.addEventListener('click', () => {
+            void createLinkedActionFromNearMiss(rec);
+          });
+          rowActions.append(linkBtn);
+        }
         if (canWrite) {
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
@@ -156,8 +171,9 @@ export function renderNearMisses() {
               showToast('Suppression impossible', 'error');
             }
           });
-          row.append(delBtn);
+          rowActions.append(delBtn);
         }
+        if (rowActions.childElementCount) row.append(rowActions);
         listHost.append(row);
       });
     } catch {

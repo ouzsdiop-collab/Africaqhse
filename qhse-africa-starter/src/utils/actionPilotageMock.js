@@ -18,6 +18,7 @@ const STORAGE_KEY = 'qhse-action-pilotage-overlay-v1';
  * @property {string} [linkedRisk]
  * @property {string} [linkedAudit]
  * @property {string} [linkedIncident]
+ * @property {string} [linkedNearMiss]
  * @property {ActionComment[]} [comments]
  * @property {ActionHistoryLine[]} [history]
  */
