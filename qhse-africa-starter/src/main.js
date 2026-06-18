@@ -455,6 +455,7 @@ const PAGE_IMPORT_LOADERS = {
   trainings: () => import('./pages/trainings.js'),
   'terrain-mode': () => import('./pages/terrain-mode.js'),
   permits: () => import('./pages/permits.js'),
+  'prevention-plans': () => import('./pages/preventionPlans.js'),
   products: () => import('./pages/products.js'),
   imports: () => import('./pages/imports.js'),
   sites: () => import('./pages/sites.js'),
@@ -599,6 +600,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderActions();
     case 'permits':
       return mod.renderPermits();
+    case 'prevention-plans':
+      return mod.renderPreventionPlans();
     case 'iso':
       return mod.renderIso(onAddLog);
     case 'audits':

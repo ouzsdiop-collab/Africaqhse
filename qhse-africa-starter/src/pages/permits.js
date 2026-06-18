@@ -121,6 +121,7 @@ const MODULE_LABEL_FR = {
   risks: 'Risques',
   actions: 'Plan d’actions',
   permits: 'Permis de travail',
+  'prevention-plans': 'Plans de prévention',
   audits: 'Audits',
   iso: 'ISO & conformité',
   products: 'Produits / FDS',

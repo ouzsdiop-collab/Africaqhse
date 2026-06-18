@@ -47,7 +47,8 @@ export const navigationGroups = [
     collapsible: true,
     items: [
       { id: 'incidents', label: 'Incidents', icon: '!' },
-      { id: 'permits', label: 'Permis de travail', icon: '⌁' }
+      { id: 'permits', label: 'Permis de travail', icon: '⌁' },
+      { id: 'prevention-plans', label: 'Plans de prévention', icon: '🤝' }
     ]
   },
   {
@@ -149,6 +150,12 @@ export const pageTopbarById = {
     kicker: 'Conformité',
     subtitle: 'Catalogue de formations, sessions planifiées, inscriptions et alertes de recyclage.',
     cta: { label: 'Voir les habilitations', pageId: 'habilitations' }
+  },
+  'prevention-plans': {
+    title: 'Plans de prévention',
+    kicker: 'Opérations',
+    subtitle: 'Coactivité avec les entreprises extérieures : inspection commune, risques d’interférence et signatures.',
+    cta: { label: 'Voir les permis de travail', pageId: 'permits' }
   },
   imports: {
     title: 'Import de documents',
