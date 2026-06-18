@@ -76,10 +76,12 @@ export async function streamByToken(req, res, next) {
         role: String(user?.role ?? '').trim().toUpperCase()
       };
     }
-    if (doc.tenantId) {
-      if (!v.tenantId || v.tenantId !== doc.tenantId) {
-        return res.status(401).json({ error: 'Jeton invalide ou expiré.' });
-      }
+    // Comparaison stricte (y compris null === null) : un jeton émis pour un tenant
+    // ne doit jamais permettre de streamer un document d'un autre tenant, y compris
+    // les documents legacy sans tenant (tenantId null) qui ne doivent rester
+    // accessibles qu'à des jetons eux-mêmes sans tenant.
+    if ((v.tenantId ?? null) !== (doc.tenantId ?? null)) {
+      return res.status(401).json({ error: 'Jeton invalide ou expiré.' });
     }
     if (!controlledDocumentService.canAccessControlledDocument(qhseUser, doc.classification, 'read')) {
       return res.status(403).json({ error: 'Accès refusé pour cette classification.' });
