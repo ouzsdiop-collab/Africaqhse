@@ -44,6 +44,7 @@ import isoRouter from './routes/iso.routes.js';
 import ptwRouter from './routes/ptw.routes.js';
 import templatesRouter from './routes/templates.routes.js';
 import mfaRouter from './routes/mfa.routes.js';
+import trainingRouter from './routes/training.routes.js';
 import smiRouter from './routes/smi.routes.js';
 import pdfRenderRouter from './routes/pdfRender.routes.js';
 import { attachRequestUser } from './middleware/requestUser.middleware.js';
@@ -279,6 +280,7 @@ app.use('/api/pdf', pdfRenderRouter);
 app.use('/api/ptw', ptwRouter);
 app.use('/api/templates', templatesRouter);
 app.use('/api/mfa', mfaRouter);
+app.use('/api/trainings', trainingRouter);
 
 // Swagger UI — desactive en production si besoin
 // En production, Swagger/docs ne doit jamais être exposé sans ENABLE_SWAGGER=true.
