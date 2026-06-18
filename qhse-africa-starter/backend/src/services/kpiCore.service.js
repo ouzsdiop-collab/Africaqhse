@@ -175,6 +175,9 @@ function isActionClosedForDashboardKpiSqlMirror(st) {
   );
 }
 
+// `$queryRawUnsafe` ci-dessous : sûr car les fragments SQL (noms de colonnes, clauses LIKE)
+// sont des littéraux statiques ; les seules valeurs dynamiques (tenantId, siteId) sont
+// toujours passées en paramètres liés (`?` + arguments), jamais concaténées dans la requête.
 /** Fragment SQL : statuts considérés comme clôturés (miroir de `isActionClosedForDashboardKpiSqlMirror`). */
 const SQL_ACTION_NOT_CLOSED_FOR_OVERDUE = `NOT (
   LOWER(COALESCE(status, '')) LIKE '%termin%'

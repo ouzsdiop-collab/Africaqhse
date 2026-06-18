@@ -98,6 +98,9 @@ function parseBoundaryInput(raw, kind) {
  *   tenantId: string | null | undefined
  * }} p
  */
+// `$queryRawUnsafe` dans cette fonction : sûr car les noms de colonnes/clauses SQL sont des
+// littéraux statiques ; les valeurs dynamiques (tenantId, siteId, assigneeId, dates) sont
+// toujours passées en paramètres liés (`?` + arguments), jamais concaténées dans la requête.
 export async function getPeriodicReport(p) {
   const { start, end, siteId, assigneeId, tenantId } = p;
   const tidStr = normalizeTenantId(tenantId);
