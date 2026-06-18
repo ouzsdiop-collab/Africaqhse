@@ -1505,8 +1505,189 @@ async function main() {
     }
   }
 
+  /** Équipements / EPI — registre démo (contrôles passés et à venir pour illustrer les alertes). */
+  await prisma.equipment.deleteMany({ where: { tenantId: DEFAULT_TENANT_ID } });
+  const equipmentSeeds = [
+    {
+      name: 'Harnais antichute HA-12',
+      category: 'EPI travail en hauteur',
+      serialNumber: 'EPI-HA-0012',
+      siteId: KATIOLA_MINE_YAKRO,
+      assignedUserId: extraction?.id ?? null,
+      lastControlDate: daysAgo(180),
+      nextControlDate: daysFromNow(15)
+    },
+    {
+      name: 'Détecteur de gaz portable DG-04',
+      category: 'Détection',
+      serialNumber: 'EPI-DG-0004',
+      siteId: KATIOLA_USINE_ABJ,
+      assignedUserId: concassage?.id ?? null,
+      lastControlDate: daysAgo(150),
+      nextControlDate: daysFromNow(5)
+    },
+    {
+      name: 'Casque de chantier C-118',
+      category: 'EPI protection tête',
+      serialNumber: 'EPI-CQ-0118',
+      siteId: KATIOLA_EXPLORATION_BON,
+      assignedUserId: forage?.id ?? null,
+      lastControlDate: daysAgo(90),
+      nextControlDate: daysFromNow(90)
+    },
+    {
+      name: 'Extincteur CO2 9kg EX-07',
+      category: 'Incendie',
+      serialNumber: 'EPI-EX-0007',
+      siteId: KATIOLA_USINE_ABJ,
+      assignedUserId: null,
+      lastControlDate: daysAgo(370),
+      nextControlDate: daysAgo(5),
+      status: 'out_of_service'
+    },
+    {
+      name: 'Masque respiratoire complet MR-21',
+      category: 'EPI respiratoire',
+      serialNumber: 'EPI-MR-0021',
+      siteId: KATIOLA_MINE_YAKRO,
+      assignedUserId: extraction?.id ?? null,
+      lastControlDate: daysAgo(60),
+      nextControlDate: daysFromNow(300)
+    },
+    {
+      name: 'Treuil de levage TL-03',
+      category: 'Levage',
+      serialNumber: 'EQP-TL-0003',
+      siteId: KATIOLA_MINE_YAKRO,
+      assignedUserId: null,
+      lastControlDate: daysAgo(200),
+      nextControlDate: daysFromNow(20),
+      status: 'in_repair'
+    }
+  ];
+  for (const e of equipmentSeeds) {
+    await prisma.equipment.create({
+      data: {
+        tenantId: DEFAULT_TENANT_ID,
+        siteId: e.siteId,
+        assignedUserId: e.assignedUserId,
+        name: e.name,
+        category: e.category,
+        serialNumber: e.serialNumber,
+        status: e.status ?? 'in_service',
+        lastControlDate: e.lastControlDate,
+        nextControlDate: e.nextControlDate
+      }
+    });
+  }
+
+  /** Suivi environnemental — relevés démo répartis par type pour illustrer la synthèse. */
+  await prisma.environmentalRecord.deleteMany({ where: { tenantId: DEFAULT_TENANT_ID } });
+  const environmentalSeeds = [
+    { type: 'waste', category: 'Déchets dangereux', quantity: 1240, unit: 'kg', periodDate: daysAgo(25), siteId: KATIOLA_MINE_YAKRO },
+    { type: 'waste', category: 'Déchets banals', quantity: 860, unit: 'kg', periodDate: daysAgo(25), siteId: KATIOLA_USINE_ABJ },
+    { type: 'water', category: 'Eau process', quantity: 320, unit: 'm3', periodDate: daysAgo(20), siteId: KATIOLA_USINE_ABJ },
+    { type: 'water', category: 'Eau potable camp', quantity: 45, unit: 'm3', periodDate: daysAgo(18), siteId: KATIOLA_EXPLORATION_BON },
+    { type: 'energy', category: 'Électricité réseau', quantity: 18500, unit: 'kWh', periodDate: daysAgo(10), siteId: KATIOLA_USINE_ABJ },
+    { type: 'energy', category: 'Gasoil groupes électrogènes', quantity: 2100, unit: 'L', periodDate: daysAgo(10), siteId: KATIOLA_MINE_YAKRO },
+    { type: 'water', category: 'Eau process', quantity: 298, unit: 'm3', periodDate: daysAgo(50), siteId: KATIOLA_USINE_ABJ }
+  ];
+  for (const r of environmentalSeeds) {
+    await prisma.environmentalRecord.create({
+      data: {
+        tenantId: DEFAULT_TENANT_ID,
+        siteId: r.siteId,
+        type: r.type,
+        category: r.category,
+        quantity: r.quantity,
+        unit: r.unit,
+        periodDate: r.periodDate
+      }
+    });
+  }
+
+  /** Presque-accidents / retours d'expérience — registre démo, statuts variés. */
+  await prisma.nearMiss.deleteMany({ where: { tenantId: DEFAULT_TENANT_ID } });
+  const nearMissSeeds = [
+    {
+      title: 'Chute de pierre évitée en zone de forage',
+      category: 'Chute d’objet',
+      occurredAt: daysAgo(40),
+      location: 'Front de forage Yakouro',
+      siteId: KATIOLA_MINE_YAKRO,
+      immediateActions: 'Périmètre balisé, accès suspendu 2h',
+      lessonsLearned: 'Renforcer le contrôle des purges de paroi avant chaque poste',
+      status: 'closed'
+    },
+    {
+      title: 'Glissade sur sol humide atelier lixiviation',
+      category: 'Glissade / chute de plain-pied',
+      occurredAt: daysAgo(22),
+      location: 'Atelier lixiviation — Usine Abidjan',
+      siteId: KATIOLA_USINE_ABJ,
+      immediateActions: 'Nettoyage immédiat, signalisation sol mouillé posée',
+      lessonsLearned: 'Étudier un revêtement antidérapant pour la zone',
+      status: 'under_review'
+    },
+    {
+      title: 'Quasi-collision engin / piéton zone de circulation',
+      category: 'Circulation engins',
+      occurredAt: daysAgo(12),
+      location: 'Piste principale — Mine Yakouro',
+      siteId: KATIOLA_MINE_YAKRO,
+      immediateActions: 'Rappel consignes de circulation à l’équipe',
+      lessonsLearned: null,
+      status: 'open'
+    },
+    {
+      title: 'Détecteur de gaz déclenché sans exposition confirmée',
+      category: 'Détection / atmosphère',
+      occurredAt: daysAgo(8),
+      location: 'Bassin de stockage — Usine Abidjan',
+      siteId: KATIOLA_USINE_ABJ,
+      immediateActions: 'Évacuation zone, contrôle capteur',
+      lessonsLearned: null,
+      status: 'open'
+    },
+    {
+      title: 'Câble de levage usé repéré avant rupture',
+      category: 'Levage',
+      occurredAt: daysAgo(55),
+      location: 'Mine Yakouro',
+      siteId: KATIOLA_MINE_YAKRO,
+      immediateActions: 'Câble remplacé, équipement consigné',
+      lessonsLearned: 'Réduire l’intervalle de contrôle visuel des câbles de levage',
+      status: 'closed'
+    },
+    {
+      title: 'Tente de camp instable lors d’un coup de vent',
+      category: 'Conditions climatiques',
+      occurredAt: daysAgo(5),
+      location: 'Camp exploration Bondoukou',
+      siteId: KATIOLA_EXPLORATION_BON,
+      immediateActions: 'Renfort des ancrages réalisé',
+      lessonsLearned: null,
+      status: 'under_review'
+    }
+  ];
+  for (const n of nearMissSeeds) {
+    await prisma.nearMiss.create({
+      data: {
+        tenantId: DEFAULT_TENANT_ID,
+        siteId: n.siteId,
+        title: n.title,
+        category: n.category,
+        occurredAt: n.occurredAt,
+        location: n.location,
+        immediateActions: n.immediateActions,
+        lessonsLearned: n.lessonsLearned,
+        status: n.status
+      }
+    });
+  }
+
   console.log(
-    '[seed] 3 sites (KATIOLA_MINE_YAKRO, KATIOLA_USINE_ABJ, KATIOLA_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits, 8 processus.'
+    '[seed] 3 sites (KATIOLA_MINE_YAKRO, KATIOLA_USINE_ABJ, KATIOLA_EXPLORATION_BON), 8 utilisateurs, 23 incidents, 11 risques, 33 actions, 10 audits, 7 NC, 8 habilitations, 6 produits, 8 processus, 6 équipements, 7 relevés environnementaux, 6 presque-accidents.'
   );
   console.log(
     '[seed] Données rattachées au tenant par défaut (qhse_default_tenant).'
