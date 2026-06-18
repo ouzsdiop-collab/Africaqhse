@@ -23,7 +23,8 @@ export const adminCreateClientBodySchema = z.object({
 export const adminPatchTenantBodySchema = z.object({
   name: z.string().trim().min(2).max(200).optional(),
   status: z.enum(['active', 'trial', 'suspended']).optional(),
-  modules: z.record(z.string(), z.boolean()).optional()
+  modules: z.record(z.string(), z.boolean()).optional(),
+  country: z.string().trim().length(2).optional()
 });
 
 const tenantUserRoleSchema = z

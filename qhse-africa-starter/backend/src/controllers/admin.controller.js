@@ -428,17 +428,21 @@ export async function patchTenant(req, res, next) {
       return sendJsonError(res, 404, 'Entreprise introuvable.', req, { code: 'NOT_FOUND' });
     }
 
-    const { name, status, modules } = parsed.data;
+    const { name, status, modules, country } = parsed.data;
     const data = {};
     if (name != null) data.name = name;
     if (status != null) data.status = status;
     if (modules != null && typeof modules === 'object') {
-      const cur = normalizeSettings(existing.settings);
+      const cur = normalizeSettings(data.settings ?? existing.settings);
       const curModules =
         cur.modules && typeof cur.modules === 'object' && !Array.isArray(cur.modules)
           ? cur.modules
           : {};
       data.settings = { ...cur, modules: { ...curModules, ...modules } };
+    }
+    if (country != null) {
+      const cur = normalizeSettings(data.settings ?? existing.settings);
+      data.settings = { ...cur, country: country.toUpperCase() };
     }
 
     if (Object.keys(data).length === 0) {
