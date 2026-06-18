@@ -19,6 +19,48 @@ function fmtDate(iso) {
   }
 }
 
+const TREND_WINDOW_DAYS = 30;
+
+function isoDateOnly(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+async function fetchEnvironmentalSummary(params) {
+  try {
+    const qs = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await qhseFetch(`/api/environmental/summary${qs}`);
+    if (!res.ok) return null;
+    const body = await res.json().catch(() => ({}));
+    return Array.isArray(body?.summary) ? body.summary : [];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compare la fenêtre des N derniers jours à la fenêtre précédente, par type.
+ * @param {{ totalQuantity?: number }[] | null} current
+ * @param {{ totalQuantity?: number }[] | null} previous
+ * @param {string} type
+ */
+function buildTrendLine(current, previous, type) {
+  const c = current?.find((s) => s.type === type)?.totalQuantity ?? 0;
+  const p = previous?.find((s) => s.type === type)?.totalQuantity ?? 0;
+  if (p > 0) {
+    const pct = Math.round(((c - p) / p) * 100);
+    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '→';
+    const sign = pct > 0 ? '+' : '';
+    return {
+      text: `${arrow} ${sign}${pct} % vs ${TREND_WINDOW_DAYS} j précédents`,
+      tone: pct > 0 ? 'risk' : pct < 0 ? 'ok' : 'flat'
+    };
+  }
+  if (c > 0) {
+    return { text: `Nouveau sur ${TREND_WINDOW_DAYS} j (pas de référence)`, tone: 'flat' };
+  }
+  return null;
+}
+
 export function renderEnvironmental() {
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas environmental-page';
@@ -111,10 +153,17 @@ export function renderEnvironmental() {
   async function refreshSummary() {
     summaryHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Chargement…</p>';
     try {
-      const res = await qhseFetch('/api/environmental/summary');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = await res.json();
-      const summary = Array.isArray(body?.summary) ? body.summary : [];
+      const now = new Date();
+      const curStart = new Date(now.getTime() - TREND_WINDOW_DAYS * 86400000);
+      const prevStart = new Date(now.getTime() - 2 * TREND_WINDOW_DAYS * 86400000);
+      const prevEnd = new Date(curStart.getTime() - 86400000);
+
+      const [summary, currentWindow, previousWindow] = await Promise.all([
+        fetchEnvironmentalSummary(),
+        fetchEnvironmentalSummary({ from: isoDateOnly(curStart), to: isoDateOnly(now) }),
+        fetchEnvironmentalSummary({ from: isoDateOnly(prevStart), to: isoDateOnly(prevEnd) })
+      ]);
+      if (summary == null) throw new Error('summary unavailable');
       if (summary.length === 0) {
         summaryHost.replaceChildren();
         summaryHost.append(createEmptyState('🌍', 'Aucun relevé', 'Ajoutez un relevé pour voir apparaître la synthèse.'));
@@ -137,6 +186,17 @@ export function renderEnvironmental() {
         sub.style.color = 'var(--text2)';
         sub.textContent = `${s.totalQuantity} ${s.unit} · ${s.recordCount} relevé(s)`;
         left.append(title, sub);
+        const trend = buildTrendLine(currentWindow, previousWindow, s.type);
+        if (trend) {
+          const trendEl = document.createElement('p');
+          trendEl.style.margin = '4px 0 0';
+          trendEl.style.fontSize = '12px';
+          trendEl.style.fontWeight = '600';
+          trendEl.style.color =
+            trend.tone === 'risk' ? 'var(--danger, #e25555)' : trend.tone === 'ok' ? 'var(--success, #2e7d32)' : 'var(--text2)';
+          trendEl.textContent = trend.text;
+          left.append(trendEl);
+        }
         row.append(left);
         summaryHost.append(row);
       });
