@@ -32,16 +32,28 @@ export const navigationGroups = [
     ]
   },
   {
-    label: 'Conformité',
+    label: 'Conformité réglementaire',
     collapsible: true,
     items: [
       { id: 'iso', label: 'ISO & conformité', icon: '◎' },
       { id: 'audits', label: 'Audits', icon: '☑' },
-      { id: 'products', label: 'Produits / FDS', icon: '⚗' },
+      { id: 'regulatory-watch', label: 'Veille réglementaire', icon: '📜' }
+    ]
+  },
+  {
+    label: 'Ressources & compétences',
+    collapsible: true,
+    items: [
       { id: 'habilitations', label: 'Habilitations', icon: '⛑' },
       { id: 'equipment', label: 'Équipements / EPI', icon: '🥽' },
-      { id: 'trainings', label: 'Formations', icon: '🎓' },
-      { id: 'regulatory-watch', label: 'Veille réglementaire', icon: '📜' },
+      { id: 'trainings', label: 'Formations', icon: '🎓' }
+    ]
+  },
+  {
+    label: 'Produits & environnement',
+    collapsible: true,
+    items: [
+      { id: 'products', label: 'Produits / FDS', icon: '⚗' },
       { id: 'environmental', label: 'Environnement', icon: '🌍' }
     ]
   },
