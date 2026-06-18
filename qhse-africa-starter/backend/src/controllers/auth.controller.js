@@ -9,6 +9,7 @@ import {
 } from '../validation/authSchemas.js';
 import { sendJsonError } from '../lib/apiErrors.js';
 import * as emailService from '../services/email.service.js';
+import * as mfaService from '../services/mfa.service.js';
 
 /** Nom du cookie httpOnly pour le refresh JWT (aligné ÉTAPE 1 H3-14). */
 export const QHSE_REFRESH_COOKIE = 'qhse_refresh';
@@ -65,6 +66,97 @@ function clearRefreshCookieOptions() {
     path: '/',
     ...(domainRaw ? { domain: domainRaw } : {})
   };
+}
+
+/** Émet access + refresh, pose le cookie, met à jour lastLoginAt et construit la réponse de login. */
+async function finalizeLogin(user, tenant, role, res) {
+  const accessToken = authService.issueAccessToken(user, tenant.id);
+  const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
+  const refreshToken = authService.issueRefreshToken(user, tenant.id);
+
+  res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+
+  const tenants = await tenantAuth.listTenantsForUser(user.id);
+
+  await prisma.user
+    .update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    })
+    .catch(() => {});
+
+  return {
+    accessToken,
+    expiresIn: 3600,
+    token: accessToken,
+    redirectTarget,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role
+    },
+    tenant,
+    tenants
+  };
+}
+
+/**
+ * POST /api/auth/mfa/verify — deuxième étape du login quand l'utilisateur a le MFA activé.
+ */
+export async function verifyMfaLogin(req, res, next) {
+  try {
+    const mfaPendingToken = String(req.body?.mfaPendingToken ?? '').trim();
+    const token = String(req.body?.token ?? '').trim();
+    if (!mfaPendingToken || !token) {
+      return sendJsonError(res, 422, 'Jeton MFA et code requis.', req, { code: 'VALIDATION_ERROR' });
+    }
+
+    const payload = authService.verifyMfaPendingToken(mfaPendingToken);
+    if (!payload) {
+      return sendJsonError(res, 401, 'Session MFA invalide ou expirée. Reconnectez-vous.', req, {
+        code: 'MFA_PENDING_INVALID'
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        isActive: true,
+        mfaEnabled: true,
+        mfaSecretEncrypted: true,
+        mfaBackupCodesHash: true
+      }
+    });
+    const userStatus = authService.resolveUserStatus(user);
+    if (!user || !user.isActive || ['SUSPENDED', 'LOCKED', 'DELETED'].includes(userStatus)) {
+      return sendJsonError(res, 401, 'Compte introuvable ou désactivé.', req, { code: 'AUTH_INVALID' });
+    }
+    if (!user.mfaEnabled) {
+      return sendJsonError(res, 400, 'MFA non activé pour ce compte.', req, { code: 'MFA_NOT_ENABLED' });
+    }
+
+    const valid = await mfaService.verifyMfaLoginToken(user, token);
+    if (!valid) {
+      return sendJsonError(res, 401, 'Code MFA invalide.', req, { code: 'MFA_INVALID_TOKEN' });
+    }
+
+    const tenant = await tenantAuth.assertUserTenantAccess(user.id, payload.tid);
+    if (!tenant) {
+      return sendJsonError(res, 403, 'Organisation introuvable pour ce compte.', req, { code: 'NO_TENANT' });
+    }
+
+    const role = String(user.role ?? '').trim().toUpperCase();
+    const loginResponse = await finalizeLogin(user, tenant, role, res);
+    res.json(loginResponse);
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function login(req, res, next) {
@@ -132,35 +224,23 @@ export async function login(req, res, next) {
       });
     }
 
-    const accessToken = authService.issueAccessToken(user, tenant.id);
-    const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
-    const refreshToken = authService.issueRefreshToken(user, tenant.id);
+    if (user.mfaEnabled) {
+      const mfaPendingToken = authService.issueMfaPendingToken(user.id, tenant.id);
+      return res.json({
+        success: true,
+        mfaRequired: true,
+        mfaPendingToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role
+        }
+      });
+    }
 
-    res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
-
-    const tenants = await tenantAuth.listTenantsForUser(user.id);
-
-    await prisma.user
-      .update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() }
-      })
-      .catch(() => {});
-
-    res.json({
-      accessToken,
-      expiresIn: 3600,
-      token: accessToken,
-      redirectTarget,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role
-      },
-      tenant,
-      tenants
-    });
+    const loginResponse = await finalizeLogin(user, tenant, role, res);
+    res.json(loginResponse);
   } catch (err) {
     console.error('[auth.login] failure', {
       route: 'POST /api/auth/login',

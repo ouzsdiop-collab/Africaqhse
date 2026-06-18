@@ -5,6 +5,7 @@ import * as controller from '../controllers/auth.controller.js';
 const router = Router();
 
 router.post('/login', authLimiter, controller.login);
+router.post('/mfa/verify', authLimiter, controller.verifyMfaLogin);
 router.post(
   '/change-temporary-password',
   passwordResetLimiter,

@@ -2,16 +2,16 @@ import crypto from 'node:crypto';
 
 const ALGO = 'aes-256-gcm';
 
-function resolveKey() {
+function resolveKey(domain = 'temp-password') {
   const dedicated = String(process.env.TEMP_PASSWORD_ENCRYPTION_KEY || '').trim();
   const base = dedicated || String(process.env.JWT_SECRET || '').trim();
   if (!base) return null;
-  return crypto.createHash('sha256').update(`temp-password:${base}`).digest();
+  return crypto.createHash('sha256').update(`${domain}:${base}`).digest();
 }
 
 /** Chiffre un texte en clair (ex. mot de passe provisoire) en base64 "iv:tag:ciphertext". */
-export function encryptSecret(plainText) {
-  const key = resolveKey();
+export function encryptSecret(plainText, domain = 'temp-password') {
+  const key = resolveKey(domain);
   if (!key || typeof plainText !== 'string' || !plainText) return null;
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGO, key, iv);
@@ -21,8 +21,8 @@ export function encryptSecret(plainText) {
 }
 
 /** Déchiffre une valeur produite par encryptSecret(). Retourne null si invalide/absent. */
-export function decryptSecret(encoded) {
-  const key = resolveKey();
+export function decryptSecret(encoded, domain = 'temp-password') {
+  const key = resolveKey(domain);
   if (!key || typeof encoded !== 'string' || !encoded) return null;
   const parts = encoded.split(':');
   if (parts.length !== 3) return null;
