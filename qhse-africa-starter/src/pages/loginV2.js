@@ -1521,6 +1521,13 @@ export function createLoginView({ onSuccess, onNavigate }) {
         </label>
         <button type="button" class="btn btn-primary lv2-org-continue" style="margin-top:12px;width:100%">Continuer</button>
       </div>
+      <div class="lv2-mfa-panel" style="display:none;margin-top:16px;padding:12px;border-radius:10px;background:rgba(15,23,42,.06);border:1px solid rgba(15,23,42,.1)">
+        <label class="lv2-field">
+          <span class="lv2-field-label">Code de vérification (application d’authentification ou code de secours)</span>
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" class="control-input lv2-input lv2-mfa-code" placeholder="123456" />
+        </label>
+        <button type="button" class="btn btn-primary lv2-mfa-continue" style="margin-top:12px;width:100%">Valider</button>
+      </div>
     </form>
   `;
 
@@ -1535,6 +1542,10 @@ export function createLoginView({ onSuccess, onNavigate }) {
   const orgPanel = inner.querySelector('.lv2-org-panel');
   const orgSelect = inner.querySelector('.lv2-org-select');
   const orgContinue = inner.querySelector('.lv2-org-continue');
+  const mfaPanel = inner.querySelector('.lv2-mfa-panel');
+  const mfaCodeEl = inner.querySelector('.lv2-mfa-code');
+  const mfaContinue = inner.querySelector('.lv2-mfa-continue');
+  let pendingMfaToken = '';
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -1632,6 +1643,81 @@ export function createLoginView({ onSuccess, onNavigate }) {
     if (orgSelect) orgSelect.innerHTML = '';
   }
 
+  function hideMfaPanel() {
+    if (mfaPanel) mfaPanel.style.display = 'none';
+    if (mfaCodeEl) mfaCodeEl.value = '';
+    pendingMfaToken = '';
+  }
+
+  function showMfaPanel(mfaPendingToken) {
+    pendingMfaToken = mfaPendingToken;
+    if (mfaPanel) mfaPanel.style.display = 'block';
+    mfaCodeEl?.focus?.();
+  }
+
+  /** Finalise une connexion réussie (login direct ou après vérification MFA). */
+  function completeLogin(body) {
+    setDemoMode(false);
+    persistTokensFromLoginResponse(body);
+    setAuthSession(
+      {
+        id: body.user.id,
+        name: body.user.name || '',
+        email: body.user.email || '',
+        role: body.user.role || ''
+      },
+      body.token,
+      { tenant: body.tenant, tenants: body.tenants }
+    );
+    showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
+    const redirectTarget = String(body.redirectTarget || '').toUpperCase();
+    if (redirectTarget === 'SAAS_ADMIN') {
+      window.location.assign('/admin');
+    } else {
+      window.location.assign('/app');
+    }
+    onSuccess();
+  }
+
+  async function submitMfaVerification() {
+    const token = String(mfaCodeEl?.value || '').trim();
+    if (!pendingMfaToken || !token) {
+      showToast('Saisissez le code de vérification', 'error');
+      return;
+    }
+    const prevLabel = mfaContinue?.textContent || '';
+    if (mfaContinue) {
+      mfaContinue.disabled = true;
+      mfaContinue.textContent = 'Vérification…';
+    }
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/mfa/verify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfaPendingToken: pendingMfaToken, token })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(typeof body.error === 'string' ? body.error : 'Code invalide', 'error');
+        return;
+      }
+      if (!body.token || !body.user?.id) {
+        showToast('Réponse serveur invalide', 'error');
+        return;
+      }
+      hideMfaPanel();
+      completeLogin(body);
+    } catch {
+      showToast('Réseau ou serveur indisponible', 'error');
+    } finally {
+      if (mfaContinue) {
+        mfaContinue.disabled = false;
+        mfaContinue.textContent = prevLabel;
+      }
+    }
+  }
+
   function showOrgPicker(tenants) {
     if (!orgPanel || !orgSelect || !Array.isArray(tenants) || !tenants.length) return;
     orgSelect.innerHTML = '';
@@ -1665,6 +1751,7 @@ export function createLoginView({ onSuccess, onNavigate }) {
     if (emailEl) emailEl.disabled = true;
     if (passEl) passEl.disabled = true;
     hideOrgPanel();
+    hideMfaPanel();
     try {
       const payload = { identifier, password };
       if (tenantSlug) payload.tenantSlug = tenantSlug;
@@ -1696,30 +1783,15 @@ export function createLoginView({ onSuccess, onNavigate }) {
         onNavigate?.();
         return;
       }
+      if (body.mfaRequired === true && body.mfaPendingToken) {
+        showMfaPanel(body.mfaPendingToken);
+        return;
+      }
       if (!body.token || !body.user?.id) {
         showToast('Réponse serveur invalide', 'error');
         return;
       }
-      setDemoMode(false);
-      persistTokensFromLoginResponse(body);
-      setAuthSession(
-        {
-          id: body.user.id,
-          name: body.user.name || '',
-          email: body.user.email || '',
-          role: body.user.role || ''
-        },
-        body.token,
-        { tenant: body.tenant, tenants: body.tenants }
-      );
-      showToast(`Bienvenue, ${body.user.name || body.user.email}`, 'success');
-      const redirectTarget = String(body.redirectTarget || '').toUpperCase();
-      if (redirectTarget === 'SAAS_ADMIN') {
-        window.location.assign('/admin');
-      } else {
-        window.location.assign('/app');
-      }
-      onSuccess();
+      completeLogin(body);
     } catch {
       showToast('Réseau ou serveur indisponible', 'error');
     } finally {
@@ -1740,6 +1812,16 @@ export function createLoginView({ onSuccess, onNavigate }) {
       return;
     }
     void submitLogin(slug);
+  });
+
+  mfaContinue?.addEventListener('click', () => {
+    void submitMfaVerification();
+  });
+  mfaCodeEl?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void submitMfaVerification();
+    }
   });
 
   if (lv2EyeBtn && passEl) {
