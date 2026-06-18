@@ -13,8 +13,13 @@ export async function getAll(req, res, next) {
     const rawSiteId = parseSiteIdQuery(req);
     const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const limit = parseListLimit(req.query.limit);
+    const requirementId =
+      typeof req.query.requirementId === 'string' && req.query.requirementId.trim()
+        ? req.query.requirementId.trim()
+        : null;
     const items = await nonconformitiesService.findAllNonConformities(req.qhseTenantId, {
       siteId,
+      requirementId,
       limit
     });
     res.json(items);
@@ -25,7 +30,7 @@ export async function getAll(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { title, detail, auditRef, siteId } = req.body;
+    const { title, detail, auditRef, siteId, requirementId } = req.body;
     const t = clampTrimString(title, FIELD_LIMITS.ncTitle);
     const ar = clampTrimString(auditRef, FIELD_LIMITS.auditRef);
     const d =
@@ -43,7 +48,8 @@ export async function create(req, res, next) {
       title: t,
       detail: d,
       auditRef: ar,
-      siteId
+      siteId,
+      requirementId
     });
     void writeAuditLog({
       tenantId: req.qhseTenantId,

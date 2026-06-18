@@ -14,7 +14,9 @@ export const createActionSchema = z.object({
   assigneeId: z.string().optional(),
   siteId: z.string().optional(),
   incidentId: z.string().optional(),
-  riskId: z.string().optional()
+  riskId: z.string().optional(),
+  auditId: z.string().optional(),
+  requirementId: z.string().max(120).optional()
 });
 
 export const patchActionSchema = z

@@ -96,7 +96,7 @@ async function assertRiskExistsOrNull(tenantId, riskId) {
 
 /**
  * @param {string | null | undefined} tenantId
- * @param {{ assigneeId?: string|null, unassigned?: boolean, siteId?: string|null, limit?: number }} [filters]
+ * @param {{ assigneeId?: string|null, unassigned?: boolean, siteId?: string|null, requirementId?: string|null, limit?: number }} [filters]
  */
 export async function findAllActions(tenantId, filters = {}) {
   const unassigned = Boolean(filters.unassigned);
@@ -104,6 +104,10 @@ export async function findAllActions(tenantId, filters = {}) {
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
+      : null;
+  const requirementId =
+    filters.requirementId != null && String(filters.requirementId).trim() !== ''
+      ? String(filters.requirementId).trim()
       : null;
   const limit =
     typeof filters.limit === 'number' &&
@@ -116,6 +120,7 @@ export async function findAllActions(tenantId, filters = {}) {
   /** @type {Record<string, unknown>} */
   const where = { ...tf };
   if (siteId) where.siteId = siteId;
+  if (requirementId) where.requirementId = requirementId;
   if (unassigned) {
     where.assigneeId = null;
   } else if (assigneeId) {
@@ -190,6 +195,9 @@ export async function createAction(tenantId, data) {
     // auditId existant : accepté sans validation forte (module audits gère déjà ses liens),
     // mais on le normalise.
     createData.auditId = String(data.auditId).trim();
+  }
+  if (data.requirementId != null && String(data.requirementId).trim() !== '') {
+    createData.requirementId = String(data.requirementId).trim();
   }
 
   return prisma.action.create({
