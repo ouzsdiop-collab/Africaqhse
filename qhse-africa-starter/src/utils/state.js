@@ -15,6 +15,7 @@ const allowedPages = [
   'products',
   'habilitations',
   'trainings',
+  'regulatory-watch',
   'imports',
   'analytics',
   'performance',

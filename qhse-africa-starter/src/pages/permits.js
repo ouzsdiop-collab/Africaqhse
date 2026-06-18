@@ -127,6 +127,7 @@ const MODULE_LABEL_FR = {
   products: 'Produits / FDS',
   habilitations: 'Habilitations',
   trainings: 'Formations',
+  'regulatory-watch': 'Veille réglementaire',
   sites: 'Sites',
   imports: 'Imports'
 };
