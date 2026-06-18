@@ -39,7 +39,8 @@ export const navigationGroups = [
       { id: 'audits', label: 'Audits', icon: '☑' },
       { id: 'products', label: 'Produits / FDS', icon: '⚗' },
       { id: 'habilitations', label: 'Habilitations', icon: '⛑' },
-      { id: 'trainings', label: 'Formations', icon: '🎓' }
+      { id: 'trainings', label: 'Formations', icon: '🎓' },
+      { id: 'regulatory-watch', label: 'Veille réglementaire', icon: '📜' }
     ]
   },
   {
@@ -156,6 +157,12 @@ export const pageTopbarById = {
     kicker: 'Opérations',
     subtitle: 'Coactivité avec les entreprises extérieures : inspection commune, risques d’interférence et signatures.',
     cta: { label: 'Voir les permis de travail', pageId: 'permits' }
+  },
+  'regulatory-watch': {
+    title: 'Veille réglementaire',
+    kicker: 'Conformité',
+    subtitle: 'Registre des textes légaux/normatifs suivis pour votre pays, résumé assisté par IA validé manuellement.',
+    cta: { label: 'Voir ISO & conformité', pageId: 'iso' }
   },
   imports: {
     title: 'Import de documents',

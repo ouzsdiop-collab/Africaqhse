@@ -166,6 +166,7 @@ const TERRAIN_NAV_EXPERT_PAGES = new Set([
   'habilitations',
   'trainings',
   'prevention-plans',
+  'regulatory-watch',
   'ai-center',
   'settings',
   'sites',
