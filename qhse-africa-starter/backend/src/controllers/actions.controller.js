@@ -34,6 +34,10 @@ export async function getAll(req, res, next) {
     const rawSiteId = parseSiteIdQuery(req);
     const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
 
+    const ridRaw = queryStringFirst(req.query.requirementId);
+    const requirementId =
+      typeof ridRaw === 'string' && ridRaw.trim() ? ridRaw.trim() : null;
+
     if (unassigned && assigneeId) {
       return res.status(400).json({
         error: 'Ne pas combiner unassigned et assigneeId'
@@ -53,6 +57,7 @@ export async function getAll(req, res, next) {
       assigneeId: effAssigneeId,
       unassigned: effUnassigned,
       siteId,
+      requirementId,
       limit
     });
     res.json(items);
@@ -73,7 +78,9 @@ export async function create(req, res, next) {
       detail,
       description,
       incidentId,
-      riskId
+      riskId,
+      auditId,
+      requirementId
     } = req.body;
     const t = clampTrimString(title, FIELD_LIMITS.actionTitle);
     const st = clampTrimString(status, FIELD_LIMITS.actionStatus);
@@ -121,6 +128,14 @@ export async function create(req, res, next) {
       riskId != null && riskId !== ''
         ? String(riskId).trim()
         : undefined;
+    const aud =
+      auditId != null && auditId !== ''
+        ? String(auditId).trim()
+        : undefined;
+    const reqid =
+      requirementId != null && requirementId !== ''
+        ? String(requirementId).trim()
+        : undefined;
     const created = await actionsService.createAction(req.qhseTenantId, {
       title: t,
       detail: det,
@@ -130,7 +145,9 @@ export async function create(req, res, next) {
       assigneeId: aid,
       siteId,
       incidentId: iid,
-      riskId: rid
+      riskId: rid,
+      auditId: aud,
+      requirementId: reqid
     });
     void emitBusinessEvent('action.created', {
       tenantId: req.qhseTenantId,

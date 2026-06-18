@@ -4,12 +4,16 @@ import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
 
 /**
  * @param {string | null | undefined} tenantId
- * @param {{ siteId?: string | null, limit?: number }} [filters]
+ * @param {{ siteId?: string | null, requirementId?: string | null, limit?: number }} [filters]
  */
 export async function findAllNonConformities(tenantId, filters = {}) {
   const siteId =
     filters.siteId != null && String(filters.siteId).trim() !== ''
       ? String(filters.siteId).trim()
+      : null;
+  const requirementId =
+    filters.requirementId != null && String(filters.requirementId).trim() !== ''
+      ? String(filters.requirementId).trim()
       : null;
   const raw =
     typeof filters.limit === 'number' &&
@@ -20,7 +24,7 @@ export async function findAllNonConformities(tenantId, filters = {}) {
   const take = Math.min(raw, 500);
   const tf = prismaTenantFilter(tenantId);
   return prisma.nonConformity.findMany({
-    where: { ...tf, ...(siteId ? { siteId } : {}) },
+    where: { ...tf, ...(siteId ? { siteId } : {}), ...(requirementId ? { requirementId } : {}) },
     orderBy: { createdAt: 'desc' },
     take
   });
@@ -31,7 +35,7 @@ export async function findAllNonConformities(tenantId, filters = {}) {
  */
 export async function createNonConformityWithAction(
   tenantId,
-  { title, detail, auditRef, siteId: inputSiteId }
+  { title, detail, auditRef, siteId: inputSiteId, requirementId }
 ) {
   const t = normalizeTenantId(tenantId);
   if (!t) {
@@ -43,6 +47,8 @@ export async function createNonConformityWithAction(
   const safeTitle =
     actionTitle.length > 220 ? `${actionTitle.slice(0, 217)}...` : actionTitle;
   const tf = prismaTenantFilter(tenantId);
+  const reqId =
+    requirementId != null && String(requirementId).trim() !== '' ? String(requirementId).trim() : null;
 
   return prisma.$transaction(async (tx) => {
     let siteId = await assertSiteExistsOrNull(tenantId, inputSiteId);
@@ -64,7 +70,8 @@ export async function createNonConformityWithAction(
         status: 'open',
         auditRef,
         auditId: auditRow?.id ?? null,
-        siteId
+        siteId,
+        requirementId: reqId
       }
     });
 
@@ -78,7 +85,8 @@ export async function createNonConformityWithAction(
         assigneeId: null,
         dueDate: null,
         siteId,
-        auditId: auditRow?.id ?? null
+        auditId: auditRow?.id ?? null,
+        requirementId: reqId
       }
     });
 
