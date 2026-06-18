@@ -60,12 +60,18 @@ export function getCorsMiddlewareOptions() {
 /**
  * REQUIRE_AUTH=false : pas d’utilisateur obligatoire (démo / dev).
  * REQUIRE_AUTH=true : auth obligatoire.
- * Non défini : production → true, sinon false (compat starter local).
+ * Non défini : sécurisé par défaut (true), sauf en développement local explicite
+ * (NODE_ENV=development). Ainsi un hébergement non détecté comme "managed cloud"
+ * (VPS auto-hébergé, staging sans NODE_ENV positionné) ne se retrouve jamais
+ * exposé sans authentification par défaut.
+ * Garde-fou supplémentaire : REQUIRE_AUTH=false est toujours ignoré en production,
+ * même si quelqu'un l'a positionné par erreur.
  */
 export function isRequireAuthEnabled() {
+  if (process.env.NODE_ENV === 'production') return true;
   if (envFalsy('REQUIRE_AUTH')) return false;
   if (envTruthy('REQUIRE_AUTH')) return true;
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV !== 'development';
 }
 
 /**
