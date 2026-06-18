@@ -4,6 +4,7 @@ import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { createEmptyState } from '../utils/designSystem.js';
 import { createLinkedActionFromNearMiss } from '../utils/nearMissesActions.js';
+import { computeNearMissPareto } from '../utils/nearMissPareto.js';
 
 const STATUS_LABELS = {
   open: 'Ouvert',
@@ -30,6 +31,16 @@ export function renderNearMisses() {
   const canWriteActions = canResource(su?.role, 'actions', 'write');
 
   page.innerHTML = `
+    <article class="content-card card-soft near-misses-pareto-card">
+      <div class="content-card-head">
+        <div>
+          <div class="section-kicker">Analyse</div>
+          <h3>Pareto par catégorie</h3>
+        </div>
+      </div>
+      <div class="near-misses-pareto-host stack" style="margin-top:12px"></div>
+    </article>
+
     <article class="content-card card-soft">
       <div class="content-card-head">
         <div>
@@ -83,6 +94,7 @@ export function renderNearMisses() {
   `;
 
   const listHost = page.querySelector('.near-misses-list-host');
+  const paretoHost = page.querySelector('.near-misses-pareto-host');
 
   const titleIn = page.querySelector('.nm-title');
   const categoryIn = page.querySelector('.nm-category');
@@ -99,12 +111,42 @@ export function renderNearMisses() {
       el.disabled = true;
     });
     listHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Lecture des presque-accidents non autorisée pour ce rôle.</p>';
+    paretoHost.innerHTML = '';
     return page;
   }
 
   if (!canWrite && su) {
     page.querySelectorAll('.form-grid input, .form-grid select, .form-grid button').forEach((el) => {
       el.disabled = true;
+    });
+  }
+
+  function renderPareto(list) {
+    const breakdown = computeNearMissPareto(list);
+    if (breakdown.length === 0) {
+      paretoHost.replaceChildren();
+      paretoHost.append(createEmptyState('📊', 'Aucune donnée', 'Déclarez des presque-accidents pour voir apparaître le Pareto.'));
+      return;
+    }
+    paretoHost.replaceChildren();
+    breakdown.forEach((b) => {
+      const row = document.createElement('article');
+      row.className = 'list-row';
+      row.style.display = 'flex';
+      row.style.justifyContent = 'space-between';
+      row.style.alignItems = 'flex-start';
+      row.style.gap = '12px';
+      const left = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = b.category;
+      const sub = document.createElement('p');
+      sub.style.margin = '6px 0 0';
+      sub.style.fontSize = '12px';
+      sub.style.color = 'var(--text2)';
+      sub.textContent = `${b.count} événement(s) · ${b.pct} % · cumulé ${b.cumulativePct} %`;
+      left.append(title, sub);
+      row.append(left);
+      paretoHost.append(row);
     });
   }
 
@@ -115,6 +157,7 @@ export function renderNearMisses() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
       const list = Array.isArray(rows) ? rows : [];
+      renderPareto(list);
       if (list.length === 0) {
         listHost.replaceChildren();
         listHost.append(createEmptyState('⚠', 'Aucun presque-accident', 'Déclarez le premier événement ci-dessous.'));
@@ -178,6 +221,7 @@ export function renderNearMisses() {
       });
     } catch {
       listHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Liste indisponible : vérifiez l’API.</p>';
+      paretoHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Analyse indisponible : vérifiez l’API.</p>';
     }
   }
 
