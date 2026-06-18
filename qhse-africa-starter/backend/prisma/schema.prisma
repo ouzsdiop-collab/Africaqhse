@@ -353,6 +353,8 @@ model Action {
   audit      Audit?    @relation(fields: [auditId], references: [id], onDelete: SetNull)
   riskId     String?
   risk       Risk?     @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  /// Identifiant libre de l'exigence ISO liée (référentiel front, ex. "iso-45001:6.1.2") — traçabilité gap → action.
+  requirementId String?
   createdAt  DateTime  @default(now())
 
   aiSuggestions AiSuggestion[]
@@ -363,6 +365,7 @@ model Action {
   @@index([auditId])
   @@index([riskId])
   @@index([tenantId, riskId])
+  @@index([tenantId, requirementId])
   @@map("actions")
 }
 
@@ -401,10 +404,13 @@ model NonConformity {
   audit      Audit?   @relation(fields: [auditId], references: [id], onDelete: SetNull)
   siteId     String?
   siteRecord Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  /// Identifiant libre de l'exigence ISO liée (référentiel front, ex. "iso-45001:6.1.2") — traçabilité gap → NC.
+  requirementId String?
   createdAt  DateTime @default(now())
 
   @@index([tenantId])
   @@index([auditId])
+  @@index([tenantId, requirementId])
   @@map("non_conformities")
 }
 
