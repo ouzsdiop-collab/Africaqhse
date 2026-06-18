@@ -41,7 +41,8 @@ export const navigationGroups = [
       { id: 'habilitations', label: 'Habilitations', icon: '⛑' },
       { id: 'equipment', label: 'Équipements / EPI', icon: '🥽' },
       { id: 'trainings', label: 'Formations', icon: '🎓' },
-      { id: 'regulatory-watch', label: 'Veille réglementaire', icon: '📜' }
+      { id: 'regulatory-watch', label: 'Veille réglementaire', icon: '📜' },
+      { id: 'environmental', label: 'Environnement', icon: '🌍' }
     ]
   },
   {
@@ -170,6 +171,12 @@ export const pageTopbarById = {
     kicker: 'Conformité',
     subtitle: 'Registre des textes légaux/normatifs suivis pour votre pays, résumé assisté par IA validé manuellement.',
     cta: { label: 'Voir ISO & conformité', pageId: 'iso' }
+  },
+  environmental: {
+    title: 'Environnement',
+    kicker: 'Conformité',
+    subtitle: 'Suivi des déchets, de l’eau et de l’énergie par site : relevés périodiques et synthèse par type.',
+    cta: { label: 'Voir les sites', pageId: 'sites' }
   },
   imports: {
     title: 'Import de documents',

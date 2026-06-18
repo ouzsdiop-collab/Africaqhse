@@ -129,6 +129,7 @@ const MODULE_LABEL_FR = {
   equipment: 'Équipements / EPI',
   trainings: 'Formations',
   'regulatory-watch': 'Veille réglementaire',
+  environmental: 'Environnement',
   sites: 'Sites',
   imports: 'Imports'
 };
