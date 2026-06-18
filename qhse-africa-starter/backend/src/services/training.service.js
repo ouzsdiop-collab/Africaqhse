@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
+import { assertUserTenantAccess } from './tenantAuth.service.js';
 
 function serializeCourse(row) {
   if (!row) return row;
@@ -289,7 +290,7 @@ export async function createEnrollment(tenantId, data) {
     err.statusCode = 400;
     throw err;
   }
-  const userOk = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  const userOk = await assertUserTenantAccess(userId, tid);
   if (!userOk) {
     const err = new Error('Utilisateur introuvable');
     err.statusCode = 400;

@@ -25,6 +25,12 @@ function generateBackupCodes() {
  * @param {string} email
  */
 export async function startMfaEnrollment(userId, email) {
+  const existing = await prisma.user.findUnique({ where: { id: userId }, select: { mfaEnabled: true } });
+  if (existing?.mfaEnabled) {
+    const err = new Error('Le MFA est déjà actif ; désactivez-le avant de ré-enrôler.');
+    err.statusCode = 400;
+    throw err;
+  }
   const secret = generateTotpSecret();
   const encrypted = encryptSecret(secret, MFA_DOMAIN);
   if (!encrypted) {
