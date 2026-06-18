@@ -14,6 +14,7 @@ const allowedPages = [
   'sites',
   'products',
   'habilitations',
+  'equipment',
   'trainings',
   'regulatory-watch',
   'imports',
