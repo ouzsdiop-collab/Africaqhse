@@ -496,6 +496,66 @@ function ensureSidebarV2Styles() {
   margin-top: var(--space-1);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-v2__account-wrap {
+  position: relative;
+}
+.sidebar-v2__account-toggle {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.sidebar-v2__account-toggle:hover {
+  background: color-mix(in srgb, var(--color-subtle) 60%, var(--color-surface));
+}
+.sidebar-v2__account-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-border) 45%, transparent);
+}
+.sidebar-v2__account-chevron {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  transition: transform 160ms ease;
+}
+.sidebar-v2__account-toggle[aria-expanded='true'] .sidebar-v2__account-chevron {
+  transform: rotate(180deg);
+}
+.sidebar-v2__account-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-text) 14%, transparent);
+  z-index: 10;
+}
+.sidebar-v2__account-menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.sidebar-v2__account-menu-item:hover {
+  background: var(--color-subtle);
+  color: var(--color-text);
 }
 .sidebar-v2__footer--compact .sidebar-v2__account-role {
   font-size: 10px;
@@ -1107,8 +1167,15 @@ export function createSidebar({
 
     if (token) {
       const u = getSessionUser();
-      const card = document.createElement('div');
-      card.className = 'sidebar-v2__account-card';
+      const wrap = document.createElement('div');
+      wrap.className = 'sidebar-v2__account-wrap';
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'sidebar-v2__account-card sidebar-v2__account-toggle';
+      toggle.setAttribute('aria-haspopup', 'true');
+      toggle.setAttribute('aria-expanded', 'false');
+
       const av = document.createElement('div');
       av.className = 'sidebar-v2__account-avatar';
       const initials = (u?.name || 'U')
@@ -1125,24 +1192,22 @@ export function createSidebar({
       nameEl.textContent = u?.name || 'Utilisateur';
       const roleEl = document.createElement('div');
       roleEl.className = 'sidebar-v2__account-role';
-      roleEl.textContent = u?.role || '';
-      meta.append(nameEl, roleEl);
       const orgT = getActiveTenant();
-      if (orgT?.slug) {
-        const orgEl = document.createElement('div');
-        orgEl.className = 'sidebar-v2__account-org';
-        orgEl.title = orgT.slug;
-        orgEl.textContent = orgT.name || orgT.slug;
-        meta.append(orgEl);
-      }
-      card.append(av, meta);
-      profileSlot.append(card);
+      roleEl.textContent = orgT?.name || orgT?.slug ? `${u?.role || ''} · ${orgT.name || orgT.slug}` : u?.role || '';
+      meta.append(nameEl, roleEl);
+      const chevron = document.createElement('span');
+      chevron.className = 'sidebar-v2__account-chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      chevron.textContent = '⌄';
+      toggle.append(av, meta, chevron);
 
-      const actions = document.createElement('div');
-      actions.className = 'shell-account-actions';
+      const menu = document.createElement('div');
+      menu.className = 'sidebar-v2__account-menu';
+      menu.hidden = true;
+
       const logoutBtn = document.createElement('button');
       logoutBtn.type = 'button';
-      logoutBtn.className = 'sidebar-v2__btn-logout';
+      logoutBtn.className = 'sidebar-v2__account-menu-item';
       logoutBtn.textContent = 'Déconnexion';
       logoutBtn.addEventListener('click', () => {
         void logoutAndClear({ redirectToLogin: false });
@@ -1150,18 +1215,18 @@ export function createSidebar({
       });
       const switchBtn = document.createElement('button');
       switchBtn.type = 'button';
-      switchBtn.className = 'sidebar-v2__btn-link';
+      switchBtn.className = 'sidebar-v2__account-menu-item';
       switchBtn.textContent = 'Changer de compte';
       switchBtn.addEventListener('click', () => {
         void logoutAndClear({ redirectToLogin: false });
         if (typeof onSessionUserChange === 'function') onSessionUserChange();
         window.location.hash = 'login';
       });
-      actions.append(logoutBtn, switchBtn);
+      menu.append(logoutBtn, switchBtn);
       if (getSessionTenants().length > 1) {
         const orgBtn = document.createElement('button');
         orgBtn.type = 'button';
-        orgBtn.className = 'sidebar-v2__btn-link';
+        orgBtn.className = 'sidebar-v2__account-menu-item';
         orgBtn.textContent = 'Organisations…';
         orgBtn.addEventListener('click', () => {
           try {
@@ -1171,9 +1236,30 @@ export function createSidebar({
           }
           window.location.hash = 'settings';
         });
-        actions.append(orgBtn);
+        menu.append(orgBtn);
       }
-      profileSlot.append(actions);
+
+      function closeMenu() {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', onOutsideClick, true);
+      }
+      function onOutsideClick(e) {
+        if (!wrap.contains(e.target)) closeMenu();
+      }
+      toggle.addEventListener('click', () => {
+        const open = !menu.hidden;
+        if (open) {
+          closeMenu();
+          return;
+        }
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        document.addEventListener('click', onOutsideClick, true);
+      });
+
+      wrap.append(toggle, menu);
+      profileSlot.append(wrap);
       return;
     }
 
