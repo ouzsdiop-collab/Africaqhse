@@ -5,6 +5,7 @@ const allowedPages = [
   'terrain-mode',
   'incidents',
   'permits',
+  'prevention-plans',
   'risks',
   'processes',
   'actions',
