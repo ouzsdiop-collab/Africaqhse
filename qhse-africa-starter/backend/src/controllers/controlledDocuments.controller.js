@@ -15,6 +15,7 @@ import {
   getPresignedControlledDocumentDownloadUrl,
   isS3StorageEnabled
 } from '../services/storage.service.js';
+import { createDocumentFileFilter } from '../lib/uploadFileFilter.js';
 
 const S3_DOWNLOAD_PRESIGN_SECONDS = 3600;
 
@@ -22,7 +23,8 @@ const MAX_BYTES = Number(process.env.CONTROLLED_DOCUMENT_MAX_BYTES) || 25 * 1024
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_BYTES }
+  limits: { fileSize: MAX_BYTES },
+  fileFilter: createDocumentFileFilter()
 });
 
 export function uploadSingleControlledFile(req, res, next) {
@@ -35,6 +37,9 @@ export function uploadSingleControlledFile(req, res, next) {
         });
       }
       return res.status(400).json({ error: err.message || 'Téléversement invalide' });
+    }
+    if (err.code === 'TYPE_NON_AUTORISE') {
+      return res.status(400).json({ error: err.message });
     }
     console.error('[controlled-documents] multer', err);
     return res.status(400).json({ error: 'Envoi du fichier impossible.' });

@@ -4,12 +4,14 @@ import { isRequireAuthEnabled } from '../lib/securityConfig.js';
 import { requireTenantIdOrRespond } from '../lib/tenantScope.js';
 import { createIsoEvidenceJsonSchema, validateIsoEvidenceBodySchema } from '../validation/isoEvidenceSchemas.js';
 import * as isoEvidenceService from '../services/isoEvidence.service.js';
+import { createDocumentFileFilter } from '../lib/uploadFileFilter.js';
 
 const MAX_BYTES = Number(process.env.ISO_EVIDENCE_MAX_BYTES) || 20 * 1024 * 1024;
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_BYTES }
+  limits: { fileSize: MAX_BYTES },
+  fileFilter: createDocumentFileFilter()
 });
 
 export function uploadIsoEvidenceOptionalFile(req, res, next) {
@@ -26,6 +28,9 @@ export function uploadIsoEvidenceOptionalFile(req, res, next) {
         });
       }
       return res.status(400).json({ error: err.message || 'Téléversement invalide' });
+    }
+    if (err.code === 'TYPE_NON_AUTORISE') {
+      return res.status(400).json({ error: err.message });
     }
     console.error('[iso/evidence] multer', err);
     return res.status(400).json({ error: 'Envoi du fichier impossible.' });

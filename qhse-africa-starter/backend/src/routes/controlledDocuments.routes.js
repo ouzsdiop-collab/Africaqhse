@@ -11,13 +11,15 @@ import {
 import { prisma } from '../db.js';
 import { parseFdsDocument } from '../services/documentClassification.service.js';
 import { normalizeTenantId } from '../lib/tenantScope.js';
+import { createDocumentFileFilter } from '../lib/uploadFileFilter.js';
 
 const router = Router();
 
 const FDS_MAX_BYTES = Number(process.env.CONTROLLED_DOCUMENT_MAX_BYTES) || 25 * 1024 * 1024;
 const fdsUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: FDS_MAX_BYTES }
+  limits: { fileSize: FDS_MAX_BYTES },
+  fileFilter: createDocumentFileFilter()
 });
 
 function fdsMulterSingle(req, res, next) {
@@ -30,6 +32,9 @@ function fdsMulterSingle(req, res, next) {
         });
       }
       return res.status(400).json({ error: err.message || 'Upload invalide' });
+    }
+    if (err.code === 'TYPE_NON_AUTORISE') {
+      return res.status(400).json({ error: err.message });
     }
     console.error('[controlled-documents] fds multer', err);
     return res.status(400).json({ error: 'Envoi du fichier impossible.' });
