@@ -77,6 +77,7 @@ model Site {
   trainingSessions    TrainingSession[]
   preventionPlans     PreventionPlan[]
   equipment           Equipment[]
+  environmentalRecords EnvironmentalRecord[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -647,6 +648,28 @@ model PreventionPlan {
   @@index([siteId])
   @@index([status])
   @@map("prevention_plans")
+}
+
+/// Suivi environnemental par site : déchets, eau, énergie (relevés périodiques).
+model EnvironmentalRecord {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  siteId     String?
+  siteRecord Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  type       String
+  category   String?
+  quantity   Float
+  unit       String
+  periodDate DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([siteId])
+  @@index([type])
+  @@index([periodDate])
+  @@map("environmental_records")
 }
 
 /// Veille réglementaire — registre de textes légaux/normatifs suivis par le client, curé manuellement (résumé assisté par IA, validé par l'utilisateur).
