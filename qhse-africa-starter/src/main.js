@@ -455,6 +455,7 @@ const PAGE_IMPORT_LOADERS = {
   equipment: () => import('./pages/equipment.js'),
   trainings: () => import('./pages/trainings.js'),
   'regulatory-watch': () => import('./pages/regulatoryWatch.js'),
+  environmental: () => import('./pages/environmental.js'),
   'terrain-mode': () => import('./pages/terrain-mode.js'),
   permits: () => import('./pages/permits.js'),
   'prevention-plans': () => import('./pages/preventionPlans.js'),
@@ -618,6 +619,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderTrainings();
     case 'regulatory-watch':
       return mod.renderRegulatoryWatch();
+    case 'environmental':
+      return mod.renderEnvironmental();
     case 'imports':
       return mod.renderImports();
     case 'sites':

@@ -17,6 +17,7 @@ const allowedPages = [
   'equipment',
   'trainings',
   'regulatory-watch',
+  'environmental',
   'imports',
   'analytics',
   'performance',
