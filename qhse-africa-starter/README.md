@@ -95,6 +95,10 @@ npm run db:init:client --prefix backend
 
 Ce script exécute `prisma migrate deploy` puis `prisma/seed.client.js`.
 
+## Documentation
+
+Index complet des audits, checklists et guides : [`docs/README.md`](./docs/README.md).
+
 ## Structure du dépôt
 
 | Élément | Rôle |
