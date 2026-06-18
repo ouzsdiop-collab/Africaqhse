@@ -13,6 +13,7 @@ const allowedPages = [
   'sites',
   'products',
   'habilitations',
+  'trainings',
   'imports',
   'analytics',
   'performance',
