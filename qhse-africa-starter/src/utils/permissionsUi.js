@@ -158,6 +158,7 @@ const TERRAIN_NAV_EXPERT_PAGES = new Set([
   'iso',
   'products',
   'habilitations',
+  'trainings',
   'ai-center',
   'settings',
   'sites',

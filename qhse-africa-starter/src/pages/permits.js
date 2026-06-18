@@ -125,6 +125,7 @@ const MODULE_LABEL_FR = {
   iso: 'ISO & conformité',
   products: 'Produits / FDS',
   habilitations: 'Habilitations',
+  trainings: 'Formations',
   sites: 'Sites',
   imports: 'Imports'
 };

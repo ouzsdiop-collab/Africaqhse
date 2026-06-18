@@ -38,7 +38,8 @@ export const navigationGroups = [
       { id: 'iso', label: 'ISO & conformité', icon: '◎' },
       { id: 'audits', label: 'Audits', icon: '☑' },
       { id: 'products', label: 'Produits / FDS', icon: '⚗' },
-      { id: 'habilitations', label: 'Habilitations', icon: '⛑' }
+      { id: 'habilitations', label: 'Habilitations', icon: '⛑' },
+      { id: 'trainings', label: 'Formations', icon: '🎓' }
     ]
   },
   {
@@ -142,6 +143,12 @@ export const pageTopbarById = {
     kicker: 'Conformité',
     subtitle: 'Registre des habilitations terrain, sous-traitants, échéances et conformité multi-sites.',
     cta: { label: 'Voir les audits', pageId: 'audits' }
+  },
+  trainings: {
+    title: 'Formations',
+    kicker: 'Conformité',
+    subtitle: 'Catalogue de formations, sessions planifiées, inscriptions et alertes de recyclage.',
+    cta: { label: 'Voir les habilitations', pageId: 'habilitations' }
   },
   imports: {
     title: 'Import de documents',
