@@ -13,6 +13,7 @@ import { httpRequestLog } from './middleware/httpRequestLog.middleware.js';
 import { setupGracefulShutdown } from './lib/gracefulShutdown.js';
 import { sendJsonError } from './lib/apiErrors.js';
 import { prisma } from './db.js';
+import { logger } from './lib/logger.js';
 import healthRouter from './routes/health.routes.js';
 
 import incidentsRouter from './routes/incidents.routes.js';
@@ -362,13 +363,17 @@ app.use((err, req, res, _next) => {
   if (code === 'P2025') {
     return sendJsonError(res, 404, 'Enregistrement introuvable.', req, { code: 'NOT_FOUND' });
   }
-  console.error('[express] unhandled error — message:', err && err.message);
-  console.error('[express] unhandled error — stack:', err && err.stack ? err.stack : '(no stack)');
-  if (err && typeof err === 'object') {
-    if ('code' in err) console.error('[express] unhandled error — code:', err.code);
-    if ('meta' in err) console.error('[express] unhandled error — meta:', err.meta);
-  }
-  console.error('[express] unhandled error — full object:', err);
+  logger.error(
+    {
+      msg: 'unhandled_express_error',
+      message: err && err.message,
+      stack: err && err.stack,
+      code: err && typeof err === 'object' && 'code' in err ? err.code : undefined,
+      meta: err && typeof err === 'object' && 'meta' in err ? err.meta : undefined,
+      requestId: req.requestId
+    },
+    '[express] unhandled error'
+  );
   /** @type {Record<string, string>} */
   const expose =
     process.env.NODE_ENV !== 'production' && msg

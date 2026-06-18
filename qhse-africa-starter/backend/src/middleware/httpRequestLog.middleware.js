@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger.js';
+
 /**
  * Une ligne JSON par requête terminée (corrélation `requestId`, durée, statut).
  * Activé si `LOG_HTTP=1` ou `true` ; désactivé explicitement avec `LOG_HTTP=0`.
@@ -10,17 +12,17 @@ export function httpRequestLog(req, res, next) {
   const path = pathRaw.split('?')[0] || pathRaw;
 
   res.on('finish', () => {
-    const payload = {
-      level: 'info',
-      msg: 'http_request',
-      method,
-      path,
-      status: res.statusCode,
-      ms: Date.now() - t0,
-      requestId: req.requestId,
-      userId: req.qhseUser?.id ?? null
-    };
-    console.log(JSON.stringify(payload));
+    logger.info(
+      {
+        method,
+        path,
+        status: res.statusCode,
+        ms: Date.now() - t0,
+        requestId: req.requestId,
+        userId: req.qhseUser?.id ?? null
+      },
+      'http_request'
+    );
   });
   next();
 }
