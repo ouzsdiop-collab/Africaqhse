@@ -79,6 +79,9 @@ export function openComplianceAssistModal(opts) {
       <div class="iso-ca-block">
         <h4 class="iso-ca-h4">Actions recommandées</h4>
         <ul class="iso-ca-list" data-iso-ca-actions></ul>
+        <button type="button" class="btn btn-secondary" data-iso-ca-create-action style="margin-top:8px">
+          Créer une action liée à cette exigence
+        </button>
       </div>
       <div class="iso-ca-block" data-iso-ca-docs-wrap>
         <h4 class="iso-ca-h4">Documents rapprochés</h4>
@@ -254,6 +257,37 @@ export function openComplianceAssistModal(opts) {
   }
 
   body.querySelector('[data-iso-ca-retry]').addEventListener('click', () => runAnalyze());
+
+  const createActionBtn = body.querySelector('[data-iso-ca-create-action]');
+  if (createActionBtn) {
+    createActionBtn.addEventListener('click', () => {
+      void (async () => {
+        createActionBtn.disabled = true;
+        try {
+          const res = await qhseFetch('/api/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: `Action corrective — ${req.normCode} ${req.clause} : ${req.title}`,
+              status: 'À lancer',
+              owner: 'À assigner',
+              requirementId: String(req.id)
+            })
+          });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            showToast(typeof j.error === 'string' ? j.error : 'Création de l’action impossible', 'error');
+            return;
+          }
+          showToast('Action créée et liée à cette exigence.', 'info');
+        } catch {
+          showToast('Erreur réseau lors de la création de l’action.', 'error');
+        } finally {
+          createActionBtn.disabled = false;
+        }
+      })();
+    });
+  }
 
   async function commitStatus(status, source) {
     const committed = await opts.onStatusCommitted(req.id, status, { source });
