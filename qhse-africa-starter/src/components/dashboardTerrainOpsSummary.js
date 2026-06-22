@@ -68,8 +68,8 @@ export function createDashboardTerrainOpsSummary() {
     let environmentalCategories = null;
     if (environmentalRes.status === 'fulfilled' && environmentalRes.value.ok) {
       const body = await environmentalRes.value.json().catch(() => ({}));
-      const byType = body?.summary?.byType;
-      environmentalCategories = Array.isArray(byType) ? byType.length : null;
+      const summary = Array.isArray(body?.summary) ? body.summary : [];
+      environmentalCategories = summary.length ? new Set(summary.map((s) => s.type)).size : null;
     }
 
     grid.append(
