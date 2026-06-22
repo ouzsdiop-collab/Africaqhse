@@ -9,8 +9,12 @@
 
 const ALL = ['read', 'write'];
 
-/** @type {Record<string, Record<string, string[] | true>>} */
-const MATRIX = {
+/**
+ * Exportée aussi pour le test de parité côté front (voir
+ * src/utils/permissionsUi.test.js) — la matrice UI doit suivre celle-ci.
+ * @type {Record<string, Record<string, string[] | true>>}
+ */
+export const MATRIX = {
   SUPER_ADMIN: { '*': true },
   ADMIN: { '*': true },
   CLIENT_ADMIN: {
