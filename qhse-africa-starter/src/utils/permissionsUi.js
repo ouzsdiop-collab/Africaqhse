@@ -7,8 +7,12 @@ import { TERRAIN_ALLOWED_PAGE_IDS } from './terrainModePages.js';
 
 const ALL = ['read', 'write'];
 
-/** @type {Record<string, Record<string, string[] | true>>} */
-const MATRIX = {
+/**
+ * Exportée uniquement pour le test de parité avec backend/src/lib/permissions.js
+ * (voir permissionsUi.test.js) — ne pas utiliser ailleurs, passer par canResource().
+ * @type {Record<string, Record<string, string[] | true>>}
+ */
+export const MATRIX = {
   SUPER_ADMIN: { '*': true },
   ADMIN: { '*': true },
   CLIENT_ADMIN: {

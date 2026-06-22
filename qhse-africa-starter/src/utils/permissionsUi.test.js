@@ -1,6 +1,37 @@
 // @vitest-environment jsdom
 import { afterEach, describe, it, expect } from 'vitest';
-import { canAccessNavPage, canResource } from './permissionsUi.js';
+import { canAccessNavPage, canResource, MATRIX as FRONT_MATRIX } from './permissionsUi.js';
+import { MATRIX as BACKEND_MATRIX } from '../../backend/src/lib/permissions.js';
+
+/**
+ * Ressources gérées uniquement côté UI (pas de contrôle backend dédié) :
+ * exclues de la comparaison de parité ci-dessous.
+ */
+const FRONT_ONLY_RESOURCES = new Set(['settings']);
+
+describe('parité matrice UI / backend', () => {
+  it('chaque rôle backend existe côté UI avec les mêmes permissions par ressource', () => {
+    const diffs = [];
+    for (const role of Object.keys(BACKEND_MATRIX)) {
+      const frontRow = FRONT_MATRIX[role];
+      if (!frontRow) {
+        diffs.push(`rôle "${role}" absent de la matrice UI`);
+        continue;
+      }
+      const backendRow = BACKEND_MATRIX[role];
+      const resources = new Set([...Object.keys(frontRow), ...Object.keys(backendRow)]);
+      for (const resource of resources) {
+        if (FRONT_ONLY_RESOURCES.has(resource)) continue;
+        const frontPerms = JSON.stringify(frontRow[resource] ?? null);
+        const backendPerms = JSON.stringify(backendRow[resource] ?? null);
+        if (frontPerms !== backendPerms) {
+          diffs.push(`${role} / ${resource} : UI=${frontPerms} backend=${backendPerms}`);
+        }
+      }
+    }
+    expect(diffs).toEqual([]);
+  });
+});
 
 describe('canAccessNavPage', () => {
   afterEach(() => {
