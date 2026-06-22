@@ -13,14 +13,14 @@ jobs:
       VITE_API_BASE: https://africaqhse-production.up.railway.app
     defaults:
       run:
-        working-directory: .
+        working-directory: qhse-africa-starter
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: qhse-africa-starter/package-lock.json
       - name: Install
         run: npm ci
       - name: Unit tests
@@ -49,14 +49,14 @@ jobs:
       JWT_SECRET: ci-backend-jwt-secret-minimum-32-characters
     defaults:
       run:
-        working-directory: backend
+        working-directory: qhse-africa-starter/backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: qhse-africa-starter/backend/package-lock.json
       - name: Install
         run: npm ci
       - name: Prisma migrate + tests
@@ -85,18 +85,18 @@ jobs:
       JWT_SECRET: ci-e2e-jwt-secret-minimum-32-characters
     defaults:
       run:
-        working-directory: .
+        working-directory: qhse-africa-starter
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: qhse-africa-starter/package-lock.json
       - name: Install front + Playwright
         run: npm ci && npx playwright install --with-deps chromium
       - name: Backend — Prisma migrate + seed
-        working-directory: backend
+        working-directory: qhse-africa-starter/backend
         run: npm ci && npx prisma migrate deploy && npm run db:seed
       - name: E2E (API + Vite via Playwright webServer)
         run: npm run test:e2e
