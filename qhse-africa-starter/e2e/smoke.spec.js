@@ -39,7 +39,9 @@ test.describe('Smoke QHSE', () => {
     await page.locator('.lv2-password').fill(DEMO_PASSWORD);
     await page.locator('.lv2-submit').click();
     await expect(page.locator('.app-shell')).toBeVisible({ timeout: 30_000 });
-    await expect(page).toHaveURL(/#dashboard/);
+    // Post-login : redirection vers /app (window.location.assign), sans hash —
+    // setCurrentPage('dashboard') ne pose pas #dashboard dans l'URL (voir main.js initRouting).
+    await expect(page).toHaveURL(/\/app/);
   });
 
   test('API readiness (base SQL)', async ({ request }) => {
