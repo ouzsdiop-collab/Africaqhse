@@ -43,14 +43,9 @@ async function loginAdmin(page) {
   await page.locator('.lv2-password').fill(DEMO_PASSWORD);
   await page.locator('.lv2-submit').click();
 
-  // Attendre que le hash change vers une page authentifiée
-  await page.waitForFunction(
-    () =>
-      ['dashboard', 'incidents', 'risks', 'audits', 'actions'].some((r) =>
-        location.hash.includes(r)
-      ),
-    { timeout: 60_000, polling: 500 }
-  );
+  // Post-login : redirection vers /app (window.location.assign), sans hash —
+  // setCurrentPage('dashboard') ne pose pas #dashboard dans l'URL (voir main.js initRouting).
+  await expect(page.locator('.app-shell')).toBeVisible({ timeout: 60_000 });
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await injectOnboardingOverlayHide(page);
