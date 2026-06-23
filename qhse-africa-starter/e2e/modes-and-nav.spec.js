@@ -65,11 +65,14 @@ test.describe('Modes et navigation', () => {
     const modeSwitch = page.locator('.display-mode-switch');
     await expect(modeSwitch).toBeVisible({ timeout: 15_000 });
 
-    await modeSwitch.locator('[data-set-mode="terrain"]').click();
-    await expect(page).toHaveURL(/#terrain-mode/, { timeout: 15_000 });
-    await expect(page.locator('.terrain-mode-page')).toBeVisible();
+    await modeSwitch.locator('[data-set-mode="essential"]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-display-mode', 'essential', {
+      timeout: 15_000
+    });
 
     await modeSwitch.locator('[data-set-mode="expert"]').click();
-    await expect(page).toHaveURL(/#dashboard/, { timeout: 15_000 });
+    await expect(page.locator('html')).toHaveAttribute('data-display-mode', 'expert', {
+      timeout: 15_000
+    });
   });
 });
