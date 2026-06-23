@@ -55,20 +55,20 @@ export function createEssentialPilotageUnifiedCockpit() {
       </div>
 
       <div class="dashboard-essential-pilotage__grid">
-        <article class="dashboard-essential-pilotage__mini-card">
-          <div class="dashboard-essential-pilotage__mini-head"><span>🎯</span>Priorités</div>
+        <article class="dashboard-essential-pilotage__mini-card dashboard-essential-pilotage__mini-card--priorities">
+          <div class="dashboard-essential-pilotage__mini-head"><span class="dashboard-essential-pilotage__mini-icon dashboard-essential-pilotage__mini-icon--priorities" aria-hidden="true"></span>Priorités</div>
           <div class="dashboard-essential-pilotage__mini-count dashboard-essential-pilotage__mini-count--priorities">—</div>
           <ol class="dashboard-essential-pilotage__priorities"></ol>
         </article>
 
-        <article class="dashboard-essential-pilotage__mini-card">
-          <div class="dashboard-essential-pilotage__mini-head"><span>🚨</span>Alertes critiques</div>
+        <article class="dashboard-essential-pilotage__mini-card dashboard-essential-pilotage__mini-card--alerts">
+          <div class="dashboard-essential-pilotage__mini-head"><span class="dashboard-essential-pilotage__mini-icon dashboard-essential-pilotage__mini-icon--alerts" aria-hidden="true"></span>Alertes critiques</div>
           <div class="dashboard-essential-pilotage__mini-count dashboard-essential-pilotage__mini-count--alerts">—</div>
           <ul class="dashboard-essential-pilotage__alerts"></ul>
         </article>
 
-        <article class="dashboard-essential-pilotage__mini-card">
-          <div class="dashboard-essential-pilotage__mini-head"><span>✅</span>Actions recommandées</div>
+        <article class="dashboard-essential-pilotage__mini-card dashboard-essential-pilotage__mini-card--actions">
+          <div class="dashboard-essential-pilotage__mini-head"><span class="dashboard-essential-pilotage__mini-icon dashboard-essential-pilotage__mini-icon--actions" aria-hidden="true"></span>Actions recommandées</div>
           <div class="dashboard-essential-pilotage__mini-count dashboard-essential-pilotage__mini-count--actions">—</div>
           <ul class="dashboard-essential-pilotage__actions"></ul>
         </article>
@@ -185,11 +185,11 @@ export function createEssentialPilotageUnifiedCockpit() {
         li.textContent = 'Données de pilotage à compléter';
         priorities.append(li);
       } else {
-        recs.forEach((r) => {
+        recs.forEach((r, idx) => {
           const sev = normalizeSeverity(r?.severity);
           const li = document.createElement('li');
           li.className = `dashboard-essential-pilotage__prio dashboard-essential-pilotage__prio--${sev.key}`;
-          li.innerHTML = `<div class="dashboard-essential-pilotage__prio-top"><span class="badge ${sev.key === 'critical' ? 'red' : sev.key === 'high' ? 'amber' : 'blue'}">${escapeHtml(sev.label)}</span><strong class="dashboard-essential-pilotage__prio-label">${escapeHtml(String(r?.label || 'Priorité'))}</strong></div><div class="dashboard-essential-pilotage__prio-reason">${escapeHtml(pickReason(r?.reason))}</div>`;
+          li.innerHTML = `<div class="dashboard-essential-pilotage__prio-top"><span class="dashboard-essential-pilotage__prio-rank" aria-hidden="true">${idx + 1}</span><span class="badge ${sev.key === 'critical' ? 'red' : sev.key === 'high' ? 'amber' : 'blue'}">${escapeHtml(sev.label)}</span><strong class="dashboard-essential-pilotage__prio-label">${escapeHtml(String(r?.label || 'Priorité'))}</strong></div><div class="dashboard-essential-pilotage__prio-reason">${escapeHtml(pickReason(r?.reason))}</div>`;
           priorities.append(li);
         });
       }
