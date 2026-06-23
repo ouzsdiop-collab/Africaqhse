@@ -1,11 +1,20 @@
 import rateLimit from 'express-rate-limit';
 
 /**
+ * En CI (suite e2e), une seule IP enchaîne des dizaines de specs Playwright en
+ * quelques minutes, chacune chargeant plusieurs endpoints (dashboard, near-misses,
+ * environnement...) ; les limites strictes de prod y déclenchent des 429 — y compris
+ * sur /api/auth/login une fois le budget épuisé — qui font échouer les tests
+ * indéfiniment jusqu'à la fin du run (fenêtre de 15 min > durée du job).
+ */
+const isCi = Boolean(process.env.CI);
+
+/**
  * Limite globale API (réglable par env). Santé exclue.
  */
 export const globalApiLimiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: Number(process.env.RATE_LIMIT_MAX) || 400,
+  max: Number(process.env.RATE_LIMIT_MAX) || (isCi ? 100_000 : 400),
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
@@ -21,7 +30,7 @@ export const globalApiLimiter = rateLimit({
  */
 export const authLoginLimiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_AUTH_WINDOW_MS) || 15 * 60 * 1000,
-  max: Number(process.env.RATE_LIMIT_AUTH_MAX) || 40,
+  max: Number(process.env.RATE_LIMIT_AUTH_MAX) || (isCi ? 1000 : 40),
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false }
