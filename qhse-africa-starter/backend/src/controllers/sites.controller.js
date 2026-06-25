@@ -43,3 +43,38 @@ export async function create(req, res, next) {
     next(err);
   }
 }
+
+export async function update(req, res, next) {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    const updated = await sitesService.updateSite(req.qhseTenantId, id, req.body || {});
+    res.json(updated);
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Code site déjà utilisé' });
+    }
+    next(err);
+  }
+}
+
+export async function remove(req, res, next) {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    await sitesService.deleteSite(req.qhseTenantId, id);
+    res.status(204).send();
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    next(err);
+  }
+}
