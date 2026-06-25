@@ -214,6 +214,9 @@ export async function create(req, res, next) {
     });
     return res.status(201).json(controlledDocumentService.toPublicControlledDocument(row));
   } catch (e) {
+    if (e.code === 'P2002') {
+      return res.status(409).json({ error: 'Conflit : un document identique existe déjà à ce chemin.' });
+    }
     return next(e);
   }
 }
