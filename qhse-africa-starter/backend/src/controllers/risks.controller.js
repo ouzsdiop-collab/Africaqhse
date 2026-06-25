@@ -128,6 +128,7 @@ export async function create(req, res, next) {
   } catch (err) {
     if (err.statusCode === 400) return res.status(400).json({ error: err.message });
     if (err.statusCode === 403) return res.status(403).json({ error: err.message });
+    if (err.code === 'P2002') return res.status(409).json({ error: 'Conflit : référence de risque déjà utilisée, réessayez.' });
     next(err);
   }
 }
