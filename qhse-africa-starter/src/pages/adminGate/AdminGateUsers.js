@@ -191,6 +191,9 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
         console.info('[ADMIN_GATE] reset success: true');
         console.info(`[ADMIN_GATE] response has one-time password: ${Boolean(oneTimePassword)}`);
         renderSecret();
+        const row = el.closest('tr');
+        const tempPwdCell = row?.children?.[4];
+        if (tempPwdCell) tempPwdCell.innerHTML = '<span class="badge badge-warning">Mdp provisoire actif</span>';
         setMessage('Mot de passe réinitialisé.', 'success');
       } catch (error) {
         console.info(`[ADMIN_GATE] reset status: ${error?.status || 'unknown'}`);

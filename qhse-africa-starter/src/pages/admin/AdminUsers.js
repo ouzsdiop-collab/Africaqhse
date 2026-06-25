@@ -146,6 +146,9 @@ export async function renderAdminUsers(_onOneTimePassword) {
         return;
       }
       showOneTimePassword(payload);
+      const row = el.closest('tr');
+      const tempPwdCell = row?.children?.[3];
+      if (tempPwdCell) tempPwdCell.innerHTML = '<span class="badge badge-warning">Mdp provisoire actif</span>';
     }
     if (el.classList.contains('js-toggle')) {
       const uid = el.dataset.uid;
