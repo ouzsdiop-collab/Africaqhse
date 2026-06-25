@@ -18,6 +18,9 @@ export async function create(req, res, next) {
     const row = await permitToWorkService.createPermitToWork(req.qhseTenantId, req.body ?? {});
     res.status(201).json(row);
   } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Conflit : référence de permis déjà utilisée, réessayez.' });
+    }
     next(err);
   }
 }
@@ -33,6 +36,12 @@ export async function patchById(req, res, next) {
     }
     if (err.statusCode === 404) {
       return res.status(404).json({ error: err.message });
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Permis de travail introuvable' });
+    }
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Conflit : référence de permis déjà utilisée, réessayez.' });
     }
     next(err);
   }
@@ -53,6 +62,9 @@ export async function sign(req, res, next) {
   } catch (err) {
     if (err.statusCode === 404) {
       return res.status(404).json({ error: err.message });
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Permis de travail introuvable' });
     }
     next(err);
   }
