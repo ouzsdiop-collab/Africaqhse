@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
+import { parseListLimit } from '../lib/validation.js';
 
 const TOP_COLUMN_KEYS = new Set([
   'type',
@@ -64,7 +65,8 @@ export async function listPermitsToWork(tenantId, query = {}) {
   }
   const rows = await prisma.permitToWork.findMany({
     where,
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    take: parseListLimit(query.limit)
   });
   return rows.map(toClientShape);
 }

@@ -1,4 +1,5 @@
 import * as permitToWorkService from '../services/permitToWork.service.js';
+import { parseListLimit } from '../lib/validation.js';
 
 export async function list(req, res, next) {
   try {
@@ -6,7 +7,11 @@ export async function list(req, res, next) {
       typeof req.query.siteId === 'string' && req.query.siteId.trim() ? req.query.siteId.trim() : undefined;
     const status =
       typeof req.query.status === 'string' && req.query.status.trim() ? req.query.status.trim() : undefined;
-    const items = await permitToWorkService.listPermitsToWork(req.qhseTenantId, { siteId, status });
+    const items = await permitToWorkService.listPermitsToWork(req.qhseTenantId, {
+      siteId,
+      status,
+      limit: parseListLimit(req.query.limit)
+    });
     res.json(items);
   } catch (err) {
     next(err);
