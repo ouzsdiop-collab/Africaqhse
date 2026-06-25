@@ -44,6 +44,7 @@ import {
 } from './services/terrainOffline.service.js';
 import { pushDashboardIntent } from './utils/dashboardNavigationIntent.js';
 import { showToast } from './components/toast.js';
+import { mountFeedbackWidget } from './components/feedbackWidget.js';
 import { ensureProductionDemoModeOff, isDemoMode } from './services/demoMode.service.js';
 import { initTheme } from './utils/theme.js';
 import './styles/dashboard-contrast-fixes.css';
@@ -1023,6 +1024,7 @@ function renderApp() {
       }
       });
       shell.append(clientSidebar);
+      mountFeedbackWidget();
     }
 
     const content = document.createElement('main');
