@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
+import { parseListLimit } from '../lib/validation.js';
 
 const ENVIRONMENTAL_TYPES = ['waste', 'water', 'energy'];
 
@@ -45,7 +46,8 @@ export async function findAllEnvironmentalRecords(tenantId, filters = {}) {
   const rows = await prisma.environmentalRecord.findMany({
     where,
     include: environmentalInclude,
-    orderBy: [{ periodDate: 'desc' }, { createdAt: 'desc' }]
+    orderBy: [{ periodDate: 'desc' }, { createdAt: 'desc' }],
+    take: parseListLimit(filters.limit)
   });
   return rows.map(serializeRow);
 }
