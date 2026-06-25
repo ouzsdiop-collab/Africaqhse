@@ -65,20 +65,20 @@ model Site {
   address   String?
   createdAt DateTime @default(now())
 
-  incidents       Incident[]
-  audits          Audit[]
-  actions         Action[]
-  nonConformities NonConformity[]
-  controlledDocuments ControlledDocument[]
-  risks               Risk[]
-  habilitations       Habilitation[]
-  products            Product[]
-  processes           Process[]
-  trainingSessions    TrainingSession[]
-  preventionPlans     PreventionPlan[]
-  equipment           Equipment[]
+  incidents            Incident[]
+  audits               Audit[]
+  actions              Action[]
+  nonConformities      NonConformity[]
+  controlledDocuments  ControlledDocument[]
+  risks                Risk[]
+  habilitations        Habilitation[]
+  products             Product[]
+  processes            Process[]
+  trainingSessions     TrainingSession[]
+  preventionPlans      PreventionPlan[]
+  equipment            Equipment[]
   environmentalRecords EnvironmentalRecord[]
-  nearMisses          NearMiss[]
+  nearMisses           NearMiss[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -180,21 +180,22 @@ model User {
 
   memberships                TenantMember[]
   passwordResetTokens        PasswordResetToken[]
-  assignedActions            Action[]           @relation("ActionAssignee")
-  ownedProcesses             Process[]          @relation("ProcessOwner")
-  deputyProcesses            Process[]          @relation("ProcessDeputy")
+  assignedActions            Action[]             @relation("ActionAssignee")
+  ownedProcesses             Process[]            @relation("ProcessOwner")
+  deputyProcesses            Process[]            @relation("ProcessDeputy")
   processReviews             ProcessReview[]
   auditLogs                  AuditLog[]
-  createdAiSuggestions       AiSuggestion[]     @relation("AiSuggestionCreatedBy")
-  validatedAiSuggestions     AiSuggestion[]     @relation("AiSuggestionValidatedBy")
+  createdAiSuggestions       AiSuggestion[]       @relation("AiSuggestionCreatedBy")
+  validatedAiSuggestions     AiSuggestion[]       @relation("AiSuggestionValidatedBy")
   createdControlledDocuments ControlledDocument[] @relation("ControlledDocumentCreatedBy")
   refreshTokens              RefreshToken[]
   habilitations              Habilitation[]
-  assignedEquipment           Equipment[]
+  assignedEquipment          Equipment[]
   trainingEnrollments        TrainingEnrollment[]
-  createdIsoEvidences        IsoEvidence[] @relation("IsoEvidenceCreatedBy")
-  validatedIsoEvidences      IsoEvidence[] @relation("IsoEvidenceValidatedBy")
-  adminLogs                  AdminLog[]    @relation("AdminLogActor")
+  createdIsoEvidences        IsoEvidence[]        @relation("IsoEvidenceCreatedBy")
+  validatedIsoEvidences      IsoEvidence[]        @relation("IsoEvidenceValidatedBy")
+  adminLogs                  AdminLog[]           @relation("AdminLogActor")
+  feedbackEntries            Feedback[]           @relation("FeedbackCreatedBy")
 
   @@map("users")
 }
@@ -218,22 +219,22 @@ model AdminLog {
 
 /// Preuves ISO rattachées à une exigence du registre — persistance multi-tenant.
 model IsoEvidence {
-  id            String    @id @default(cuid())
+  id            String  @id @default(cuid())
   tenantId      String?
-  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requirementId String
   /// photo | document | audit | autre
   type          String
   fileUrl       String?
   content       String?
   /// pending | validated | rejected
-  status        String    @default("pending")
-  meta          Json      @default("{}")
+  status        String  @default("pending")
+  meta          Json    @default("{}")
 
   createdById   String
-  createdBy     User      @relation("IsoEvidenceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy     User    @relation("IsoEvidenceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   validatedById String?
-  validatedBy   User?     @relation("IsoEvidenceValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+  validatedBy   User?   @relation("IsoEvidenceValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
 
   createdAt   DateTime  @default(now())
   validatedAt DateTime?
@@ -267,21 +268,21 @@ model Habilitation {
 
 /// Registre des équipements et EPI : contrôles périodiques, péremption, affectation.
 model Equipment {
-  id              String    @id @default(cuid())
-  tenantId        String?
-  siteId          String?
-  siteRecord      Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  assignedUserId  String?
-  assignedUser    User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  name            String
-  category        String
-  serialNumber    String?
-  status          String    @default("in_service")
-  lastControlDate DateTime?
-  nextControlDate DateTime?
+  id                         String    @id @default(cuid())
+  tenantId                   String?
+  siteId                     String?
+  siteRecord                 Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  assignedUserId             String?
+  assignedUser               User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  name                       String
+  category                   String
+  serialNumber               String?
+  status                     String    @default("in_service")
+  lastControlDate            DateTime?
+  nextControlDate            DateTime?
   maintenanceFrequencyMonths Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   @@index([tenantId])
   @@index([siteId])
@@ -292,16 +293,16 @@ model Equipment {
 
 /// Catalogue des formations proposées (intitulé, obligation, périodicité de recyclage).
 model TrainingCourse {
-  id                String            @id @default(cuid())
-  tenantId          String?
-  title             String
-  category          String?
-  durationHours     Float?
-  mandatory         Boolean           @default(false)
-  recurrenceMonths  Int?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  sessions          TrainingSession[]
+  id               String            @id @default(cuid())
+  tenantId         String?
+  title            String
+  category         String?
+  durationHours    Float?
+  mandatory        Boolean           @default(false)
+  recurrenceMonths Int?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         TrainingSession[]
 
   @@index([tenantId])
   @@map("training_courses")
@@ -330,19 +331,19 @@ model TrainingSession {
 
 /// Présence/résultat d'un utilisateur à une session, avec expiration calculée (recyclage).
 model TrainingEnrollment {
-  id            String          @id @default(cuid())
-  tenantId      String?
-  sessionId     String
-  session       TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attended      Boolean         @default(false)
-  score         Float?
+  id             String          @id @default(cuid())
+  tenantId       String?
+  sessionId      String
+  session        TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attended       Boolean         @default(false)
+  score          Float?
   certificateUrl String?
-  completedAt   DateTime?
-  expiresAt     DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@unique([sessionId, userId])
   @@index([tenantId])
@@ -365,26 +366,26 @@ model RefreshToken {
 }
 
 model Action {
-  id         String    @id @default(cuid())
-  tenantId   String?
-  title      String
-  detail     String?
-  status     String    @default("À lancer")
-  owner      String?
-  dueDate    DateTime?
-  siteId     String?
-  siteRecord Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  assigneeId String?
-  assignee   User?     @relation("ActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  incidentId String?
-  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
-  auditId    String?
-  audit      Audit?    @relation(fields: [auditId], references: [id], onDelete: SetNull)
-  riskId     String?
-  risk       Risk?     @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  id            String    @id @default(cuid())
+  tenantId      String?
+  title         String
+  detail        String?
+  status        String    @default("À lancer")
+  owner         String?
+  dueDate       DateTime?
+  siteId        String?
+  siteRecord    Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  assigneeId    String?
+  assignee      User?     @relation("ActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  incidentId    String?
+  incident      Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  auditId       String?
+  audit         Audit?    @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  riskId        String?
+  risk          Risk?     @relation(fields: [riskId], references: [id], onDelete: SetNull)
   /// Identifiant libre de l'exigence ISO liée (référentiel front, ex. "iso-45001:6.1.2") — traçabilité gap → action.
   requirementId String?
-  createdAt  DateTime  @default(now())
+  createdAt     DateTime  @default(now())
 
   aiSuggestions AiSuggestion[]
 
@@ -411,10 +412,10 @@ model Audit {
   createdAt        DateTime  @default(now())
   autoReportSentAt DateTime?
 
-  nonConformities       NonConformity[]
-  actions               Action[]
-  aiSuggestions         AiSuggestion[]
-  controlledDocuments   ControlledDocument[]
+  nonConformities     NonConformity[]
+  actions             Action[]
+  aiSuggestions       AiSuggestion[]
+  controlledDocuments ControlledDocument[]
 
   @@unique([tenantId, ref])
   @@index([tenantId])
@@ -423,19 +424,19 @@ model Audit {
 }
 
 model NonConformity {
-  id         Int      @id @default(autoincrement())
-  tenantId   String?
-  title      String
-  detail     String?
-  status     String   @default("open")
-  auditRef   String
-  auditId    String?
-  audit      Audit?   @relation(fields: [auditId], references: [id], onDelete: SetNull)
-  siteId     String?
-  siteRecord Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  id            Int      @id @default(autoincrement())
+  tenantId      String?
+  title         String
+  detail        String?
+  status        String   @default("open")
+  auditRef      String
+  auditId       String?
+  audit         Audit?   @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  siteId        String?
+  siteRecord    Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
   /// Identifiant libre de l'exigence ISO liée (référentiel front, ex. "iso-45001:6.1.2") — traçabilité gap → NC.
   requirementId String?
-  createdAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
 
   @@index([tenantId])
   @@index([auditId])
@@ -489,30 +490,58 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model Feedback {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  userId    String?
+  user      User?    @relation("FeedbackCreatedBy", fields: [userId], references: [id], onDelete: SetNull)
+  type      String   @default("suggestion")
+  page      String?
+  message   String
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("feedback")
+}
+
+model UserActivity {
+  id           String    @id @default(cuid())
+  tenantId     String
+  userId       String
+  actionCount  Int       @default(0)
+  lastActionAt DateTime?
+
+  @@unique([tenantId, userId])
+  @@map("user_activity")
+}
+
 model AiSuggestion {
-  id     String @id @default(cuid())
-  tenantId String?
-  type   String
-  content Json
-  status String @default("pending_review")
-  createdByUserId String?
-  createdByUser   User?   @relation("AiSuggestionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  createdBySource String  @default("system")
+  id                String         @id @default(cuid())
+  tenantId          String?
+  type              String
+  content           Json
+  status            String         @default("pending_review")
+  createdByUserId   String?
+  createdByUser     User?          @relation("AiSuggestionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdBySource   String         @default("system")
   validatedByUserId String?
-  validatedByUser   User?   @relation("AiSuggestionValidatedBy", fields: [validatedByUserId], references: [id], onDelete: SetNull)
-  createdAt   DateTime  @default(now())
-  validatedAt DateTime?
-  editedContent Json?
-  targetIncidentId String?
-  targetIncident   Incident? @relation(fields: [targetIncidentId], references: [id], onDelete: SetNull)
-  targetActionId String?
-  targetAction   Action? @relation(fields: [targetActionId], references: [id], onDelete: SetNull)
-  targetAuditId String?
-  targetAudit   Audit? @relation(fields: [targetAuditId], references: [id], onDelete: SetNull)
-  importHistoryId String?
-  importHistory   ImportHistory? @relation(fields: [importHistoryId], references: [id], onDelete: SetNull)
-  riskRef String?
-  providerMeta Json?
+  validatedByUser   User?          @relation("AiSuggestionValidatedBy", fields: [validatedByUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime       @default(now())
+  validatedAt       DateTime?
+  editedContent     Json?
+  targetIncidentId  String?
+  targetIncident    Incident?      @relation(fields: [targetIncidentId], references: [id], onDelete: SetNull)
+  targetActionId    String?
+  targetAction      Action?        @relation(fields: [targetActionId], references: [id], onDelete: SetNull)
+  targetAuditId     String?
+  targetAudit       Audit?         @relation(fields: [targetAuditId], references: [id], onDelete: SetNull)
+  importHistoryId   String?
+  importHistory     ImportHistory? @relation(fields: [importHistoryId], references: [id], onDelete: SetNull)
+  riskRef           String?
+  providerMeta      Json?
 
   @@index([tenantId])
   @@index([status, type])
@@ -521,30 +550,30 @@ model AiSuggestion {
 }
 
 model ControlledDocument {
-  id     String @id @default(cuid())
-  tenantId String?
-  name   String
-  type   String
-  path   String
-  classification String @default("normal")
-  siteId String?
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  createdByUserId String?
-  createdBy       User?   @relation("ControlledDocumentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  mimeType   String?
-  sizeBytes  Int?
-  auditId String?
-  audit   Audit? @relation(fields: [auditId], references: [id], onDelete: SetNull)
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  fdsProductRef String?
+  id                String    @id @default(cuid())
+  tenantId          String?
+  name              String
+  type              String
+  path              String
+  classification    String    @default("normal")
+  siteId            String?
+  site              Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  createdByUserId   String?
+  createdBy         User?     @relation("ControlledDocumentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime  @default(now())
+  mimeType          String?
+  sizeBytes         Int?
+  auditId           String?
+  audit             Audit?    @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  productId         String?
+  product           Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  fdsProductRef     String?
   isoRequirementRef String?
-  riskRef String?
-  complianceTag String?
-  expiresAt DateTime?
-  responsible String?
-  updatedAt DateTime @updatedAt
+  riskRef           String?
+  complianceTag     String?
+  expiresAt         DateTime?
+  responsible       String?
+  updatedAt         DateTime  @updatedAt
 
   @@unique([tenantId, path])
   @@index([tenantId])
@@ -558,22 +587,22 @@ model ControlledDocument {
 
 /// Produit chimique — données structurées FDS (parse PDF + validation terrain).
 model Product {
-  id             String   @id @default(cuid())
-  tenantId       String?
-  name           String
-  supplier       String?
-  casNumber      String?
-  ceNumber       String?
-  hStatements    Json     @default("[]")
-  pStatements    Json     @default("[]")
-  ghsPictograms  Json     @default("[]")
-  vlep           String?
-  storageClass   String?
-  fdsFileUrl     String?
-  siteId         String?
-  siteRecord     Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  tenantId      String?
+  name          String
+  supplier      String?
+  casNumber     String?
+  ceNumber      String?
+  hStatements   Json     @default("[]")
+  pStatements   Json     @default("[]")
+  ghsPictograms Json     @default("[]")
+  vlep          String?
+  storageClass  String?
+  fdsFileUrl    String?
+  siteId        String?
+  siteRecord    Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   fdsDocuments ControlledDocument[]
 
@@ -721,31 +750,31 @@ model RegulatoryWatchEntry {
 }
 
 model Process {
-  id              String    @id @default(cuid())
-  tenantId        String?
-  siteId          String?
-  siteRecord      Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  name            String
+  id                String    @id @default(cuid())
+  tenantId          String?
+  siteId            String?
+  siteRecord        Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  name              String
   /// management | realisation | support
-  type            String    @default("realisation")
-  purpose         String?
-  ownerUserId     String?
-  owner           User?     @relation("ProcessOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  deputyUserId    String?
-  deputy          User?     @relation("ProcessDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
-  inputs          Json      @default("[]")
-  outputs         Json      @default("[]")
-  interestedParties Json    @default("[]")
+  type              String    @default("realisation")
+  purpose           String?
+  ownerUserId       String?
+  owner             User?     @relation("ProcessOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  deputyUserId      String?
+  deputy            User?     @relation("ProcessDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
+  inputs            Json      @default("[]")
+  outputs           Json      @default("[]")
+  interestedParties Json      @default("[]")
   /// conforme | a_surveiller | critique | a_revoir
-  status          String    @default("a_surveiller")
-  reviewFrequency String?
-  lastReviewAt    DateTime?
-  nextReviewAt    DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  status            String    @default("a_surveiller")
+  reviewFrequency   String?
+  lastReviewAt      DateTime?
+  nextReviewAt      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  links ProcessLink[]
-  reviews ProcessReview[]
+  links          ProcessLink[]
+  reviews        ProcessReview[]
   scoreSnapshots ProcessScoreSnapshot[]
 
   @@index([tenantId])
@@ -754,17 +783,17 @@ model Process {
 }
 
 model ProcessReview {
-  id              String   @id @default(cuid())
-  tenantId        String?
-  processId       String
-  process         Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
-  reviewedAt      DateTime @default(now())
+  id               String    @id @default(cuid())
+  tenantId         String?
+  processId        String
+  process          Process   @relation(fields: [processId], references: [id], onDelete: Cascade)
+  reviewedAt       DateTime  @default(now())
   reviewedByUserId String?
-  reviewedBy      User?    @relation(fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  conclusion      String
-  status          String?
-  nextReviewAt    DateTime?
-  createdAt       DateTime @default(now())
+  reviewedBy       User?     @relation(fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  conclusion       String
+  status           String?
+  nextReviewAt     DateTime?
+  createdAt        DateTime  @default(now())
 
   @@index([tenantId])
   @@index([processId])
@@ -772,12 +801,12 @@ model ProcessReview {
 }
 
 model ProcessScoreSnapshot {
-  id          String   @id @default(cuid())
-  tenantId    String?
-  processId   String
-  process     Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
-  score       Int
-  capturedAt  DateTime @default(now())
+  id         String   @id @default(cuid())
+  tenantId   String?
+  processId  String
+  process    Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  score      Int
+  capturedAt DateTime @default(now())
 
   @@index([tenantId])
   @@index([processId])
