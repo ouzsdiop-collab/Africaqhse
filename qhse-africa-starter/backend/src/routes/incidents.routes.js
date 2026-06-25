@@ -2,11 +2,9 @@ import { Router } from 'express';
 import * as controller from '../controllers/incidents.controller.js';
 import { validateBody } from '../lib/validation.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
-import { prismaRouteDebug } from '../middleware/prismaRouteDebug.middleware.js';
 import { createIncidentSchema, patchIncidentSchema } from '../validation/incidentSchemas.js';
 
 const router = Router();
-router.use(prismaRouteDebug('incidents'));
 
 /** KPI TF/TG (taux fréquence / gravité) — avant les routes paramétriques */
 router.get('/kpi/tf-tg', requirePermission('incidents', 'read'), controller.getTfTgKpi);
