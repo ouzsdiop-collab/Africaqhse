@@ -41,6 +41,7 @@ export function renderRegulatoryWatch() {
           </p>
         </div>
       </div>
+      <div class="rw-kpi-bar" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px"></div>
       <div class="form-grid" style="gap:12px;margin-top:8px;max-width:260px">
         <label class="field">
           <span>Filtrer par pays (code 2 lettres)</span>
@@ -102,6 +103,7 @@ export function renderRegulatoryWatch() {
   `;
 
   const listHost = page.querySelector('.rw-list-host');
+  const kpiBar = page.querySelector('.rw-kpi-bar');
   const filterCountryIn = page.querySelector('.rw-in-filter-country');
   const titleIn = page.querySelector('.rw-in-title');
   const countryIn = page.querySelector('.rw-in-country');
@@ -128,6 +130,46 @@ export function renderRegulatoryWatch() {
     });
   }
 
+  function renderKpiBar(rows) {
+    if (!kpiBar) return;
+    const total = rows.length;
+    const pending = rows.filter((r) => (r.impactStatus || 'pending') === 'pending').length;
+    const applicable = rows.filter((r) => r.impactStatus === 'applicable').length;
+    const now = Date.now();
+    const in30Days = now + 30 * 24 * 60 * 60 * 1000;
+    const upcoming = rows.filter((r) => {
+      if (!r.effectiveDate) return false;
+      const t = new Date(r.effectiveDate).getTime();
+      return Number.isFinite(t) && t >= now && t <= in30Days;
+    }).length;
+
+    const items = [
+      { label: 'Textes suivis', value: total, tone: 'var(--text2)' },
+      { label: 'À analyser', value: pending, tone: pending > 0 ? '#f59e0b' : 'var(--text2)' },
+      { label: 'Applicables', value: applicable, tone: '#22c55e' },
+      { label: 'Échéances < 30 j', value: upcoming, tone: upcoming > 0 ? '#ef4444' : 'var(--text2)' }
+    ];
+
+    kpiBar.replaceChildren();
+    items.forEach((it) => {
+      const card = document.createElement('div');
+      card.style.border = '1px solid var(--border1, #334155)';
+      card.style.borderRadius = '10px';
+      card.style.padding = '10px 12px';
+      const val = document.createElement('div');
+      val.style.fontSize = '22px';
+      val.style.fontWeight = '900';
+      val.style.color = it.tone;
+      val.textContent = String(it.value);
+      const lbl = document.createElement('div');
+      lbl.style.fontSize = '11px';
+      lbl.style.color = 'var(--text2)';
+      lbl.textContent = it.label;
+      card.append(val, lbl);
+      kpiBar.append(card);
+    });
+  }
+
   function parseObligationsInput(raw) {
     return String(raw || '')
       .split('\n')
@@ -143,6 +185,7 @@ export function renderRegulatoryWatch() {
       const res = await qhseFetch(`/api/regulatory-watch${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
+      renderKpiBar(Array.isArray(rows) ? rows : []);
       if (!Array.isArray(rows) || rows.length === 0) {
         listHost.replaceChildren();
         listHost.append(
@@ -216,6 +259,7 @@ export function renderRegulatoryWatch() {
               });
               if (!r.ok) throw new Error('update failed');
               e.impactStatus = next;
+              renderKpiBar(rows);
               showToast('Statut d’impact mis à jour', 'info');
             } catch {
               showToast('Mise à jour impossible', 'error');
@@ -297,6 +341,7 @@ export function renderRegulatoryWatch() {
       });
     } catch {
       listHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Liste indisponible : vérifiez l’API.</p>';
+      renderKpiBar([]);
     }
   }
 
