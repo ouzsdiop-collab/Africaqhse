@@ -136,12 +136,71 @@ export function renderSites() {
         left.append(title, sub);
         headRow.append(left);
 
-        if (canWrite) {
-          const actions = document.createElement('div');
-          actions.style.display = 'flex';
-          actions.style.gap = '8px';
-          actions.style.flex = '0 0 auto';
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+        actions.style.flex = '0 0 auto';
 
+        const overviewBtn = document.createElement('button');
+        overviewBtn.type = 'button';
+        overviewBtn.className = 'btn btn-secondary btn-sm';
+        overviewBtn.textContent = 'Voir le détail';
+        overviewBtn.addEventListener('click', async () => {
+          const existing = row.querySelector('.sites-overview-panel');
+          if (existing) {
+            existing.remove();
+            return;
+          }
+          const panel = document.createElement('div');
+          panel.className = 'sites-overview-panel';
+          panel.style.marginTop = '8px';
+          panel.style.width = '100%';
+          panel.style.padding = '10px 12px';
+          panel.style.border = '1px solid var(--border1, #334155)';
+          panel.style.borderRadius = '10px';
+          panel.textContent = 'Chargement…';
+          panel.style.fontSize = '13px';
+          panel.style.color = 'var(--text2)';
+          row.append(panel);
+          try {
+            const res = await qhseFetch(`/api/sites/${encodeURIComponent(r.id)}/overview`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const ov = await res.json();
+            const items = [
+              { label: 'Incidents ouverts', value: ov.incidents.open, sub: `${ov.incidents.total} au total`, tone: ov.incidents.open > 0 ? '#ef4444' : 'var(--text2)' },
+              { label: 'Audits', value: ov.audits.total, sub: ov.audits.avgScore != null ? `Score moyen : ${ov.audits.avgScore}` : 'Aucun score', tone: 'var(--text2)' },
+              { label: 'Actions ouvertes', value: ov.actions.open, sub: `${ov.actions.total} au total`, tone: ov.actions.open > 0 ? '#f59e0b' : 'var(--text2)' },
+              { label: 'Équipements hors service', value: ov.equipment.outOfService, sub: `${ov.equipment.total} au total`, tone: ov.equipment.outOfService > 0 ? '#ef4444' : '#22c55e' }
+            ];
+            panel.replaceChildren();
+            panel.style.display = 'grid';
+            panel.style.gridTemplateColumns = 'repeat(4,minmax(0,1fr))';
+            panel.style.gap = '10px';
+            items.forEach((it) => {
+              const card = document.createElement('div');
+              const val = document.createElement('div');
+              val.style.fontSize = '20px';
+              val.style.fontWeight = '900';
+              val.style.color = it.tone;
+              val.textContent = String(it.value);
+              const lbl = document.createElement('div');
+              lbl.style.fontSize = '11px';
+              lbl.style.color = 'var(--text2)';
+              lbl.textContent = it.label;
+              const sub = document.createElement('div');
+              sub.style.fontSize = '10px';
+              sub.style.color = 'var(--text3)';
+              sub.textContent = it.sub;
+              card.append(val, lbl, sub);
+              panel.append(card);
+            });
+          } catch {
+            panel.textContent = 'Détail indisponible : vérifiez l’API.';
+          }
+        });
+        actions.append(overviewBtn);
+
+        if (canWrite) {
           const editBtn = document.createElement('button');
           editBtn.type = 'button';
           editBtn.className = 'btn btn-secondary btn-sm';
