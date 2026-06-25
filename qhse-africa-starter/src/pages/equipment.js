@@ -22,6 +22,16 @@ export function renderEquipment() {
   const canWrite = canResource(su?.role, 'equipment', 'write');
 
   page.innerHTML = `
+    <article class="content-card card-soft equipment-kpi-card">
+      <div class="content-card-head">
+        <div>
+          <div class="section-kicker">Synthèse</div>
+          <h3>Équipements & EPI — vue d'ensemble</h3>
+        </div>
+      </div>
+      <div class="eq-kpi-bar" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px"></div>
+    </article>
+
     <article class="content-card card-soft equipment-alerts-card">
       <div class="content-card-head">
         <div>
@@ -72,8 +82,46 @@ export function renderEquipment() {
     </article>
   `;
 
+  const kpiBar = page.querySelector('.eq-kpi-bar');
   const alertsHost = page.querySelector('.equipment-alerts-host');
   const listHost = page.querySelector('.equipment-list-host');
+
+  let lastList = [];
+  let lastAlerts = [];
+
+  function renderKpiBar() {
+    if (!kpiBar) return;
+    const total = lastList.length;
+    const outOfService = lastList.filter((eq) => eq.status !== 'in_service').length;
+    const expired = lastAlerts.filter((a) => a.severity === 'high').length;
+    const expiring = lastAlerts.filter((a) => a.severity === 'medium').length;
+
+    const items = [
+      { label: 'Équipements suivis', value: total, tone: 'var(--text2)' },
+      { label: 'Hors service', value: outOfService, tone: outOfService > 0 ? '#f59e0b' : 'var(--text2)' },
+      { label: 'Contrôles expirés', value: expired, tone: expired > 0 ? '#dc2626' : 'var(--text2)' },
+      { label: 'Contrôles à prévoir (30 j)', value: expiring, tone: expiring > 0 ? '#d97706' : 'var(--text2)' }
+    ];
+
+    kpiBar.replaceChildren();
+    items.forEach((it) => {
+      const card = document.createElement('div');
+      card.style.border = '1px solid var(--border1, #334155)';
+      card.style.borderRadius = '10px';
+      card.style.padding = '10px 12px';
+      const val = document.createElement('div');
+      val.style.fontSize = '22px';
+      val.style.fontWeight = '900';
+      val.style.color = it.tone;
+      val.textContent = String(it.value);
+      const lbl = document.createElement('div');
+      lbl.style.fontSize = '11px';
+      lbl.style.color = 'var(--text2)';
+      lbl.textContent = it.label;
+      card.append(val, lbl);
+      kpiBar.append(card);
+    });
+  }
 
   const nameIn = page.querySelector('.eq-name');
   const categoryIn = page.querySelector('.eq-category');
@@ -105,6 +153,8 @@ export function renderEquipment() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = await res.json();
       const alerts = Array.isArray(body?.alerts) ? body.alerts : [];
+      lastAlerts = alerts;
+      renderKpiBar();
       if (alerts.length === 0) {
         alertsHost.replaceChildren();
         alertsHost.append(createEmptyState('✅', 'Aucune alerte', 'Tous les équipements sont à jour ou aucune échéance n’est enregistrée.'));
@@ -150,6 +200,8 @@ export function renderEquipment() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
       const list = Array.isArray(rows) ? rows : [];
+      lastList = list;
+      renderKpiBar();
       if (list.length === 0) {
         listHost.replaceChildren();
         listHost.append(createEmptyState('\u{1F9BA}', 'Aucun équipement', 'Ajoutez le premier équipement ci-dessous.'));
