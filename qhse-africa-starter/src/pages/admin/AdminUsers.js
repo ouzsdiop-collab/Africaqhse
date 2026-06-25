@@ -56,6 +56,7 @@ export async function renderAdminUsers(_onOneTimePassword) {
         <option value="provisional">Mdp provisoire actif</option>
         <option value="normal">Mdp défini</option>
       </select>
+      <button class="btn js-bulk-reset">Réinitialiser la sélection</button>
     </div>
     <article class="content-card card-soft js-one-time" style="display:none;margin-top:10px">
       <h3 style="margin-top:0">Mot de passe provisoire généré</h3>
@@ -63,6 +64,11 @@ export async function renderAdminUsers(_onOneTimePassword) {
       <p class="js-one-time-email" style="margin:0 0 4px"></p>
       <pre class="js-one-time-password" style="margin:0 0 8px"></pre>
       <button type="button" class="btn js-copy-password">Copier le mot de passe</button>
+    </article>
+    <article class="content-card card-soft js-bulk-result" style="display:none;margin-top:10px">
+      <h3 style="margin-top:0">Mots de passe provisoires générés (sélection)</h3>
+      <p>Copiez-les maintenant, ils ne seront plus affichés ensuite.</p>
+      <div class="js-bulk-result-list"></div>
     </article>
     <div class="js-list"></div>`;
   const list = section.querySelector('.js-list');
@@ -109,14 +115,14 @@ export async function renderAdminUsers(_onOneTimePassword) {
       if (statusValue === 'normal' && hasProvisional) return false;
       return true;
     });
-    list.innerHTML = `<table class="admin-table"><thead><tr><th>Email</th><th>Entreprise</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
+    list.innerHTML = `<table class="admin-table"><thead><tr><th></th><th>Email</th><th>Entreprise</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
       const tenantId = c?.tenant?.id || c?.id || '';
       const tenantName = c?.tenant?.name || c?.companyName || c?.name || '—';
       const isActive = u?.isActive !== false;
       const tempPwd = u?.mustChangePassword && u?.hasProvisionalPassword
         ? '<span class="badge badge-warning">Mdp provisoire actif</span>'
         : '—';
-      return `<tr><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
+      return `<tr><td><input type="checkbox" class="js-select" data-uid="${u.id}" data-tid="${tenantId}"/></td><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
     }).join('')}</tbody></table>`;
   }
 
@@ -178,7 +184,7 @@ export async function renderAdminUsers(_onOneTimePassword) {
       }
       showOneTimePassword(payload);
       const row = el.closest('tr');
-      const tempPwdCell = row?.children?.[3];
+      const tempPwdCell = row?.children?.[4];
       if (tempPwdCell) tempPwdCell.innerHTML = '<span class="badge badge-warning">Mdp provisoire actif</span>';
     }
     if (el.classList.contains('js-toggle')) {
@@ -198,6 +204,51 @@ export async function renderAdminUsers(_onOneTimePassword) {
       await load();
     }
   });
+
+  const bulkResultCard = section.querySelector('.js-bulk-result');
+  const bulkResultList = section.querySelector('.js-bulk-result-list');
+
+  section.querySelector('.js-bulk-reset')?.addEventListener('click', async () => {
+    setError('');
+    const checked = [...list.querySelectorAll('.js-select:checked')];
+    if (!checked.length) {
+      setError('Sélectionnez au moins un utilisateur.');
+      return;
+    }
+    const byTenant = new Map();
+    for (const checkbox of checked) {
+      const uid = checkbox.dataset.uid;
+      const tid = checkbox.dataset.tid;
+      if (!uid || !tid) continue;
+      if (!byTenant.has(tid)) byTenant.set(tid, []);
+      byTenant.get(tid).push(uid);
+    }
+
+    const allResults = [];
+    for (const [tenantId, userIds] of byTenant) {
+      const r = await adminApi('/users/bulk-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId, userIds })
+      });
+      const payload = await jsonOrEmpty(r);
+      if (!r.ok) {
+        setError(getApiErrorMessage(r.status, payload));
+        continue;
+      }
+      allResults.push(...(Array.isArray(payload?.results) ? payload.results : []));
+    }
+
+    if (bulkResultCard && bulkResultList) {
+      bulkResultList.innerHTML = allResults.map((res) => {
+        if (!res.ok) return `<p style="color:var(--danger,#dc2626)">${res.userId} : ${res.error || 'échec'}</p>`;
+        return `<p><strong>${res.user?.email || res.userId}</strong> : <code>${res.temporaryPasswordOneTime || '—'}</code></p>`;
+      }).join('');
+      bulkResultCard.style.display = allResults.length ? 'block' : 'none';
+    }
+    await load();
+  });
+
   await load();
   return section;
 }

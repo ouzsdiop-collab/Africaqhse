@@ -74,3 +74,8 @@ export const adminPatchTenantUserBodySchema = z
 export const adminTenantScopedBodySchema = z.object({
   tenantId: z.string().trim().min(1)
 });
+
+export const adminBulkResetPasswordBodySchema = z.object({
+  tenantId: z.string().trim().min(1),
+  userIds: z.array(z.string().trim().min(1)).min(1).max(100)
+});
