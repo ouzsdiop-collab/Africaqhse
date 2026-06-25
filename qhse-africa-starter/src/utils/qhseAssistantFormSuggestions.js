@@ -47,6 +47,26 @@ export function buildActionDefaultsFromNearMiss(nm) {
 }
 
 /**
+ * @param {{ title?: string, country?: string, category?: string, effectiveDate?: string }} rw
+ */
+export function buildActionDefaultsFromRegulatoryWatch(rw) {
+  const title = rw?.title || 'Texte réglementaire';
+  return {
+    title: `Mise en conformité : ${title}`.slice(0, 240),
+    origin: 'other',
+    actionType: 'preventive',
+    priority: 'haute',
+    description: mockSuggestActionContent({
+      title,
+      origin: 'other',
+      actionType: 'preventive'
+    }).description,
+    linkedRegulatoryWatch: title,
+    dueDate: ''
+  };
+}
+
+/**
  * @param {{ title?: string, category?: string, meta?: string, status?: string }} risk
  */
 export function buildActionDefaultsFromCriticalRisk(risk) {

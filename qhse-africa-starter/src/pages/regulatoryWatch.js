@@ -3,6 +3,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { createLinkedActionFromRegulatoryWatch } from '../utils/regulatoryWatchActions.js';
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -20,6 +21,7 @@ export function renderRegulatoryWatch() {
   const su = getSessionUser();
   const canRead = canResource(su?.role, 'regulatoryWatch', 'read');
   const canWrite = canResource(su?.role, 'regulatoryWatch', 'write');
+  const canWriteActions = canResource(su?.role, 'actions', 'write');
 
   page.innerHTML = `
     <article class="content-card card-soft">
@@ -208,12 +210,27 @@ export function renderRegulatoryWatch() {
           row.append(list);
         }
 
+        const rowActions = document.createElement('div');
+        rowActions.style.display = 'flex';
+        rowActions.style.gap = '8px';
+        rowActions.style.justifyContent = 'flex-end';
+
+        if (canWriteActions) {
+          const linkBtn = document.createElement('button');
+          linkBtn.type = 'button';
+          linkBtn.className = 'btn btn-secondary';
+          linkBtn.textContent = 'Créer une action liée';
+          linkBtn.addEventListener('click', () => {
+            void createLinkedActionFromRegulatoryWatch(e);
+          });
+          rowActions.append(linkBtn);
+        }
+
         if (canWrite) {
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
           delBtn.className = 'btn btn-ghost';
           delBtn.textContent = 'Supprimer';
-          delBtn.style.alignSelf = 'flex-end';
           delBtn.addEventListener('click', async () => {
             if (!window.confirm('Supprimer ce texte réglementaire ?')) return;
             try {
@@ -225,8 +242,10 @@ export function renderRegulatoryWatch() {
               showToast('Suppression impossible', 'error');
             }
           });
-          row.append(delBtn);
+          rowActions.append(delBtn);
         }
+
+        if (rowActions.childNodes.length) row.append(rowActions);
 
         listHost.append(row);
       });
