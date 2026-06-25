@@ -32,7 +32,9 @@ export const FIELD_LIMITS = {
   riskDescription: 8000,
   riskTitle: 240,
   userName: 120,
-  emailMax: 254
+  emailMax: 254,
+  feedbackMessage: 4000,
+  feedbackPage: 200
 };
 
 /**
