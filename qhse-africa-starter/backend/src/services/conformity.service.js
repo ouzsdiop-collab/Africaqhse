@@ -61,25 +61,43 @@ export async function upsertConformityStatus(tenantId, requirementId, input) {
       ? String(input.userId).trim()
       : null;
 
-  const row = await prisma.conformityStatus.upsert({
-    where: {
-      tenantId_requirementId_siteId: {
-        tenantId: tid,
-        requirementId: rid,
-        siteId: sid
-      }
-    },
-    create: {
-      tenantId: tid,
-      requirementId: rid,
-      siteId: sid,
-      status: st,
-      userId: uid
-    },
-    update: {
-      status: st,
-      userId: uid
-    }
+  // Postgres ne considère pas deux NULL comme égaux : la contrainte unique
+  // (tenantId, requirementId, siteId) ne déduplique pas les lignes "sans site"
+  // (siteId = null), donc l'upsert Prisma basé sur cette clé ne trouve jamais
+  // la ligne existante dans ce cas et peut lever une violation de contrainte
+  // en condition de course. On résout l'existence de la ligne nous-mêmes.
+  const existing = await prisma.conformityStatus.findFirst({
+    where: { tenantId: tid, requirementId: rid, siteId: sid }
   });
+
+  let row;
+  if (existing) {
+    row = await prisma.conformityStatus.update({
+      where: { id: existing.id },
+      data: { status: st, userId: uid }
+    });
+  } else {
+    try {
+      row = await prisma.conformityStatus.create({
+        data: { tenantId: tid, requirementId: rid, siteId: sid, status: st, userId: uid }
+      });
+    } catch (err) {
+      if (err.code === 'P2002') {
+        const concurrent = await prisma.conformityStatus.findFirst({
+          where: { tenantId: tid, requirementId: rid, siteId: sid }
+        });
+        if (concurrent) {
+          row = await prisma.conformityStatus.update({
+            where: { id: concurrent.id },
+            data: { status: st, userId: uid }
+          });
+        } else {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
   return serializeConformityRow(row);
 }

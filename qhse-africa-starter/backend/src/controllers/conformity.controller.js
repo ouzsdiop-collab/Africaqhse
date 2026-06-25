@@ -30,6 +30,12 @@ export async function patchByRequirementId(req, res, next) {
     if (err.statusCode === 400) {
       return res.status(400).json({ error: err.message });
     }
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Conflit : ce statut a déjà été modifié, réessayez.' });
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Statut de conformité introuvable' });
+    }
     next(err);
   }
 }
