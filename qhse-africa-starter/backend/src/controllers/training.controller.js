@@ -3,6 +3,12 @@ import * as trainingService from '../services/training.service.js';
 function handleServiceError(err, res, next) {
   if (err.statusCode === 400) return res.status(400).json({ error: err.message });
   if (err.statusCode === 404) return res.status(404).json({ error: err.message });
+  if (err.code === 'P2002') {
+    return res.status(409).json({ error: 'Conflit : cet utilisateur est déjà inscrit à cette session.' });
+  }
+  if (err.code === 'P2025') {
+    return res.status(404).json({ error: 'Ressource de formation introuvable' });
+  }
   next(err);
 }
 
