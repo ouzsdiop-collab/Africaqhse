@@ -66,6 +66,7 @@ export async function createRegulatoryWatchEntry(tenantId, data, createdByUserId
       summary: data.summary != null && data.summary !== '' ? String(data.summary) : null,
       keyObligationsJson: Array.isArray(data.keyObligations) ? data.keyObligations : [],
       effectiveDate: parseOptDate(data.effectiveDate),
+      impactStatus: typeof data.impactStatus === 'string' && data.impactStatus ? data.impactStatus : 'pending',
       createdByUserId: createdByUserId || null
     }
   });
@@ -122,6 +123,7 @@ export async function updateRegulatoryWatchEntry(tenantId, id, patch) {
     data.keyObligationsJson = Array.isArray(patch.keyObligations) ? patch.keyObligations : [];
   }
   if ('effectiveDate' in patch) data.effectiveDate = parseOptDate(patch.effectiveDate);
+  if ('impactStatus' in patch) data.impactStatus = patch.impactStatus;
   if (Object.keys(data).length === 0) {
     const err = new Error('Aucun champ à mettre à jour');
     err.statusCode = 400;

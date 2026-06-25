@@ -14,6 +14,12 @@ function fmtDate(iso) {
   }
 }
 
+const IMPACT_STATUS_LABELS = {
+  pending: 'En analyse',
+  applicable: 'Applicable',
+  not_applicable: 'Non applicable'
+};
+
 export function renderRegulatoryWatch() {
   const page = document.createElement('section');
   page.className = 'page-stack page-stack--premium-saas regulatory-watch-page';
@@ -185,6 +191,46 @@ export function renderRegulatoryWatch() {
         sub.textContent = parts.join(' · ');
         left.append(title, sub);
         head.append(left);
+
+        const statusWrap = document.createElement('div');
+        statusWrap.style.flex = '0 0 auto';
+        if (canWrite) {
+          const statusSelect = document.createElement('select');
+          statusSelect.className = 'control-input';
+          statusSelect.style.fontSize = '12px';
+          statusSelect.style.padding = '4px 8px';
+          Object.entries(IMPACT_STATUS_LABELS).forEach(([value, label]) => {
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = label;
+            if ((e.impactStatus || 'pending') === value) opt.selected = true;
+            statusSelect.append(opt);
+          });
+          statusSelect.addEventListener('change', async () => {
+            const next = statusSelect.value;
+            try {
+              const r = await qhseFetch(`/api/regulatory-watch/${encodeURIComponent(e.id)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ impactStatus: next })
+              });
+              if (!r.ok) throw new Error('update failed');
+              e.impactStatus = next;
+              showToast('Statut d’impact mis à jour', 'info');
+            } catch {
+              showToast('Mise à jour impossible', 'error');
+              statusSelect.value = e.impactStatus || 'pending';
+            }
+          });
+          statusWrap.append(statusSelect);
+        } else {
+          const badge = document.createElement('span');
+          badge.className = 'badge blue';
+          badge.style.fontSize = '11px';
+          badge.textContent = IMPACT_STATUS_LABELS[e.impactStatus || 'pending'];
+          statusWrap.append(badge);
+        }
+        head.append(statusWrap);
         row.append(head);
 
         if (e.summary) {

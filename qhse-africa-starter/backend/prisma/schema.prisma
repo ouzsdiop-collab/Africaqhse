@@ -709,11 +709,13 @@ model RegulatoryWatchEntry {
   summary            String?
   keyObligationsJson Json      @default("[]")
   effectiveDate      DateTime?
+  impactStatus       String    @default("pending") // pending | applicable | not_applicable
   createdByUserId    String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   @@index([tenantId, country])
+  @@index([tenantId, impactStatus])
   @@map("regulatory_watch_entries")
 }
 
