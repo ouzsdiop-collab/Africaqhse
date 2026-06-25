@@ -19,6 +19,20 @@ function serializeRow(row) {
 }
 
 /**
+ * Calcule la prochaine date de contrôle à partir de la dernière date connue et d'une périodicité en mois.
+ *
+ * @param {Date | null} lastControlDate
+ * @param {number | null} frequencyMonths
+ * @returns {Date | null}
+ */
+function computeNextControlDate(lastControlDate, frequencyMonths) {
+  if (!lastControlDate || !frequencyMonths) return null;
+  const next = new Date(lastControlDate);
+  next.setMonth(next.getMonth() + frequencyMonths);
+  return next;
+}
+
+/**
  * @param {string | null | undefined} tenantId
  * @param {string | null | undefined} siteId
  */
@@ -167,7 +181,7 @@ export async function createEquipment(tenantId, data) {
     data.lastControlDate != null && data.lastControlDate !== ''
       ? new Date(String(data.lastControlDate))
       : null;
-  const nextControlDate =
+  let nextControlDate =
     data.nextControlDate != null && data.nextControlDate !== ''
       ? new Date(String(data.nextControlDate))
       : null;
@@ -181,6 +195,13 @@ export async function createEquipment(tenantId, data) {
     err.statusCode = 400;
     throw err;
   }
+  const maintenanceFrequencyMonths =
+    data.maintenanceFrequencyMonths != null && data.maintenanceFrequencyMonths !== ''
+      ? Math.max(1, Math.min(120, Math.floor(Number(data.maintenanceFrequencyMonths))))
+      : null;
+  if (!nextControlDate && lastControlDate && maintenanceFrequencyMonths) {
+    nextControlDate = computeNextControlDate(lastControlDate, maintenanceFrequencyMonths);
+  }
 
   const created = await prisma.equipment.create({
     data: {
@@ -192,7 +213,8 @@ export async function createEquipment(tenantId, data) {
       serialNumber,
       status,
       lastControlDate: lastControlDate && !Number.isNaN(lastControlDate.getTime()) ? lastControlDate : null,
-      nextControlDate: nextControlDate && !Number.isNaN(nextControlDate.getTime()) ? nextControlDate : null
+      nextControlDate: nextControlDate && !Number.isNaN(nextControlDate.getTime()) ? nextControlDate : null,
+      maintenanceFrequencyMonths
     },
     include: equipmentInclude
   });
@@ -273,6 +295,25 @@ export async function updateEquipment(tenantId, id, patch) {
       }
       data.nextControlDate = d;
     }
+  }
+  if ('maintenanceFrequencyMonths' in patch) {
+    data.maintenanceFrequencyMonths =
+      patch.maintenanceFrequencyMonths == null || patch.maintenanceFrequencyMonths === ''
+        ? null
+        : Math.max(1, Math.min(120, Math.floor(Number(patch.maintenanceFrequencyMonths))));
+  }
+  if (
+    !('nextControlDate' in patch) &&
+    ('lastControlDate' in patch || 'maintenanceFrequencyMonths' in patch)
+  ) {
+    const effectiveLastControlDate =
+      'lastControlDate' in patch ? data.lastControlDate : existing.lastControlDate;
+    const effectiveFrequency =
+      'maintenanceFrequencyMonths' in patch
+        ? data.maintenanceFrequencyMonths
+        : existing.maintenanceFrequencyMonths;
+    const computed = computeNextControlDate(effectiveLastControlDate, effectiveFrequency);
+    if (computed) data.nextControlDate = computed;
   }
   if ('siteId' in patch) {
     data.siteId =

@@ -6,6 +6,8 @@ const optionalDateTime = z
 
 const equipmentStatusEnum = z.enum(['in_service', 'out_of_service', 'in_repair', 'retired']);
 
+const optionalFrequencyMonths = z.union([z.number().int().min(1).max(120), z.literal(''), z.null()]).optional();
+
 export const createEquipmentSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
@@ -14,7 +16,8 @@ export const createEquipmentSchema = z.object({
   serialNumber: z.string().optional(),
   status: equipmentStatusEnum.optional(),
   lastControlDate: optionalDateTime,
-  nextControlDate: optionalDateTime
+  nextControlDate: optionalDateTime,
+  maintenanceFrequencyMonths: optionalFrequencyMonths
 });
 
 const patchDateTime = z
@@ -30,7 +33,8 @@ export const updateEquipmentSchema = z
     serialNumber: z.union([z.string(), z.literal(''), z.null()]).optional(),
     status: equipmentStatusEnum.optional(),
     lastControlDate: patchDateTime,
-    nextControlDate: patchDateTime
+    nextControlDate: patchDateTime,
+    maintenanceFrequencyMonths: optionalFrequencyMonths
   })
   .strict()
   .refine((o) => Object.keys(o).length > 0, { message: 'Au moins un champ requis' });

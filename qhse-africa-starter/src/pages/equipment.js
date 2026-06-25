@@ -75,6 +75,10 @@ export function renderEquipment() {
           <span>Prochain contrôle</span>
           <input type="date" class="control-input eq-next-control" />
         </label>
+        <label class="field">
+          <span>Périodicité (mois)</span>
+          <input type="number" min="1" max="120" class="control-input eq-frequency" placeholder="ex : 12" />
+        </label>
         <button type="button" class="btn btn-primary eq-btn-create field-full" style="min-height:48px;font-weight:700">
           Ajouter l’équipement
         </button>
@@ -129,6 +133,7 @@ export function renderEquipment() {
   const assigneeIn = page.querySelector('.eq-assignee');
   const lastControlIn = page.querySelector('.eq-last-control');
   const nextControlIn = page.querySelector('.eq-next-control');
+  const frequencyIn = page.querySelector('.eq-frequency');
   const createBtn = page.querySelector('.eq-btn-create');
 
   if (!canRead && su) {
@@ -276,6 +281,7 @@ export function renderEquipment() {
           const infoParts = [`Statut : ${eq.status}`];
           if (eq.lastControlDate) infoParts.push(`Dernier contrôle : ${fmtDate(eq.lastControlDate)}`);
           if (eq.nextControlDate) infoParts.push(`Prochain contrôle : ${fmtDate(eq.nextControlDate)}`);
+          if (eq.maintenanceFrequencyMonths) infoParts.push(`Périodicité : ${eq.maintenanceFrequencyMonths} mois`);
           if (eq.siteRecord?.name) infoParts.push(`Site : ${eq.siteRecord.name}`);
           if (eq.assignedUser?.name || eq.assignedUser?.email) {
             infoParts.push(`Affecté : ${eq.assignedUser.name || eq.assignedUser.email}`);
@@ -310,6 +316,14 @@ export function renderEquipment() {
             nextEdit.className = 'control-input';
             nextEdit.value = eq.nextControlDate ? eq.nextControlDate.slice(0, 10) : '';
 
+            const frequencyEdit = document.createElement('input');
+            frequencyEdit.type = 'number';
+            frequencyEdit.min = '1';
+            frequencyEdit.max = '120';
+            frequencyEdit.placeholder = 'Périodicité (mois)';
+            frequencyEdit.className = 'control-input';
+            frequencyEdit.value = eq.maintenanceFrequencyMonths ? String(eq.maintenanceFrequencyMonths) : '';
+
             const saveBtn = document.createElement('button');
             saveBtn.type = 'button';
             saveBtn.className = 'btn btn-primary btn-sm';
@@ -322,7 +336,8 @@ export function renderEquipment() {
                   body: JSON.stringify({
                     status: statusEdit.value,
                     lastControlDate: lastEdit.value ? new Date(lastEdit.value).toISOString() : null,
-                    nextControlDate: nextEdit.value ? new Date(nextEdit.value).toISOString() : null
+                    nextControlDate: nextEdit.value ? new Date(nextEdit.value).toISOString() : null,
+                    maintenanceFrequencyMonths: frequencyEdit.value ? Number(frequencyEdit.value) : null
                   })
                 });
                 const body = await res.json().catch(() => ({}));
@@ -338,7 +353,7 @@ export function renderEquipment() {
               }
             });
 
-            editForm.append(statusEdit, lastEdit, nextEdit, saveBtn);
+            editForm.append(statusEdit, lastEdit, nextEdit, frequencyEdit, saveBtn);
             panel.append(editForm);
           }
 
@@ -389,6 +404,7 @@ export function renderEquipment() {
     const assignedUserId = (assigneeIn.value || '').trim() || undefined;
     const lastControlDate = lastControlIn.value ? new Date(lastControlIn.value).toISOString() : undefined;
     const nextControlDate = nextControlIn.value ? new Date(nextControlIn.value).toISOString() : undefined;
+    const maintenanceFrequencyMonths = frequencyIn.value ? Number(frequencyIn.value) : undefined;
     createBtn.disabled = true;
     try {
       const res = await qhseFetch('/api/equipment', {
@@ -400,7 +416,8 @@ export function renderEquipment() {
           serialNumber,
           assignedUserId,
           lastControlDate,
-          nextControlDate
+          nextControlDate,
+          maintenanceFrequencyMonths
         })
       });
       const body = await res.json().catch(() => ({}));
@@ -415,6 +432,7 @@ export function renderEquipment() {
       assigneeIn.value = '';
       lastControlIn.value = '';
       nextControlIn.value = '';
+      frequencyIn.value = '';
       await refreshList();
       await refreshAlerts();
     } catch {
