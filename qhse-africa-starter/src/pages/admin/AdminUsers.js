@@ -49,6 +49,14 @@ export async function renderAdminUsers(_onOneTimePassword) {
       <button class="btn btn-primary js-create">Créer utilisateur</button>
     </div>
     <p class="js-error" style="margin:8px 0 0;color:var(--danger,#dc2626);font-size:13px;display:none"></p>
+    <div class="form-grid" style="margin-top:12px">
+      <input class="control-input js-search" placeholder="Rechercher (nom ou email)"/>
+      <select class="control-input js-filter-status" aria-label="Filtrer par statut mot de passe">
+        <option value="">Tous les statuts</option>
+        <option value="provisional">Mdp provisoire actif</option>
+        <option value="normal">Mdp défini</option>
+      </select>
+    </div>
     <article class="content-card card-soft js-one-time" style="display:none;margin-top:10px">
       <h3 style="margin-top:0">Mot de passe provisoire généré</h3>
       <p>Mot de passe provisoire généré. Copiez-le maintenant, il ne sera plus affiché ensuite.</p>
@@ -84,16 +92,23 @@ export async function renderAdminUsers(_onOneTimePassword) {
     await navigator.clipboard.writeText(pwd).catch(() => {});
   });
 
-  async function load() {
-    setError('');
-    const res = await adminApi('/clients');
-    const payload = await jsonOrEmpty(res);
-    if (!res.ok) {
-      setError(getApiErrorMessage(res.status, payload));
-      return;
-    }
-    const clients = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
-    const rows = clients.flatMap((c) => (Array.isArray(c.users) ? c.users.map((u) => ({ c, u })) : []));
+  let allRows = [];
+  const searchInput = section.querySelector('.js-search');
+  const statusFilter = section.querySelector('.js-filter-status');
+
+  function renderRows() {
+    const query = String(searchInput?.value || '').trim().toLowerCase();
+    const statusValue = String(statusFilter?.value || '');
+    const rows = allRows.filter(({ u }) => {
+      if (query) {
+        const haystack = `${u.name || ''} ${u.email || ''}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      const hasProvisional = Boolean(u?.mustChangePassword && u?.hasProvisionalPassword);
+      if (statusValue === 'provisional' && !hasProvisional) return false;
+      if (statusValue === 'normal' && hasProvisional) return false;
+      return true;
+    });
     list.innerHTML = `<table class="admin-table"><thead><tr><th>Email</th><th>Entreprise</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
       const tenantId = c?.tenant?.id || c?.id || '';
       const tenantName = c?.tenant?.name || c?.companyName || c?.name || '—';
@@ -103,6 +118,22 @@ export async function renderAdminUsers(_onOneTimePassword) {
         : '—';
       return `<tr><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
     }).join('')}</tbody></table>`;
+  }
+
+  searchInput?.addEventListener('input', renderRows);
+  statusFilter?.addEventListener('change', renderRows);
+
+  async function load() {
+    setError('');
+    const res = await adminApi('/clients');
+    const payload = await jsonOrEmpty(res);
+    if (!res.ok) {
+      setError(getApiErrorMessage(res.status, payload));
+      return;
+    }
+    const clients = Array.isArray(payload?.clients) ? payload.clients : Array.isArray(payload) ? payload : [];
+    allRows = clients.flatMap((c) => (Array.isArray(c.users) ? c.users.map((u) => ({ c, u })) : []));
+    renderRows();
   }
 
   section.querySelector('.js-create')?.addEventListener('click', async () => {
