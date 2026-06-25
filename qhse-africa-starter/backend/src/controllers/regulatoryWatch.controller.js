@@ -16,6 +16,20 @@ export async function getRegulatoryWatchEntries(req, res, next) {
   }
 }
 
+export async function getRegulatoryWatchAlerts(req, res, next) {
+  try {
+    const days = Number(req.query?.daysAhead ?? req.query?.days ?? 30);
+    const limit = Number(req.query?.limit ?? 50);
+    const alerts = await regulatoryWatchService.getRegulatoryWatchAlerts(req.qhseTenantId, {
+      daysAhead: Number.isFinite(days) ? days : 30,
+      limit: Number.isFinite(limit) ? limit : 50
+    });
+    res.json({ alerts });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createRegulatoryWatchEntry(req, res, next) {
   try {
     const row = await regulatoryWatchService.createRegulatoryWatchEntry(

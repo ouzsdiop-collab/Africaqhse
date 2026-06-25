@@ -11,6 +11,7 @@ import {
 const router = Router();
 
 router.get('/', requirePermission('regulatoryWatch', 'read'), controller.getRegulatoryWatchEntries);
+router.get('/alerts', requirePermission('regulatoryWatch', 'read'), controller.getRegulatoryWatchAlerts);
 router.post(
   '/',
   requirePermission('regulatoryWatch', 'write'),
