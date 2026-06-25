@@ -42,6 +42,7 @@ export function renderRegulatoryWatch() {
         </div>
       </div>
       <div class="rw-kpi-bar" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px"></div>
+      <div class="rw-alerts-bar stack" style="margin-top:12px"></div>
       <div class="form-grid" style="gap:12px;margin-top:8px;max-width:260px">
         <label class="field">
           <span>Filtrer par pays (code 2 lettres)</span>
@@ -104,6 +105,7 @@ export function renderRegulatoryWatch() {
 
   const listHost = page.querySelector('.rw-list-host');
   const kpiBar = page.querySelector('.rw-kpi-bar');
+  const alertsBar = page.querySelector('.rw-alerts-bar');
   const filterCountryIn = page.querySelector('.rw-in-filter-country');
   const titleIn = page.querySelector('.rw-in-title');
   const countryIn = page.querySelector('.rw-in-country');
@@ -168,6 +170,30 @@ export function renderRegulatoryWatch() {
       card.append(val, lbl);
       kpiBar.append(card);
     });
+  }
+
+  async function refreshAlerts() {
+    if (!alertsBar) return;
+    try {
+      const res = await qhseFetch('/api/regulatory-watch/alerts?daysAhead=30');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      const alerts = Array.isArray(body?.alerts) ? body.alerts : [];
+      alertsBar.replaceChildren();
+      alerts.forEach((a) => {
+        const high = a.severity === 'high';
+        const item = document.createElement('div');
+        item.style.border = `1px solid ${high ? '#ef4444' : '#f59e0b'}`;
+        item.style.borderRadius = '10px';
+        item.style.padding = '8px 12px';
+        item.style.fontSize = '12px';
+        item.style.color = high ? '#ef4444' : '#f59e0b';
+        item.textContent = `${a.message}${a.date ? ` — ${fmtDate(a.date)}` : ''}`;
+        alertsBar.append(item);
+      });
+    } catch {
+      alertsBar.replaceChildren();
+    }
   }
 
   function parseObligationsInput(raw) {
@@ -328,6 +354,7 @@ export function renderRegulatoryWatch() {
               if (!r.ok && r.status !== 204) throw new Error('delete failed');
               showToast('Texte supprimé', 'info');
               await refreshList();
+              await refreshAlerts();
             } catch {
               showToast('Suppression impossible', 'error');
             }
@@ -423,6 +450,7 @@ export function renderRegulatoryWatch() {
       summaryIn.value = '';
       obligationsIn.value = '';
       await refreshList();
+      await refreshAlerts();
     } catch {
       showToast('Erreur serveur', 'error');
     } finally {
@@ -431,6 +459,7 @@ export function renderRegulatoryWatch() {
   });
 
   refreshList();
+  refreshAlerts();
   const firstCard = page.querySelector('article');
   if (firstCard) firstCard.id = 'regulatory-watch-page-anchor';
   return page;
