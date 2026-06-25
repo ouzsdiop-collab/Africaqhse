@@ -4,6 +4,12 @@ function handleServiceError(err, res, next) {
   if (err.statusCode === 400) return res.status(400).json({ error: err.message });
   if (err.statusCode === 403) return res.status(403).json({ error: err.message });
   if (err.statusCode === 404) return res.status(404).json({ error: err.message });
+  if (err.code === 'P2002') {
+    return res.status(409).json({ error: 'Conflit : référence de plan de prévention déjà utilisée, réessayez.' });
+  }
+  if (err.code === 'P2025') {
+    return res.status(404).json({ error: 'Plan de prévention introuvable' });
+  }
   next(err);
 }
 
