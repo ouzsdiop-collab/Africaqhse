@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const IMPACT_STATUS_VALUES = ['pending', 'applicable', 'not_applicable'];
+
 export const createRegulatoryWatchEntrySchema = z.object({
   title: z.string().min(1).max(300),
   country: z.string().min(2).max(2),
@@ -8,7 +10,8 @@ export const createRegulatoryWatchEntrySchema = z.object({
   sourceText: z.string().max(200_000).optional(),
   summary: z.string().max(20_000).optional(),
   keyObligations: z.array(z.string().min(1).max(2000)).optional(),
-  effectiveDate: z.string().datetime({ offset: true }).optional()
+  effectiveDate: z.string().datetime({ offset: true }).optional(),
+  impactStatus: z.enum(IMPACT_STATUS_VALUES).optional()
 });
 
 export const updateRegulatoryWatchEntrySchema = z
@@ -20,7 +23,8 @@ export const updateRegulatoryWatchEntrySchema = z
     sourceText: z.union([z.string().max(200_000), z.literal(''), z.null()]).optional(),
     summary: z.union([z.string().max(20_000), z.literal(''), z.null()]).optional(),
     keyObligations: z.array(z.string().min(1).max(2000)).optional(),
-    effectiveDate: z.union([z.string().datetime({ offset: true }), z.literal(''), z.null()]).optional()
+    effectiveDate: z.union([z.string().datetime({ offset: true }), z.literal(''), z.null()]).optional(),
+    impactStatus: z.enum(IMPACT_STATUS_VALUES).optional()
   })
   .strict()
   .refine((o) => Object.keys(o).length > 0, { message: 'Au moins un champ requis' });
