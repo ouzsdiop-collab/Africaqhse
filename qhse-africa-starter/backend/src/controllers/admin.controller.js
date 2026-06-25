@@ -6,6 +6,7 @@ import { sendJsonError } from '../lib/apiErrors.js';
 import { encryptSecret } from '../lib/secretCrypto.js';
 import * as authService from '../services/auth.service.js';
 import {
+  adminBulkResetPasswordBodySchema,
   adminCreateClientBodySchema,
   adminCreateTenantUserBodySchema,
   adminPatchTenantBodySchema,
@@ -690,6 +691,106 @@ export async function patchTenantUser(req, res, next) {
   }
 }
 
+async function performUserPasswordReset(tenantId, userId, actorUserId) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, slug: true }
+  });
+  if (!tenant || tenant.slug === PLATFORM_TENANT_SLUG) {
+    const err = new Error('Entreprise introuvable.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const member = await prisma.tenantMember.findUnique({
+    where: { tenantId_userId: { tenantId, userId } },
+    include: {
+      user: {
+        select: { id: true, email: true, name: true, clientCode: true, role: true }
+      }
+    }
+  });
+  if (!member?.user) {
+    const err = new Error('Utilisateur introuvable.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (String(member.user.role || '').toUpperCase() === 'SUPER_ADMIN') {
+    const err = new Error('Action non autorisée.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const provisional = authService.generateProvisioningPassword();
+  const passwordHash = await bcrypt.hash(provisional, 12);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        status: authService.USER_STATUS.INVITED,
+        mustChangePassword: true,
+        temporaryPasswordCreatedAt: new Date(),
+        temporaryPasswordEncrypted: encryptSecret(provisional)
+      }
+    }),
+    prisma.refreshToken.deleteMany({ where: { userId } })
+  ]);
+
+  const expiresAt = provisioningExpiresAt();
+  let invitationSent = false;
+  try {
+    await emailService.sendProvisioningAccessEmail({
+      toEmail: member.user.email,
+      userName: member.user.name,
+      temporaryPassword: provisional,
+      expiresAt
+    });
+    invitationSent = true;
+    await writeAdminLog({
+      actorUserId: actorUserId || '',
+      targetType: 'USER',
+      targetId: member.user.id,
+      tenantId,
+      action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
+      metadata: { context: 'RESET_USER_ACCESS' }
+    });
+  } catch (err) {
+  }
+
+  await writeAdminLog({
+    actorUserId: actorUserId || '',
+    targetType: 'USER',
+    targetId: member.user.id,
+    tenantId,
+    action: ADMIN_LOG_ACTIONS.TEMP_PASSWORD_RESET,
+    metadata: { targetRole: member.user.role }
+  });
+
+  return {
+    ok: true,
+    user: {
+      id: member.user.id,
+      email: member.user.email,
+      role: member.user.role,
+      status: authService.USER_STATUS.INVITED
+    },
+    invitation: {
+      sent: invitationSent,
+      expiresAt,
+      ...(invitationSent ? {} : {
+        emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+      })
+    },
+    temporaryPasswordOneTime: provisional,
+    message: invitationSent
+      ? "Accès généré. Copiez le mot de passe provisoire maintenant."
+      : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
+  };
+}
+
 export async function resetUserPassword(req, res, next) {
   try {
     const userId = String(req.params.userId ?? '').trim();
@@ -706,87 +807,7 @@ export async function resetUserPassword(req, res, next) {
     }
     const { tenantId } = parsed.data;
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { id: true, slug: true }
-    });
-    if (!tenant || tenant.slug === PLATFORM_TENANT_SLUG) {
-      return sendJsonError(res, 404, 'Entreprise introuvable.', req, { code: 'NOT_FOUND' });
-    }
-
-    const member = await prisma.tenantMember.findUnique({
-      where: { tenantId_userId: { tenantId, userId } },
-      include: {
-        user: {
-          select: { id: true, email: true, name: true, clientCode: true, role: true }
-        }
-      }
-    });
-    if (!member?.user) {
-      return sendJsonError(res, 404, 'Utilisateur introuvable.', req, { code: 'NOT_FOUND' });
-    }
-
-    if (String(member.user.role || '').toUpperCase() === 'SUPER_ADMIN') {
-      return sendJsonError(res, 400, 'Action non autorisée.', req, { code: 'FORBIDDEN' });
-    }
-
-    const provisional = authService.generateProvisioningPassword();
-    const passwordHash = await bcrypt.hash(provisional, 12);
-
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: userId },
-        data: {
-          passwordHash,
-          status: authService.USER_STATUS.INVITED,
-          mustChangePassword: true,
-          temporaryPasswordCreatedAt: new Date(),
-          temporaryPasswordEncrypted: encryptSecret(provisional)
-        }
-      }),
-      prisma.refreshToken.deleteMany({ where: { userId } })
-    ]);
-
-    const expiresAt = provisioningExpiresAt();
-    let invitationSent = false;    try {
-      await emailService.sendProvisioningAccessEmail({
-        toEmail: member.user.email,
-        userName: member.user.name,
-        temporaryPassword: provisional,
-        expiresAt
-      });
-      invitationSent = true;
-      await writeAdminLog({
-        actorUserId: req.qhseUser?.id || '',
-        targetType: 'USER',
-        targetId: member.user.id,
-        tenantId,
-        action: ADMIN_LOG_ACTIONS.ACCESS_EMAIL_SENT,
-        metadata: { context: 'RESET_USER_ACCESS' }
-      });
-    } catch (err) {
-    }
-
-    const payload = {
-      ok: true,
-      user: {
-        id: member.user.id,
-        email: member.user.email,
-        role: member.user.role,
-        status: authService.USER_STATUS.INVITED
-      },
-      invitation: {
-        sent: invitationSent,
-        expiresAt,
-        ...(invitationSent ? {} : {
-          emailError: "Accès réinitialisé. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
-        })
-      },
-      temporaryPasswordOneTime: provisional,
-      message: invitationSent
-        ? "Accès généré. Copiez le mot de passe provisoire maintenant."
-        : "Accès généré. L’e-mail n’a pas pu être envoyé. Copiez le mot de passe provisoire maintenant."
-    };
+    const payload = await performUserPasswordReset(tenantId, userId, req.qhseUser?.id);
     console.log('[admin.password.one-shot]', {
       route: req.originalUrl,
       hasTemporaryPasswordOneTime: Boolean(payload.temporaryPasswordOneTime),
@@ -795,21 +816,49 @@ export async function resetUserPassword(req, res, next) {
       invitationSent: payload.invitation?.sent
     });
     res.json(payload);
-    await writeAdminLog({
-      actorUserId: req.qhseUser?.id || '',
-      targetType: 'USER',
-      targetId: member.user.id,
-      tenantId,
-      action: ADMIN_LOG_ACTIONS.TEMP_PASSWORD_RESET,
-      metadata: { targetRole: member.user.role }
-    });
   } catch (err) {
+    if (err.statusCode) {
+      return sendJsonError(res, err.statusCode, err.message, req, { code: err.statusCode === 404 ? 'NOT_FOUND' : 'FORBIDDEN' });
+    }
     console.error('[admin.reset-password] failed', {
       message: err instanceof Error ? err.message : String(err),
       code: err?.code,
       name: err?.name
     });
     return sendJsonError(res, 500, "Échec lors de la réinitialisation d'accès.", req, { code: 'RESET_ACCESS_FAILED' });
+  }
+}
+
+export async function bulkResetUserPasswords(req, res, next) {
+  try {
+    const parsed = adminBulkResetPasswordBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return sendJsonError(res, 422, 'Données invalides', req, {
+        code: 'VALIDATION_ERROR',
+        fieldErrors: parsed.error.flatten().fieldErrors
+      });
+    }
+    const { tenantId, userIds } = parsed.data;
+    const uniqueUserIds = [...new Set(userIds)];
+
+    const results = [];
+    for (const userId of uniqueUserIds) {
+      try {
+        const payload = await performUserPasswordReset(tenantId, userId, req.qhseUser?.id);
+        results.push({ userId, ok: true, ...payload });
+      } catch (err) {
+        results.push({ userId, ok: false, error: err.message || 'Échec de la réinitialisation.' });
+      }
+    }
+
+    res.json({ ok: true, results });
+  } catch (err) {
+    console.error('[admin.bulk-reset-password] failed', {
+      message: err instanceof Error ? err.message : String(err),
+      code: err?.code,
+      name: err?.name
+    });
+    return sendJsonError(res, 500, "Échec lors de la réinitialisation groupée.", req, { code: 'BULK_RESET_FAILED' });
   }
 }
 
