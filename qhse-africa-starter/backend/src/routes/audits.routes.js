@@ -6,11 +6,9 @@ import { prismaTenantFilter } from '../lib/tenantScope.js';
 import * as auditAutoReport from '../services/auditAutoReport.service.js';
 import { validateBody } from '../lib/validation.js';
 import { requirePermission } from '../middleware/requirePermission.middleware.js';
-import { prismaRouteDebug } from '../middleware/prismaRouteDebug.middleware.js';
 import { createAuditSchema, patchAuditSchema } from '../validation/auditSchemas.js';
 
 const router = Router();
-router.use(prismaRouteDebug('audits'));
 
 /** Avant GET / pour éviter toute ambiguïté avec d’éventuelles routes génériques. */
 router.post(
