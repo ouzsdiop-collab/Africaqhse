@@ -51,6 +51,7 @@ import mfaRouter from './routes/mfa.routes.js';
 import trainingRouter from './routes/training.routes.js';
 import preventionPlanRouter from './routes/preventionPlan.routes.js';
 import feedbackRouter from './routes/feedback.routes.js';
+import { trackActivity } from './middleware/trackActivity.middleware.js';
 import regulatoryWatchRouter from './routes/regulatoryWatch.routes.js';
 import smiRouter from './routes/smi.routes.js';
 import pdfRenderRouter from './routes/pdfRender.routes.js';
@@ -248,6 +249,7 @@ app.use(express.json({ limit: getJsonBodyLimit() }));
 app.use(cookieParser());
 app.use(attachRequestUser);
 app.use(requireTenantContext);
+app.use(trackActivity);
 app.use(httpRequestLog);
 
 app.use('/api/health', healthRouter);

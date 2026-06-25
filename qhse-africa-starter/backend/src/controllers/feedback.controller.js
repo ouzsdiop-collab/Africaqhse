@@ -1,4 +1,5 @@
 import * as feedbackService from '../services/feedback.service.js';
+import * as userActivityService from '../services/userActivity.service.js';
 
 function handleServiceError(err, res, next) {
   if (err.statusCode === 400) return res.status(400).json({ error: err.message });
@@ -23,6 +24,15 @@ export async function list(req, res, next) {
       status,
       limit: req.query.limit
     });
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function usage(req, res, next) {
+  try {
+    const items = await userActivityService.findAllUserActivity(req.qhseTenantId);
     res.json(items);
   } catch (err) {
     next(err);
