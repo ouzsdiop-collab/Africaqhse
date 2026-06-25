@@ -94,7 +94,7 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
               <td>${u.email || '—'}</td>
               <td>${u.role || 'USER'}</td>
               <td>${u.isActive === false ? 'Désactivé' : 'Actif'}</td>
-              <td>${u.mustChangePassword && u.temporaryPasswordCurrent ? `<code>${u.temporaryPasswordCurrent}</code>` : '—'}</td>
+              <td>${u.mustChangePassword && u.hasProvisionalPassword ? '<span class="badge badge-warning">Mdp provisoire actif</span>' : '—'}</td>
               <td>
                 <button class="btn" data-action="reset" data-user-id="${u.id}" data-tenant-id="${c.id}">Reset mot de passe</button>
                 <button class="btn" data-action="toggle" data-user-id="${u.id}" data-active="${u.isActive === false ? '0' : '1'}">${u.isActive === false ? 'Réactiver' : 'Désactiver'}</button>
