@@ -1,6 +1,7 @@
 import * as nearMissService from '../services/nearMiss.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
 import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
+import { parseListLimit } from '../lib/validation.js';
 
 function queryStringFirst(value) {
   if (value === undefined || value === null) return null;
@@ -20,7 +21,8 @@ export async function getAll(req, res, next) {
       siteId,
       status,
       from,
-      to
+      to,
+      limit: parseListLimit(req.query.limit)
     });
     res.json(items);
   } catch (err) {

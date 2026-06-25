@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
+import { parseListLimit } from '../lib/validation.js';
 
 const NEAR_MISS_STATUSES = ['open', 'under_review', 'closed'];
 
@@ -45,7 +46,8 @@ export async function findAllNearMisses(tenantId, filters = {}) {
   const rows = await prisma.nearMiss.findMany({
     where,
     include: nearMissInclude,
-    orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }]
+    orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
+    take: parseListLimit(filters.limit)
   });
   return rows.map(serializeRow);
 }
