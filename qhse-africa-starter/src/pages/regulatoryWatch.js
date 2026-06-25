@@ -49,6 +49,9 @@ export function renderRegulatoryWatch() {
           <input type="text" class="control-input rw-in-filter-country" maxlength="2" placeholder="ex. CI" />
         </label>
       </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button type="button" class="btn btn-secondary btn-sm rw-btn-export-pdf">Exporter le rapport de conformité (PDF)</button>
+      </div>
       <div class="rw-list-host stack" style="margin-top:12px"></div>
     </article>
 
@@ -117,6 +120,8 @@ export function renderRegulatoryWatch() {
   const obligationsIn = page.querySelector('.rw-in-obligations');
   const summarizeBtn = page.querySelector('.rw-btn-summarize');
   const createBtn = page.querySelector('.rw-btn-create');
+  const exportPdfBtn = page.querySelector('.rw-btn-export-pdf');
+  let lastLoadedRows = [];
 
   if (!canRead && su) {
     listHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Lecture de la veille réglementaire non autorisée pour ce rôle.</p>';
@@ -211,7 +216,8 @@ export function renderRegulatoryWatch() {
       const res = await qhseFetch(`/api/regulatory-watch${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
-      renderKpiBar(Array.isArray(rows) ? rows : []);
+      lastLoadedRows = Array.isArray(rows) ? rows : [];
+      renderKpiBar(lastLoadedRows);
       if (!Array.isArray(rows) || rows.length === 0) {
         listHost.replaceChildren();
         listHost.append(
@@ -368,11 +374,28 @@ export function renderRegulatoryWatch() {
       });
     } catch {
       listHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Liste indisponible : vérifiez l’API.</p>';
+      lastLoadedRows = [];
       renderKpiBar([]);
     }
   }
 
   filterCountryIn.addEventListener('change', () => refreshList());
+
+  exportPdfBtn.addEventListener('click', async () => {
+    exportPdfBtn.disabled = true;
+    try {
+      const { downloadRegulatoryWatchRegisterPdf } = await import('../services/qhseReportsPdf.service.js');
+      const country = filterCountryIn.value.trim();
+      await downloadRegulatoryWatchRegisterPdf(lastLoadedRows, {
+        filtersSummary: country ? `Pays : ${country.toUpperCase()}` : undefined
+      });
+    } catch (e) {
+      console.error(e);
+      showToast('Export PDF impossible', 'error');
+    } finally {
+      exportPdfBtn.disabled = false;
+    }
+  });
 
   summarizeBtn.addEventListener('click', async () => {
     const sourceText = sourceIn.value.trim();
