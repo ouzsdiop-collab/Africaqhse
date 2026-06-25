@@ -14,6 +14,7 @@ router.post(
   controller.create
 );
 router.get('/:id', requirePermission('sites', 'read'), controller.getById);
+router.get('/:id/overview', requirePermission('sites', 'read'), controller.getOverview);
 router.put(
   '/:id',
   requirePermission('sites', 'write'),

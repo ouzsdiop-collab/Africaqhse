@@ -170,6 +170,59 @@ export async function updateSite(tenantId, id, patch) {
 }
 
 /**
+ * Vue d'ensemble d'un site : compteurs croisés des modules qui s'y rattachent.
+ *
+ * @param {unknown} tenantId
+ * @param {unknown} id
+ */
+export async function getSiteOverview(tenantId, id) {
+  const sid = String(id ?? '').trim();
+  if (!sid) {
+    const err = new Error('Identifiant requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  const tf = prismaTenantFilter(tenantId);
+  const site = await prisma.site.findFirst({ where: { id: sid, ...tf }, select: publicSelect });
+  if (!site) {
+    const err = new Error('Site introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const scope = { ...tf, siteId: sid };
+  const ACTION_DONE_RE = /\b(termine|clos|clotur|ferme|complete|realise|valide|fait|acheve|done|closed)\b/i;
+
+  const [
+    incidentsOpen,
+    incidentsTotal,
+    auditsTotal,
+    auditAvgScore,
+    actionStatuses,
+    equipmentTotal,
+    equipmentOutOfService
+  ] = await Promise.all([
+    prisma.incident.count({ where: { ...scope, status: { not: 'Clôturé' } } }),
+    prisma.incident.count({ where: scope }),
+    prisma.audit.count({ where: scope }),
+    prisma.audit.aggregate({ where: scope, _avg: { score: true } }),
+    prisma.action.findMany({ where: scope, select: { status: true } }),
+    prisma.equipment.count({ where: scope }),
+    prisma.equipment.count({ where: { ...scope, status: { not: 'in_service' } } })
+  ]);
+
+  const actionsOpen = actionStatuses.filter((a) => !ACTION_DONE_RE.test(String(a.status || ''))).length;
+
+  return {
+    site,
+    incidents: { open: incidentsOpen, total: incidentsTotal },
+    audits: { total: auditsTotal, avgScore: auditAvgScore._avg.score != null ? Math.round(auditAvgScore._avg.score) : null },
+    actions: { open: actionsOpen, total: actionStatuses.length },
+    equipment: { total: equipmentTotal, outOfService: equipmentOutOfService }
+  };
+}
+
+/**
  * @param {unknown} tenantId
  * @param {unknown} id
  */
