@@ -105,6 +105,50 @@ export function issueRefreshToken(user, tenantId) {
   );
 }
 
+const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000;
+
+function hashRefreshToken(raw) {
+  return createHash('sha256').update(raw, 'utf8').digest('hex');
+}
+
+/**
+ * Émet un refresh token et persiste son hash (SHA-256) en DB pour permettre
+ * la rotation à usage unique et la détection de réutilisation (vol de token).
+ * @param {{ id: string }} user
+ * @param {string | null | undefined} tenantId
+ * @returns {Promise<string>} jeton brut à placer en cookie
+ */
+export async function issueAndStoreRefreshToken(user, tenantId) {
+  const raw = issueRefreshToken(user, tenantId);
+  await prisma.refreshToken.create({
+    data: {
+      token: hashRefreshToken(raw),
+      userId: user.id,
+      expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
+    }
+  });
+  return raw;
+}
+
+/**
+ * Consomme un refresh token brut : si son hash est connu en DB, le supprime
+ * (rotation à usage unique). Si absent (déjà consommé / inconnu), c'est un
+ * signal de réutilisation — toutes les sessions de l'utilisateur sont révoquées.
+ * @param {string} rawToken
+ * @param {string} userId
+ * @returns {Promise<{ ok: true } | { ok: false, reused: true }>}
+ */
+export async function consumeStoredRefreshToken(rawToken, userId) {
+  const hash = hashRefreshToken(String(rawToken ?? ''));
+  const row = await prisma.refreshToken.findUnique({ where: { token: hash } });
+  if (!row || row.userId !== userId) {
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    return { ok: false, reused: true };
+  }
+  await prisma.refreshToken.delete({ where: { id: row.id } }).catch(() => {});
+  return { ok: true };
+}
+
 /**
  * Jeton limité au POST /api/auth/change-temporary-password (claim `typ: pwd_setup`).
  * @param {string} userId
@@ -353,25 +397,12 @@ export async function consumePasswordResetToken(rawToken, newPassword) {
 /**
  * Déconnexion : avec refresh JWT stateless, rien à révoquer côté serveur.
  */
-export async function revokeRefreshToken(_token) {
-  /* no-op */
-  /**
-   * TODO(auth-refresh): Passer à une stratégie refresh “rotating”.
-   *
-   * État actuel:
-   * - Le refresh token est un JWT stateless stocké en cookie httpOnly.
-   * - `revokeRefreshToken()` ne peut pas invalider un token déjà émis (pas de stockage server-side).
-   *
-   * Risque:
-   * - Si le cookie refresh est volé, il reste utilisable jusqu’à expiration (30 jours par défaut),
-   *   même après “logout” côté client (qui ne fait qu’effacer le cookie).
-   *
-   * Cible:
-   * - Rotation à chaque refresh (ancien refresh invalide après usage),
-   * - `jti` (ou hash de refresh) stocké en DB/Redis (allowlist/denylist),
-   * - Révocation à logout (suppression/invalidation du `jti` courant),
-   * - Détection de réutilisation (reuse detection) → invalidation de la session.
-   */
+export async function revokeRefreshToken(token) {
+  const raw = typeof token === 'string' ? token.trim() : '';
+  if (!raw) return;
+  await prisma.refreshToken
+    .delete({ where: { token: hashRefreshToken(raw) } })
+    .catch(() => {});
 }
 
 /**

@@ -72,7 +72,7 @@ function clearRefreshCookieOptions() {
 async function finalizeLogin(user, tenant, role, res) {
   const accessToken = authService.issueAccessToken(user, tenant.id);
   const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
-  const refreshToken = authService.issueRefreshToken(user, tenant.id);
+  const refreshToken = await authService.issueAndStoreRefreshToken(user, tenant.id);
 
   res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
 
@@ -283,6 +283,12 @@ export async function refreshHandler(req, res, next) {
       return res.status(401).json({ error: 'Refresh token invalide ou expire.' });
     }
 
+    const consumed = await authService.consumeStoredRefreshToken(refreshToken, payload.sub);
+    if (!consumed.ok) {
+      res.clearCookie(QHSE_REFRESH_COOKIE, clearRefreshCookieOptions());
+      return res.status(401).json({ error: 'Refresh token déjà utilisé — sessions révoquées.' });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
       select: { id: true, name: true, email: true, role: true, status: true, mustChangePassword: true, isActive: true }
@@ -319,7 +325,7 @@ export async function refreshHandler(req, res, next) {
     }
 
     const accessToken = authService.issueAccessToken(user, activeTenantId);
-    const newRefreshToken = authService.issueRefreshToken(user, activeTenantId);
+    const newRefreshToken = await authService.issueAndStoreRefreshToken(user, activeTenantId);
 
     res.cookie(QHSE_REFRESH_COOKIE, newRefreshToken, refreshCookieOptions());
 
@@ -475,7 +481,7 @@ export async function changeTemporaryPassword(req, res, next) {
     const role = String(user.role ?? '').trim().toUpperCase();
     const accessToken = authService.issueAccessToken(user, tenant.id);
     const redirectTarget = role === 'SUPER_ADMIN' ? 'SAAS_ADMIN' : 'CLIENT_APP';
-    const refreshToken = authService.issueRefreshToken(user, tenant.id);
+    const refreshToken = await authService.issueAndStoreRefreshToken(user, tenant.id);
     res.cookie(QHSE_REFRESH_COOKIE, refreshToken, refreshCookieOptions());
     const tenants = await tenantAuth.listTenantsForUser(user.id);
 
