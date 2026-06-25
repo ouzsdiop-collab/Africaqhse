@@ -50,6 +50,7 @@ import templatesRouter from './routes/templates.routes.js';
 import mfaRouter from './routes/mfa.routes.js';
 import trainingRouter from './routes/training.routes.js';
 import preventionPlanRouter from './routes/preventionPlan.routes.js';
+import feedbackRouter from './routes/feedback.routes.js';
 import regulatoryWatchRouter from './routes/regulatoryWatch.routes.js';
 import smiRouter from './routes/smi.routes.js';
 import pdfRenderRouter from './routes/pdfRender.routes.js';
@@ -291,6 +292,7 @@ app.use('/api/templates', templatesRouter);
 app.use('/api/mfa', mfaRouter);
 app.use('/api/trainings', trainingRouter);
 app.use('/api/prevention-plans', preventionPlanRouter);
+app.use('/api/feedback', feedbackRouter);
 app.use('/api/regulatory-watch', regulatoryWatchRouter);
 
 // Swagger UI — desactive en production si besoin

@@ -43,7 +43,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ALL,
     reports: ALL,
-    imports: ALL
+    imports: ALL,
+    feedback: ALL
   },
   QHSE: {
     audit_logs: ['read'],
@@ -70,7 +71,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ALL,
     reports: ALL,
-    imports: ALL
+    imports: ALL,
+    feedback: ALL
   },
   DIRECTION: {
     incidents: ['read'],
@@ -95,7 +97,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
-    imports: ['read']
+    imports: ['read'],
+    feedback: ['write']
   },
   MANAGER: {
     incidents: ['read'],
@@ -120,7 +123,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
-    imports: ['read']
+    imports: ['read'],
+    feedback: ['write']
   },
   AUDITEUR: {
     incidents: ['read'],
@@ -170,7 +174,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
-    imports: ALL
+    imports: ALL,
+    feedback: ['write']
   },
   TERRAIN: {
     incidents: ALL,
@@ -193,7 +198,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
-    imports: ['read']
+    imports: ['read'],
+    feedback: ['write']
   },
   OPERATEUR: {
     incidents: ALL,
@@ -214,7 +220,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
-    imports: ['read']
+    imports: ['read'],
+    feedback: ['write']
   },
   /** Rôle « utilisateur » standard — aligné sur OPERATEUR (création via cockpit super-admin). */
   USER: {
@@ -236,7 +243,8 @@ export const MATRIX = {
     notifications: ['read'],
     users: ['read'],
     reports: ['read'],
-    imports: ['read']
+    imports: ['read'],
+    feedback: ['write']
   }
 };
 
@@ -283,5 +291,6 @@ export const PERMISSION_RESOURCES = [
   'users',
   'reports',
   'imports',
-  'processes'
+  'processes',
+  'feedback'
 ];
