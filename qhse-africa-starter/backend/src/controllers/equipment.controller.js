@@ -1,12 +1,13 @@
 import * as equipmentService from '../services/equipment.service.js';
 import { parseSiteIdQuery } from '../lib/siteQueryParam.js';
 import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
+import { parseListLimit } from '../lib/validation.js';
 
 export async function getAll(req, res, next) {
   try {
     const rawSiteId = parseSiteIdQuery(req);
     const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
-    const items = await equipmentService.findAllEquipment(req.qhseTenantId, siteId);
+    const items = await equipmentService.findAllEquipment(req.qhseTenantId, siteId, parseListLimit(req.query.limit));
     res.json(items);
   } catch (err) {
     next(err);

@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { assertSiteExistsOrNull } from './sites.service.js';
 import { normalizeTenantId, prismaTenantFilter } from '../lib/tenantScope.js';
+import { parseListLimit } from '../lib/validation.js';
 
 const equipmentInclude = {
   assignedUser: { select: { id: true, name: true, email: true, role: true } },
@@ -36,7 +37,7 @@ function computeNextControlDate(lastControlDate, frequencyMonths) {
  * @param {string | null | undefined} tenantId
  * @param {string | null | undefined} siteId
  */
-export async function findAllEquipment(tenantId, siteId = null) {
+export async function findAllEquipment(tenantId, siteId = null, limit = undefined) {
   const tf = prismaTenantFilter(tenantId);
   const sid = siteId != null && String(siteId).trim() !== '' ? String(siteId).trim() : null;
   /** @type {Record<string, unknown>} */
@@ -45,7 +46,8 @@ export async function findAllEquipment(tenantId, siteId = null) {
   const rows = await prisma.equipment.findMany({
     where,
     include: equipmentInclude,
-    orderBy: [{ nextControlDate: 'asc' }, { createdAt: 'desc' }]
+    orderBy: [{ nextControlDate: 'asc' }, { createdAt: 'desc' }],
+    take: parseListLimit(limit)
   });
   return rows.map(serializeRow);
 }
