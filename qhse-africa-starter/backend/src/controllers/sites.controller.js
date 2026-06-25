@@ -44,6 +44,22 @@ export async function create(req, res, next) {
   }
 }
 
+export async function getOverview(req, res, next) {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    const overview = await sitesService.getSiteOverview(req.qhseTenantId, id);
+    res.json(overview);
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    next(err);
+  }
+}
+
 export async function update(req, res, next) {
   try {
     const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
