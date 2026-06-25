@@ -118,3 +118,73 @@ export async function createSite(tenantId, data) {
     select: publicSelect
   });
 }
+
+/**
+ * @param {unknown} tenantId
+ * @param {unknown} id
+ * @param {{ name?: string, code?: string|null, address?: string|null }} patch
+ */
+export async function updateSite(tenantId, id, patch) {
+  const sid = String(id ?? '').trim();
+  if (!sid) {
+    const err = new Error('Identifiant requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  const tf = prismaTenantFilter(tenantId);
+  const existing = await prisma.site.findFirst({ where: { id: sid, ...tf } });
+  if (!existing) {
+    const err = new Error('Site introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  /** @type {Record<string, unknown>} */
+  const data = {};
+  if ('name' in patch) {
+    const v = typeof patch.name === 'string' ? patch.name.trim() : '';
+    if (!v) {
+      const err = new Error('Le nom du site est requis');
+      err.statusCode = 400;
+      throw err;
+    }
+    data.name = v;
+  }
+  if ('code' in patch) {
+    data.code = patch.code == null || patch.code === '' ? null : String(patch.code).trim() || null;
+  }
+  if ('address' in patch) {
+    data.address = patch.address == null || patch.address === '' ? null : String(patch.address).trim() || null;
+  }
+  if (Object.keys(data).length === 0) {
+    const err = new Error('Aucun champ à mettre à jour');
+    err.statusCode = 400;
+    throw err;
+  }
+  const upd = await prisma.site.updateMany({ where: { id: sid, ...tf }, data });
+  if (!upd?.count) {
+    const err = new Error('Site introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+  return prisma.site.findFirst({ where: { id: sid, ...tf }, select: publicSelect });
+}
+
+/**
+ * @param {unknown} tenantId
+ * @param {unknown} id
+ */
+export async function deleteSite(tenantId, id) {
+  const sid = String(id ?? '').trim();
+  if (!sid) {
+    const err = new Error('Identifiant requis');
+    err.statusCode = 400;
+    throw err;
+  }
+  const tf = prismaTenantFilter(tenantId);
+  const del = await prisma.site.deleteMany({ where: { id: sid, ...tf } });
+  if (!del?.count) {
+    const err = new Error('Site introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+}

@@ -111,9 +111,16 @@ export function renderSites() {
         const row = document.createElement('article');
         row.className = 'list-row';
         row.style.display = 'flex';
-        row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'flex-start';
-        row.style.gap = '12px';
+        row.style.flexDirection = 'column';
+        row.style.gap = '8px';
+
+        const headRow = document.createElement('div');
+        headRow.style.display = 'flex';
+        headRow.style.justifyContent = 'space-between';
+        headRow.style.alignItems = 'flex-start';
+        headRow.style.gap = '12px';
+        headRow.style.width = '100%';
+
         const left = document.createElement('div');
         const title = document.createElement('strong');
         title.textContent = r.name || 'Non renseigné';
@@ -127,7 +134,117 @@ export function renderSites() {
         parts.push(`id : ${r.id}`);
         sub.textContent = parts.join(' · ');
         left.append(title, sub);
-        row.append(left);
+        headRow.append(left);
+
+        if (canWrite) {
+          const actions = document.createElement('div');
+          actions.style.display = 'flex';
+          actions.style.gap = '8px';
+          actions.style.flex = '0 0 auto';
+
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'btn btn-secondary btn-sm';
+          editBtn.textContent = 'Éditer';
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'btn btn-ghost btn-sm';
+          delBtn.textContent = 'Supprimer';
+          delBtn.addEventListener('click', async () => {
+            if (!window.confirm(`Supprimer le site « ${r.name || ''} » ? Les liaisons existantes (incidents, audits…) seront détachées.`)) return;
+            try {
+              const res = await qhseFetch(`/api/sites/${encodeURIComponent(r.id)}`, { method: 'DELETE' });
+              if (!res.ok && res.status !== 204) throw new Error('delete failed');
+              showToast('Site supprimé', 'info');
+              invalidateSitesCatalog();
+              await refreshList();
+            } catch {
+              showToast('Suppression impossible', 'error');
+            }
+          });
+
+          editBtn.addEventListener('click', () => {
+            const editing = row.querySelector('.sites-edit-form');
+            if (editing) {
+              editing.remove();
+              return;
+            }
+            const form = document.createElement('div');
+            form.className = 'sites-edit-form';
+            form.style.display = 'flex';
+            form.style.flexDirection = 'column';
+            form.style.gap = '8px';
+            form.style.marginTop = '8px';
+            form.style.width = '100%';
+
+            const nameEdit = document.createElement('input');
+            nameEdit.className = 'control-input';
+            nameEdit.value = r.name || '';
+            nameEdit.placeholder = 'Nom';
+
+            const codeEdit = document.createElement('input');
+            codeEdit.className = 'control-input';
+            codeEdit.value = r.code || '';
+            codeEdit.placeholder = 'Code';
+
+            const addrEdit = document.createElement('input');
+            addrEdit.className = 'control-input';
+            addrEdit.value = r.address || '';
+            addrEdit.placeholder = 'Adresse';
+
+            const saveRow = document.createElement('div');
+            saveRow.style.display = 'flex';
+            saveRow.style.gap = '8px';
+            const saveBtn = document.createElement('button');
+            saveBtn.type = 'button';
+            saveBtn.className = 'btn btn-primary btn-sm';
+            saveBtn.textContent = 'Enregistrer';
+            saveBtn.addEventListener('click', async () => {
+              const name = nameEdit.value.trim();
+              if (!name) {
+                showToast('Le nom du site est requis', 'error');
+                return;
+              }
+              try {
+                const res = await qhseFetch(`/api/sites/${encodeURIComponent(r.id)}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    name,
+                    code: codeEdit.value.trim() || null,
+                    address: addrEdit.value.trim() || null
+                  })
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  showToast(typeof body.error === 'string' ? body.error : 'Mise à jour impossible', 'error');
+                  return;
+                }
+                showToast('Site mis à jour', 'info');
+                invalidateSitesCatalog();
+                await refreshList();
+              } catch {
+                showToast('Erreur serveur', 'error');
+              }
+            });
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn btn-ghost btn-sm';
+            cancelBtn.textContent = 'Annuler';
+            cancelBtn.addEventListener('click', () => form.remove());
+
+            saveRow.append(saveBtn, cancelBtn);
+            form.append(nameEdit, codeEdit, addrEdit, saveRow);
+            row.append(form);
+          });
+
+          actions.append(editBtn, delBtn);
+          headRow.append(actions);
+        }
+
+        row.append(headRow);
         listHost.append(row);
       });
     } catch {
