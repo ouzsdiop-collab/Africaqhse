@@ -67,6 +67,26 @@ export function buildActionDefaultsFromRegulatoryWatch(rw) {
 }
 
 /**
+ * @param {{ message?: string, type?: string, date?: string }} alert
+ */
+export function buildActionDefaultsFromEquipmentAlert(alert) {
+  const title = alert?.message || 'Équipement / EPI';
+  return {
+    title: `Contrôle équipement : ${title}`.slice(0, 240),
+    origin: 'other',
+    actionType: 'preventive',
+    priority: alert?.type === 'equipment.control_expired' ? 'haute' : 'normale',
+    description: mockSuggestActionContent({
+      title,
+      origin: 'other',
+      actionType: 'preventive'
+    }).description,
+    linkedEquipmentAlert: title,
+    dueDate: alert?.date ? String(alert.date).slice(0, 10) : ''
+  };
+}
+
+/**
  * @param {{ title?: string, category?: string, meta?: string, status?: string }} risk
  */
 export function buildActionDefaultsFromCriticalRisk(risk) {

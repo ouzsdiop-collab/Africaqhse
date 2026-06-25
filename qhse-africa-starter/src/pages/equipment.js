@@ -3,6 +3,7 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { createLinkedActionFromEquipmentAlert } from '../utils/equipmentActions.js';
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -20,6 +21,7 @@ export function renderEquipment() {
   const su = getSessionUser();
   const canRead = canResource(su?.role, 'equipment', 'read');
   const canWrite = canResource(su?.role, 'equipment', 'write');
+  const canWriteActions = canResource(su?.role, 'actions', 'write');
 
   page.innerHTML = `
     <article class="content-card card-soft equipment-kpi-card">
@@ -170,9 +172,14 @@ export function renderEquipment() {
         const row = document.createElement('article');
         row.className = 'list-row';
         row.style.display = 'flex';
-        row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'flex-start';
-        row.style.gap = '12px';
+        row.style.flexDirection = 'column';
+        row.style.gap = '8px';
+
+        const head = document.createElement('div');
+        head.style.display = 'flex';
+        head.style.justifyContent = 'space-between';
+        head.style.alignItems = 'flex-start';
+        head.style.gap = '12px';
         const left = document.createElement('div');
         const title = document.createElement('strong');
         title.textContent = a.message || '';
@@ -190,7 +197,24 @@ export function renderEquipment() {
         badge.style.borderRadius = '999px';
         badge.style.color = '#fff';
         badge.style.background = a.severity === 'high' ? '#dc2626' : '#d97706';
-        row.append(left, badge);
+        head.append(left, badge);
+        row.append(head);
+
+        if (canWriteActions) {
+          const rowActions = document.createElement('div');
+          rowActions.style.display = 'flex';
+          rowActions.style.justifyContent = 'flex-end';
+          const linkBtn = document.createElement('button');
+          linkBtn.type = 'button';
+          linkBtn.className = 'btn btn-secondary btn-sm';
+          linkBtn.textContent = 'Créer une action liée';
+          linkBtn.addEventListener('click', () => {
+            void createLinkedActionFromEquipmentAlert(a);
+          });
+          rowActions.append(linkBtn);
+          row.append(rowActions);
+        }
+
         alertsHost.append(row);
       });
     } catch {
