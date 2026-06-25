@@ -41,6 +41,35 @@ export async function findAllRegulatoryWatchEntries(tenantId, opts = {}) {
   return rows.map(serialize);
 }
 
+/**
+ * Alertes de veille réglementaire : textes dont la date d'application approche.
+ * Format : { type, severity, message, date }
+ *
+ * @param {string | null | undefined} tenantId
+ * @param {{ daysAhead?: number, limit?: number }} [opts]
+ */
+export async function getRegulatoryWatchAlerts(tenantId, opts = {}) {
+  const d = Math.max(1, Math.min(365, Math.floor(Number(opts.daysAhead) || 30)));
+  const limit = Math.max(1, Math.min(200, Math.floor(Number(opts.limit) || 50)));
+  const now = new Date();
+  const end = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+  const tf = prismaTenantFilter(tenantId);
+
+  const upcoming = await prisma.regulatoryWatchEntry.findMany({
+    where: { ...tf, effectiveDate: { not: null, gte: now, lte: end } },
+    select: { id: true, title: true, country: true, effectiveDate: true, impactStatus: true },
+    orderBy: { effectiveDate: 'asc' },
+    take: limit
+  });
+
+  return upcoming.map((e) => ({
+    type: 'regulatory_watch.upcoming',
+    severity: e.impactStatus === 'pending' ? 'high' : 'medium',
+    message: `Échéance proche : ${e.title} (${e.country})`,
+    date: e.effectiveDate ? e.effectiveDate.toISOString() : null
+  }));
+}
+
 export async function createRegulatoryWatchEntry(tenantId, data, createdByUserId) {
   const tid = normalizeTenantId(tenantId);
   if (!tid) {
