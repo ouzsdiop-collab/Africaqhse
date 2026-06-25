@@ -180,11 +180,124 @@ export function renderEquipment() {
         parts.push(eq.status);
         sub.textContent = parts.filter(Boolean).join(' · ');
         left.append(title, sub);
-        row.append(left);
+
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'stretch';
+        const headRow = document.createElement('div');
+        headRow.style.display = 'flex';
+        headRow.style.justifyContent = 'space-between';
+        headRow.style.alignItems = 'flex-start';
+        headRow.style.gap = '12px';
+        headRow.style.width = '100%';
+        headRow.append(left);
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+        actions.style.flex = '0 0 auto';
+
+        const detailBtn = document.createElement('button');
+        detailBtn.type = 'button';
+        detailBtn.className = 'btn btn-secondary btn-sm';
+        detailBtn.textContent = 'Voir le détail';
+        detailBtn.addEventListener('click', () => {
+          const existing = row.querySelector('.eq-detail-panel');
+          if (existing) {
+            existing.remove();
+            return;
+          }
+          const panel = document.createElement('div');
+          panel.className = 'eq-detail-panel';
+          panel.style.marginTop = '8px';
+          panel.style.width = '100%';
+          panel.style.padding = '10px 12px';
+          panel.style.border = '1px solid var(--border1, #334155)';
+          panel.style.borderRadius = '10px';
+          panel.style.display = 'flex';
+          panel.style.flexDirection = 'column';
+          panel.style.gap = '8px';
+          panel.style.fontSize = '13px';
+
+          const info = document.createElement('p');
+          info.style.margin = '0';
+          info.style.color = 'var(--text2)';
+          const infoParts = [`Statut : ${eq.status}`];
+          if (eq.lastControlDate) infoParts.push(`Dernier contrôle : ${fmtDate(eq.lastControlDate)}`);
+          if (eq.nextControlDate) infoParts.push(`Prochain contrôle : ${fmtDate(eq.nextControlDate)}`);
+          if (eq.siteRecord?.name) infoParts.push(`Site : ${eq.siteRecord.name}`);
+          if (eq.assignedUser?.name || eq.assignedUser?.email) {
+            infoParts.push(`Affecté : ${eq.assignedUser.name || eq.assignedUser.email}`);
+          }
+          info.textContent = infoParts.join(' · ');
+          panel.append(info);
+
+          if (canWrite) {
+            const editForm = document.createElement('div');
+            editForm.style.display = 'flex';
+            editForm.style.flexWrap = 'wrap';
+            editForm.style.gap = '8px';
+            editForm.style.marginTop = '4px';
+
+            const statusEdit = document.createElement('select');
+            statusEdit.className = 'control-input';
+            ['in_service', 'out_of_service', 'in_repair', 'retired'].forEach((s) => {
+              const opt = document.createElement('option');
+              opt.value = s;
+              opt.textContent = s;
+              if (s === eq.status) opt.selected = true;
+              statusEdit.append(opt);
+            });
+
+            const lastEdit = document.createElement('input');
+            lastEdit.type = 'date';
+            lastEdit.className = 'control-input';
+            lastEdit.value = eq.lastControlDate ? eq.lastControlDate.slice(0, 10) : '';
+
+            const nextEdit = document.createElement('input');
+            nextEdit.type = 'date';
+            nextEdit.className = 'control-input';
+            nextEdit.value = eq.nextControlDate ? eq.nextControlDate.slice(0, 10) : '';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.type = 'button';
+            saveBtn.className = 'btn btn-primary btn-sm';
+            saveBtn.textContent = 'Enregistrer';
+            saveBtn.addEventListener('click', async () => {
+              try {
+                const res = await qhseFetch(`/api/equipment/${encodeURIComponent(eq.id)}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    status: statusEdit.value,
+                    lastControlDate: lastEdit.value ? new Date(lastEdit.value).toISOString() : null,
+                    nextControlDate: nextEdit.value ? new Date(nextEdit.value).toISOString() : null
+                  })
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  showToast(typeof body.error === 'string' ? body.error : 'Mise à jour impossible', 'error');
+                  return;
+                }
+                showToast('Équipement mis à jour', 'info');
+                await refreshList();
+                await refreshAlerts();
+              } catch {
+                showToast('Erreur serveur', 'error');
+              }
+            });
+
+            editForm.append(statusEdit, lastEdit, nextEdit, saveBtn);
+            panel.append(editForm);
+          }
+
+          row.append(panel);
+        });
+        actions.append(detailBtn);
+
         if (canWrite) {
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
-          delBtn.className = 'btn btn-ghost';
+          delBtn.className = 'btn btn-ghost btn-sm';
           delBtn.textContent = 'Supprimer';
           delBtn.addEventListener('click', async () => {
             if (!window.confirm('Supprimer cet équipement ?')) return;
@@ -197,8 +310,11 @@ export function renderEquipment() {
               showToast('Suppression impossible', 'error');
             }
           });
-          row.append(delBtn);
+          actions.append(delBtn);
         }
+
+        headRow.append(actions);
+        row.append(headRow);
         listHost.append(row);
       });
     } catch {
