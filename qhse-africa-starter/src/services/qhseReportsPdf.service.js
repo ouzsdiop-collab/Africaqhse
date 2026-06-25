@@ -251,6 +251,84 @@ export async function downloadIncidentsRegisterPdf(incidents, opts = {}) {
   await downloadQhsePremiumPdf(iHtml, 'registre-incidents.pdf', { landscape: true, headerTemplate: iHdr, footerTemplate: iFtr });
 }
 
+const REGULATORY_WATCH_IMPACT_LABELS = {
+  pending: 'En analyse',
+  applicable: 'Applicable',
+  not_applicable: 'Non applicable'
+};
+
+/**
+ * @param {unknown[]} entries : lignes registre veille réglementaire (title, country, category, effectiveDate, impactStatus…)
+ * @param {{ filtersSummary?: string }} [opts]
+ */
+export async function downloadRegulatoryWatchRegisterPdf(entries, opts = {}) {
+  const list = Array.isArray(entries) ? entries : [];
+  const docTitle = 'Rapport de conformité — Veille réglementaire';
+  const fil = opts.filtersSummary
+    ? `<p class="qhse-premium-muted"><strong>Filtres :</strong> ${pdfCell(opts.filtersSummary)}</p>`
+    : '';
+
+  const pending = list.filter((e) => (e?.impactStatus || 'pending') === 'pending').length;
+  const applicable = list.filter((e) => e?.impactStatus === 'applicable').length;
+  const now = Date.now();
+  const in30Days = now + 30 * 24 * 60 * 60 * 1000;
+  const upcoming = list.filter((e) => {
+    if (!e?.effectiveDate) return false;
+    const t = new Date(e.effectiveDate).getTime();
+    return Number.isFinite(t) && t >= now && t <= in30Days;
+  }).length;
+
+  const summary = `
+    <h2 class="qhse-premium-h2">Résumé exécutif</h2>
+    <p class="qhse-premium-muted">Synthèse du registre de veille réglementaire pour le périmètre exporté.</p>
+    ${fil}
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${list.length}</div><div class="qhse-premium-kpi-lbl">Textes suivis</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#a16207">${pending}</div><div class="qhse-premium-kpi-lbl">À analyser</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#166534">${applicable}</div><div class="qhse-premium-kpi-lbl">Applicables</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val" style="color:#991b1b">${upcoming}</div><div class="qhse-premium-kpi-lbl">Échéances &lt; 30 j</div></div>
+    </div>
+    <h2 class="qhse-premium-h2">Conclusion</h2>
+    <p class="qhse-premium-muted">Le tableau détaillé reprend les textes visibles. Statuts d'impact à valider par les pilotes QHSE.</p>
+  `;
+
+  function rowHtml(e) {
+    const title = pdfCell(String(e?.title || 'Non renseigné'));
+    const country = pdfCell(String(e?.country || 'Non renseigné'));
+    const category = pdfCell(String(e?.category || 'Non renseigné'));
+    const date = e?.effectiveDate ? new Date(e.effectiveDate).toLocaleDateString('fr-FR') : 'Non renseigné';
+    const status = pdfCell(REGULATORY_WATCH_IMPACT_LABELS[e?.impactStatus || 'pending'] || 'En analyse');
+    return `<tr>
+      <td>${title}</td>
+      <td>${country}</td>
+      <td>${category}</td>
+      <td>${pdfCell(date)}</td>
+      <td>${status}</td>
+    </tr>`;
+  }
+
+  const { html, headerTemplate, footerTemplate } = buildTableRegisterPdf({
+    docTitle,
+    summaryHtml: summary,
+    columns: [
+      { label: 'Titre', style: 'width:36%' },
+      { label: 'Pays', style: 'width:10%' },
+      { label: 'Catégorie', style: 'width:22%' },
+      { label: 'Entrée en vigueur', style: 'width:16%' },
+      { label: 'Statut d\'impact', style: 'width:16%' },
+    ],
+    rowsHtml: list.map(rowHtml),
+    landscape: true,
+    reportDate: formatQhsePdfGenerationDate(),
+  });
+  await downloadQhsePremiumPdf(html, 'rapport-conformite-veille-reglementaire.pdf', {
+    landscape: true,
+    headerTemplate,
+    footerTemplate
+  });
+}
+
 /**
  * Export premium: Audit ISO 45001 + pilotage QHSE (backend-only).
  * Source: GET /api/reports/iso-45001-pilotage-premium
