@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { sendJsonError } from '../lib/apiErrors.js';
-import { encryptSecret, decryptSecret } from '../lib/secretCrypto.js';
+import { encryptSecret } from '../lib/secretCrypto.js';
 import * as authService from '../services/auth.service.js';
 import {
   adminCreateClientBodySchema,
@@ -119,9 +119,7 @@ export async function listClients(req, res, next) {
           isActive: m.user.isActive,
           status: authService.resolveUserStatus(m.user),
           mustChangePassword: m.user.mustChangePassword,
-          temporaryPasswordCurrent: m.user.mustChangePassword
-            ? decryptSecret(m.user.temporaryPasswordEncrypted)
-            : null,
+          hasProvisionalPassword: Boolean(m.user.mustChangePassword && m.user.temporaryPasswordEncrypted),
           lastLoginAt: m.user.lastLoginAt,
           createdAt: m.user.createdAt
         }));
