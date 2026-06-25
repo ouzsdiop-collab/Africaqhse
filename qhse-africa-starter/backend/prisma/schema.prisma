@@ -279,6 +279,7 @@ model Equipment {
   status          String    @default("in_service")
   lastControlDate DateTime?
   nextControlDate DateTime?
+  maintenanceFrequencyMonths Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
