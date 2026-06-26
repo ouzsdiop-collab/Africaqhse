@@ -178,24 +178,26 @@ model User {
   /// Codes de secours à usage unique (hashés SHA-256, jamais stockés en clair), tableau JSON.
   mfaBackupCodesHash String?
 
-  memberships                TenantMember[]
-  passwordResetTokens        PasswordResetToken[]
-  assignedActions            Action[]             @relation("ActionAssignee")
-  ownedProcesses             Process[]            @relation("ProcessOwner")
-  deputyProcesses            Process[]            @relation("ProcessDeputy")
-  processReviews             ProcessReview[]
-  auditLogs                  AuditLog[]
-  createdAiSuggestions       AiSuggestion[]       @relation("AiSuggestionCreatedBy")
-  validatedAiSuggestions     AiSuggestion[]       @relation("AiSuggestionValidatedBy")
-  createdControlledDocuments ControlledDocument[] @relation("ControlledDocumentCreatedBy")
-  refreshTokens              RefreshToken[]
-  habilitations              Habilitation[]
-  assignedEquipment          Equipment[]
-  trainingEnrollments        TrainingEnrollment[]
-  createdIsoEvidences        IsoEvidence[]        @relation("IsoEvidenceCreatedBy")
-  validatedIsoEvidences      IsoEvidence[]        @relation("IsoEvidenceValidatedBy")
-  adminLogs                  AdminLog[]           @relation("AdminLogActor")
-  feedbackEntries            Feedback[]           @relation("FeedbackCreatedBy")
+  memberships                    TenantMember[]
+  passwordResetTokens            PasswordResetToken[]
+  assignedActions                Action[]               @relation("ActionAssignee")
+  ownedProcesses                 Process[]              @relation("ProcessOwner")
+  deputyProcesses                Process[]              @relation("ProcessDeputy")
+  processReviews                 ProcessReview[]
+  auditLogs                      AuditLog[]
+  createdAiSuggestions           AiSuggestion[]         @relation("AiSuggestionCreatedBy")
+  validatedAiSuggestions         AiSuggestion[]         @relation("AiSuggestionValidatedBy")
+  createdControlledDocuments     ControlledDocument[]   @relation("ControlledDocumentCreatedBy")
+  refreshTokens                  RefreshToken[]
+  habilitations                  Habilitation[]
+  assignedEquipment              Equipment[]
+  trainingEnrollments            TrainingEnrollment[]
+  createdIsoEvidences            IsoEvidence[]          @relation("IsoEvidenceCreatedBy")
+  validatedIsoEvidences          IsoEvidence[]          @relation("IsoEvidenceValidatedBy")
+  adminLogs                      AdminLog[]             @relation("AdminLogActor")
+  feedbackEntries                Feedback[]             @relation("FeedbackCreatedBy")
+  reportedEquipmentSignalements  EquipmentSignalement[] @relation("EquipmentSignalementReportedBy")
+  validatedEquipmentSignalements EquipmentSignalement[] @relation("EquipmentSignalementValidatedBy")
 
   @@map("users")
 }
@@ -268,27 +270,56 @@ model Habilitation {
 
 /// Registre des équipements et EPI : contrôles périodiques, péremption, affectation.
 model Equipment {
-  id                         String    @id @default(cuid())
+  id                         String                 @id @default(cuid())
   tenantId                   String?
   siteId                     String?
-  siteRecord                 Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteRecord                 Site?                  @relation(fields: [siteId], references: [id], onDelete: SetNull)
   assignedUserId             String?
-  assignedUser               User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedUser               User?                  @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
   name                       String
   category                   String
   serialNumber               String?
-  status                     String    @default("in_service")
+  status                     String                 @default("in_service")
   lastControlDate            DateTime?
   nextControlDate            DateTime?
   maintenanceFrequencyMonths Int?
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  signalements               EquipmentSignalement[]
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
 
   @@index([tenantId])
   @@index([siteId])
   @@index([assignedUserId])
   @@index([status])
   @@map("equipment")
+}
+
+/// Signalement terrain sur un équipement (scan QR/NFC) : photo, pictogramme, note vocale, validation QHSE.
+model EquipmentSignalement {
+  id                String    @id @default(cuid())
+  tenantId          String?
+  equipmentId       String
+  equipment         Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  siteId            String?
+  reportedByUserId  String?
+  reportedBy        User?     @relation("EquipmentSignalementReportedBy", fields: [reportedByUserId], references: [id], onDelete: SetNull)
+  category          String
+  severity          String    @default("medium")
+  description       String?
+  attachments       Json      @default("[]")
+  status            String    @default("pending")
+  qhseComment       String?
+  validatedByUserId String?
+  validatedBy       User?     @relation("EquipmentSignalementValidatedBy", fields: [validatedByUserId], references: [id], onDelete: SetNull)
+  validatedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([equipmentId])
+  @@index([siteId])
+  @@index([status])
+  @@map("equipment_signalements")
 }
 
 /// Catalogue des formations proposées (intitulé, obligation, périodicité de recyclage).
