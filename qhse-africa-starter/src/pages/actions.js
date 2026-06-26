@@ -345,6 +345,192 @@ function buildKanbanBoard(actionColumns, opts = {}) {
   return board;
 }
 
+const ACTIONS_VIEW_MODE_KEY = 'qhse.actions.viewMode';
+
+function readActionsViewMode() {
+  try {
+    return localStorage.getItem(ACTIONS_VIEW_MODE_KEY) === 'table' ? 'table' : 'kanban';
+  } catch {
+    return 'kanban';
+  }
+}
+
+function writeActionsViewMode(mode) {
+  try {
+    localStorage.setItem(ACTIONS_VIEW_MODE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+const TABLE_PRIORITY_LABEL = {
+  retard: 'Retard',
+  urgent: 'Urgent',
+  normal: 'Priorité normale',
+  planifie: 'Planifié'
+};
+
+const TABLE_SORT_COLUMNS = [
+  { key: 'title', label: 'Titre' },
+  { key: 'owner', label: 'Responsable' },
+  { key: 'due', label: 'Échéance' },
+  { key: 'status', label: 'Statut' },
+  { key: 'priority', label: 'Priorité' }
+];
+
+function buildActionsTableRows(actionColumns) {
+  const rows = [];
+  COLUMN_ORDER.forEach((key) => {
+    (actionColumns[key] || []).forEach((item) => {
+      const ownerStr =
+        item.assigneeName && String(item.assigneeName).trim()
+          ? String(item.assigneeName).trim()
+          : String(item.rawRow?.owner || '').trim() || 'Non renseigné';
+      const dueIso = item.dueDateIso || null;
+      const priorityKey = getActionPriorityFilterKey(key, dueIso);
+      rows.push({
+        item,
+        columnKey: key,
+        title: item.title || 'Sans titre',
+        owner: ownerStr,
+        dueIso,
+        dueLabel: formatDueForDetail(dueIso) || 'Non renseigné',
+        statusLabel: item.statusLabel || COLUMN_META[key]?.label || 'Non renseigné',
+        priorityKey,
+        priorityLabel: TABLE_PRIORITY_LABEL[priorityKey] || 'Planifié'
+      });
+    });
+  });
+  return rows;
+}
+
+function sortActionsTableRows(rows, sortKey, sortDir) {
+  const dir = sortDir === 'desc' ? -1 : 1;
+  const priorityOrder = { retard: 0, urgent: 1, normal: 2, planifie: 3 };
+  return [...rows].sort((a, b) => {
+    let av;
+    let bv;
+    switch (sortKey) {
+      case 'owner':
+        av = a.owner.toLowerCase();
+        bv = b.owner.toLowerCase();
+        break;
+      case 'due':
+        av = a.dueIso ? new Date(a.dueIso).getTime() : Infinity;
+        bv = b.dueIso ? new Date(b.dueIso).getTime() : Infinity;
+        break;
+      case 'status':
+        av = a.statusLabel.toLowerCase();
+        bv = b.statusLabel.toLowerCase();
+        break;
+      case 'priority':
+        av = priorityOrder[a.priorityKey] ?? 4;
+        bv = priorityOrder[b.priorityKey] ?? 4;
+        break;
+      default:
+        av = a.title.toLowerCase();
+        bv = b.title.toLowerCase();
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+}
+
+/**
+ * Vue tableau dense (alternative au Kanban) : Titre, Responsable, Échéance, Statut, Priorité.
+ * @param {Record<string, object[]>} actionColumns
+ * @param {{ sortKey?: string, sortDir?: 'asc'|'desc', onSortChange?: (key: string) => void }} [opts]
+ */
+function buildActionsTableView(actionColumns, opts = {}) {
+  const { sortKey = 'due', sortDir = 'asc', onSortChange } = opts;
+  const wrap = document.createElement('div');
+  wrap.className = 'actions-table-wrap';
+
+  const table = document.createElement('table');
+  table.className = 'actions-table';
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  TABLE_SORT_COLUMNS.forEach((col) => {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    const active = sortKey === col.key;
+    if (active) th.classList.add('actions-table__th--active');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'actions-table__sort-btn';
+    btn.textContent = `${col.label}${active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : ''}`;
+    btn.addEventListener('click', () => onSortChange?.(col.key));
+    th.append(btn);
+    headRow.append(th);
+  });
+  thead.append(headRow);
+  table.append(thead);
+
+  const tbody = document.createElement('tbody');
+  const rows = sortActionsTableRows(buildActionsTableRows(actionColumns), sortKey, sortDir);
+
+  if (rows.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = TABLE_SORT_COLUMNS.length;
+    td.className = 'actions-table__empty';
+    td.textContent = 'Aucune action sur ce périmètre.';
+    tr.append(td);
+    tbody.append(tr);
+  } else {
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      tr.className = `actions-table__row actions-table__row--${r.columnKey}`;
+      if (r.item.actionId != null) tr.dataset.actionId = String(r.item.actionId);
+      tr.tabIndex = 0;
+      const openDetail = () => {
+        if (typeof r.item.onOpenDetail === 'function' && r.item.rawRow) {
+          r.item.onOpenDetail(r.item.rawRow, r.columnKey);
+        }
+      };
+      tr.addEventListener('click', openDetail);
+      tr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openDetail();
+        }
+      });
+
+      const tdTitle = document.createElement('td');
+      tdTitle.className = 'actions-table__title-cell';
+      tdTitle.textContent = r.title;
+      tdTitle.title = r.title;
+
+      const tdOwner = document.createElement('td');
+      tdOwner.textContent = r.owner;
+
+      const tdDue = document.createElement('td');
+      tdDue.textContent = r.dueLabel;
+      if (r.priorityKey === 'retard') tdDue.classList.add('actions-table__due--late');
+
+      const tdStatus = document.createElement('td');
+      const statusPill = document.createElement('span');
+      statusPill.className = `action-card__status action-card__status--${r.columnKey}`;
+      statusPill.textContent = r.statusLabel;
+      tdStatus.append(statusPill);
+
+      const tdPriority = document.createElement('td');
+      const prioPill = document.createElement('span');
+      prioPill.className = `actions-table__prio actions-table__prio--${r.priorityKey}`;
+      prioPill.textContent = r.priorityLabel;
+      tdPriority.append(prioPill);
+
+      tr.append(tdTitle, tdOwner, tdDue, tdStatus, tdPriority);
+      tbody.append(tr);
+    });
+  }
+  table.append(tbody);
+  wrap.append(table);
+  return wrap;
+}
+
 const ACTIONS_SKELETON_COLUMN_KEYS = ['overdue', 'todo', 'doing'];
 
 function buildActionsKanbanSkeletonBoard() {
@@ -645,9 +831,52 @@ export function renderActions() {
   summaryEl.after(kpiHost);
   kpiHost.after(filterHost);
 
+  let actionsViewMode = readActionsViewMode();
+  let tableSortKey = 'due';
+  let tableSortDir = 'asc';
+
+  const viewToggleBar = document.createElement('div');
+  viewToggleBar.className = 'actions-view-toggle';
+  viewToggleBar.setAttribute('role', 'group');
+  viewToggleBar.setAttribute('aria-label', 'Mode d’affichage du plan d’actions');
+  const viewToggleKanbanBtn = document.createElement('button');
+  viewToggleKanbanBtn.type = 'button';
+  viewToggleKanbanBtn.className = 'actions-view-toggle__btn';
+  viewToggleKanbanBtn.textContent = 'Vue Kanban';
+  const viewToggleTableBtn = document.createElement('button');
+  viewToggleTableBtn.type = 'button';
+  viewToggleTableBtn.className = 'actions-view-toggle__btn';
+  viewToggleTableBtn.textContent = 'Vue tableau';
+  viewToggleBar.append(viewToggleKanbanBtn, viewToggleTableBtn);
+  filterHost.after(viewToggleBar);
+
   const boardHost = document.createElement('div');
   boardHost.className = 'actions-page__board-host';
-  filterHost.after(boardHost);
+  viewToggleBar.after(boardHost);
+
+  function syncViewToggleButtons() {
+    const isTable = actionsViewMode === 'table';
+    viewToggleKanbanBtn.classList.toggle('actions-view-toggle__btn--active', !isTable);
+    viewToggleTableBtn.classList.toggle('actions-view-toggle__btn--active', isTable);
+    viewToggleKanbanBtn.setAttribute('aria-pressed', String(!isTable));
+    viewToggleTableBtn.setAttribute('aria-pressed', String(isTable));
+  }
+  syncViewToggleButtons();
+
+  viewToggleKanbanBtn.addEventListener('click', () => {
+    if (actionsViewMode === 'kanban') return;
+    actionsViewMode = 'kanban';
+    writeActionsViewMode('kanban');
+    syncViewToggleButtons();
+    refreshWithFilters();
+  });
+  viewToggleTableBtn.addEventListener('click', () => {
+    if (actionsViewMode === 'table') return;
+    actionsViewMode = 'table';
+    writeActionsViewMode('table');
+    syncViewToggleButtons();
+    refreshWithFilters();
+  });
 
   let cachedRows = [];
   let actionsFirstLoadPending = true;
@@ -984,13 +1213,27 @@ export function renderActions() {
       );
       return;
     }
-    boardHost.replaceChildren(
-      buildKanbanBoard(actionColumns, {
-        onColumnDrop: (id, targetKey) => {
-          void patchActionStatusFromDnD(id, targetKey);
-        }
-      })
-    );
+    if (actionsViewMode === 'table') {
+      boardHost.replaceChildren(
+        buildActionsTableView(actionColumns, {
+          sortKey: tableSortKey,
+          sortDir: tableSortDir,
+          onSortChange: (key) => {
+            tableSortDir = tableSortKey === key && tableSortDir === 'asc' ? 'desc' : 'asc';
+            tableSortKey = key;
+            refreshWithFilters();
+          }
+        })
+      );
+    } else {
+      boardHost.replaceChildren(
+        buildKanbanBoard(actionColumns, {
+          onColumnDrop: (id, targetKey) => {
+            void patchActionStatusFromDnD(id, targetKey);
+          }
+        })
+      );
+    }
     const sid = pendingActionsScrollTargetId;
     if (sid) {
       pendingActionsScrollTargetId = null;
