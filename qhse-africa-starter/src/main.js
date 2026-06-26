@@ -40,7 +40,8 @@ import {
   getTerrainQueueState,
   syncAllTerrainQueues,
   syncTerrainIncidentQueue,
-  syncTerrainRiskQueue
+  syncTerrainRiskQueue,
+  syncTerrainSignalementQueue
 } from './services/terrainOffline.service.js';
 import { pushDashboardIntent } from './utils/dashboardNavigationIntent.js';
 import { showToast } from './components/toast.js';
@@ -186,6 +187,9 @@ function installTerrainSyncClientBridge() {
     }
     if (event.data?.type === 'SW_SYNC_RISKS') {
       void syncTerrainRiskQueue().catch(() => {});
+    }
+    if (event.data?.type === 'SW_SYNC_SIGNALEMENTS') {
+      void syncTerrainSignalementQueue().catch(() => {});
     }
   });
 }
@@ -1334,6 +1338,9 @@ navigator.serviceWorker?.addEventListener('message', (event) => {
   }
   if (event.data?.type === 'SW_SYNC_RISKS') {
     void syncTerrainRiskQueue().catch(() => {});
+  }
+  if (event.data?.type === 'SW_SYNC_SIGNALEMENTS') {
+    void syncTerrainSignalementQueue().catch(() => {});
   }
 });
 

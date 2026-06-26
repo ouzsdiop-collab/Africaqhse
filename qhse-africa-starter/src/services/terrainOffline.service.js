@@ -1,9 +1,10 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
 
 const DB_NAME = 'qhse-terrain-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_INCIDENTS = 'incident-queue';
 const STORE_RISKS = 'risk-queue';
+const STORE_SIGNALEMENTS = 'signalement-queue';
 const MAX_RETRY = 5;
 const RETRY_DELAYS_MS = [1000, 2000, 4000, 10000, 30000];
 
@@ -19,6 +20,9 @@ function openTerrainDb() {
       }
       if (!db.objectStoreNames.contains(STORE_RISKS)) {
         db.createObjectStore(STORE_RISKS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_SIGNALEMENTS)) {
+        db.createObjectStore(STORE_SIGNALEMENTS, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -84,16 +88,27 @@ export async function queueTerrainRisk(draft) {
   return item;
 }
 
+export async function queueTerrainSignalement(draft) {
+  const item = { id: genId('sig'), createdAt: new Date().toISOString(), retryCount: 0, failed: false, ...draft };
+  await dbPut(STORE_SIGNALEMENTS, item);
+  await requestBackgroundSync('terrain-signalement-sync');
+  if (navigator.onLine) syncTerrainSignalementQueue().catch(() => {});
+  return item;
+}
+
 export async function getTerrainQueueState() {
-  const [incidents, risks] = await Promise.all([
+  const [incidents, risks, signalements] = await Promise.all([
     dbGetAll(STORE_INCIDENTS),
-    dbGetAll(STORE_RISKS)
+    dbGetAll(STORE_RISKS),
+    dbGetAll(STORE_SIGNALEMENTS)
   ]);
   return {
     pendingIncidents: incidents.filter(i => !i.failed).length,
     pendingRisks: risks.filter(r => !r.failed).length,
+    pendingSignalements: signalements.filter(s => !s.failed).length,
     failedIncidents: incidents.filter(i => i.failed).length,
     failedRisks: risks.filter(r => r.failed).length,
+    failedSignalements: signalements.filter(s => s.failed).length,
     online: navigator.onLine
   };
 }
@@ -164,34 +179,72 @@ export async function syncTerrainRiskQueue() {
   return { synced, pending: pending.length - synced, failed };
 }
 
+export async function syncTerrainSignalementQueue() {
+  const items = await dbGetAll(STORE_SIGNALEMENTS);
+  const pending = items.filter(s => !s.failed);
+  let synced = 0, failed = 0;
+
+  for (const item of pending) {
+    try {
+      const res = await qhseFetch('/api/equipment-signalements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      if (res.ok) {
+        await dbDelete(STORE_SIGNALEMENTS, item.id);
+        synced++;
+      } else {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch {
+      const retryCount = (item.retryCount || 0) + 1;
+      if (retryCount >= MAX_RETRY) {
+        await dbPut(STORE_SIGNALEMENTS, { ...item, retryCount, failed: true });
+        failed++;
+      } else {
+        await dbPut(STORE_SIGNALEMENTS, { ...item, retryCount });
+        const delay = RETRY_DELAYS_MS[retryCount - 1] || 30000;
+        setTimeout(() => syncTerrainSignalementQueue(), delay);
+      }
+    }
+  }
+  return { synced, pending: pending.length - synced, failed };
+}
+
 export async function syncAllTerrainQueues() {
-  const [incidents, risks] = await Promise.all([
+  const [incidents, risks, signalements] = await Promise.all([
     syncTerrainIncidentQueue(),
-    syncTerrainRiskQueue()
+    syncTerrainRiskQueue(),
+    syncTerrainSignalementQueue()
   ]);
-  window.dispatchEvent(new CustomEvent('qhse-terrain-sync-done', { detail: { incidents, risks } }));
-  return { incidents, risks };
+  window.dispatchEvent(new CustomEvent('qhse-terrain-sync-done', { detail: { incidents, risks, signalements } }));
+  return { incidents, risks, signalements };
 }
 
 export async function getFailedQueueItems() {
-  const [incidents, risks] = await Promise.all([
+  const [incidents, risks, signalements] = await Promise.all([
     dbGetAll(STORE_INCIDENTS),
-    dbGetAll(STORE_RISKS)
+    dbGetAll(STORE_RISKS),
+    dbGetAll(STORE_SIGNALEMENTS)
   ]);
   return {
     incidents: incidents.filter(i => i.failed),
-    risks: risks.filter(r => r.failed)
+    risks: risks.filter(r => r.failed),
+    signalements: signalements.filter(s => s.failed)
   };
 }
 
 export async function retryFailedItems() {
-  const [incidents, risks] = await Promise.all([
+  const [incidents, risks, signalements] = await Promise.all([
     dbGetAll(STORE_INCIDENTS),
-    dbGetAll(STORE_RISKS)
+    dbGetAll(STORE_RISKS),
+    dbGetAll(STORE_SIGNALEMENTS)
   ]);
   await Promise.all([
     ...incidents.filter(i => i.failed).map(i => dbPut(STORE_INCIDENTS, { ...i, retryCount: 0, failed: false })),
-    ...risks.filter(r => r.failed).map(r => dbPut(STORE_RISKS, { ...r, retryCount: 0, failed: false }))
+    ...risks.filter(r => r.failed).map(r => dbPut(STORE_RISKS, { ...r, retryCount: 0, failed: false })),
+    ...signalements.filter(s => s.failed).map(s => dbPut(STORE_SIGNALEMENTS, { ...s, retryCount: 0, failed: false }))
   ]);
   return syncAllTerrainQueues();
 }
