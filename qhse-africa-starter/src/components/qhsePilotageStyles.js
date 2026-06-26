@@ -1336,6 +1336,17 @@ html[data-theme='dark'] .action-create-dialog::backdrop{background:rgba(0,0,0,.5
 @media (max-width:1100px){
   .risks-register-premium-table{font-size:11px}
 }
+@media (max-width:680px){
+  .risks-page__list-region{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .risks-register-premium-table{table-layout:auto;width:auto;min-width:100%}
+  .risks-register-premium-table tbody td{word-break:normal;overflow-wrap:break-word;white-space:normal}
+  .risks-register-col--risk{width:auto;min-width:170px}
+  .risks-register-col--crit{width:auto;min-width:90px}
+  .risks-register-col--gp{width:auto;min-width:70px}
+  .risks-register-col--status{width:auto;min-width:90px}
+  .risks-register-col--owner{width:auto;min-width:110px}
+  .risks-register-col--action{width:auto;min-width:160px}
+}
 
 /* Matrice G×P premium : gradients, heatmap, tooltips, axes */
 .risks-matrix-card-prominent .risk-matrix-grid-wrap{margin-top:4px;padding-bottom:6px}
