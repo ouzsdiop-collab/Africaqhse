@@ -872,7 +872,7 @@ function renderApp() {
       return;
     }
 
-    if (!su && (isAdminPath || isAppPath || isLegacyAdminPath)) {
+    if (!su && !demoGuestMode && (isAdminPath || isAppPath || isLegacyAdminPath || path === '/')) {
       window.location.replace('/login');
       return;
     }
