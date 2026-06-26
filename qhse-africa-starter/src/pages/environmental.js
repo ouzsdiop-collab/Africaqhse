@@ -3,6 +3,10 @@ import { getSessionUser } from '../data/sessionUser.js';
 import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import {
+  createEnvironmentalMonthlyTrendChart,
+  createEnvironmentalTypeBreakdownChart
+} from '../components/environmentalCharts.js';
 
 const TYPE_LABELS = {
   waste: 'Déchets',
@@ -80,6 +84,19 @@ export function renderEnvironmental() {
       <div class="environmental-summary-host stack" style="margin-top:12px"></div>
     </article>
 
+    <article class="content-card card-soft environmental-charts-card">
+      <div class="content-card-head">
+        <div>
+          <div class="section-kicker">Graphiques</div>
+          <h3>Tendance &amp; répartition</h3>
+        </div>
+      </div>
+      <div class="environmental-charts-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:12px">
+        <div class="environmental-trend-chart-host" style="position:relative;height:260px"></div>
+        <div class="environmental-breakdown-chart-host" style="position:relative;height:260px"></div>
+      </div>
+    </article>
+
     <article class="content-card card-soft">
       <div class="content-card-head">
         <div>
@@ -126,6 +143,10 @@ export function renderEnvironmental() {
 
   const summaryHost = page.querySelector('.environmental-summary-host');
   const listHost = page.querySelector('.environmental-list-host');
+  const trendChartHost = page.querySelector('.environmental-trend-chart-host');
+  const breakdownChartHost = page.querySelector('.environmental-breakdown-chart-host');
+  let trendChart = null;
+  let breakdownChart = null;
 
   const typeSel = page.querySelector('.env-type');
   const categoryIn = page.querySelector('.env-category');
@@ -148,6 +169,49 @@ export function renderEnvironmental() {
     page.querySelectorAll('.form-grid input, .form-grid select, .form-grid button').forEach((el) => {
       el.disabled = true;
     });
+  }
+
+  function renderCharts(list, summary) {
+    if (trendChart) {
+      trendChart.destroy();
+      trendChart = null;
+    }
+    if (breakdownChart) {
+      breakdownChart.destroy();
+      breakdownChart = null;
+    }
+    trendChartHost.innerHTML = '';
+    breakdownChartHost.innerHTML = '';
+
+    if (Array.isArray(list) && list.length > 0) {
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-label', 'Tendance mensuelle des relevés environnementaux par type');
+      canvas.setAttribute('role', 'img');
+      trendChartHost.append(canvas);
+      trendChart = createEnvironmentalMonthlyTrendChart(canvas, list);
+    } else {
+      trendChartHost.append(createEmptyState('📈', 'Pas de données', 'Ajoutez des relevés pour voir la tendance mensuelle.'));
+    }
+
+    if (Array.isArray(summary) && summary.length > 0) {
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-label', 'Répartition des relevés environnementaux par type');
+      canvas.setAttribute('role', 'img');
+      breakdownChartHost.append(canvas);
+      breakdownChart = createEnvironmentalTypeBreakdownChart(canvas, summary);
+    } else {
+      breakdownChartHost.append(createEmptyState('🥧', 'Pas de données', 'Ajoutez des relevés pour voir la répartition.'));
+    }
+  }
+
+  async function refreshCharts() {
+    try {
+      const [summary, res] = await Promise.all([fetchEnvironmentalSummary(), qhseFetch('/api/environmental')]);
+      const list = res?.ok ? await res.json().catch(() => []) : [];
+      renderCharts(Array.isArray(list) ? list : [], summary || []);
+    } catch {
+      renderCharts([], []);
+    }
   }
 
   async function refreshSummary() {
@@ -251,6 +315,7 @@ export function renderEnvironmental() {
               showToast('Relevé supprimé', 'info');
               await refreshList();
               await refreshSummary();
+              await refreshCharts();
             } catch {
               showToast('Suppression impossible', 'error');
             }
@@ -299,6 +364,7 @@ export function renderEnvironmental() {
       notesIn.value = '';
       await refreshList();
       await refreshSummary();
+      await refreshCharts();
     } catch {
       showToast('Erreur serveur', 'error');
     } finally {
@@ -308,6 +374,7 @@ export function renderEnvironmental() {
 
   refreshSummary();
   refreshList();
+  refreshCharts();
 
   const firstCard = page.querySelector('article');
   if (firstCard) firstCard.id = 'environmental-page-anchor';
