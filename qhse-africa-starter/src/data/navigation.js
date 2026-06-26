@@ -46,6 +46,7 @@ export const navigationGroups = [
     items: [
       { id: 'habilitations', label: 'Habilitations', icon: '⛑' },
       { id: 'equipment', label: 'Équipements / EPI', icon: '🥽' },
+      { id: 'equipment-signalements', label: 'Signalements terrain', icon: '🔧', resource: 'equipment_signalements' },
       { id: 'trainings', label: 'Formations', icon: '🎓' }
     ]
   },
@@ -172,6 +173,12 @@ export const pageTopbarById = {
     kicker: 'Conformité',
     subtitle: 'Registre des équipements et EPI : contrôles périodiques, péremption, affectation.',
     cta: { label: 'Voir les habilitations', pageId: 'habilitations' }
+  },
+  'equipment-signalements': {
+    title: 'Signalements terrain',
+    kicker: 'Terrain',
+    subtitle: 'Signalements équipement remontés depuis le mode terrain : à valider ou rejeter.',
+    cta: { label: 'Voir les équipements', pageId: 'equipment' }
   },
   trainings: {
     title: 'Formations',

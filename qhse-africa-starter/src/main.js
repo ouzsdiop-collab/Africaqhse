@@ -459,6 +459,7 @@ const PAGE_IMPORT_LOADERS = {
   settings: () => import('./pages/settings.js'),
   habilitations: () => import('./pages/habilitations.js'),
   equipment: () => import('./pages/equipment.js'),
+  'equipment-signalements': () => import('./pages/equipment-signalements.js'),
   trainings: () => import('./pages/trainings.js'),
   'regulatory-watch': () => import('./pages/regulatoryWatch.js'),
   environmental: () => import('./pages/environmental.js'),
@@ -623,6 +624,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderHabilitations();
     case 'equipment':
       return mod.renderEquipment();
+    case 'equipment-signalements':
+      return mod.renderEquipmentSignalements();
     case 'trainings':
       return mod.renderTrainings();
     case 'regulatory-watch':
