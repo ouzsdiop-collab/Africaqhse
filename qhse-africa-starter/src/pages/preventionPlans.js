@@ -4,6 +4,25 @@ import { canResource } from '../utils/permissionsUi.js';
 import { showToast } from '../components/toast.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
+import { createQhseKpiStrip } from '../components/qhseKpiStrip.js';
+import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
+
+const STATUS_OPTIONS = [
+  ['all', 'Tous les statuts'],
+  ['draft', 'Brouillon'],
+  ['validated', 'Validé'],
+  ['closed', 'Clôturé']
+];
+
+const EXPIRY_SOON_DAYS = 7;
+
+function isExpiringSoon(p) {
+  if (p.status === 'closed' || !p.endDate) return false;
+  const d = new Date(p.endDate);
+  if (Number.isNaN(d.getTime())) return false;
+  const days = (d.getTime() - Date.now()) / 86400000;
+  return days <= EXPIRY_SOON_DAYS;
+}
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -83,6 +102,19 @@ export function renderPreventionPlans() {
           </p>
         </div>
       </div>
+      <div class="pp-kpi-host" style="margin-top:12px"></div>
+      <div class="pp-filter-toolbar" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+        <label class="field" style="min-width:200px">
+          <span>Site</span>
+          <select class="control-input pp-filter-site">
+            <option value="">Tous les sites</option>
+          </select>
+        </label>
+        <label class="field" style="min-width:180px">
+          <span>Statut</span>
+          <select class="control-input pp-filter-status"></select>
+        </label>
+      </div>
       <div class="pp-list-host stack" style="margin-top:12px"></div>
     </article>
 
@@ -128,6 +160,28 @@ export function renderPreventionPlans() {
       </div>
     </article>
   `;
+
+  const kpiHost = page.querySelector('.pp-kpi-host');
+  const siteFilterSel = page.querySelector('.pp-filter-site');
+  const statusFilterSel = page.querySelector('.pp-filter-status');
+  STATUS_OPTIONS.forEach(([value, label]) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    statusFilterSel.append(o);
+  });
+  let sitesCatalog = [];
+  fetchSitesCatalog()
+    .then((sites) => {
+      sitesCatalog = Array.isArray(sites) ? sites : [];
+      sitesCatalog.forEach((s) => {
+        const o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.name;
+        siteFilterSel.append(o);
+      });
+    })
+    .catch(() => {});
 
   const listHost = page.querySelector('.pp-list-host');
   const companyIn = page.querySelector('.pp-in-company');
@@ -233,13 +287,150 @@ export function renderPreventionPlans() {
     return wrap;
   }
 
+  function renderKpis(rows) {
+    const n = rows.length;
+    const draft = rows.filter((p) => p.status === 'draft').length;
+    const validated = rows.filter((p) => p.status === 'validated').length;
+    const closed = rows.filter((p) => p.status === 'closed').length;
+    const expiring = rows.filter(isExpiringSoon).length;
+    kpiHost.replaceChildren(
+      createQhseKpiStrip([
+        { label: 'Plans affichés', value: n, tone: 'blue', hintTitle: 'Sur le périmètre filtré' },
+        { label: 'Brouillons', value: draft, tone: 'amber', hintTitle: 'En attente de signatures' },
+        { label: 'Validés', value: validated, tone: 'green', hintTitle: 'Signés par les deux parties' },
+        { label: 'Clôturés', value: closed, tone: 'blue', hintTitle: 'Intervention terminée' },
+        {
+          label: 'Échéance proche',
+          value: expiring,
+          tone: 'red',
+          hintTitle: `Fin d'intervention dans ≤ ${EXPIRY_SOON_DAYS} j ou dépassée, hors plans clôturés`
+        }
+      ])
+    );
+  }
+
+  function renderEditForm(p, onDone) {
+    const wrap = document.createElement('div');
+    wrap.className = 'form-grid';
+    wrap.style.gap = '10px';
+    wrap.style.marginTop = '8px';
+    wrap.style.padding = '10px';
+    wrap.style.border = '1px dashed var(--border1, #334155)';
+    wrap.style.borderRadius = '10px';
+
+    const mk = (labelText, type, value, full) => {
+      const label = document.createElement('label');
+      label.className = full ? 'field field-full' : 'field';
+      const span = document.createElement('span');
+      span.textContent = labelText;
+      const input = type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
+      if (type !== 'textarea') input.type = type;
+      input.className = 'control-input';
+      if (value != null) input.value = value;
+      label.append(span, input);
+      wrap.append(label);
+      return input;
+    };
+
+    const companyEdit = mk('Entreprise extérieure', 'text', p.externalCompanyName, true);
+    const contactEdit = mk('Contact', 'text', p.externalContact || '');
+    const siteEdit = document.createElement('label');
+    siteEdit.className = 'field';
+    const siteSpan = document.createElement('span');
+    siteSpan.textContent = 'Site';
+    const siteSelect = document.createElement('select');
+    siteSelect.className = 'control-input';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = 'Aucun site';
+    siteSelect.append(noneOpt);
+    sitesCatalog.forEach((s) => {
+      const o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = s.name;
+      if (p.siteId === s.id) o.selected = true;
+      siteSelect.append(o);
+    });
+    siteEdit.append(siteSpan, siteSelect);
+    wrap.append(siteEdit);
+    const descEdit = mk('Description de l’intervention', 'textarea', p.workDescription || '', true);
+    descEdit.rows = 2;
+    const startEdit = mk('Début', 'datetime-local', p.startDate ? p.startDate.slice(0, 16) : '');
+    const endEdit = mk('Fin', 'datetime-local', p.endDate ? p.endDate.slice(0, 16) : '');
+    const risksEdit = mk(
+      'Risques d’interférence (un par ligne, séparer mesure par " :: ")',
+      'textarea',
+      (Array.isArray(p.risksJson) ? p.risksJson : [])
+        .map((r) => (r.measure ? `${r.description} :: ${r.measure}` : r.description))
+        .join('\n'),
+      true
+    );
+    risksEdit.rows = 3;
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'field-full';
+    btnRow.style.display = 'flex';
+    btnRow.style.gap = '8px';
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.textContent = 'Enregistrer';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-ghost';
+    cancelBtn.textContent = 'Annuler';
+    cancelBtn.addEventListener('click', () => onDone());
+    saveBtn.addEventListener('click', async () => {
+      const externalCompanyName = companyEdit.value.trim();
+      if (!externalCompanyName) {
+        showToast('Le nom de l’entreprise extérieure est requis', 'error');
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        const r = await qhseFetch(`/api/prevention-plans/${encodeURIComponent(p.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            externalCompanyName,
+            externalContact: contactEdit.value.trim() || '',
+            siteId: siteSelect.value || '',
+            workDescription: descEdit.value.trim() || '',
+            startDate: startEdit.value ? new Date(startEdit.value).toISOString() : '',
+            endDate: endEdit.value ? new Date(endEdit.value).toISOString() : '',
+            risks: parseRisksInput(risksEdit.value)
+          })
+        });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          showToast(typeof body.error === 'string' ? body.error : 'Modification impossible', 'error');
+          return;
+        }
+        showToast('Plan de prévention modifié', 'info');
+        await onDone(true);
+      } catch {
+        showToast('Erreur serveur', 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    btnRow.append(saveBtn, cancelBtn);
+    wrap.append(btnRow);
+    return wrap;
+  }
+
   async function refreshList() {
     listHost.innerHTML = '<p style="margin:0;font-size:13px;color:var(--text2)">Chargement…</p>';
     try {
-      const res = await qhseFetch('/api/prevention-plans');
+      const qs = new URLSearchParams();
+      if (siteFilterSel.value) qs.set('siteId', siteFilterSel.value);
+      if (statusFilterSel.value && statusFilterSel.value !== 'all') qs.set('status', statusFilterSel.value);
+      const query = qs.toString();
+      const res = await qhseFetch(`/api/prevention-plans${query ? `?${query}` : ''}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
       if (!Array.isArray(rows) || rows.length === 0) {
+        renderKpis([]);
         listHost.replaceChildren();
         listHost.append(
           createEmptyState(
@@ -250,6 +441,7 @@ export function renderPreventionPlans() {
         );
         return;
       }
+      renderKpis(rows);
       listHost.replaceChildren();
       rows.forEach((p) => {
         const row = document.createElement('article');
@@ -291,6 +483,19 @@ export function renderPreventionPlans() {
         head.append(left, badge);
         row.append(head);
 
+        if (isExpiringSoon(p)) {
+          const expBadge = document.createElement('span');
+          expBadge.textContent = 'Échéance proche';
+          expBadge.style.alignSelf = 'flex-start';
+          expBadge.style.fontSize = '11px';
+          expBadge.style.fontWeight = '700';
+          expBadge.style.padding = '2px 8px';
+          expBadge.style.borderRadius = '999px';
+          expBadge.style.color = '#fff';
+          expBadge.style.background = '#dc2626';
+          row.append(expBadge);
+        }
+
         const risks = Array.isArray(p.risksJson) ? p.risksJson : [];
         if (risks.length > 0) {
           const risksList = document.createElement('ul');
@@ -306,6 +511,9 @@ export function renderPreventionPlans() {
           row.append(risksList);
         }
 
+        const editHost = document.createElement('div');
+        row.append(editHost);
+
         const sigGrid = document.createElement('div');
         sigGrid.style.display = 'grid';
         sigGrid.style.gridTemplateColumns = '1fr 1fr';
@@ -317,11 +525,60 @@ export function renderPreventionPlans() {
         row.append(sigGrid);
 
         if (canWrite) {
+          const actionsRow = document.createElement('div');
+          actionsRow.style.display = 'flex';
+          actionsRow.style.gap = '8px';
+          actionsRow.style.alignSelf = 'flex-end';
+
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'btn btn-secondary';
+          editBtn.textContent = 'Modifier';
+          editBtn.addEventListener('click', () => {
+            const isEditing = editHost.childElementCount > 0;
+            if (isEditing) {
+              editHost.replaceChildren();
+              return;
+            }
+            editHost.replaceChildren(
+              renderEditForm(p, async (saved) => {
+                if (saved) {
+                  await refreshList();
+                } else {
+                  editHost.replaceChildren();
+                }
+              })
+            );
+          });
+          actionsRow.append(editBtn);
+
+          if (p.status !== 'closed') {
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'btn btn-secondary';
+            closeBtn.textContent = 'Clôturer';
+            closeBtn.addEventListener('click', async () => {
+              if (!window.confirm('Clôturer ce plan de prévention ? L’intervention est considérée comme terminée.')) return;
+              try {
+                const r = await qhseFetch(`/api/prevention-plans/${encodeURIComponent(p.id)}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'closed' })
+                });
+                if (!r.ok) throw new Error('close failed');
+                showToast('Plan clôturé', 'info');
+                await refreshList();
+              } catch {
+                showToast('Clôture impossible', 'error');
+              }
+            });
+            actionsRow.append(closeBtn);
+          }
+
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
           delBtn.className = 'btn btn-ghost';
           delBtn.textContent = 'Supprimer';
-          delBtn.style.alignSelf = 'flex-end';
           delBtn.addEventListener('click', async () => {
             if (!window.confirm('Supprimer ce plan de prévention ?')) return;
             try {
@@ -333,7 +590,9 @@ export function renderPreventionPlans() {
               showToast('Suppression impossible', 'error');
             }
           });
-          row.append(delBtn);
+          actionsRow.append(delBtn);
+
+          row.append(actionsRow);
         }
 
         listHost.append(row);
@@ -394,6 +653,9 @@ export function renderPreventionPlans() {
       createBtn.disabled = false;
     }
   });
+
+  siteFilterSel.addEventListener('change', () => refreshList());
+  statusFilterSel.addEventListener('change', () => refreshList());
 
   refreshList();
   const firstCard = page.querySelector('article');
