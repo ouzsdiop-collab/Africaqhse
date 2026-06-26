@@ -84,7 +84,16 @@ function withinMs(date, ms) {
  */
 export async function getNotificationsFeed(qhseUser, tenantId) {
   const tf = prismaTenantFilter(tenantId);
-  const [incidentRows, actionRows, openNcs, auditRows, overdueProcesses, criticalProcesses] = await Promise.all([
+  const [
+    incidentRows,
+    actionRows,
+    openNcs,
+    auditRows,
+    overdueProcesses,
+    criticalProcesses,
+    pendingSignalements,
+    reviewedSignalements
+  ] = await Promise.all([
     prisma.incident.findMany({
       where: { ...tf },
       orderBy: { createdAt: 'desc' },
@@ -119,6 +128,18 @@ export async function getNotificationsFeed(qhseUser, tenantId) {
       orderBy: { updatedAt: 'desc' },
       take: MAX_SOURCE_PROCESSES,
       include: { owner: { select: { id: true, name: true } } }
+    }),
+    prisma.equipmentSignalement.findMany({
+      where: { ...tf, status: 'pending' },
+      orderBy: { createdAt: 'desc' },
+      take: MAX_SOURCE_PROCESSES,
+      include: { equipment: { select: { name: true } } }
+    }),
+    prisma.equipmentSignalement.findMany({
+      where: { ...tf, status: { in: ['needs_info', 'rejected'] } },
+      orderBy: { updatedAt: 'desc' },
+      take: MAX_SOURCE_PROCESSES,
+      include: { equipment: { select: { name: true } } }
     })
   ]);
 
@@ -294,6 +315,43 @@ export async function getNotificationsFeed(qhseUser, tenantId) {
         level: 'critical',
         read: false,
         timestamp: formatTimestamp(p.updatedAt)
+      }
+    });
+  }
+
+  const signalementOversightAudience = { type: 'roles', roles: oversightRoles };
+  const severityLevel = { high: 'critical', medium: 'warning', low: 'info' };
+
+  for (const s of pendingSignalements) {
+    combined.push({
+      at: s.createdAt,
+      audience: signalementOversightAudience,
+      item: {
+        id: `equipment-signalement-${s.id}`,
+        kind: 'equipment_signalement',
+        title: `Signalement équipement — ${s.equipment?.name ?? '—'}`,
+        detail: `${s.category} · gravité ${s.severity}`,
+        level: severityLevel[s.severity] || 'warning',
+        read: false,
+        timestamp: formatTimestamp(s.createdAt)
+      }
+    });
+  }
+
+  for (const s of reviewedSignalements) {
+    if (!s.reportedByUserId) continue;
+    const statusLabel = s.status === 'needs_info' ? 'Complément demandé' : 'Rejeté';
+    combined.push({
+      at: s.updatedAt,
+      audience: { type: 'user', userId: s.reportedByUserId },
+      item: {
+        id: `equipment-signalement-reviewed-${s.id}`,
+        kind: 'equipment_signalement_reviewed',
+        title: `${statusLabel} — ${s.equipment?.name ?? '—'}`,
+        detail: s.qhseComment?.trim() || 'Voir le détail du signalement',
+        level: s.status === 'needs_info' ? 'warning' : 'info',
+        read: false,
+        timestamp: formatTimestamp(s.updatedAt)
       }
     });
   }

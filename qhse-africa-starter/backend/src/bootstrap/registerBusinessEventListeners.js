@@ -8,11 +8,14 @@ import {
   isSmtpConfigured,
   sendIncidentAlert,
   sendActionOverdueReminder,
-  sendAuditScheduled
+  sendAuditScheduled,
+  sendEquipmentSignalementAlert,
+  sendEquipmentSignalementReviewed
 } from '../services/email.service.js';
 import { fetchPilotageRecipientEmailsForTenant } from '../lib/emailRecipients.js';
 import { normalizeTenantId } from '../lib/tenantScope.js';
 import { getEmailNotificationPrefs } from '../lib/emailNotificationPrefs.js';
+import { prisma } from '../db.js';
 
 function auditLogEnabled() {
   return (
@@ -99,6 +102,58 @@ function registerEmailBusinessListeners() {
         );
       } catch (e) {
         console.error('[email] audit.scheduled', e);
+      }
+    })();
+  });
+
+  onBusinessEvent('equipment.signalement_created', (payload) => {
+    void (async () => {
+      try {
+        if (!getEmailNotificationPrefs().equipmentSignalement) return;
+        if (!isSmtpConfigured()) return;
+        const p = payload && typeof payload === 'object' ? payload : {};
+        const tid = normalizeTenantId(p.tenantId);
+        if (!tid) return;
+        const recipients = await fetchPilotageRecipientEmailsForTenant(tid);
+        const emails = recipients.map((r) => r.email);
+        await sendEquipmentSignalementAlert(
+          {
+            equipmentName: p.equipmentName,
+            category: p.category,
+            severity: p.severity,
+            description: p.description
+          },
+          emails
+        );
+      } catch (e) {
+        console.error('[email] equipment.signalement_created', e);
+      }
+    })();
+  });
+
+  onBusinessEvent('equipment.signalement_reviewed', (payload) => {
+    void (async () => {
+      try {
+        if (!getEmailNotificationPrefs().equipmentSignalement) return;
+        if (!isSmtpConfigured()) return;
+        const p = payload && typeof payload === 'object' ? payload : {};
+        const reportedByUserId = typeof p.reportedByUserId === 'string' ? p.reportedByUserId : null;
+        if (!reportedByUserId) return;
+        const reporter = await prisma.user.findUnique({
+          where: { id: reportedByUserId },
+          select: { email: true, name: true }
+        });
+        if (!reporter?.email) return;
+        await sendEquipmentSignalementReviewed(
+          {
+            equipmentName: p.equipmentName,
+            status: p.status,
+            qhseComment: p.qhseComment
+          },
+          reporter
+        );
+      } catch (e) {
+        console.error('[email] equipment.signalement_reviewed', e);
       }
     })();
   });
