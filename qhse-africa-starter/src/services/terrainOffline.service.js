@@ -62,8 +62,14 @@ function genId(prefix) {
 }
 
 async function requestBackgroundSync(tag) {
+  if (!navigator.serviceWorker) return;
   try {
-    const reg = await navigator.serviceWorker?.ready;
+    // navigator.serviceWorker.ready ne se résout jamais si aucun SW n'est (encore) actif :
+    // on borne l'attente pour ne jamais bloquer l'enregistrement local de l'élément en file.
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((resolve) => setTimeout(() => resolve(null), 2000))
+    ]);
     if (reg?.sync) await reg.sync.register(tag);
   } catch {
     // Browser ne supporte pas Background Sync
