@@ -153,4 +153,11 @@ self.addEventListener('sync', (event) => {
       )
     );
   }
+  if (event.tag === 'terrain-signalement-sync') {
+    event.waitUntil(
+      self.clients.matchAll().then(clients =>
+        clients.forEach(c => c.postMessage({ type: 'SW_SYNC_SIGNALEMENTS' }))
+      )
+    );
+  }
 });
