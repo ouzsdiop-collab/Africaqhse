@@ -1,9 +1,34 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
-import { queueTerrainIncident, getTerrainQueueState, syncAllTerrainQueues } from '../services/terrainOffline.service.js';
+import { queueTerrainIncident, queueTerrainSignalement, getTerrainQueueState, syncAllTerrainQueues } from '../services/terrainOffline.service.js';
 import { appState } from '../utils/state.js';
 import { showToast } from '../components/toast.js';
 import { isOnline } from '../utils/networkStatus.js';
+
+/** Pictogrammes catégorie signalement équipement : lisibles sans lecture (agent terrain non-lettré). */
+const SIGNALEMENT_CATEGORIES = [
+  { value: 'oil_level', icon: '🛢️', label: 'Niveau huile' },
+  { value: 'anomaly_noise', icon: '🔊', label: 'Bruit anormal' },
+  { value: 'leak_heat', icon: '🔥', label: 'Fuite / chaleur' },
+  { value: 'broken_part', icon: '🔧', label: 'Pièce cassée' },
+  { value: 'other', icon: '❓', label: 'Autre' }
+];
+
+const SIGNALEMENT_SEVERITIES = [
+  { value: 'low', icon: '🟢', label: 'Faible' },
+  { value: 'medium', icon: '🟠', label: 'Moyen' },
+  { value: 'high', icon: '🔴', label: 'Urgent' }
+];
+
+/** @param {File} file @returns {Promise<string>} */
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 /**
  * @param {HTMLElement} [container] : hôte optionnel (sinon un div est créé pour le shell).
@@ -34,6 +59,7 @@ export async function renderTerrainMode(container) {
         <button class="btn-terrain btn-terrain--primary" id="btn-proof-quick">📷 Preuve</button>
         <button class="btn-terrain btn-terrain--success" id="btn-action-validate-quick">✅ Action</button>
         <button class="btn-terrain btn-terrain--warning" id="btn-actions">Voir mes actions</button>
+        <button class="btn-terrain btn-terrain--primary" id="btn-equipment-signalement-quick" style="grid-column:1 / span 2">🔧 Signaler équipement</button>
       </div>
 
       <div id="terrain-critical" style="margin:0 0 14px"></div>
@@ -43,7 +69,7 @@ export async function renderTerrainMode(container) {
 
   // Bandeaux online/offline
   function updateOfflineBanner() {
-    const banner = document.getElementById('terrain-offline-banner');
+    const banner = root.querySelector('#terrain-offline-banner');
     if (banner) banner.classList.toggle('visible', !navigator.onLine);
   }
   window.addEventListener('online', () => {
@@ -59,10 +85,10 @@ export async function renderTerrainMode(container) {
   updateOfflineBanner();
 
   async function updateSyncBadge() {
-    const badge = document.getElementById('terrain-sync-badge');
+    const badge = root.querySelector('#terrain-sync-badge');
     if (!badge) return;
     const state = await getTerrainQueueState();
-    const pending = (state.pendingIncidents || 0) + (state.pendingRisks || 0);
+    const pending = (state.pendingIncidents || 0) + (state.pendingRisks || 0) + (state.pendingSignalements || 0);
     const online = isOnline();
     if (!online) {
       badge.textContent = pending > 0 ? `Offline · ${pending} en attente` : 'Offline';
@@ -80,7 +106,7 @@ export async function renderTerrainMode(container) {
   updateSyncBadge();
 
   function mountQuickIncidentWizard(opts = {}) {
-    const zone = document.getElementById('terrain-form-zone');
+    const zone = root.querySelector('#terrain-form-zone');
     if (!zone) return;
     const defaultType = opts.defaultType || 'Sécurité';
     const title = opts.title || 'Déclarer un incident';
@@ -161,8 +187,187 @@ export async function renderTerrainMode(container) {
     zone.querySelector('#btn-send-proof')?.addEventListener('click', () => submit('proof'));
   }
 
+  function mountEquipmentSignalementForm() {
+    const zone = root.querySelector('#terrain-form-zone');
+    if (!zone) return;
+
+    let selectedEquipment = null;
+    let selectedCategory = null;
+    let selectedSeverity = 'medium';
+    let photoFile = null;
+
+    zone.innerHTML = `
+      <div style="background:var(--surface-2,#f8fafc);border-radius:12px;padding:16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
+          <div>
+            <p class="terrain-section-title" style="margin:0">Signaler un équipement</p>
+            <p style="margin:6px 0 0;font-size:12px;color:var(--text2,#64748b);line-height:1.35">
+              1) Équipement · 2) Que se passe-t-il ? · 3) Gravité · 4) Photo (optionnel) · 5) Envoi
+            </p>
+          </div>
+          <button type="button" class="text-button" id="btn-sig-cancel" style="font-weight:800">Fermer</button>
+        </div>
+
+        <div style="display:grid;gap:12px">
+          <div>
+            <p class="terrain-section-title">Équipement</p>
+            <input type="text" class="field-terrain" id="sig-equipment-search" placeholder="Rechercher un équipement..." style="width:100%">
+            <div id="sig-equipment-results" style="margin-top:8px;max-height:180px;overflow:auto;display:grid;gap:6px"></div>
+            <div id="sig-equipment-selected" style="margin-top:8px;font-size:13px;font-weight:800;color:#10b981"></div>
+          </div>
+
+          <div>
+            <p class="terrain-section-title">Que se passe-t-il ?</p>
+            <div id="sig-category-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              ${SIGNALEMENT_CATEGORIES.map(
+                (c) => `<button type="button" class="btn-terrain" data-category="${c.value}" style="min-height:64px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <span style="font-size:22px">${c.icon}</span>${escapeHtml(c.label)}
+                </button>`
+              ).join('')}
+            </div>
+          </div>
+
+          <div>
+            <p class="terrain-section-title">Gravité</p>
+            <div id="sig-severity-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              ${SIGNALEMENT_SEVERITIES.map(
+                (s) => `<button type="button" class="btn-terrain" data-severity="${s.value}" style="min-height:52px;font-size:13px">
+                  ${s.icon} ${escapeHtml(s.label)}
+                </button>`
+              ).join('')}
+            </div>
+          </div>
+
+          <div>
+            <p class="terrain-section-title">Photo (optionnel)</p>
+            <input type="file" accept="image/*" capture="environment" id="sig-photo" style="width:100%;color:var(--text-primary,#1e293b)">
+          </div>
+
+          <div>
+            <p class="terrain-section-title">Description (optionnel)</p>
+            <textarea class="field-terrain textarea-terrain" id="sig-description" placeholder="Précisez si besoin..." style="min-height:72px"></textarea>
+          </div>
+
+          <button class="btn-terrain btn-terrain--primary" id="btn-sig-send" style="min-height:52px">Envoyer le signalement</button>
+        </div>
+      </div>`;
+
+    zone.querySelector('#btn-sig-cancel')?.addEventListener('click', () => {
+      zone.replaceChildren();
+    });
+
+    function markSelectedCategory(value) {
+      selectedCategory = value;
+      zone.querySelectorAll('[data-category]').forEach((btn) => {
+        btn.classList.toggle('btn-terrain--primary', btn.getAttribute('data-category') === value);
+      });
+    }
+    function markSelectedSeverity(value) {
+      selectedSeverity = value;
+      zone.querySelectorAll('[data-severity]').forEach((btn) => {
+        btn.classList.toggle('btn-terrain--primary', btn.getAttribute('data-severity') === value);
+      });
+    }
+    zone.querySelectorAll('[data-category]').forEach((btn) => {
+      btn.addEventListener('click', () => markSelectedCategory(btn.getAttribute('data-category')));
+    });
+    zone.querySelectorAll('[data-severity]').forEach((btn) => {
+      btn.addEventListener('click', () => markSelectedSeverity(btn.getAttribute('data-severity')));
+    });
+    markSelectedSeverity('medium');
+
+    zone.querySelector('#sig-photo')?.addEventListener('change', (e) => {
+      photoFile = e.target?.files?.[0] || null;
+    });
+
+    let equipmentCache = null;
+    async function loadEquipmentList() {
+      if (equipmentCache) return equipmentCache;
+      try {
+        const res = await qhseFetch('/api/equipment');
+        const items = await res.json();
+        equipmentCache = Array.isArray(items) ? items : [];
+      } catch {
+        equipmentCache = [];
+      }
+      return equipmentCache;
+    }
+
+    const resultsHost = zone.querySelector('#sig-equipment-results');
+    const selectedHost = zone.querySelector('#sig-equipment-selected');
+    function renderEquipmentResults(query) {
+      if (!resultsHost) return;
+      const q = String(query || '').trim().toLowerCase();
+      const list = (equipmentCache || []).filter((eq) => !q || String(eq.name || '').toLowerCase().includes(q));
+      resultsHost.replaceChildren();
+      if (!q && !list.length) return;
+      list.slice(0, 8).forEach((eq) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'text-button';
+        row.style.cssText =
+          'text-align:left;padding:10px;border:1px solid var(--border-color,#e2e8f0);border-radius:10px;font-weight:700;font-size:13px';
+        row.textContent = `${eq.name || 'Équipement'}${eq.category ? ` · ${eq.category}` : ''}`;
+        row.addEventListener('click', () => {
+          selectedEquipment = eq;
+          if (selectedHost) selectedHost.textContent = `Sélectionné : ${eq.name || ''}`;
+          resultsHost.replaceChildren();
+          const input = zone.querySelector('#sig-equipment-search');
+          if (input) input.value = eq.name || '';
+        });
+        resultsHost.append(row);
+      });
+    }
+    zone.querySelector('#sig-equipment-search')?.addEventListener('input', async (e) => {
+      selectedEquipment = null;
+      if (selectedHost) selectedHost.textContent = '';
+      await loadEquipmentList();
+      renderEquipmentResults(e.target?.value || '');
+    });
+    zone.querySelector('#sig-equipment-search')?.addEventListener('focus', async (e) => {
+      await loadEquipmentList();
+      renderEquipmentResults(e.target?.value || '');
+    });
+
+    zone.querySelector('#btn-sig-send')?.addEventListener('click', async () => {
+      if (!selectedEquipment?.id) {
+        showToast('Sélectionnez un équipement.', 'warning');
+        return;
+      }
+      if (!selectedCategory) {
+        showToast('Choisissez ce qui se passe.', 'warning');
+        return;
+      }
+      const description = zone.querySelector('#sig-description')?.value?.trim() || undefined;
+      const attachments = [];
+      if (photoFile) {
+        try {
+          const dataUrl = await fileToDataUrl(photoFile);
+          attachments.push({ kind: 'photo', dataUrl, capturedAt: new Date().toISOString() });
+        } catch {
+          showToast('Photo illisible, signalement envoyé sans photo.', 'warning');
+        }
+      }
+      const draft = {
+        equipmentId: selectedEquipment.id,
+        category: selectedCategory,
+        severity: selectedSeverity,
+        description,
+        attachments
+      };
+      await queueTerrainSignalement(draft);
+      zone.innerHTML =
+        `<div style="background:#10b98122;border:1px solid #10b981;border-radius:10px;padding:14px;color:#10b981;font-weight:800;text-align:center">
+          Signalement enregistré · ${isOnline() ? 'Synchronisation en cours' : 'Sauvegardé offline'}
+        </div>`;
+      showToast(isOnline() ? 'Envoyé (sync en cours).' : 'Sauvegardé offline.', 'success');
+      updateSyncBadge();
+      void refreshTerrainHome().catch(() => {});
+    });
+  }
+
   function mountActionsQuickList(kind = 'overdue') {
-    const zone = document.getElementById('terrain-form-zone');
+    const zone = root.querySelector('#terrain-form-zone');
     if (!zone) return;
     void (async () => {
       zone.replaceChildren();
@@ -250,12 +455,12 @@ export async function renderTerrainMode(container) {
   }
 
   async function refreshTerrainHome() {
-    const criticalHost = document.getElementById('terrain-critical');
-    const tasksHost = document.getElementById('terrain-tasks');
+    const criticalHost = root.querySelector('#terrain-critical');
+    const tasksHost = root.querySelector('#terrain-tasks');
     if (!criticalHost || !tasksHost) return;
 
-    const q = await getTerrainQueueState().catch(() => ({ pendingIncidents: 0, pendingRisks: 0 }));
-    const pending = (q.pendingIncidents || 0) + (q.pendingRisks || 0);
+    const q = await getTerrainQueueState().catch(() => ({ pendingIncidents: 0, pendingRisks: 0, pendingSignalements: 0 }));
+    const pending = (q.pendingIncidents || 0) + (q.pendingRisks || 0) + (q.pendingSignalements || 0);
 
     /** @type {any[]} */
     let actions = [];
@@ -382,14 +587,17 @@ export async function renderTerrainMode(container) {
   }
 
   // Quick actions (Accueil terrain)
-  document.getElementById('btn-incident-quick')?.addEventListener('click', () => {
+  root.querySelector('#btn-incident-quick')?.addEventListener('click', () => {
     mountQuickIncidentWizard({ title: 'Déclarer un incident', actionLabel: 'Envoyer incident', defaultType: 'Sécurité' });
   });
-  document.getElementById('btn-proof-quick')?.addEventListener('click', () => {
+  root.querySelector('#btn-proof-quick')?.addEventListener('click', () => {
     mountQuickIncidentWizard({ title: 'Ajouter une preuve (photo + note)', actionLabel: 'Enregistrer', defaultType: 'Preuve terrain' });
   });
-  document.getElementById('btn-action-validate-quick')?.addEventListener('click', () => {
+  root.querySelector('#btn-action-validate-quick')?.addEventListener('click', () => {
     mountActionsQuickList('overdue');
+  });
+  root.querySelector('#btn-equipment-signalement-quick')?.addEventListener('click', () => {
+    mountEquipmentSignalementForm();
   });
 
   void refreshTerrainHome();
@@ -398,8 +606,8 @@ export async function renderTerrainMode(container) {
   // mais l'accueil terrain est volontairement réduit à actions/incidents/preuves.
 
   // MES ACTIONS DU JOUR
-  document.getElementById('btn-actions')?.addEventListener('click', async () => {
-    const zone = document.getElementById('terrain-form-zone');
+  root.querySelector('#btn-actions')?.addEventListener('click', async () => {
+    const zone = root.querySelector('#terrain-form-zone');
     if (!zone) return;
     zone.replaceChildren();
     const loadingWrap = document.createElement('div');
