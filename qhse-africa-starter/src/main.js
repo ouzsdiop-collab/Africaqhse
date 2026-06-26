@@ -1165,6 +1165,15 @@ function initRouting() {
     setCurrentPage('dashboard');
     return;
   }
+  if (
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/first-password'
+  ) {
+    setCurrentPage(pathname.slice(1));
+    return;
+  }
   const hash = window.location.hash.replace(/^#/, '');
   if (!hash) return;
   const path = hash.split('?')[0];
