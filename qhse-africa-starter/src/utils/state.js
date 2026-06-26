@@ -16,6 +16,7 @@ const allowedPages = [
   'products',
   'habilitations',
   'equipment',
+  'equipment-signalements',
   'trainings',
   'regulatory-watch',
   'environmental',
