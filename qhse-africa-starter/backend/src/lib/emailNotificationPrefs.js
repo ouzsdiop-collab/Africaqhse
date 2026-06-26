@@ -6,7 +6,8 @@ const defaults = {
   criticalIncidents: true,
   actionOverdue: true,
   auditScheduled: true,
-  weeklySummary: true
+  weeklySummary: true,
+  equipmentSignalement: true
 };
 
 /** @type {typeof defaults} */

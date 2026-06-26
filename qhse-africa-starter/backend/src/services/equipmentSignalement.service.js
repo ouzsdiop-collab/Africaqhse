@@ -152,7 +152,9 @@ export async function reviewEquipmentSignalement(tenantId, id, input, validatedB
     tenantId: normalizeTenantId(tenantId),
     signalementId: updated.id,
     equipmentId: updated.equipmentId,
+    equipmentName: updated.equipment?.name ?? null,
     status,
+    qhseComment,
     reportedByUserId: updated.reportedByUserId,
     userId: validatedByUserId ?? null
   });

@@ -379,6 +379,79 @@ export async function sendActionOverdueReminder(action, assignee) {
 }
 
 /**
+ * @param {unknown} signalement — { equipmentName, category, severity, description }
+ * @param {string[]} recipients — adresses e-mail QHSE/Admin
+ */
+export async function sendEquipmentSignalementAlert(signalement, recipients) {
+  const s = signalement && typeof signalement === 'object' ? signalement : {};
+  const equipmentName = String(s.equipmentName ?? '—');
+  const category = String(s.category ?? '—');
+  const severity = String(s.severity ?? '—');
+  const description = s.description != null ? String(s.description) : '';
+  const base = getFrontendBaseUrl();
+  const ctaUrl = `${base}/#equipment`;
+  const bodyHtml = `
+    <p><strong>Équipement :</strong> ${escapeHtml(equipmentName)}</p>
+    <p><strong>Catégorie :</strong> ${escapeHtml(category)}</p>
+    <p><strong>Gravité :</strong> ${escapeHtml(severity)}</p>
+    ${description ? `<p><strong>Description :</strong><br/>${escapeHtml(description).replace(/\n/g, '<br/>')}</p>` : ''}
+  `;
+  const html = buildHtmlEmailLayout({
+    tone: severity === 'high' ? 'high' : 'info',
+    title: 'Nouveau signalement terrain équipement',
+    bodyHtml,
+    ctaLabel: 'Ouvrir le registre des équipements',
+    ctaUrl
+  });
+  const to = [...new Set(recipients.map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
+  if (!to.length) return;
+  await sendMailHtml({
+    to,
+    subject: `[QHSE Control] Signalement équipement : ${equipmentName}`,
+    html,
+    text: `Nouveau signalement terrain\nÉquipement : ${equipmentName}\nCatégorie : ${category}\nGravité : ${severity}\n\n${description}\n\n${ctaUrl}`
+  });
+}
+
+/**
+ * @param {unknown} signalement — { equipmentName, status, qhseComment }
+ * @param {unknown} reporter — { email, name? }
+ */
+export async function sendEquipmentSignalementReviewed(signalement, reporter) {
+  const s = signalement && typeof signalement === 'object' ? signalement : {};
+  const user = reporter && typeof reporter === 'object' ? reporter : {};
+  const email = String(user.email ?? '').trim();
+  if (!email) return;
+  const equipmentName = String(s.equipmentName ?? '—');
+  const status = String(s.status ?? '—');
+  const comment = s.qhseComment != null ? String(s.qhseComment) : '';
+  const statusLabel =
+    status === 'validated' ? 'Validé' : status === 'needs_info' ? 'Complément demandé' : 'Rejeté';
+  const base = getFrontendBaseUrl();
+  const ctaUrl = `${base}/#equipment`;
+  const greet = user.name ? `Bonjour ${escapeHtml(String(user.name))},` : 'Bonjour,';
+  const bodyHtml = `
+    <p>${greet}</p>
+    <p>Votre signalement sur l'équipement <strong>${escapeHtml(equipmentName)}</strong> a été traité par le QHSE :</p>
+    <p><strong>${escapeHtml(statusLabel)}</strong></p>
+    ${comment ? `<p>Commentaire QHSE :<br/>${escapeHtml(comment).replace(/\n/g, '<br/>')}</p>` : ''}
+  `;
+  const html = buildHtmlEmailLayout({
+    tone: status === 'needs_info' ? 'high' : 'info',
+    title: 'Signalement équipement traité',
+    bodyHtml,
+    ctaLabel: 'Ouvrir le registre des équipements',
+    ctaUrl
+  });
+  await sendMailHtml({
+    to: [email],
+    subject: `[QHSE Control] Signalement ${equipmentName} : ${statusLabel}`,
+    html,
+    text: `${statusLabel}\n\nÉquipement : ${equipmentName}\n${comment}\n\n${ctaUrl}`
+  });
+}
+
+/**
  * @param {unknown} audit
  * @param {{ email: string, name?: string | null }[]} participants
  */
