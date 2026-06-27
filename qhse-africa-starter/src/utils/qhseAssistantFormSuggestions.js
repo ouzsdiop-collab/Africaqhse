@@ -87,6 +87,28 @@ export function buildActionDefaultsFromEquipmentAlert(alert) {
 }
 
 /**
+ * @param {{ ref?: string, externalCompanyName?: string, endDate?: string }} plan
+ */
+export function buildActionDefaultsFromPreventionPlan(plan) {
+  const ref = plan?.ref || 'PP';
+  const company = plan?.externalCompanyName || 'entreprise extérieure';
+  const title = `${ref} — ${company}`;
+  return {
+    title: `Suivi coactivité : ${title}`.slice(0, 240),
+    origin: 'other',
+    actionType: 'preventive',
+    priority: 'normale',
+    description: mockSuggestActionContent({
+      title,
+      origin: 'other',
+      actionType: 'preventive'
+    }).description,
+    linkedPreventionPlan: title,
+    dueDate: plan?.endDate ? String(plan.endDate).slice(0, 10) : ''
+  };
+}
+
+/**
  * @param {{ title?: string, category?: string, meta?: string, status?: string }} risk
  */
 export function buildActionDefaultsFromCriticalRisk(risk) {

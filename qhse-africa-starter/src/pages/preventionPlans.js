@@ -6,6 +6,7 @@ import { escapeHtml } from '../utils/escapeHtml.js';
 import { createEmptyState } from '../utils/designSystem.js';
 import { createQhseKpiStrip } from '../components/qhseKpiStrip.js';
 import { fetchSitesCatalog } from '../services/sitesCatalog.service.js';
+import { createLinkedActionFromPreventionPlan } from '../utils/preventionPlanActions.js';
 
 const STATUS_OPTIONS = [
   ['all', 'Tous les statuts'],
@@ -76,6 +77,23 @@ function setupSignatureCanvas(canvas) {
   };
 }
 
+function ptwOptionLabel(permit) {
+  const ref = permit?.ref || permit?.id || 'PTW';
+  const parts = [ref, permit?.type, permit?.zone].filter(Boolean);
+  return parts.join(' — ');
+}
+
+async function fetchPtwCatalog() {
+  try {
+    const res = await qhseFetch('/api/ptw');
+    if (!res.ok) return [];
+    const rows = await res.json().catch(() => []);
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
 function statusLabel(s) {
   if (s === 'validated') return 'Validé (2 signatures)';
   if (s === 'closed') return 'Clôturé';
@@ -103,6 +121,7 @@ export function renderPreventionPlans() {
         </div>
       </div>
       <div class="pp-kpi-host" style="margin-top:12px"></div>
+      <div class="pp-expiry-banner-host"></div>
       <div class="pp-filter-toolbar" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <label class="field" style="min-width:200px">
           <span>Site</span>
@@ -138,6 +157,18 @@ export function renderPreventionPlans() {
           <span>Date d'inspection commune</span>
           <input type="datetime-local" class="control-input pp-in-inspection" />
         </label>
+        <label class="field">
+          <span>Site</span>
+          <select class="control-input pp-in-site">
+            <option value="">Aucun site</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Permis de travail (PTW) lié</span>
+          <select class="control-input pp-in-permit">
+            <option value="">Aucun permis</option>
+          </select>
+        </label>
         <label class="field field-full">
           <span>Description de l'intervention</span>
           <textarea class="control-input pp-in-description" rows="2" maxlength="2000"></textarea>
@@ -162,6 +193,7 @@ export function renderPreventionPlans() {
   `;
 
   const kpiHost = page.querySelector('.pp-kpi-host');
+  const expiryBannerHost = page.querySelector('.pp-expiry-banner-host');
   const siteFilterSel = page.querySelector('.pp-filter-site');
   const statusFilterSel = page.querySelector('.pp-filter-status');
   STATUS_OPTIONS.forEach(([value, label]) => {
@@ -171,17 +203,34 @@ export function renderPreventionPlans() {
     statusFilterSel.append(o);
   });
   let sitesCatalog = [];
+  const siteIn = page.querySelector('.pp-in-site');
   fetchSitesCatalog()
     .then((sites) => {
       sitesCatalog = Array.isArray(sites) ? sites : [];
       sitesCatalog.forEach((s) => {
-        const o = document.createElement('option');
-        o.value = s.id;
-        o.textContent = s.name;
-        siteFilterSel.append(o);
+        const o1 = document.createElement('option');
+        o1.value = s.id;
+        o1.textContent = s.name;
+        siteFilterSel.append(o1);
+        const o2 = document.createElement('option');
+        o2.value = s.id;
+        o2.textContent = s.name;
+        siteIn.append(o2);
       });
     })
     .catch(() => {});
+
+  let ptwCatalog = [];
+  const permitIn = page.querySelector('.pp-in-permit');
+  fetchPtwCatalog().then((rows) => {
+    ptwCatalog = rows;
+    ptwCatalog.forEach((permit) => {
+      const o = document.createElement('option');
+      o.value = permit.id;
+      o.textContent = ptwOptionLabel(permit);
+      permitIn.append(o);
+    });
+  });
 
   const listHost = page.querySelector('.pp-list-host');
   const companyIn = page.querySelector('.pp-in-company');
@@ -309,6 +358,36 @@ export function renderPreventionPlans() {
     );
   }
 
+  function renderExpiryBanner(rows) {
+    const expiring = rows.filter(isExpiringSoon);
+    if (expiring.length === 0) {
+      expiryBannerHost.replaceChildren();
+      return;
+    }
+    const banner = document.createElement('div');
+    banner.style.display = 'flex';
+    banner.style.flexDirection = 'column';
+    banner.style.gap = '4px';
+    banner.style.marginTop = '12px';
+    banner.style.padding = '10px 14px';
+    banner.style.borderRadius = '10px';
+    banner.style.border = '1px solid #dc2626';
+    banner.style.background = 'rgba(220,38,38,0.1)';
+    const title = document.createElement('strong');
+    title.style.fontSize = '13px';
+    title.style.color = '#dc2626';
+    title.textContent = `⚠ ${expiring.length} plan${expiring.length > 1 ? 's' : ''} de prévention à échéance proche ou dépassée`;
+    banner.append(title);
+    const list = document.createElement('span');
+    list.style.fontSize = '12px';
+    list.style.color = 'var(--text2)';
+    list.textContent = expiring
+      .map((p) => `${p.ref} — ${p.externalCompanyName} (fin ${fmtDate(p.endDate)})`)
+      .join(' · ');
+    banner.append(list);
+    expiryBannerHost.replaceChildren(banner);
+  }
+
   function renderEditForm(p, onDone) {
     const wrap = document.createElement('div');
     wrap.className = 'form-grid';
@@ -353,6 +432,25 @@ export function renderPreventionPlans() {
     });
     siteEdit.append(siteSpan, siteSelect);
     wrap.append(siteEdit);
+    const permitEdit = document.createElement('label');
+    permitEdit.className = 'field';
+    const permitSpan = document.createElement('span');
+    permitSpan.textContent = 'Permis de travail (PTW) lié';
+    const permitSelect = document.createElement('select');
+    permitSelect.className = 'control-input';
+    const noPermitOpt = document.createElement('option');
+    noPermitOpt.value = '';
+    noPermitOpt.textContent = 'Aucun permis';
+    permitSelect.append(noPermitOpt);
+    ptwCatalog.forEach((permit) => {
+      const o = document.createElement('option');
+      o.value = permit.id;
+      o.textContent = ptwOptionLabel(permit);
+      if (p.permitId === permit.id) o.selected = true;
+      permitSelect.append(o);
+    });
+    permitEdit.append(permitSpan, permitSelect);
+    wrap.append(permitEdit);
     const descEdit = mk('Description de l’intervention', 'textarea', p.workDescription || '', true);
     descEdit.rows = 2;
     const startEdit = mk('Début', 'datetime-local', p.startDate ? p.startDate.slice(0, 16) : '');
@@ -395,6 +493,7 @@ export function renderPreventionPlans() {
             externalCompanyName,
             externalContact: contactEdit.value.trim() || '',
             siteId: siteSelect.value || '',
+            permitId: permitSelect.value || '',
             workDescription: descEdit.value.trim() || '',
             startDate: startEdit.value ? new Date(startEdit.value).toISOString() : '',
             endDate: endEdit.value ? new Date(endEdit.value).toISOString() : '',
@@ -431,6 +530,7 @@ export function renderPreventionPlans() {
       const rows = await res.json();
       if (!Array.isArray(rows) || rows.length === 0) {
         renderKpis([]);
+        renderExpiryBanner([]);
         listHost.replaceChildren();
         listHost.append(
           createEmptyState(
@@ -442,6 +542,7 @@ export function renderPreventionPlans() {
         return;
       }
       renderKpis(rows);
+      renderExpiryBanner(rows);
       listHost.replaceChildren();
       rows.forEach((p) => {
         const row = document.createElement('article');
@@ -470,6 +571,10 @@ export function renderPreventionPlans() {
         if (p.inspectionDate) parts.push(`Inspection : ${fmtDate(p.inspectionDate)}`);
         if (p.startDate) parts.push(`Du ${fmtDate(p.startDate)}`);
         if (p.endDate) parts.push(`au ${fmtDate(p.endDate)}`);
+        const siteName = p.siteId ? sitesCatalog.find((s) => s.id === p.siteId)?.name : '';
+        if (siteName) parts.push(`Site : ${siteName}`);
+        const permit = p.permitId ? ptwCatalog.find((x) => x.id === p.permitId) : null;
+        if (permit) parts.push(`PTW : ${ptwOptionLabel(permit)}`);
         sub.textContent = parts.join(' · ');
         left.append(title, sub);
         const badge = document.createElement('span');
@@ -575,6 +680,15 @@ export function renderPreventionPlans() {
             actionsRow.append(closeBtn);
           }
 
+          const linkActionBtn = document.createElement('button');
+          linkActionBtn.type = 'button';
+          linkActionBtn.className = 'btn btn-secondary';
+          linkActionBtn.textContent = 'Créer une action liée';
+          linkActionBtn.addEventListener('click', () => {
+            void createLinkedActionFromPreventionPlan(p);
+          });
+          actionsRow.append(linkActionBtn);
+
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
           delBtn.className = 'btn btn-ghost';
@@ -618,6 +732,8 @@ export function renderPreventionPlans() {
     const startDate = startIn.value ? new Date(startIn.value).toISOString() : undefined;
     const endDate = endIn.value ? new Date(endIn.value).toISOString() : undefined;
     const risks = parseRisksInput(risksIn.value);
+    const siteId = siteIn.value || undefined;
+    const permitId = permitIn.value || undefined;
     createBtn.disabled = true;
     try {
       const res = await qhseFetch('/api/prevention-plans', {
@@ -630,7 +746,9 @@ export function renderPreventionPlans() {
           inspectionDate,
           startDate,
           endDate,
-          risks
+          risks,
+          siteId,
+          permitId
         })
       });
       const body = await res.json().catch(() => ({}));
@@ -646,6 +764,8 @@ export function renderPreventionPlans() {
       startIn.value = '';
       endIn.value = '';
       risksIn.value = '';
+      siteIn.value = '';
+      permitIn.value = '';
       await refreshList();
     } catch {
       showToast('Erreur serveur', 'error');
