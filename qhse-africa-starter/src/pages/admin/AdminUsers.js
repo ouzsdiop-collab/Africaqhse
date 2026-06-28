@@ -116,15 +116,16 @@ export async function renderAdminUsers(_onOneTimePassword) {
       if (statusValue === 'normal' && hasProvisional) return false;
       return true;
     });
-    list.innerHTML = `<table class="admin-table"><thead><tr><th></th><th>Email</th><th>Entreprise</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
+    list.innerHTML = `<table class="admin-table"><thead><tr><th></th><th>Email</th><th>Entreprise</th><th>Statut</th><th>Dernière connexion</th><th>Mdp provisoire</th><th>Actions</th></tr></thead><tbody>${rows.map(({ c, u }) => {
       const tenantId = c?.tenant?.id || c?.id || '';
       const tenantName = c?.tenant?.name || c?.companyName || c?.name || '—';
       const isActive = u?.isActive !== false;
+      const lastLogin = u?.lastLoginAt ? formatDateTime(u.lastLoginAt) : '—';
       const hasProvisional = u?.mustChangePassword && u?.hasProvisionalPassword;
       const tempPwd = hasProvisional
         ? `<span class="badge badge-warning">Provisoire</span> <code class="js-provisional-pwd">${escapeHtml(u.provisionalPassword || '—')}</code> <button type="button" class="btn btn-sm js-copy-provisional" data-pwd="${escapeHtml(u.provisionalPassword || '')}">Copier</button>`
         : '—';
-      return `<tr><td><input type="checkbox" class="js-select" data-uid="${u.id}" data-tid="${tenantId}"/></td><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
+      return `<tr><td><input type="checkbox" class="js-select" data-uid="${u.id}" data-tid="${tenantId}"/></td><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${lastLogin}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
     }).join('')}</tbody></table>`;
   }
 
@@ -185,9 +186,7 @@ export async function renderAdminUsers(_onOneTimePassword) {
         return;
       }
       showOneTimePassword(payload);
-      const row = el.closest('tr');
-      const tempPwdCell = row?.children?.[4];
-      if (tempPwdCell) tempPwdCell.innerHTML = '<span class="badge badge-warning">Mdp provisoire actif</span>';
+      await load();
     }
     if (el.classList.contains('js-copy-provisional')) {
       const pwd = el.dataset.pwd || '';

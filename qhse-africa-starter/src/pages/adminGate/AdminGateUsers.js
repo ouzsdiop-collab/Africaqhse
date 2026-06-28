@@ -11,6 +11,13 @@ const TENANT_USER_ROLES = [
   'TERRAIN', 'ASSISTANT', 'AUDITEUR', 'OPERATEUR', 'USER'
 ];
 
+function formatDateTime(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
 export async function createAdminGateUsersView({ onSessionExpired } = {}) {
   const root = document.createElement('section');
   root.className = 'admin-gate-users';
@@ -88,7 +95,7 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
     list.innerHTML = `
       <div class="admin-gate-table-wrap">
         <table class="admin-gate-table">
-          <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th>Mdp provisoire</th><th>Actions</th></tr></thead>
           <tbody>
             ${c.users.map((u) => {
               const hasProvisional = u.mustChangePassword && u.hasProvisionalPassword;
@@ -100,6 +107,7 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
               <td>${u.email || '—'}</td>
               <td>${u.role || 'USER'}</td>
               <td>${u.isActive === false ? 'Désactivé' : 'Actif'}</td>
+              <td>${formatDateTime(u.lastLoginAt)}</td>
               <td>${tempPwd}</td>
               <td>
                 <button class="btn" data-action="reset" data-user-id="${u.id}" data-tenant-id="${c.id}">Reset mot de passe</button>
@@ -204,9 +212,7 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
         console.info('[ADMIN_GATE] reset success: true');
         console.info(`[ADMIN_GATE] response has one-time password: ${Boolean(oneTimePassword)}`);
         renderSecret();
-        const row = el.closest('tr');
-        const tempPwdCell = row?.children?.[4];
-        if (tempPwdCell) tempPwdCell.innerHTML = '<span class="badge badge-warning">Mdp provisoire actif</span>';
+        await loadClientsAndUsers();
         setMessage('Mot de passe réinitialisé.', 'success');
       } catch (error) {
         console.info(`[ADMIN_GATE] reset status: ${error?.status || 'unknown'}`);
