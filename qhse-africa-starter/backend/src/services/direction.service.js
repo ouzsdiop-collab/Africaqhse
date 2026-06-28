@@ -8,11 +8,34 @@ const TOP_RISKS_COUNT = 5;
 const UPCOMING_HABILITATIONS_DAYS = 60;
 const UPCOMING_HABILITATIONS_COUNT = 10;
 
-function monthRange(monthsAgo) {
+const PERIOD_SPAN_MONTHS = { month: 1, quarter: 3 };
+
+/**
+ * Période courante (N derniers mois calendaires, N selon period) et période précédente
+ * de même longueur, pour comparaison. `period: 'month'` reproduit exactement l'ancien
+ * comportement (mois en cours vs mois précédent).
+ * @param {'month' | 'quarter'} period
+ */
+function periodRanges(period) {
+  const span = PERIOD_SPAN_MONTHS[period] || PERIOD_SPAN_MONTHS.month;
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0, 23, 59, 59, 999);
-  return { start, end };
+  const current = {
+    start: new Date(now.getFullYear(), now.getMonth() - (span - 1), 1, 0, 0, 0, 0),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  };
+  const previous = {
+    start: new Date(now.getFullYear(), now.getMonth() - (span * 2 - 1), 1, 0, 0, 0, 0),
+    end: new Date(now.getFullYear(), now.getMonth() - span + 1, 0, 23, 59, 59, 999)
+  };
+  return { current, previous };
+}
+
+/**
+ * @param {string} period
+ * @returns {'month' | 'quarter'}
+ */
+function normalizeDirectionPeriod(period) {
+  return period === 'quarter' ? 'quarter' : 'month';
 }
 
 function pctDelta(current, previous) {
@@ -72,17 +95,18 @@ async function getUpcomingDeadlines(tenantId, siteId) {
 }
 
 /**
- * Synthèse direction : KPIs du mois en cours, comparaison avec le mois précédent,
- * top risques non maîtrisés et échéances critiques à venir.
+ * Synthèse direction : KPIs de la période sélectionnée, comparaison avec la période
+ * précédente de même longueur, top risques non maîtrisés et échéances critiques à venir.
  * @param {string | null | undefined} tenantId
  * @param {string | null} [siteId]
+ * @param {'month' | 'quarter'} [period]
  */
-export async function getDirectionSummary(tenantId, siteId = null) {
+export async function getDirectionSummary(tenantId, siteId = null, period = 'month') {
   const tid = normalizeTenantId(tenantId);
   const sid = normalizeSiteId(siteId);
+  const normalizedPeriod = normalizeDirectionPeriod(period);
 
-  const current = monthRange(0);
-  const previous = monthRange(1);
+  const { current, previous } = periodRanges(normalizedPeriod);
 
   const [currentPeriod, previousPeriod, reportingSummary, topRisks, upcomingDeadlines] = await Promise.all([
     buildPeriodicReport({
@@ -130,6 +154,7 @@ export async function getDirectionSummary(tenantId, siteId = null) {
   return {
     generatedAt: new Date().toISOString(),
     siteId: sid,
+    period: normalizedPeriod,
     currentPeriod: currentPeriod.summary,
     previousPeriod: previousPeriod.summary,
     trends,
