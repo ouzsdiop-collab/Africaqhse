@@ -17,5 +17,6 @@ router.get(
   requirePermission('reports', 'read'),
   periodicController.getPeriodic
 );
+router.get('/direction', requirePermission('reports', 'read'), controller.getDirectionSummary);
 
 export default router;

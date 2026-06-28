@@ -5,6 +5,7 @@ import { coalesceQuerySiteIdForList } from '../services/sites.service.js';
 import * as dashboardService from '../services/dashboard.service.js';
 import { getStandardCompliance } from '../services/compliancePack.service.js';
 import { listIsoEvidence } from '../services/isoEvidence.service.js';
+import { getDirectionSummary as buildDirectionSummary } from '../services/direction.service.js';
 
 function stripLongDashes(s) {
   return String(s || '').replaceAll('—', '-').replaceAll('–', '-');
@@ -249,6 +250,19 @@ export async function getSummary(req, res, next) {
     const data = await reportingSummaryService.getReportingSummary(req.qhseTenantId, siteId, {
       ...(periodDays !== undefined ? { periodDays } : {})
     });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /api/reports/direction — synthèse direction (permissions : reports:read). */
+export async function getDirectionSummary(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    assertQuerySiteAllowed(req.qhseUser, rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const data = await buildDirectionSummary(req.qhseTenantId, siteId);
     res.json(data);
   } catch (err) {
     next(err);
