@@ -153,6 +153,144 @@
   border-bottom: none;
 }
 
+/* Graphique tendances (mois en cours vs mois précédent) */
+.direction-page .direction-trend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--ds-space-5, 20px);
+}
+
+.direction-page .direction-trend-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.direction-page .direction-trend-box-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-text-secondary, inherit);
+}
+
+.direction-page .direction-trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  height: 120px;
+  width: 100%;
+  justify-content: center;
+}
+
+.direction-page .direction-trend-bar {
+  width: 38px;
+  height: var(--bar-h, 4%);
+  min-height: 4px;
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  transition: height 0.2s ease;
+}
+
+.direction-page .direction-trend-bar--previous {
+  background: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
+}
+
+.direction-page .direction-trend-bar--current {
+  background: var(--color-primary);
+}
+
+.direction-page .direction-trend-bar-val {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  transform: translateY(-18px);
+  white-space: nowrap;
+}
+
+.direction-page .direction-trend-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+}
+
+.direction-page .direction-trend-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.direction-page .direction-trend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.direction-page .direction-trend-swatch--previous {
+  background: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
+}
+
+.direction-page .direction-trend-swatch--current {
+  background: var(--color-primary);
+}
+
+/* Graphique classement des risques */
+.direction-page .direction-risk-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.direction-page .direction-risk-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 280px) 1fr;
+  align-items: center;
+  gap: 14px;
+}
+
+.direction-page .direction-risk-row-label {
+  font-size: 0.86rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.direction-page .direction-risk-row-track {
+  background: var(--surface-neutral-muted, rgba(15, 23, 42, 0.06));
+  border-radius: var(--ds-radius-sm, 8px);
+  height: 22px;
+  overflow: hidden;
+}
+
+.direction-page .direction-risk-row-bar {
+  height: 100%;
+  min-width: 28px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-danger));
+  border-radius: var(--ds-radius-sm, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.direction-page .direction-risk-row-val {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .direction-page .direction-risk-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
 /* Alertes */
 .direction-page .direction-alerts-list {
   list-style: none;
