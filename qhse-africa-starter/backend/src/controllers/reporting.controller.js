@@ -6,6 +6,7 @@ import * as dashboardService from '../services/dashboard.service.js';
 import { getStandardCompliance } from '../services/compliancePack.service.js';
 import { listIsoEvidence } from '../services/isoEvidence.service.js';
 import { getDirectionSummary as buildDirectionSummary } from '../services/direction.service.js';
+import { generateDirectionNarrativeWithSource } from '../services/directionNarrative.service.js';
 
 function stripLongDashes(s) {
   return String(s || '').replaceAll('—', '-').replaceAll('–', '-');
@@ -263,7 +264,8 @@ export async function getDirectionSummary(req, res, next) {
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
     const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
     const data = await buildDirectionSummary(req.qhseTenantId, siteId);
-    res.json(data);
+    const { narrative, source } = await generateDirectionNarrativeWithSource(data);
+    res.json({ ...data, aiSummary: { ...narrative, source } });
   } catch (err) {
     next(err);
   }
