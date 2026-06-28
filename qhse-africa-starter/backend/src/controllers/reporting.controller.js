@@ -263,7 +263,8 @@ export async function getDirectionSummary(req, res, next) {
     const rawSiteId = parseSiteIdQuery(req);
     assertQuerySiteAllowed(req.qhseUser, rawSiteId);
     const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
-    const data = await buildDirectionSummary(req.qhseTenantId, siteId);
+    const period = req.query.period === 'quarter' ? 'quarter' : 'month';
+    const data = await buildDirectionSummary(req.qhseTenantId, siteId, period);
     const { narrative, source } = await generateDirectionNarrativeWithSource(data);
     res.json({ ...data, aiSummary: { ...narrative, source } });
   } catch (err) {

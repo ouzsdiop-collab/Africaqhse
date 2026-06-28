@@ -18,6 +18,7 @@ const MAX_SUMMARY = 800;
 export function extractDirectionMetrics(direction) {
   const t = direction?.trends || {};
   return {
+    period: direction?.period === 'quarter' ? 'quarter' : 'month',
     incidentsCreated: Number(direction?.currentPeriod?.incidentsCreated) || 0,
     incidentsCreatedDeltaPct: Number.isFinite(t?.incidentsCreated?.deltaPct) ? t.incidentsCreated.deltaPct : null,
     nonConformitiesOpen: Number(direction?.counts?.nonConformitiesOpen) || 0,
@@ -36,10 +37,14 @@ export function extractDirectionMetrics(direction) {
  * @param {ReturnType<typeof extractDirectionMetrics>} m
  */
 export function buildDeterministicDirectionSummary(m) {
+  const isQuarter = m.period === 'quarter';
+  const periodPrefix = isQuarter ? 'Ce trimestre-ci' : 'Ce mois-ci';
+  const vsPrevious = isQuarter ? 'vs trimestre précédent' : 'vs mois précédent';
+
   const parts = [];
-  parts.push(`${m.incidentsCreated} incident(s) ce mois`);
+  parts.push(`${m.incidentsCreated} incident(s) ${isQuarter ? 'ce trimestre' : 'ce mois'}`);
   if (m.incidentsCreatedDeltaPct != null) {
-    parts[parts.length - 1] += ` (${m.incidentsCreatedDeltaPct >= 0 ? '+' : ''}${m.incidentsCreatedDeltaPct}% vs mois précédent)`;
+    parts[parts.length - 1] += ` (${m.incidentsCreatedDeltaPct >= 0 ? '+' : ''}${m.incidentsCreatedDeltaPct}% ${vsPrevious})`;
   }
   if (m.criticalIncidentsOpen > 0) {
     parts.push(`dont ${m.criticalIncidentsOpen} critique(s) encore ouvert(s)`);
@@ -50,7 +55,7 @@ export function buildDeterministicDirectionSummary(m) {
   if (m.actionsOverdue > 0) {
     let s = `${m.actionsOverdue} action(s) en retard`;
     if (m.actionsOverdueDeltaPct != null) {
-      s += ` (${m.actionsOverdueDeltaPct >= 0 ? '+' : ''}${m.actionsOverdueDeltaPct}% vs mois précédent)`;
+      s += ` (${m.actionsOverdueDeltaPct >= 0 ? '+' : ''}${m.actionsOverdueDeltaPct}% ${vsPrevious})`;
     }
     parts.push(s);
   }
@@ -60,7 +65,7 @@ export function buildDeterministicDirectionSummary(m) {
   if (m.upcomingDeadlinesCount > 0) {
     parts.push(`${m.upcomingDeadlinesCount} échéance(s) d'habilitation à surveiller dans les 60 jours`);
   }
-  const summary = `Ce mois-ci : ${parts.join(', ')}.`;
+  const summary = `${periodPrefix} : ${parts.join(', ')}.`;
   return { summary: summary.length > MAX_SUMMARY ? `${summary.slice(0, MAX_SUMMARY - 1)}…` : summary, confidence: 1 };
 }
 
