@@ -57,6 +57,127 @@ function elAiSummaryCard(aiSummary) {
   return card;
 }
 
+function elTrendsChart(trends) {
+  const card = document.createElement('section');
+  card.className = 'content-card card-soft';
+  const h2 = document.createElement('h2');
+  h2.className = 'direction-h2';
+  h2.textContent = 'Tendances du mois (vs mois précédent)';
+  card.append(h2);
+
+  const metrics = [
+    { key: 'incidentsCreated', label: 'Incidents créés', unit: '' },
+    { key: 'actionsOverdueStock', label: 'Actions en retard', unit: '' },
+    { key: 'nonConformitiesCreated', label: 'NC créées', unit: '' },
+    { key: 'auditScoreAvg', label: 'Score audit moyen', unit: '%' }
+  ];
+
+  const grid = document.createElement('div');
+  grid.className = 'direction-trend-grid';
+
+  metrics.forEach(({ key, label, unit }) => {
+    const t = trends?.[key];
+    const current = Number.isFinite(t?.current) ? t.current : 0;
+    const previous = Number.isFinite(t?.previous) ? t.previous : 0;
+    const max = Math.max(current, previous, 1);
+
+    const box = document.createElement('div');
+    box.className = 'direction-trend-box';
+
+    const title = document.createElement('div');
+    title.className = 'direction-trend-box-label';
+    title.textContent = label;
+
+    const bars = document.createElement('div');
+    bars.className = 'direction-trend-bars';
+    bars.setAttribute('role', 'img');
+    bars.setAttribute(
+      'aria-label',
+      `${label} : ${previous}${unit} le mois précédent, ${current}${unit} ce mois.`
+    );
+
+    const prevBar = document.createElement('div');
+    prevBar.className = 'direction-trend-bar direction-trend-bar--previous';
+    prevBar.style.setProperty('--bar-h', `${Math.round((previous / max) * 100)}%`);
+    const prevVal = document.createElement('span');
+    prevVal.className = 'direction-trend-bar-val';
+    prevVal.textContent = `${previous}${unit}`;
+    prevBar.append(prevVal);
+
+    const curBar = document.createElement('div');
+    curBar.className = 'direction-trend-bar direction-trend-bar--current';
+    curBar.style.setProperty('--bar-h', `${Math.round((current / max) * 100)}%`);
+    const curVal = document.createElement('span');
+    curVal.className = 'direction-trend-bar-val';
+    curVal.textContent = `${current}${unit}`;
+    curBar.append(curVal);
+
+    bars.append(prevBar, curBar);
+
+    const legend = document.createElement('div');
+    legend.className = 'direction-trend-legend';
+    legend.innerHTML =
+      '<span><i class="direction-trend-swatch direction-trend-swatch--previous"></i>Mois préc.</span><span><i class="direction-trend-swatch direction-trend-swatch--current"></i>Ce mois</span>';
+
+    box.append(title, bars, legend);
+    grid.append(box);
+  });
+
+  card.append(grid);
+  return card;
+}
+
+function elRisksChart(topRisks) {
+  const card = document.createElement('section');
+  card.className = 'content-card card-soft';
+  const h2 = document.createElement('h2');
+  h2.className = 'direction-h2';
+  h2.textContent = 'Classement des risques par score';
+  card.append(h2);
+
+  const risks = Array.isArray(topRisks) ? topRisks : [];
+  if (!risks.length) {
+    const p = document.createElement('p');
+    p.className = 'direction-muted';
+    p.textContent = 'Aucun risque non maîtrisé identifié.';
+    card.append(p);
+    return card;
+  }
+
+  const max = Math.max(...risks.map((r) => Number(r.computedScore) || 0), 1);
+  const list = document.createElement('div');
+  list.className = 'direction-risk-chart';
+
+  risks.forEach((r) => {
+    const score = Number(r.computedScore) || 0;
+    const row = document.createElement('div');
+    row.className = 'direction-risk-row';
+
+    const label = document.createElement('div');
+    label.className = 'direction-risk-row-label';
+    label.textContent = `${r.ref || ''} — ${r.title || ''}`;
+
+    const track = document.createElement('div');
+    track.className = 'direction-risk-row-track';
+    track.setAttribute('role', 'img');
+    track.setAttribute('aria-label', `Score ${score} pour ${r.title || r.ref || 'risque'}.`);
+    const bar = document.createElement('div');
+    bar.className = 'direction-risk-row-bar';
+    bar.style.width = `${Math.round((score / max) * 100)}%`;
+    const val = document.createElement('span');
+    val.className = 'direction-risk-row-val';
+    val.textContent = String(score);
+    bar.append(val);
+    track.append(bar);
+
+    row.append(label, track);
+    list.append(row);
+  });
+
+  card.append(list);
+  return card;
+}
+
 function elRisksTable(topRisks) {
   const card = document.createElement('section');
   card.className = 'content-card card-soft';
@@ -243,6 +364,8 @@ export function renderDirection() {
         elAiSummaryCard(data.aiSummary),
         kpiGrid,
         secondaryGrid,
+        elTrendsChart(trends),
+        elRisksChart(data.topRisks),
         elRisksTable(data.topRisks),
         elDeadlinesTable(data.upcomingDeadlines),
         elAlertsCard(data.priorityAlerts)
