@@ -686,3 +686,86 @@ function formatPdfIsoDate(v) {
     return String(v);
   }
 }
+
+/**
+ * Export PDF de la synthèse direction (KPIs + tendances + top risques + échéances + IA).
+ * @param {Record<string, unknown>} data
+ */
+export async function downloadDirectionSummaryPdf(data) {
+  const docTitle = 'Synthèse direction QHSE';
+  const gen = data?.generatedAt
+    ? new Date(String(data.generatedAt)).toLocaleString('fr-FR')
+    : new Date().toLocaleString('fr-FR');
+  const counts = data?.counts || {};
+  const kpis = data?.kpis || {};
+  const trends = data?.trends || {};
+  const aiSummary = data?.aiSummary || {};
+
+  function deltaText(d) {
+    const v = d?.deltaPct;
+    if (v == null) return 'Non disponible';
+    return `${v >= 0 ? '+' : ''}${v} %`;
+  }
+
+  const page1 = `
+    <h2 class="qhse-premium-h2">Synthèse</h2>
+    <p class="qhse-premium-muted">Période : mois en cours. Horodatage : ${escapeHtml(gen)}.</p>
+    <div class="qhse-premium-callout">
+      <strong>Synthèse IA${aiSummary.source === 'fallback' ? ' (repli automatique)' : ''} — à valider :</strong>
+      <p>${escapeHtml(String(aiSummary.summary || 'Non disponible'))}</p>
+    </div>
+    <h2 class="qhse-premium-h2">Indicateurs clés</h2>
+    <div class="qhse-premium-kpi-grid">
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(kpis.auditScoreAvg ?? 'Non disponible'))}</div><div class="qhse-premium-kpi-lbl">Score audit moyen</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.actionsOverdue ?? '0'))}</div><div class="qhse-premium-kpi-lbl">Actions en retard (${deltaText(trends.actionsOverdueStock)})</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.nonConformitiesOpen ?? '0'))}</div><div class="qhse-premium-kpi-lbl">NC ouvertes</div></div>
+      <div class="qhse-premium-kpi"><div class="qhse-premium-kpi-val">${escapeHtml(String(counts.incidentsCriticalOpen ?? '0'))}</div><div class="qhse-premium-kpi-lbl">Incidents critiques ouverts</div></div>
+    </div>
+    <p class="qhse-premium-muted">Incidents créés ce mois : ${escapeHtml(String(trends.incidentsCreated?.current ?? 'Non disponible'))} (${deltaText(trends.incidentsCreated)}).</p>
+  `;
+
+  const topRisks = Array.isArray(data?.topRisks) ? data.topRisks : [];
+  const risksRows = topRisks.length
+    ? topRisks
+        .map(
+          (r) =>
+            `<tr><td>${escapeHtml(String(r.ref || ''))}</td><td>${escapeHtml(String(r.title || ''))}</td><td>${escapeHtml(String(r.category || ''))}</td><td>${escapeHtml(String(r.computedScore ?? ''))}</td><td>${escapeHtml(String(r.owner || 'Non disponible'))}</td></tr>`
+        )
+        .join('')
+    : `<tr><td colspan="5" class="qhse-premium-muted">Aucun risque non maîtrisé.</td></tr>`;
+
+  const deadlines = Array.isArray(data?.upcomingDeadlines) ? data.upcomingDeadlines : [];
+  const deadlineRows = deadlines.length
+    ? deadlines
+        .map(
+          (d) =>
+            `<tr><td>${escapeHtml(String(d.holder || 'Non disponible'))}</td><td>${escapeHtml(String(d.type || ''))}</td><td>${escapeHtml(String(d.level || ''))}</td><td>${escapeHtml(formatPdfIsoDate(d.validUntil))}</td></tr>`
+        )
+        .join('')
+    : `<tr><td colspan="4" class="qhse-premium-muted">Aucune échéance sous 60 jours.</td></tr>`;
+
+  const alerts = Array.isArray(data?.priorityAlerts) ? data.priorityAlerts.slice(0, 8) : [];
+  const alertRows = alerts.length
+    ? alerts
+        .map(
+          (a) =>
+            `<tr><td>${escapeHtml(String(a.code || 'Non disponible'))}</td><td>${escapeHtml(String(a.message || ''))}</td><td>${escapeHtml(String(a.level || ''))}</td></tr>`
+        )
+        .join('')
+    : `<tr><td colspan="3" class="qhse-premium-muted">Aucune alerte.</td></tr>`;
+
+  const page2 = `
+    <h2 class="qhse-premium-h2">Top risques non maîtrisés</h2>
+    <table class="qhse-premium-table"><thead><tr><th>Réf.</th><th>Titre</th><th>Catégorie</th><th>Score</th><th>Pilote</th></tr></thead><tbody>${risksRows}</tbody></table>
+    <h2 class="qhse-premium-h2">Échéances d'habilitation (60 jours)</h2>
+    <table class="qhse-premium-table"><thead><tr><th>Titulaire</th><th>Type</th><th>Niveau</th><th>Échéance</th></tr></thead><tbody>${deadlineRows}</tbody></table>
+    <h2 class="qhse-premium-h2">Alertes prioritaires</h2>
+    <table class="qhse-premium-table"><thead><tr><th>Code</th><th>Message</th><th>Niveau</th></tr></thead><tbody>${alertRows}</tbody></table>
+  `;
+
+  const { html: dirHtml, headerTemplate: dirHdr, footerTemplate: dirFtr } = buildPremiumPdfFlow(`${page1}${page2}`, {
+    reportTitle: docTitle,
+    reportDate: formatQhsePdfGenerationDate()
+  });
+  await downloadQhsePremiumPdf(dirHtml, 'synthese-direction-qhse.pdf', { headerTemplate: dirHdr, footerTemplate: dirFtr });
+}

@@ -470,6 +470,7 @@ const PAGE_IMPORT_LOADERS = {
   imports: () => import('./pages/imports.js'),
   sites: () => import('./pages/sites.js'),
   performance: () => import('./pages/performance.js'),
+  direction: () => import('./pages/direction.js'),
   'ai-center': () => import('./pages/ai-center.js'),
   'activity-log': () => import('./pages/activity-log.js'),
   'audit-logs': () => import('./pages/activity-log.js'),
@@ -640,6 +641,8 @@ async function renderPageRootFromModule(targetPage, mod, onAddLog) {
       return mod.renderAnalytics();
     case 'performance':
       return mod.renderPerformance();
+    case 'direction':
+      return mod.renderDirection();
     case 'ai-center':
       return mod.renderAiCenter(onAddLog);
     case 'activity-log':
