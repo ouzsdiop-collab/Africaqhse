@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { sendJsonError } from '../lib/apiErrors.js';
-import { encryptSecret } from '../lib/secretCrypto.js';
+import { encryptSecret, decryptSecret } from '../lib/secretCrypto.js';
 import * as authService from '../services/auth.service.js';
 import {
   adminBulkResetPasswordBodySchema,
@@ -121,6 +121,10 @@ export async function listClients(req, res, next) {
           status: authService.resolveUserStatus(m.user),
           mustChangePassword: m.user.mustChangePassword,
           hasProvisionalPassword: Boolean(m.user.mustChangePassword && m.user.temporaryPasswordEncrypted),
+          provisionalPassword:
+            m.user.mustChangePassword && m.user.temporaryPasswordEncrypted
+              ? decryptSecret(m.user.temporaryPasswordEncrypted)
+              : null,
           lastLoginAt: m.user.lastLoginAt,
           createdAt: m.user.createdAt
         }));

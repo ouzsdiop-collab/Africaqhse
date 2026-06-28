@@ -4,6 +4,7 @@ import {
   getApiErrorMessage,
   normalizeClient
 } from './AdminGateApi.js';
+import { escapeHtml } from '../../utils/escapeHtml.js';
 
 const TENANT_USER_ROLES = [
   'CLIENT_ADMIN', 'ADMIN', 'QHSE', 'MANAGER', 'DIRECTION',
@@ -89,17 +90,23 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
         <table class="admin-gate-table">
           <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Mdp provisoire</th><th>Actions</th></tr></thead>
           <tbody>
-            ${c.users.map((u) => `<tr>
+            ${c.users.map((u) => {
+              const hasProvisional = u.mustChangePassword && u.hasProvisionalPassword;
+              const tempPwd = hasProvisional
+                ? `<span class="badge badge-warning">Provisoire</span> <code>${escapeHtml(u.provisionalPassword || '—')}</code> <button type="button" class="btn btn-sm" data-action="copy-provisional" data-pwd="${escapeHtml(u.provisionalPassword || '')}">Copier</button>`
+                : '—';
+              return `<tr>
               <td>${u.name || '—'}</td>
               <td>${u.email || '—'}</td>
               <td>${u.role || 'USER'}</td>
               <td>${u.isActive === false ? 'Désactivé' : 'Actif'}</td>
-              <td>${u.mustChangePassword && u.hasProvisionalPassword ? '<span class="badge badge-warning">Mdp provisoire actif</span>' : '—'}</td>
+              <td>${tempPwd}</td>
               <td>
                 <button class="btn" data-action="reset" data-user-id="${u.id}" data-tenant-id="${c.id}">Reset mot de passe</button>
                 <button class="btn" data-action="toggle" data-user-id="${u.id}" data-active="${u.isActive === false ? '0' : '1'}">${u.isActive === false ? 'Réactiver' : 'Désactiver'}</button>
               </td>
-            </tr>`).join('')}
+            </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -162,6 +169,12 @@ export async function createAdminGateUsersView({ onSessionExpired } = {}) {
     const el = event.target;
     if (!(el instanceof HTMLElement)) return;
     const action = el.dataset.action;
+    if (action === 'copy-provisional') {
+      const pwd = el.dataset.pwd || '';
+      if (!pwd) return;
+      await navigator.clipboard.writeText(pwd).catch(() => {});
+      return;
+    }
     const userId = String(el.dataset.userId || '').trim();
     const rowTenantId = String(el.dataset.tenantId || '').trim();
     if (!action || !userId) return;
