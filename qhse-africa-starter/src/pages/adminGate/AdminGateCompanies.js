@@ -5,6 +5,7 @@ import {
   normalizeClient
 } from './AdminGateApi.js';
 import { getGateToken } from '../../utils/adminGateSession.js';
+import { escapeHtml } from '../../utils/escapeHtml.js';
 
 export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   const root = document.createElement('section');
@@ -100,12 +101,15 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
           <table class="admin-gate-table">
             <thead><tr><th>Entreprise</th><th>Statut</th><th>Utilisateurs</th><th>Actifs</th><th>Actions</th></tr></thead>
             <tbody>
-              ${items.map((c) => `<tr>
-                <td>${c.name}</td>
+              ${items.map((c) => `<tr data-row-id="${c.id}">
+                <td><span class="js-name-display">${escapeHtml(c.name)}</span></td>
                 <td>${statusLabel(c.status)}</td>
                 <td>${c.usersCount}</td>
                 <td>${c.activeUsersCount}</td>
-                <td><button class="btn" data-toggle-id="${c.id}" data-toggle-status="${c.status}">${c.status === 'suspended' ? 'Réactiver' : 'Suspendre'}</button></td>
+                <td>
+                  <button class="btn" data-rename-id="${c.id}" data-rename-name="${escapeHtml(c.name)}">Renommer</button>
+                  <button class="btn" data-toggle-id="${c.id}" data-toggle-status="${c.status}">${c.status === 'suspended' ? 'Réactiver' : 'Suspendre'}</button>
+                </td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -171,6 +175,45 @@ export async function createAdminGateCompaniesView({ onSessionExpired } = {}) {
   list?.addEventListener('click', async (event) => {
     const el = event.target;
     if (!(el instanceof HTMLElement)) return;
+
+    const renameId = String(el.dataset.renameId || '').trim();
+    if (renameId) {
+      const row = el.closest('tr');
+      const cell = row?.querySelector('.js-name-display')?.parentElement;
+      if (!cell) return;
+      const currentName = el.dataset.renameName || '';
+      cell.innerHTML = `<input type="text" class="admin-gate-input js-rename-input" value="${escapeHtml(currentName)}" style="margin-right:4px"/><button class="btn btn-primary js-rename-confirm" data-id="${renameId}">Valider</button> <button class="btn js-rename-cancel">Annuler</button>`;
+      cell.querySelector('.js-rename-input')?.focus();
+      return;
+    }
+    if (el.classList.contains('js-rename-cancel')) {
+      await loadCompanies();
+      return;
+    }
+    if (el.classList.contains('js-rename-confirm')) {
+      const id = el.dataset.id;
+      const cell = el.closest('td');
+      const input = cell?.querySelector('.js-rename-input');
+      const newName = String(input?.value || '').trim();
+      clearMessage();
+      if (!newName) {
+        setMessage('Le nom de l’entreprise ne peut pas être vide.');
+        return;
+      }
+      try {
+        await adminGateRequest(`/clients/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName })
+        }, { onAuthError: onSessionExpired });
+        setMessage('Entreprise renommée.', 'success');
+        await loadCompanies();
+      } catch (error) {
+        setMessage(error?.message || getApiErrorMessage(error?.status, error?.data));
+      }
+      return;
+    }
+
     const id = String(el.dataset.toggleId || '').trim();
     if (!id) return;
     const current = String(el.dataset.toggleStatus || 'active').toLowerCase();
