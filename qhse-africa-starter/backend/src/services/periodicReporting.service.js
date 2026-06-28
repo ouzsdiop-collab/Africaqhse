@@ -7,6 +7,12 @@ import { isSmtpConfigured, sendWeeklyQhseSummary } from './email.service.js';
 
 const LIST_SAMPLE = 8;
 
+/** Convertit les placeholders génériques `?` en `$1, $2, ...` (syntaxe PostgreSQL). */
+function toPgPlaceholders(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
 /** @param {string | null | undefined} s */
 function isNcClosedLike(s) {
   const x = String(s ?? '').toLowerCase();
@@ -219,7 +225,7 @@ export async function getPeriodicReport(p) {
           OR LOWER(status) LIKE '%fait%'
         )`
       );
-      params.push(start.toISOString(), end.toISOString());
+      params.push(start, end);
       if (siteId) {
         parts.push('"siteId" = ?');
         params.push(siteId);
@@ -229,7 +235,7 @@ export async function getPeriodicReport(p) {
         params.push(assigneeId);
       }
       const row = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) AS c FROM actions WHERE ${parts.join(' AND ')}`,
+        toPgPlaceholders(`SELECT COUNT(*) AS c FROM actions WHERE ${parts.join(' AND ')}`),
         ...params
       );
       return Number(row[0]?.c ?? 0);
@@ -246,13 +252,13 @@ export async function getPeriodicReport(p) {
         '"createdAt" <= ?',
         `LOWER(severity) LIKE '%critique%'`
       );
-      params.push(start.toISOString(), end.toISOString());
+      params.push(start, end);
       if (siteId) {
         parts.push('"siteId" = ?');
         params.push(siteId);
       }
       const rows = await prisma.$queryRawUnsafe(
-        `SELECT ref, type, site, status, "createdAt" FROM incidents WHERE ${parts.join(' AND ')}`,
+        toPgPlaceholders(`SELECT ref, type, site, status, "createdAt" FROM incidents WHERE ${parts.join(' AND ')}`),
         ...params
       );
       return (Array.isArray(rows) ? rows : []).map((r) => ({
@@ -285,18 +291,20 @@ export async function getPeriodicReport(p) {
     overdueParams.push(assigneeId);
   }
   overdueSqlParts.push(`"createdAt" <= ?`);
-  overdueParams.push(end.toISOString());
+  overdueParams.push(end);
 
   const overdueRow = await prisma.$queryRawUnsafe(
-    `SELECT COUNT(*) AS c FROM actions WHERE ${overdueSqlParts.join(' AND ')}`,
+    toPgPlaceholders(`SELECT COUNT(*) AS c FROM actions WHERE ${overdueSqlParts.join(' AND ')}`),
     ...overdueParams
   );
   const actionsOverdue = Number(overdueRow[0]?.c ?? 0);
 
   const overdueSample = await prisma.$queryRawUnsafe(
-    `SELECT title, detail, status, owner, "dueDate", "createdAt" FROM actions WHERE ${overdueSqlParts.join(
-      ' AND '
-    )} ORDER BY COALESCE("dueDate", "createdAt") ASC LIMIT ?`,
+    toPgPlaceholders(
+      `SELECT title, detail, status, owner, "dueDate", "createdAt" FROM actions WHERE ${overdueSqlParts.join(
+        ' AND '
+      )} ORDER BY COALESCE("dueDate", "createdAt") ASC LIMIT ?`
+    ),
     ...overdueParams,
     LIST_SAMPLE
   );
