@@ -23,6 +23,7 @@ const allowedPages = [
   'imports',
   'analytics',
   'performance',
+  'direction',
   'ai-center',
   'activity-log',
   'settings',

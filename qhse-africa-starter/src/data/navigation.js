@@ -18,6 +18,7 @@ export const navigationGroups = [
       { id: 'processes', label: 'Pilotage des processus', icon: '⟳' },
       { id: 'analytics', label: 'Analyses & synthèse', icon: '≈' },
       { id: 'performance', label: 'Performance QHSE', icon: '▤' },
+      { id: 'direction', label: 'Synthèse direction', icon: '▼' },
       { id: 'activity-log', label: 'Journal', icon: '≣' },
       /* IA regroupée au pilotage : aide à la revue / synthèse, pas un « silo » produit séparé. */
       { id: 'ai-center', label: 'Synthèse et assist.', icon: '✦' }
@@ -230,6 +231,13 @@ export const pageTopbarById = {
     kicker: 'Pilotage',
     subtitle:
       'Tendances et écarts par rapport aux objectifs affichés (saisis côté interface, pas de cible serveur imposée).',
+    cta: { label: 'Analyses & synthèse', pageId: 'analytics' }
+  },
+  direction: {
+    title: 'Synthèse direction',
+    kicker: 'Pilotage exécutif',
+    subtitle:
+      'Tendances, KPIs, risques prioritaires et échéances pour préparer une réunion de direction. Synthèse IA à valider.',
     cta: { label: 'Analyses & synthèse', pageId: 'analytics' }
   },
   'ai-center': {
