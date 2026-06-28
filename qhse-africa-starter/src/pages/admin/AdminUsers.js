@@ -1,4 +1,5 @@
 import { adminApi, extractOneTimePassword, formatDateTime, jsonOrEmpty } from './adminApi.js';
+import { escapeHtml } from '../../utils/escapeHtml.js';
 
 const TENANT_USER_ROLES = [
   'CLIENT_ADMIN',
@@ -119,8 +120,9 @@ export async function renderAdminUsers(_onOneTimePassword) {
       const tenantId = c?.tenant?.id || c?.id || '';
       const tenantName = c?.tenant?.name || c?.companyName || c?.name || '—';
       const isActive = u?.isActive !== false;
-      const tempPwd = u?.mustChangePassword && u?.hasProvisionalPassword
-        ? '<span class="badge badge-warning">Mdp provisoire actif</span>'
+      const hasProvisional = u?.mustChangePassword && u?.hasProvisionalPassword;
+      const tempPwd = hasProvisional
+        ? `<span class="badge badge-warning">Provisoire</span> <code class="js-provisional-pwd">${escapeHtml(u.provisionalPassword || '—')}</code> <button type="button" class="btn btn-sm js-copy-provisional" data-pwd="${escapeHtml(u.provisionalPassword || '')}">Copier</button>`
         : '—';
       return `<tr><td><input type="checkbox" class="js-select" data-uid="${u.id}" data-tid="${tenantId}"/></td><td>${u.email || '—'}</td><td>${tenantName}</td><td>${isActive ? 'ACTIVE' : 'SUSPENDED'}</td><td>${tempPwd}</td><td><button class="btn js-reset" data-uid="${u.id}" data-tid="${tenantId}">MDP utilisateur</button> <button class="btn js-toggle" data-uid="${u.id}" data-tid="${tenantId}" data-active="${isActive ? '1' : '0'}">${isActive ? 'Suspendre' : 'Réactiver'}</button></td></tr>`;
     }).join('')}</tbody></table>`;
@@ -186,6 +188,12 @@ export async function renderAdminUsers(_onOneTimePassword) {
       const row = el.closest('tr');
       const tempPwdCell = row?.children?.[4];
       if (tempPwdCell) tempPwdCell.innerHTML = '<span class="badge badge-warning">Mdp provisoire actif</span>';
+    }
+    if (el.classList.contains('js-copy-provisional')) {
+      const pwd = el.dataset.pwd || '';
+      if (!pwd) return;
+      await navigator.clipboard.writeText(pwd).catch(() => {});
+      return;
     }
     if (el.classList.contains('js-toggle')) {
       const uid = el.dataset.uid;
