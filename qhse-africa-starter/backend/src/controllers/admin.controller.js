@@ -871,8 +871,9 @@ export async function getAdminLogs(req, res, next) {
     const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : '';
     const action = typeof req.query.action === 'string' ? req.query.action.trim() : '';
     const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
-    const logs = await listAdminLogs({ tenantId, action, limit });
-    res.json({ logs });
+    const offset = typeof req.query.offset === 'string' ? Number(req.query.offset) : 0;
+    const { logs, total } = await listAdminLogs({ tenantId, action, limit, offset });
+    res.json({ logs, total });
   } catch (err) {
     next(err);
   }

@@ -57,24 +57,30 @@ export async function writeAdminLog({ actorUserId, targetType = null, targetId =
   }
 }
 
-export async function listAdminLogs({ tenantId = '', action = '', limit = 100 }) {
+export async function listAdminLogs({ tenantId = '', action = '', limit = 100, offset = 0 }) {
   const where = {};
   if (tenantId) where.tenantId = String(tenantId).trim();
   if (action) where.action = String(action).trim().toUpperCase();
   const take = Math.min(Math.max(Number(limit) || 100, 1), 300);
-  return prisma.adminLog.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take,
-    select: {
-      id: true,
-      actorUserId: true,
-      targetType: true,
-      targetId: true,
-      tenantId: true,
-      action: true,
-      metadata: true,
-      createdAt: true
-    }
-  });
+  const skip = Math.max(Number(offset) || 0, 0);
+  const [logs, total] = await Promise.all([
+    prisma.adminLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take,
+      skip,
+      select: {
+        id: true,
+        actorUserId: true,
+        targetType: true,
+        targetId: true,
+        tenantId: true,
+        action: true,
+        metadata: true,
+        createdAt: true
+      }
+    }),
+    prisma.adminLog.count({ where })
+  ]);
+  return { logs, total };
 }
