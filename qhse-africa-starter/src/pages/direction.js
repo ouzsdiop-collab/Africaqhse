@@ -6,10 +6,11 @@ function fmtPct(v) {
   return v == null ? 'Non disponible' : `${v} %`;
 }
 
-function fmtDelta(deltaPct) {
+function fmtDelta(deltaPct, isQuarter = false) {
   if (deltaPct == null) return 'Non disponible';
   const arrow = deltaPct > 0 ? '↑' : deltaPct < 0 ? '↓' : '→';
-  return `${arrow} ${deltaPct >= 0 ? '+' : ''}${deltaPct} % vs mois précédent`;
+  const vsLabel = isQuarter ? 'vs trimestre précédent' : 'vs mois précédent';
+  return `${arrow} ${deltaPct >= 0 ? '+' : ''}${deltaPct} % ${vsLabel}`;
 }
 
 function toneForDelta(deltaPct, lowerIsBetter = true) {
@@ -18,7 +19,7 @@ function toneForDelta(deltaPct, lowerIsBetter = true) {
   return deltaPct < 0 ? 'red' : deltaPct > 0 ? 'green' : 'blue';
 }
 
-function elKpiCard(title, valueText, deltaPct, lowerIsBetter) {
+function elKpiCard(title, valueText, deltaPct, lowerIsBetter, isQuarter = false) {
   const tone = toneForDelta(deltaPct, lowerIsBetter);
   const art = document.createElement('article');
   art.className = `metric-card card-soft direction-kpi-card direction-kpi-card--${tone}`;
@@ -30,7 +31,7 @@ function elKpiCard(title, valueText, deltaPct, lowerIsBetter) {
   val.textContent = valueText;
   const delta = document.createElement('div');
   delta.className = 'direction-kpi-delta';
-  delta.textContent = fmtDelta(deltaPct);
+  delta.textContent = fmtDelta(deltaPct, isQuarter);
   art.append(lbl, val, delta);
   return art;
 }
@@ -57,12 +58,12 @@ function elAiSummaryCard(aiSummary) {
   return card;
 }
 
-function elTrendsChart(trends) {
+function elTrendsChart(trends, isQuarter = false) {
   const card = document.createElement('section');
   card.className = 'content-card card-soft';
   const h2 = document.createElement('h2');
   h2.className = 'direction-h2';
-  h2.textContent = 'Tendances du mois (vs mois précédent)';
+  h2.textContent = isQuarter ? 'Tendances du trimestre (vs trimestre précédent)' : 'Tendances du mois (vs mois précédent)';
   card.append(h2);
 
   const metrics = [
@@ -116,8 +117,9 @@ function elTrendsChart(trends) {
 
     const legend = document.createElement('div');
     legend.className = 'direction-trend-legend';
-    legend.innerHTML =
-      '<span><i class="direction-trend-swatch direction-trend-swatch--previous"></i>Mois préc.</span><span><i class="direction-trend-swatch direction-trend-swatch--current"></i>Ce mois</span>';
+    const prevLabel = isQuarter ? 'Trim. préc.' : 'Mois préc.';
+    const curLabel = isQuarter ? 'Ce trimestre' : 'Ce mois';
+    legend.innerHTML = `<span><i class="direction-trend-swatch direction-trend-swatch--previous"></i>${prevLabel}</span><span><i class="direction-trend-swatch direction-trend-swatch--current"></i>${curLabel}</span>`;
 
     box.append(title, bars, legend);
     grid.append(box);
@@ -288,13 +290,30 @@ export function renderDirection() {
   sub.textContent = 'Indicateurs du mois, tendances, risques et échéances — pour préparer les réunions de direction.';
   titleWrap.append(title, sub);
 
+  const periodSelect = document.createElement('select');
+  periodSelect.className = 'direction-period-select';
+  periodSelect.setAttribute('aria-label', 'Période de la synthèse');
+  [
+    { value: 'month', label: 'Mensuel' },
+    { value: 'quarter', label: 'Trimestriel' }
+  ].forEach(({ value, label }) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    periodSelect.append(opt);
+  });
+
   const pdfBtn = document.createElement('button');
   pdfBtn.type = 'button';
   pdfBtn.className = 'btn btn-secondary';
   pdfBtn.textContent = 'Exporter en PDF';
   pdfBtn.disabled = true;
 
-  header.append(titleWrap, pdfBtn);
+  const headerActions = document.createElement('div');
+  headerActions.className = 'direction-header-actions';
+  headerActions.append(periodSelect, pdfBtn);
+
+  header.append(titleWrap, headerActions);
 
   const loading = document.createElement('p');
   loading.className = 'direction-muted';
@@ -323,9 +342,16 @@ export function renderDirection() {
     }
   });
 
-  (async function load() {
+  async function load(period) {
+    pdfBtn.disabled = true;
+    content.replaceChildren();
+    const loadingEl = document.createElement('p');
+    loadingEl.className = 'direction-muted';
+    loadingEl.textContent = 'Chargement…';
+    content.append(loadingEl);
+
     try {
-      const res = await qhseFetch(withSiteQuery('/api/reports/direction'));
+      const res = await qhseFetch(withSiteQuery(`/api/reports/direction?period=${encodeURIComponent(period)}`));
       if (res.status === 403) {
         content.replaceChildren();
         const p = document.createElement('p');
@@ -340,6 +366,7 @@ export function renderDirection() {
       lastData = data;
       pdfBtn.disabled = false;
 
+      const isQuarter = data.period === 'quarter';
       const trends = data.trends || {};
       const counts = data.counts || {};
       const kpis = data.kpis || {};
@@ -347,10 +374,22 @@ export function renderDirection() {
       const kpiGrid = document.createElement('div');
       kpiGrid.className = 'kpi-grid direction-kpi-grid';
       kpiGrid.append(
-        elKpiCard('Incidents ce mois', String(trends.incidentsCreated?.current ?? 0), trends.incidentsCreated?.deltaPct, true),
-        elKpiCard('Score audit moyen', fmtPct(kpis.auditScoreAvg), trends.auditScoreAvg?.deltaPct, false),
-        elKpiCard('Actions en retard', String(trends.actionsOverdueStock?.current ?? 0), trends.actionsOverdueStock?.deltaPct, true),
-        elKpiCard('NC créées ce mois', String(trends.nonConformitiesCreated?.current ?? 0), trends.nonConformitiesCreated?.deltaPct, true)
+        elKpiCard(
+          isQuarter ? 'Incidents ce trimestre' : 'Incidents ce mois',
+          String(trends.incidentsCreated?.current ?? 0),
+          trends.incidentsCreated?.deltaPct,
+          true,
+          isQuarter
+        ),
+        elKpiCard('Score audit moyen', fmtPct(kpis.auditScoreAvg), trends.auditScoreAvg?.deltaPct, false, isQuarter),
+        elKpiCard('Actions en retard', String(trends.actionsOverdueStock?.current ?? 0), trends.actionsOverdueStock?.deltaPct, true, isQuarter),
+        elKpiCard(
+          isQuarter ? 'NC créées ce trimestre' : 'NC créées ce mois',
+          String(trends.nonConformitiesCreated?.current ?? 0),
+          trends.nonConformitiesCreated?.deltaPct,
+          true,
+          isQuarter
+        )
       );
 
       const secondaryGrid = document.createElement('div');
@@ -364,7 +403,7 @@ export function renderDirection() {
         elAiSummaryCard(data.aiSummary),
         kpiGrid,
         secondaryGrid,
-        elTrendsChart(trends),
+        elTrendsChart(trends, isQuarter),
         elRisksChart(data.topRisks),
         elRisksTable(data.topRisks),
         elDeadlinesTable(data.upcomingDeadlines),
@@ -379,7 +418,13 @@ export function renderDirection() {
       content.append(p);
       showToast('Erreur chargement synthèse direction', 'error');
     }
-  })();
+  }
+
+  periodSelect.addEventListener('change', () => {
+    load(periodSelect.value);
+  });
+
+  load(periodSelect.value);
 
   return page;
 }

@@ -25,6 +25,22 @@
   margin: 0;
 }
 
+.direction-page .direction-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.direction-page .direction-period-select {
+  border: 1px solid var(--card-border, rgba(15, 23, 42, 0.16));
+  border-radius: var(--ds-radius-sm, 8px);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  background: var(--card-bg, #fff);
+  color: inherit;
+}
+
 .direction-page .direction-content.stack {
   display: flex;
   flex-direction: column;
