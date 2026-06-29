@@ -1,6 +1,7 @@
 import { qhseFetch } from '../utils/qhseFetch.js';
 import { withSiteQuery } from '../utils/siteFilter.js';
 import { showToast } from '../components/toast.js';
+import { appState } from '../utils/state.js';
 
 function fmtPct(v) {
   return v == null ? 'Non disponible' : `${v} %`;
@@ -288,7 +289,10 @@ export function renderDirection() {
   const sub = document.createElement('p');
   sub.className = 'direction-muted';
   sub.textContent = 'Indicateurs du mois, tendances, risques et échéances — pour préparer les réunions de direction.';
-  titleWrap.append(title, sub);
+  const scope = document.createElement('p');
+  scope.className = 'direction-muted direction-scope';
+  scope.textContent = `Périmètre : ${appState.currentSite}`;
+  titleWrap.append(title, sub, scope);
 
   const periodSelect = document.createElement('select');
   periodSelect.className = 'direction-period-select';
