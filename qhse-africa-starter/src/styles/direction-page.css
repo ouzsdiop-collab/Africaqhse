@@ -25,6 +25,12 @@
   margin: 0;
 }
 
+.direction-page .direction-scope {
+  margin-top: 6px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .direction-page .direction-header-actions {
   display: flex;
   align-items: center;
