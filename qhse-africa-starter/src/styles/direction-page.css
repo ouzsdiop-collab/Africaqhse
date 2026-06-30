@@ -72,6 +72,20 @@
   border-left: 4px solid var(--color-primary);
 }
 
+.direction-page .direction-validation-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3, 12px);
+}
+
+.direction-page .direction-validation-status {
+  margin: 0;
+}
+
+.direction-page .direction-validation-card .btn {
+  align-self: flex-start;
+}
+
 .direction-page .direction-ai-text {
   margin: 0 0 var(--ds-space-3, 12px);
   line-height: 1.55;

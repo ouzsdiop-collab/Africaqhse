@@ -59,6 +59,36 @@ function elAiSummaryCard(aiSummary) {
   return card;
 }
 
+function fmtValidatedAt(iso) {
+  if (!iso) return 'Non disponible';
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function elValidationCard(validations, onValidate) {
+  const card = document.createElement('section');
+  card.className = 'content-card card-soft direction-validation-card';
+  const h2 = document.createElement('h2');
+  h2.className = 'direction-h2';
+  h2.textContent = 'Validation de la synthèse';
+  card.append(h2);
+
+  const last = Array.isArray(validations) && validations.length > 0 ? validations[0] : null;
+  const status = document.createElement('p');
+  status.className = 'direction-muted direction-validation-status';
+  status.textContent = last
+    ? `Dernière validation : par ${last.validatedBy} le ${fmtValidatedAt(last.validatedAt)}.`
+    : 'Aucune validation enregistrée pour cette période.';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-primary';
+  btn.textContent = 'Valider cette synthèse';
+  btn.addEventListener('click', () => onValidate(btn, status));
+
+  card.append(status, btn);
+  return card;
+}
+
 function elTrendsChart(trends, isQuarter = false) {
   const card = document.createElement('section');
   card.className = 'content-card card-soft';
@@ -370,6 +400,19 @@ export function renderDirection() {
       lastData = data;
       pdfBtn.disabled = false;
 
+      let validations = [];
+      try {
+        const valRes = await qhseFetch(
+          withSiteQuery(`/api/reports/direction/validations?period=${encodeURIComponent(period)}`)
+        );
+        if (valRes.ok) {
+          const valData = await valRes.json();
+          validations = Array.isArray(valData.validations) ? valData.validations : [];
+        }
+      } catch (e) {
+        console.error('[direction] validations', e);
+      }
+
       const isQuarter = data.period === 'quarter';
       const trends = data.trends || {};
       const counts = data.counts || {};
@@ -403,8 +446,28 @@ export function renderDirection() {
         elKpiCard('NC ouvertes', String(counts.nonConformitiesOpen ?? 0), null, true)
       );
 
+      const handleValidate = async (btn, status) => {
+        btn.disabled = true;
+        try {
+          const valRes = await qhseFetch(
+            withSiteQuery(`/api/reports/direction/validate?period=${encodeURIComponent(period)}`),
+            { method: 'POST' }
+          );
+          if (!valRes.ok) throw new Error(`HTTP ${valRes.status}`);
+          const row = await valRes.json();
+          status.textContent = `Dernière validation : par vous le ${fmtValidatedAt(row.validatedAt)}.`;
+          showToast('Synthèse validée', 'success');
+        } catch (e) {
+          console.error('[direction] validate', e);
+          showToast('Erreur lors de la validation', 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      };
+
       content.replaceChildren(
         elAiSummaryCard(data.aiSummary),
+        elValidationCard(validations, handleValidate),
         kpiGrid,
         secondaryGrid,
         elTrendsChart(trends, isQuarter),
