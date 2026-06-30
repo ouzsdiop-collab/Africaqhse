@@ -198,8 +198,34 @@ model User {
   feedbackEntries                Feedback[]             @relation("FeedbackCreatedBy")
   reportedEquipmentSignalements  EquipmentSignalement[] @relation("EquipmentSignalementReportedBy")
   validatedEquipmentSignalements EquipmentSignalement[] @relation("EquipmentSignalementValidatedBy")
+  validatedDirectionSummaries    DirectionSummaryValidation[] @relation("DirectionSummaryValidatedBy")
 
   @@map("users")
+}
+
+/// Trace d'audit horodatée : un enregistrement par validation d'une synthèse direction.
+/// Conserve un instantané figé (métriques + synthèse IA/fallback) au moment de la validation,
+/// indépendamment des données vivantes qui continuent d'évoluer ensuite. Sert aussi de socle
+/// pour un futur historique des synthèses.
+model DirectionSummaryValidation {
+  id              String   @id @default(cuid())
+  tenantId        String
+  siteId          String?
+  /// 'month' | 'quarter'
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  /// Instantané du payload retourné par GET /api/reports/direction au moment de la validation.
+  metricsSnapshot Json
+  aiSummaryText   String
+  aiSummarySource String
+  validatedById   String
+  validatedBy     User     @relation("DirectionSummaryValidatedBy", fields: [validatedById], references: [id], onDelete: Cascade)
+  validatedAt     DateTime @default(now())
+
+  @@index([tenantId, siteId, period, periodStart])
+  @@index([validatedById])
+  @@map("direction_summary_validations")
 }
 
 model AdminLog {
