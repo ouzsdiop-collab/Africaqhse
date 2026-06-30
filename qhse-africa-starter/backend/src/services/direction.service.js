@@ -16,7 +16,7 @@ const PERIOD_SPAN_MONTHS = { month: 1, quarter: 3 };
  * comportement (mois en cours vs mois précédent).
  * @param {'month' | 'quarter'} period
  */
-function periodRanges(period) {
+export function periodRanges(period) {
   const span = PERIOD_SPAN_MONTHS[period] || PERIOD_SPAN_MONTHS.month;
   const now = new Date();
   const current = {
@@ -34,7 +34,7 @@ function periodRanges(period) {
  * @param {string} period
  * @returns {'month' | 'quarter'}
  */
-function normalizeDirectionPeriod(period) {
+export function normalizeDirectionPeriod(period) {
   return period === 'quarter' ? 'quarter' : 'month';
 }
 

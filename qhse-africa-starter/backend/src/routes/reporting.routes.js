@@ -18,5 +18,15 @@ router.get(
   periodicController.getPeriodic
 );
 router.get('/direction', requirePermission('reports', 'read'), controller.getDirectionSummary);
+router.post(
+  '/direction/validate',
+  requirePermission('reports', 'read'),
+  controller.validateDirectionSummary
+);
+router.get(
+  '/direction/validations',
+  requirePermission('reports', 'read'),
+  controller.getDirectionSummaryValidations
+);
 
 export default router;

@@ -7,6 +7,10 @@ import { getStandardCompliance } from '../services/compliancePack.service.js';
 import { listIsoEvidence } from '../services/isoEvidence.service.js';
 import { getDirectionSummary as buildDirectionSummary } from '../services/direction.service.js';
 import { generateDirectionNarrativeWithSource } from '../services/directionNarrative.service.js';
+import {
+  recordDirectionSummaryValidation,
+  listDirectionSummaryValidations
+} from '../services/directionValidation.service.js';
 
 function stripLongDashes(s) {
   return String(s || '').replaceAll('—', '-').replaceAll('–', '-');
@@ -267,6 +271,54 @@ export async function getDirectionSummary(req, res, next) {
     const data = await buildDirectionSummary(req.qhseTenantId, siteId, period);
     const { narrative, source } = await generateDirectionNarrativeWithSource(data);
     res.json({ ...data, aiSummary: { ...narrative, source } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/reports/direction/validate — enregistre une validation (instantané figé)
+ * de la synthèse direction actuellement affichée (permissions : reports:read).
+ */
+export async function validateDirectionSummary(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    assertQuerySiteAllowed(req.qhseUser, rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const period = req.query.period === 'quarter' ? 'quarter' : 'month';
+
+    const direction = await buildDirectionSummary(req.qhseTenantId, siteId, period);
+    const { narrative, source } = await generateDirectionNarrativeWithSource(direction);
+
+    const row = await recordDirectionSummaryValidation({
+      tenantId: req.qhseTenantId,
+      siteId,
+      period,
+      validatedById: req.qhseUser.id,
+      direction,
+      aiSummary: narrative,
+      aiSummarySource: source
+    });
+
+    res.status(201).json({
+      id: row.id,
+      validatedAt: row.validatedAt.toISOString()
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /api/reports/direction/validations — historique des validations (permissions : reports:read). */
+export async function getDirectionSummaryValidations(req, res, next) {
+  try {
+    const rawSiteId = parseSiteIdQuery(req);
+    assertQuerySiteAllowed(req.qhseUser, rawSiteId);
+    const siteId = await coalesceQuerySiteIdForList(req.qhseTenantId, rawSiteId);
+    const period = req.query.period === 'quarter' ? 'quarter' : 'month';
+
+    const rows = await listDirectionSummaryValidations(req.qhseTenantId, siteId, period);
+    res.json({ validations: rows });
   } catch (err) {
     next(err);
   }
