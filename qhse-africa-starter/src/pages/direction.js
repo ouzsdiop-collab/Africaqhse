@@ -89,6 +89,44 @@ function elValidationCard(validations, onValidate) {
   return card;
 }
 
+function elValidationHistoryCard(validations) {
+  const card = document.createElement('section');
+  card.className = 'content-card card-soft';
+  const h2 = document.createElement('h2');
+  h2.className = 'direction-h2';
+  h2.textContent = 'Historique des synthèses validées';
+  card.append(h2);
+
+  const list = Array.isArray(validations) ? validations : [];
+  if (list.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'direction-muted';
+    p.textContent = 'Aucune synthèse validée pour cette période.';
+    card.append(p);
+    return card;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'data-table direction-table';
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th>Date</th><th>Validée par</th><th>Synthèse</th></tr>';
+  const tbody = document.createElement('tbody');
+  list.forEach((v) => {
+    const tr = document.createElement('tr');
+    const dateTd = document.createElement('td');
+    dateTd.textContent = fmtValidatedAt(v.validatedAt);
+    const byTd = document.createElement('td');
+    byTd.textContent = v.validatedBy || 'Non disponible';
+    const summaryTd = document.createElement('td');
+    summaryTd.textContent = v.summary || 'Non disponible';
+    tr.append(dateTd, byTd, summaryTd);
+    tbody.append(tr);
+  });
+  table.append(thead, tbody);
+  card.append(table);
+  return card;
+}
+
 function elTrendsChart(trends, isQuarter = false) {
   const card = document.createElement('section');
   card.className = 'content-card card-soft';
@@ -454,9 +492,10 @@ export function renderDirection() {
             { method: 'POST' }
           );
           if (!valRes.ok) throw new Error(`HTTP ${valRes.status}`);
-          const row = await valRes.json();
-          status.textContent = `Dernière validation : par vous le ${fmtValidatedAt(row.validatedAt)}.`;
+          await valRes.json();
           showToast('Synthèse validée', 'success');
+          await load(period);
+          return;
         } catch (e) {
           console.error('[direction] validate', e);
           showToast('Erreur lors de la validation', 'error');
@@ -468,6 +507,7 @@ export function renderDirection() {
       content.replaceChildren(
         elAiSummaryCard(data.aiSummary),
         elValidationCard(validations, handleValidate),
+        elValidationHistoryCard(validations),
         kpiGrid,
         secondaryGrid,
         elTrendsChart(trends, isQuarter),
