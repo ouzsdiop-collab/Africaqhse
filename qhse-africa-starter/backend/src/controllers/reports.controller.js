@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { prismaTenantFilter } from '../lib/tenantScope.js';
+import { prismaTenantFilter, normalizeTenantId } from '../lib/tenantScope.js';
 import * as auditAutoReport from '../services/auditAutoReport.service.js';
 import * as emailService from '../services/email.service.js';
 import { auditUserIdFromRequest, writeAuditLog } from '../services/auditLog.service.js';
@@ -13,10 +13,10 @@ function normalizeRouteId(raw) {
 
 async function loadAuditForReport(tenantId, rawParam) {
   const param = normalizeRouteId(rawParam);
-  if (!param) {
-    return null;
-  }
-  const tf = prismaTenantFilter(tenantId);
+  if (!param) return null;
+  const tid = normalizeTenantId(tenantId);
+  if (!tid) return null;
+  const tf = prismaTenantFilter(tid);
   const audit = await prisma.audit.findFirst({
     where: {
       ...tf,
