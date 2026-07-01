@@ -66,7 +66,11 @@ export async function previewDuerpImport(buffer, originalName, mimeType) {
 }
 
 export async function commitDuerpImport({ tenantId, role, previewPayload, acknowledgements, sourceFileName }) {
-  if (String(role || '').toUpperCase() === 'SUPER_ADMIN' && !tenantId) {
+  const roleUpper = String(role || '').toUpperCase();
+  if (!tenantId) {
+    if (roleUpper !== 'SUPER_ADMIN') {
+      return { ok: false, error: 'Contexte tenant manquant : import refusé.' };
+    }
     return { ok: false, error: 'SUPER_ADMIN hors setupMode : import refusé.' };
   }
   const checks = acknowledgements || {};

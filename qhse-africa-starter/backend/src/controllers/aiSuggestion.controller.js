@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { prismaTenantFilter } from '../lib/tenantScope.js';
+import { requireTenantIdOrRespond } from '../lib/tenantScope.js';
 import {
   generateSuggestion,
   analyzeDocument,
@@ -16,7 +16,9 @@ function userIdFromReq(req) {
 
 export async function list(req, res, next) {
   try {
-    const tf = prismaTenantFilter(req.qhseTenantId);
+    const tid = requireTenantIdOrRespond(req, res);
+    if (!tid) return;
+    const tf = { tenantId: tid };
     const limit = parseListLimit(req.query.limit);
     const status =
       typeof req.query.status === 'string' && req.query.status.trim()
@@ -42,7 +44,9 @@ export async function list(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const tf = prismaTenantFilter(req.qhseTenantId);
+    const tid = requireTenantIdOrRespond(req, res);
+    if (!tid) return;
+    const tf = { tenantId: tid };
     const id = String(req.params.id ?? '').trim();
     if (!id) {
       return res.status(400).json({ error: 'Identifiant requis' });
